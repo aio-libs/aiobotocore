@@ -12,6 +12,12 @@ Known Issues
 * There is minor issue with content-type header:
   https://github.com/KeepSafe/aiohttp/issues/379
 
+Install
+-------
+::
+
+    $ pip install git+https://github.com/jettify/aiobotocore.git@master
+
 
 Basic Example
 -------------
