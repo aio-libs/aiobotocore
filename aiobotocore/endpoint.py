@@ -1,9 +1,24 @@
 import asyncio
 import aiohttp
+import os
 from aiohttp.client_reqrep import ClientResponse
 import botocore.endpoint
-from botocore.endpoint import _get_proxies, _get_verify_value, DEFAULT_TIMEOUT
+from botocore.endpoint import get_environ_proxies, DEFAULT_TIMEOUT
 from botocore.exceptions import EndpointConnectionError
+
+
+def _get_verify_value(verify):
+    # This is to account for:
+    # https://github.com/kennethreitz/requests/issues/1436
+    # where we need to honor REQUESTS_CA_BUNDLE because we're creating our
+    # own request objects.
+    # First, if verify is not None, then the user explicitly specified
+    # a value so this automatically wins.
+    if verify is not None:
+        return verify
+    # Otherwise use the value from REQUESTS_CA_BUNDLE, or default to
+    # True if the env var does not exist.
+    return os.environ.get('REQUESTS_CA_BUNDLE', True)
 
 
 def text_(s, encoding='utf-8', errors='strict'):
@@ -56,12 +71,12 @@ class ClientResponseProxy:
 
 class AioEndpoint(botocore.endpoint.Endpoint):
 
-    def __init__(self, region_name, host, user_agent,
+    def __init__(self, host,
                  endpoint_prefix, event_emitter, proxies=None, verify=True,
                  timeout=DEFAULT_TIMEOUT, response_parser_factory=None,
                  loop=None):
 
-        super().__init__(region_name, host, user_agent, endpoint_prefix,
+        super().__init__(host, endpoint_prefix,
                          event_emitter, proxies=proxies, verify=verify,
                          timeout=timeout,
                          response_parser_factory=response_parser_factory)
@@ -100,6 +115,9 @@ class AioEndpoint(botocore.endpoint.Endpoint):
         request = self.create_request(request_dict, operation_model)
         success_response, exception = yield from self._get_response(
             request, operation_model, attempts)
+
+        if exception is not None:
+            raise exception
 
         return success_response
 
@@ -147,32 +165,27 @@ class AioEndpointCreator(botocore.endpoint.EndpointCreator):
 
     def __init__(self, endpoint_resolver, configured_region, event_emitter,
                  user_agent, loop):
-        super().__init__(endpoint_resolver, configured_region, event_emitter,
-                         user_agent)
+        super().__init__(endpoint_resolver, configured_region, event_emitter)
         self._loop = loop
 
-    def _get_endpoint(self, service_model, region_name, endpoint_url,
+    def _get_endpoint(self, service_model, endpoint_url,
                       verify, response_parser_factory):
-        service_name = service_model.signing_name
         endpoint_prefix = service_model.endpoint_prefix
-        user_agent = self._user_agent
         event_emitter = self._event_emitter
-        user_agent = self._user_agent
-        return get_endpoint_complex(service_name, endpoint_prefix,
-                                    region_name, endpoint_url,
-                                    verify, user_agent, event_emitter,
+        return get_endpoint_complex(endpoint_prefix,
+                                    endpoint_url,
+                                    verify, event_emitter,
                                     response_parser_factory, loop=self._loop)
 
 
-def get_endpoint_complex(service_name, endpoint_prefix,
-                         region_name, endpoint_url, verify,
-                         user_agent, event_emitter,
+def get_endpoint_complex(endpoint_prefix,
+                         endpoint_url, verify,
+                         event_emitter,
                          response_parser_factory=None, loop=None):
-    proxies = _get_proxies(endpoint_url)
+    proxies = get_environ_proxies(endpoint_url)
     verify = _get_verify_value(verify)
     return AioEndpoint(
-        region_name, endpoint_url,
-        user_agent=user_agent,
+        endpoint_url,
         endpoint_prefix=endpoint_prefix,
         event_emitter=event_emitter,
         proxies=proxies,
