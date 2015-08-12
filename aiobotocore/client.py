@@ -52,21 +52,40 @@ class AioClientCreator(botocore.client.ClientCreator):
             response_parser_factory=self._response_parser_factory)
         response_parser = botocore.parsers.create_parser(protocol)
 
-        # This is only temporary in the sense that we should remove any
-        # region_name logic from endpoints and put it into clients.
-        # But that can only happen once operation objects are deprecated.
-        region_name = endpoint.region_name
+        # Determine what region the user provided either via the
+        # region_name argument or the client_config.
+        if region_name is None:
+            if client_config and client_config.region_name is not None:
+                region_name = client_config.region_name
+
         signature_version, region_name = \
             self._get_signature_version_and_region(
-                service_model, region_name, is_secure, scoped_config)
+                service_model, region_name, is_secure, scoped_config,
+                endpoint_url)
 
         if client_config and client_config.signature_version is not None:
             signature_version = client_config.signature_version
+
+        # Override the user agent if specified in the client config.
+        user_agent = self._user_agent
+        if client_config is not None:
+            if client_config.user_agent is not None:
+                user_agent = client_config.user_agent
+            if client_config.user_agent_extra is not None:
+                user_agent += ' %s' % client_config.user_agent_extra
 
         signer = RequestSigner(service_model.service_name, region_name,
                                service_model.signing_name,
                                signature_version, credentials,
                                event_emitter)
+
+        # Create a new client config to be passed to the client based
+        # on the final values. We do not want the user to be able
+        # to try to modify an existing client with a client config.
+        client_config = botocore.client.Config(region_name=region_name,
+                                               signature_version=signature_version,
+                                               user_agent=user_agent)
+
         return {
             'serializer': serializer,
             'endpoint': endpoint,
@@ -75,6 +94,7 @@ class AioClientCreator(botocore.client.ClientCreator):
             'request_signer': signer,
             'service_model': service_model,
             'loader': self._loader,
+            'client_config': client_config
         }
 
     def _create_client_class(self, service_name, service_model):

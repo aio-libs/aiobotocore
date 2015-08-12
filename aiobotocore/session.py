@@ -1,6 +1,6 @@
 import asyncio
 import botocore.session
-from botocore import retryhandler, translate
+from botocore import retryhandler, translate, utils
 
 from .client import AioClientCreator
 
@@ -11,14 +11,19 @@ class AioSession(botocore.session.Session):
                  include_builtin_handlers=True, loader=None, loop=None):
 
         super().__init__(session_vars=session_vars, event_hooks=event_hooks,
-                         include_builtin_handlers=include_builtin_handlers,
-                         loader=loader)
+                         include_builtin_handlers=include_builtin_handlers)
         self._loop = loop
+        self._loader = loader
 
     def create_client(self, service_name, region_name=None, api_version=None,
                       use_ssl=True, verify=None, endpoint_url=None,
                       aws_access_key_id=None, aws_secret_access_key=None,
                       aws_session_token=None, config=None):
+
+        # work around stupid bug in botocore where fix_s3_host destroys specified
+        # endpoint url
+        if endpoint_url is not None:
+            self.unregister('before-sign.s3', utils.fix_s3_host)
 
         if region_name is None:
             region_name = self.get_config_variable('region')
