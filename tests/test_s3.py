@@ -80,9 +80,12 @@ class BaseS3ClientTest(BaseTest):
 
         self.session = aiobotocore.get_session(loop=self.loop)
         self.region = 'us-east-1'
-        self.client = self.session.create_client('s3', region_name=self.region)
+        self.client = self.create_client('s3', region_name=self.region)
         self.keys = []
         self.addCleanup(self.client.close)
+
+    def create_client(self, *args, **kwargs):
+        return self.loop.run_until_complete(self.session.create_client(*args, **kwargs))
 
     def assert_status_code(self, response, status_code):
         self.assertEqual(
@@ -531,7 +534,7 @@ class TestS3PresignUsStandard(BaseS3PresignTest):
         self.region = 'us-east-1'
         self.client_config = Config(
             region_name=self.region, signature_version='s3')
-        self.client = self.session.create_client(
+        self.client = self.create_client(
             's3', config=self.client_config)
         self.setup_bucket()
 
@@ -549,7 +552,7 @@ class TestS3PresignUsStandard(BaseS3PresignTest):
 
     def test_presign_sigv4(self):
         self.client_config.signature_version = 's3v4'
-        self.client = self.session.create_client(
+        self.client = self.create_client(
             's3', config=self.client_config)
         presigned_url = self.client.generate_presigned_url(
             'get_object', Params={'Bucket': self.bucket_name, 'Key': self.key})
@@ -595,7 +598,7 @@ class TestS3PresignUsStandard(BaseS3PresignTest):
 
     def test_presign_post_sigv4(self):
         self.client_config.signature_version = 's3v4'
-        self.client = self.session.create_client(
+        self.client = self.create_client(
             's3', config=self.client_config)
 
         # Create some of the various supported conditions.
@@ -634,7 +637,7 @@ class TestS3PresignNonUsStandard(BaseS3PresignTest):
         self.region = 'us-west-2'
         self.client_config = Config(
             region_name=self.region, signature_version='s3')
-        self.client = self.session.create_client(
+        self.client = self.create_client(
             's3', config=self.client_config)
         self.setup_bucket()
 
@@ -652,7 +655,7 @@ class TestS3PresignNonUsStandard(BaseS3PresignTest):
 
     def test_presign_sigv4(self):
         self.client_config.signature_version = 's3v4'
-        self.client = self.session.create_client(
+        self.client = self.create_client(
             's3', config=self.client_config)
         presigned_url = self.client.generate_presigned_url(
             'get_object', Params={'Bucket': self.bucket_name, 'Key': self.key})
@@ -697,7 +700,7 @@ class TestS3PresignNonUsStandard(BaseS3PresignTest):
 
     def test_presign_post_sigv4(self):
         self.client_config.signature_version = 's3v4'
-        self.client = self.session.create_client(
+        self.client = self.create_client(
             's3', config=self.client_config)
 
         # Create some of the various supported conditions.
@@ -741,7 +744,7 @@ class TestCreateBucketInOtherRegion(TestS3BaseWithBucket):
         # had a bug where we did not support this behavior and trying to
         # create a bucket and immediately PutObject with a file like object
         # would actually cause errors.
-        client = self.session.create_client('s3', 'us-east-1')
+        client = self.create_client('s3', 'us-east-1')
         with temporary_file('w') as f:
             f.write('foobarbaz' * 1024 * 1024)
             f.flush()
@@ -754,7 +757,7 @@ class TestCreateBucketInOtherRegion(TestS3BaseWithBucket):
 
     @run_until_complete
     def test_bucket_in_other_region_using_http(self):
-        client = self.session.create_client(
+        client = self.create_client(
             's3', 'us-east-1', endpoint_url='http://s3.amazonaws.com/')
         with temporary_file('w') as f:
             f.write('foobarbaz' * 1024 * 1024)
@@ -771,7 +774,7 @@ class TestS3SigV4Client(BaseS3ClientTest):
     def setUp(self):
         super().setUp()
         self.region = 'eu-central-1'
-        self.client = self.session.create_client('s3', self.region)
+        self.client = self.create_client('s3', self.region)
         self.bucket_name = self.loop.run_until_complete(self.create_bucket())
         self.keys = []
 
@@ -785,7 +788,7 @@ class TestS3SigV4Client(BaseS3ClientTest):
     def test_can_get_bucket_location(self):
         # Even though the bucket is in eu-central-1, we should still be able to
         # use the us-east-1 endpoint class to get the bucket location.
-        client = self.session.create_client('s3', 'us-east-1')
+        client = self.create_client('s3', 'us-east-1')
         # Also keep in mind that while this test is useful, it doesn't test
         # what happens once DNS propogates which is arguably more interesting,
         # as DNS will point us to the eu-central-1 endpoint.
@@ -905,7 +908,7 @@ class TestSSEKeyParamValidation(BaseTest):
         super().setUp()
 
         self.session = aiobotocore.get_session(loop=self.loop)
-        self.client = self.session.create_client('s3', region_name='us-west-2')
+        self.client = self.create_client('s3', region_name='us-west-2')
 
         self.bucket_name = 'aiobotocoretest%s-%s' % (
             int(time.time()), random.randint(1, 1000))
