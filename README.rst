@@ -7,10 +7,6 @@ Main purpose of this library to support amazon s3 api, but other services
 should work (but may be with minor fixes). For now we have tested
 only upload/download api for s3. More tests coming soon.
 
-Known Issues
-------------
-* There is minor issue with content-type header:
-  https://github.com/KeepSafe/aiohttp/issues/379
 
 Install
 -------
