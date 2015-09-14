@@ -1,3 +1,5 @@
+# coding: utf-8
+
 from functools import wraps
 import os
 import time
@@ -8,6 +10,7 @@ import shutil
 import unittest
 from unittest import mock
 import contextlib
+
 from botocore.vendored.requests import adapters
 from botocore.vendored.requests.exceptions import ConnectionError
 from botocore.compat import six
@@ -15,7 +18,9 @@ import botocore.auth
 import botocore.credentials
 import botocore.vendored.requests as requests
 from botocore.client import Config
+
 import aiobotocore
+import aiobotocore.endpoint
 
 
 def run_until_complete(fun):
@@ -168,6 +173,12 @@ class BaseS3ClientTest(BaseTest):
             num_uploads, amount_seen))
 
 
+class TestS3Client(BaseS3ClientTest):
+
+    def test_client_endpoint_is_patched(self):
+        self.assertIsInstance(self.client._endpoint, aiobotocore.endpoint.AioEndpoint)
+
+
 class TestS3BaseWithBucket(BaseS3ClientTest):
     def setUp(self):
         super().setUp()
@@ -175,6 +186,7 @@ class TestS3BaseWithBucket(BaseS3ClientTest):
 
 
 class TestS3Buckets(TestS3BaseWithBucket):
+
     @run_until_complete
     def test_can_make_request(self):
         # Basic smoke test to ensure we can talk to s3.
