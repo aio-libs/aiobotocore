@@ -84,7 +84,8 @@ class AioClientCreator(botocore.client.ClientCreator):
         new_config = botocore.client.Config(**config_kwargs)
 
         endpoint_creator = AioEndpointCreator(self._endpoint_resolver,
-                                           region_name, event_emitter)
+                                              region_name, event_emitter,
+                                              self._loop)
         endpoint = endpoint_creator.create_endpoint(
             service_model, region_name, is_secure=is_secure,
             endpoint_url=endpoint_url, verify=verify,
