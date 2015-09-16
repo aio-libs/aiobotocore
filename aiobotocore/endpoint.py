@@ -88,9 +88,18 @@ class AioEndpoint(Endpoint):
 
     @asyncio.coroutine
     def _send_request(self, request_dict, operation_model):
+        # install content-type header if not provided
+        headers = request_dict['headers']
+        for key in headers.keys():
+            if key.lower().startswith('content-type'):
+                break
+        else:
+            request_dict['headers']['Content-Type'] = \
+                 'application/octet-stream'
+
         attempts = 1
         request = self.create_request(request_dict, operation_model)
-        success_response, exception = self._get_response(
+        success_response, exception = yield from self._get_response(
             request, operation_model, attempts)
         while self._needs_retry(attempts, operation_model,
                                 success_response, exception):
@@ -140,9 +149,9 @@ class AioEndpoint(Endpoint):
             #              exc_info=True)
             return (None, e)
 
+        # This returns the http_response and the parsed_data.
         response_dict = yield from convert_to_response_dict(
             http_response, operation_model)
-
         parser = self._response_parser_factory.create_parser(
             operation_model.metadata['protocol'])
         return ((http_response, parser.parse(response_dict,
