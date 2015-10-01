@@ -4,7 +4,7 @@ import sys
 from setuptools import setup, find_packages
 
 
-install_requires = ['botocore==0.109.0']
+install_requires = ['botocore==1.1.7']
 
 PY_VER = sys.version_info
 
