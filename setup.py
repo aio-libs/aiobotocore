@@ -4,7 +4,7 @@ import sys
 from setuptools import setup, find_packages
 
 
-install_requires = ['botocore==1.1.7']
+install_requires = ['botocore==1.1.7', 'aiohttp']
 
 PY_VER = sys.version_info
 
