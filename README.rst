@@ -12,7 +12,7 @@ Install
 -------
 ::
 
-    $ pip install git+https://github.com/jettify/aiobotocore.git@master
+    $ pip install -e git+https://github.com/jettify/aiobotocore.git@master#egg=aiobotocore
 
 
 Basic Example
