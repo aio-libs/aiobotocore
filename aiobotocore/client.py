@@ -171,4 +171,4 @@ class AioBaseClient(botocore.client.BaseClient):
 
     def close(self):
         """Close all http connections"""
-        self._endpoint._connector.close()
+        self._endpoint._aio_seesion.close()

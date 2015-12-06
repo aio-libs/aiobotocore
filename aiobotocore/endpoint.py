@@ -69,34 +69,21 @@ class AioEndpoint(Endpoint):
                          response_parser_factory=response_parser_factory)
 
         self._loop = loop or asyncio.get_event_loop()
-        self._connector = aiohttp.TCPConnector(loop=self._loop)
+        self._aio_seesion = aiohttp.ClientSession(
+            skip_auto_headers={'CONTENT-TYPE'},
+            response_class=ClientResponseProxy, loop=self._loop)
 
     @asyncio.coroutine
     def _request(self, method, url, headers, data):
 
         headers_ = dict(
             (z[0], text_(z[1], encoding='utf-8')) for z in headers.items())
-
-        resp = yield from aiohttp.request(method,
-                                          url=url,
-                                          headers=headers_,
-                                          data=data,
-                                          connector=self._connector,
-                                          loop=self._loop,
-                                          response_class=ClientResponseProxy)
+        resp = yield from self._aio_seesion.request(
+            method, url=url, headers=headers_, data=data)
         return resp
 
     @asyncio.coroutine
     def _send_request(self, request_dict, operation_model):
-        # install content-type header if not provided
-        headers = request_dict['headers']
-        for key in headers.keys():
-            if key.lower().startswith('content-type'):
-                break
-        else:
-            request_dict['headers']['Content-Type'] = \
-                 'application/octet-stream'
-
         attempts = 1
         request = self.create_request(request_dict, operation_model)
         success_response, exception = yield from self._get_response(
