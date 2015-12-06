@@ -1,4 +1,5 @@
 import asyncio
+from botocore.utils import get_service_module_name
 import copy
 
 import botocore.auth
@@ -29,27 +30,13 @@ class AioClientCreator(botocore.client.ClientCreator):
     def _get_client_args(self, service_model, region_name, is_secure,
                          endpoint_url, verify, credentials,
                          scoped_config, client_config):
-        # A client needs:
-        #
-        # * serializer
-        # * endpoint
-        # * response parser
-        # * request signer
+
         protocol = service_model.metadata['protocol']
         serializer = botocore.serialize.create_serializer(
             protocol, include_validation=True)
+
         event_emitter = copy.copy(self._event_emitter)
 
-        # this line is only difference with original botocore
-        # implementation
-        endpoint_creator = AioEndpointCreator(self._endpoint_resolver,
-                                              region_name, event_emitter,
-                                              self._user_agent,
-                                              loop=self._loop)
-        endpoint = endpoint_creator.create_endpoint(
-            service_model, region_name, is_secure=is_secure,
-            endpoint_url=endpoint_url, verify=verify,
-            response_parser_factory=self._response_parser_factory)
         response_parser = botocore.parsers.create_parser(protocol)
 
         # Determine what region the user provided either via the
@@ -58,11 +45,16 @@ class AioClientCreator(botocore.client.ClientCreator):
             if client_config and client_config.region_name is not None:
                 region_name = client_config.region_name
 
+        # Based on what the user provided use the scoped config file
+        # to determine if the region is going to change and what
+        # signature should be used.
         signature_version, region_name = \
             self._get_signature_version_and_region(
                 service_model, region_name, is_secure, scoped_config,
                 endpoint_url)
 
+        # Override the signature if the user specifies it in the client
+        # config.
         if client_config and client_config.signature_version is not None:
             signature_version = client_config.signature_version
 
@@ -82,9 +74,23 @@ class AioClientCreator(botocore.client.ClientCreator):
         # Create a new client config to be passed to the client based
         # on the final values. We do not want the user to be able
         # to try to modify an existing client with a client config.
-        client_config = botocore.client.Config(region_name=region_name,
-                                               signature_version=signature_version,
-                                               user_agent=user_agent)
+        config_kwargs = dict(
+            region_name=region_name, signature_version=signature_version,
+            user_agent=user_agent)
+        if client_config is not None:
+            config_kwargs.update(
+                connect_timeout=client_config.connect_timeout,
+                read_timeout=client_config.read_timeout)
+        new_config = botocore.client.Config(**config_kwargs)
+
+        endpoint_creator = AioEndpointCreator(self._endpoint_resolver,
+                                              region_name, event_emitter,
+                                              self._loop)
+        endpoint = endpoint_creator.create_endpoint(
+            service_model, region_name, is_secure=is_secure,
+            endpoint_url=endpoint_url, verify=verify,
+            response_parser_factory=self._response_parser_factory,
+            timeout=(new_config.connect_timeout, new_config.read_timeout))
 
         return {
             'serializer': serializer,
@@ -94,7 +100,7 @@ class AioClientCreator(botocore.client.ClientCreator):
             'request_signer': signer,
             'service_model': service_model,
             'loader': self._loader,
-            'client_config': client_config
+            'client_config': new_config
         }
 
     def _create_client_class(self, service_name, service_model):
@@ -105,9 +111,9 @@ class AioClientCreator(botocore.client.ClientCreator):
         self._event_emitter.emit('creating-client-class.%s' % service_name,
                                  class_attributes=class_attributes,
                                  base_classes=bases)
-        cls = type(str(service_name), tuple(bases), class_attributes)
+        class_name = get_service_module_name(service_model)
+        cls = type(str(class_name), tuple(bases), class_attributes)
         return cls
-
 
 class AioBaseClient(botocore.client.BaseClient):
 

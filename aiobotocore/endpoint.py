@@ -1,24 +1,11 @@
 import asyncio
 import aiohttp
-import os
 from aiohttp.client_reqrep import ClientResponse
-import botocore.endpoint
-from botocore.endpoint import get_environ_proxies, DEFAULT_TIMEOUT
-from botocore.exceptions import EndpointConnectionError
 
-
-def _get_verify_value(verify):
-    # This is to account for:
-    # https://github.com/kennethreitz/requests/issues/1436
-    # where we need to honor REQUESTS_CA_BUNDLE because we're creating our
-    # own request objects.
-    # First, if verify is not None, then the user explicitly specified
-    # a value so this automatically wins.
-    if verify is not None:
-        return verify
-    # Otherwise use the value from REQUESTS_CA_BUNDLE, or default to
-    # True if the env var does not exist.
-    return os.environ.get('REQUESTS_CA_BUNDLE', True)
+from botocore.utils import is_valid_endpoint_url
+from botocore.endpoint import EndpointCreator, Endpoint, DEFAULT_TIMEOUT
+from botocore.exceptions import EndpointConnectionError, \
+    BaseEndpointResolverError
 
 
 def text_(s, encoding='utf-8', errors='strict'):
@@ -69,7 +56,7 @@ class ClientResponseProxy:
         return self._body
 
 
-class AioEndpoint(botocore.endpoint.Endpoint):
+class AioEndpoint(Endpoint):
 
     def __init__(self, host,
                  endpoint_prefix, event_emitter, proxies=None, verify=True,
@@ -101,7 +88,6 @@ class AioEndpoint(botocore.endpoint.Endpoint):
 
     @asyncio.coroutine
     def _send_request(self, request_dict, operation_model):
-
         # install content-type header if not provided
         headers = request_dict['headers']
         for key in headers.keys():
@@ -109,17 +95,29 @@ class AioEndpoint(botocore.endpoint.Endpoint):
                 break
         else:
             request_dict['headers']['Content-Type'] = \
-                'application/octet-stream'
+                 'application/octet-stream'
 
         attempts = 1
         request = self.create_request(request_dict, operation_model)
         success_response, exception = yield from self._get_response(
             request, operation_model, attempts)
-
+        while self._needs_retry(attempts, operation_model,
+                                success_response, exception):
+            attempts += 1
+            # If there is a stream associated with the request, we need
+            # to reset it before attempting to send the request again.
+            # This will ensure that we resend the entire contents of the
+            # body.
+            request.reset_stream()
+            # Create a new request when retried (including a new signature).
+            request = self.create_request(
+                request_dict, operation_model=operation_model)
+            success_response, exception = yield from self._get_response(
+                request, operation_model, attempts)
         if exception is not None:
             raise exception
-
-        return success_response
+        else:
+            return success_response
 
     @asyncio.coroutine
     def _get_response(self, request, operation_model, attempts):
@@ -151,9 +149,9 @@ class AioEndpoint(botocore.endpoint.Endpoint):
             #              exc_info=True)
             return (None, e)
 
+        # This returns the http_response and the parsed_data.
         response_dict = yield from convert_to_response_dict(
             http_response, operation_model)
-
         parser = self._response_parser_factory.create_parser(
             operation_model.metadata['protocol'])
         return ((http_response, parser.parse(response_dict,
@@ -161,34 +159,49 @@ class AioEndpoint(botocore.endpoint.Endpoint):
                 None)
 
 
-class AioEndpointCreator(botocore.endpoint.EndpointCreator):
+class AioEndpointCreator(EndpointCreator):
 
     def __init__(self, endpoint_resolver, configured_region, event_emitter,
-                 user_agent, loop):
+                 loop):
         super().__init__(endpoint_resolver, configured_region, event_emitter)
         self._loop = loop
 
-    def _get_endpoint(self, service_model, endpoint_url,
-                      verify, response_parser_factory):
-        endpoint_prefix = service_model.endpoint_prefix
-        event_emitter = self._event_emitter
-        return get_endpoint_complex(endpoint_prefix,
-                                    endpoint_url,
-                                    verify, event_emitter,
-                                    response_parser_factory, loop=self._loop)
+    def create_endpoint(self, service_model, region_name=None, is_secure=True,
+                        endpoint_url=None, verify=None,
+                        response_parser_factory=None, timeout=DEFAULT_TIMEOUT):
+        if region_name is None:
+            region_name = self._configured_region
+        # Use the endpoint resolver heuristics to build the endpoint url.
+        scheme = 'https' if is_secure else 'http'
+        try:
+            endpoint = self._endpoint_resolver.construct_endpoint(
+                service_model.endpoint_prefix,
+                region_name, scheme=scheme)
+        except BaseEndpointResolverError:
+            if endpoint_url is not None:
+                # If the user provides an endpoint_url, it's ok
+                # if the heuristics didn't find anything.  We use the
+                # user provided endpoint_url.
+                endpoint = {'uri': endpoint_url, 'properties': {}}
+            else:
+                raise
 
+        if endpoint_url is not None:
+            # If the user provides an endpoint url, we'll use that
+            # instead of what the heuristics rule gives us.
+            final_endpoint_url = endpoint_url
+        else:
+            final_endpoint_url = endpoint['uri']
+        if not is_valid_endpoint_url(final_endpoint_url):
+            raise ValueError("Invalid endpoint: %s" % final_endpoint_url)
 
-def get_endpoint_complex(endpoint_prefix,
-                         endpoint_url, verify,
-                         event_emitter,
-                         response_parser_factory=None, loop=None):
-    proxies = get_environ_proxies(endpoint_url)
-    verify = _get_verify_value(verify)
-    return AioEndpoint(
-        endpoint_url,
-        endpoint_prefix=endpoint_prefix,
-        event_emitter=event_emitter,
-        proxies=proxies,
-        verify=verify,
-        response_parser_factory=response_parser_factory,
-        loop=loop)
+        proxies = self._get_proxies(final_endpoint_url)
+        verify_value = self._get_verify_value(verify)
+        return AioEndpoint(
+            final_endpoint_url,
+            endpoint_prefix=service_model.endpoint_prefix,
+            event_emitter=self._event_emitter,
+            proxies=proxies,
+            verify=verify_value,
+            timeout=timeout,
+            response_parser_factory=response_parser_factory, loop=self._loop)
