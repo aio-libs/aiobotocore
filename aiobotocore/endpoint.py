@@ -1,3 +1,4 @@
+import io
 import asyncio
 import aiohttp
 from aiohttp.client_reqrep import ClientResponse
@@ -6,6 +7,12 @@ from botocore.utils import is_valid_endpoint_url
 from botocore.endpoint import EndpointCreator, Endpoint, DEFAULT_TIMEOUT
 from botocore.exceptions import EndpointConnectionError, \
     BaseEndpointResolverError
+
+
+class AsyncBytesIO(io.BytesIO):
+    @asyncio.coroutine
+    def read(self, *args, **kwargs):
+        return super().read(*args, **kwargs)
 
 
 def text_(s, encoding='utf-8', errors='strict'):
@@ -25,7 +32,8 @@ def convert_to_response_dict(http_response, operation_model):
         body = yield from http_response.read()
         response_dict['body'] = body
     elif operation_model.has_streaming_output:
-        response_dict['body'] = http_response.raw
+         body = yield from http_response.read()
+         response_dict['body'] = AsyncBytesIO(body)
     else:
         body = yield from http_response.read()
         response_dict['body'] = body
