@@ -45,6 +45,7 @@ class ClientResponseContentProxy:
     def __dir__(self):
         attrs = dir(self.__content)
         attrs.append('close')
+        return attrs
 
     def close(self):
         self.__response.close()
