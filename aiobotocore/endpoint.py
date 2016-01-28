@@ -32,6 +32,24 @@ def convert_to_response_dict(http_response, operation_model):
     return response_dict
 
 
+class ClientResponseContentProxy:
+    """Proxy object for content stream of http response"""
+
+    def __init__(self, response):
+        self.__response = response
+        self.__content = self.__response.content
+
+    def __getattr__(self, item):
+        return getattr(self.__content, item)
+
+    def __dir__(self):
+        attrs = dir(self.__content)
+        attrs.append('close')
+        return attrs
+
+    def close(self):
+        self.__response.close()
+
 class ClientResponseProxy:
     """Proxy object for http response useful for porting from
     botocore underlying http library."""
@@ -46,7 +64,7 @@ class ClientResponseProxy:
         if item == 'content':
             return self._body
         if item == 'raw':
-            return getattr(self._impl, 'content')
+            return ClientResponseContentProxy(self._impl)
 
         return getattr(self._impl, item)
 
@@ -69,7 +87,11 @@ class AioEndpoint(Endpoint):
                          response_parser_factory=response_parser_factory)
 
         self._loop = loop or asyncio.get_event_loop()
+
+        # AWS has a 20 second idle timeout: https://forums.aws.amazon.com/message.jspa?messageID=215367
+        # and aiohttp default timeout is 30s so we set it to something reasonable here
         self._aio_seesion = aiohttp.ClientSession(
+            connector=aiohttp.TCPConnector(loop=self._loop, keepalive_timeout=12),
             skip_auto_headers={'CONTENT-TYPE'},
             response_class=ClientResponseProxy, loop=self._loop)
 
