@@ -61,7 +61,7 @@ class AioEndpoint(Endpoint):
     def __init__(self, host,
                  endpoint_prefix, event_emitter, proxies=None, verify=True,
                  timeout=DEFAULT_TIMEOUT, response_parser_factory=None,
-                 loop=None):
+                 loop=None, connector_args=None):
 
         super().__init__(host, endpoint_prefix,
                          event_emitter, proxies=proxies, verify=verify,
@@ -69,11 +69,15 @@ class AioEndpoint(Endpoint):
                          response_parser_factory=response_parser_factory)
 
         self._loop = loop or asyncio.get_event_loop()
-        
-        # AWS has a 20 second idle timeout: https://forums.aws.amazon.com/message.jspa?messageID=215367
-        # and aiohttp default timeout is 30s so we set it to something reasonable here
+        if connector_args is None:
+            # AWS has a 20 second idle timeout: https://forums.aws.amazon.com/message.jspa?messageID=215367
+            # and aiohttp default timeout is 30s so we set it to something reasonable here
+            connector = aiohttp.TCPConnector(loop=self._loop, keepalive_timeout=12)
+        else:
+            connector = aiohttp.TCPConnector(loop=self._loop, **connector_args)
+
         self._aio_seesion = aiohttp.ClientSession(
-            connector=aiohttp.TCPConnector(loop=self._loop, keepalive_timeout=12),
+            connector=connector,
             skip_auto_headers={'CONTENT-TYPE'},
             response_class=ClientResponseProxy, loop=self._loop)
 
@@ -159,7 +163,8 @@ class AioEndpointCreator(EndpointCreator):
 
     def create_endpoint(self, service_model, region_name=None, is_secure=True,
                         endpoint_url=None, verify=None,
-                        response_parser_factory=None, timeout=DEFAULT_TIMEOUT):
+                        response_parser_factory=None, timeout=DEFAULT_TIMEOUT,
+                        connector_args=None):
         if region_name is None:
             region_name = self._configured_region
         # Use the endpoint resolver heuristics to build the endpoint url.
@@ -195,4 +200,5 @@ class AioEndpointCreator(EndpointCreator):
             proxies=proxies,
             verify=verify_value,
             timeout=timeout,
-            response_parser_factory=response_parser_factory, loop=self._loop)
+            response_parser_factory=response_parser_factory, loop=self._loop,
+            connector_args=connector_args)
