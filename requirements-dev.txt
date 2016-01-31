@@ -1,0 +1,7 @@
+flake8
+pytest
+pytest-cov
+coverage
+sphinx
+ipdb
+ipython
