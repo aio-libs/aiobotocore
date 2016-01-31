@@ -127,7 +127,8 @@ class BaseS3ClientTest(BaseTest):
 
     @asyncio.coroutine
     def delete_object(self, key, bucket_name):
-        response = yield from self.client.delete_object(Bucket=bucket_name, Key=key)
+        response = yield from self.client.delete_object(
+            Bucket=bucket_name, Key=key)
         self.assert_status_code(response, 204)
 
     @asyncio.coroutine
