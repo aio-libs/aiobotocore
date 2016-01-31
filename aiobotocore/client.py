@@ -115,6 +115,7 @@ class AioClientCreator(botocore.client.ClientCreator):
         cls = type(str(class_name), tuple(bases), class_attributes)
         return cls
 
+
 class AioBaseClient(botocore.client.BaseClient):
 
     @asyncio.coroutine
