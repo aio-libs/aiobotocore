@@ -1,5 +1,7 @@
 aiobotocore
 ===========
+.. image:: https://travis-ci.org/jettify/aiobotocore.svg?branch=master
+    :target: https://travis-ci.org/jettify/aiobotocore
 
 Async client for amazon services using botocore_ and aiohttp_/asyncio_.
 
