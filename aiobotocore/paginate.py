@@ -63,6 +63,9 @@ class AioPageIterator(PageIterator):
 
     @asyncio.coroutine
     def next_page(self):
+        if self._is_stop:
+            return None
+        
         response = yield from self._make_request(self._current_kwargs)
         parsed = self._extract_parsed_response(response)
         if self._first_request:
