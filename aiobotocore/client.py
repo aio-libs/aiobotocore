@@ -22,7 +22,8 @@ class AioConfig(botocore.client.Config):
 
         self._validate_connector_args(connector_args)
         self.connector_args = copy.copy(connector_args)
-        if not self.connector_args: self.connector_args = dict()
+        if not self.connector_args:
+            self.connector_args = dict()
 
         if 'keepalive_timeout' not in self.connector_args:
             # AWS has a 20 second idle timeout:
@@ -33,7 +34,8 @@ class AioConfig(botocore.client.Config):
 
     @staticmethod
     def _validate_connector_args(connector_args):
-        if connector_args is None: return
+        if connector_args is None:
+            return
 
         for k, v in connector_args.items():
             if k in ['use_dns_cache', 'verify_ssl']:
