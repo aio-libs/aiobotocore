@@ -116,24 +116,17 @@ class AioPageIterator(PageIterator):
             self._previous_next_token = self._next_token
             return response
 
-    @asyncio.coroutine
-    def __aiter__(self):
-        return self
+    if PY_35:
+        @asyncio.coroutine
+        def __aiter__(self):
+            return self
 
-    @asyncio.coroutine
-    def __anext__(self):
-        if self._is_stop:
-            # appease TravisCI
-            if not PY_35:
-                class StopAsyncIteration:
-                    pass
+        @asyncio.coroutine
+        def __anext__(self):
+            if self._is_stop:
+                raise StopAsyncIteration  # noqa
 
-            if PY_35:
-                raise StopAsyncIteration
-            else:
-                return None
-
-        return self.next_page()
+            return self.next_page()
 
     def result_key_iters(self):
         raise NotImplementedError
