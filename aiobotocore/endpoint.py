@@ -50,6 +50,7 @@ class ClientResponseContentProxy:
     def close(self):
         self.__response.close()
 
+
 class ClientResponseProxy:
     """Proxy object for http response useful for porting from
     botocore underlying http library."""
@@ -88,9 +89,11 @@ class AioEndpoint(Endpoint):
 
         self._loop = loop or asyncio.get_event_loop()
         if connector_args is None:
-            # AWS has a 20 second idle timeout: https://forums.aws.amazon.com/message.jspa?messageID=215367
-            # and aiohttp default timeout is 30s so we set it to something reasonable here
-            connector = aiohttp.TCPConnector(loop=self._loop, keepalive_timeout=12)
+            # AWS has a 20 second idle timeout:
+            #   https://forums.aws.amazon.com/message.jspa?messageID=215367
+            # aiohttp default timeout is 30s so set something reasonable here
+            connector = aiohttp.TCPConnector(loop=self._loop,
+                                             keepalive_timeout=12)
         else:
             connector = aiohttp.TCPConnector(loop=self._loop, **connector_args)
 

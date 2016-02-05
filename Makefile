@@ -6,14 +6,14 @@ flake:
 	flake8 aiobotocore tests examples
 
 test: flake
-	nosetests -s --nologcapture $(FLAGS) ./tests/
+	py.test -s $(FLAGS) ./tests/
 
 vtest:
-	nosetests -s -v --nologcapture $(FLAGS) ./tests/
+	py.test -s -v $(FLAGS) ./tests/
 
 cov cover coverage: flake
-	nosetests -s --with-cover --cover-html --cover-branches --nologcapture $(FLAGS) --cover-package aiobotocore ./tests/
-	@echo "open file://`pwd`/cover/index.html"
+	py.test -s -v  --cov-report term --cov-report html --cov aiomysql ./tests
+	@echo "open file://`pwd`/htmlcov/index.html"
 
 clean:
 	rm -rf `find . -name __pycache__`
