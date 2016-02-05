@@ -123,8 +123,12 @@ class AioPageIterator(PageIterator):
     @asyncio.coroutine
     def __anext__(self):
         if self._is_stop:
+            # appease TravisCI
+            if not PY_35:
+                class StopAsyncIteration:
+                    pass
+
             if PY_35:
-                # this keyword does not exist until python 3.5
                 raise StopAsyncIteration
             else:
                 return None
