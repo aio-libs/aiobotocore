@@ -1,7 +1,9 @@
 import asyncio
-
+import sys
 from botocore.exceptions import PaginationError
 from botocore.paginate import PageIterator
+
+PY_35 = sys.version_info >= (3, 5)
 
 
 class AioPageIterator(PageIterator):
@@ -113,6 +115,18 @@ class AioPageIterator(PageIterator):
                                            self._next_token)
             self._previous_next_token = self._next_token
             return response
+
+    if PY_35:
+        @asyncio.coroutine
+        def __aiter__(self):
+            return self
+
+        @asyncio.coroutine
+        def __anext__(self):
+            if self._is_stop:
+                raise StopAsyncIteration  # noqa
+
+            return self.next_page()
 
     def result_key_iters(self):
         raise NotImplementedError
