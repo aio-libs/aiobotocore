@@ -6,14 +6,58 @@ import botocore.auth
 import botocore.client
 import botocore.serialize
 import botocore.validate
-from botocore.exceptions import ClientError
-from botocore.exceptions import OperationNotPageableError
+import botocore.parsers
+from botocore.exceptions import ClientError, OperationNotPageableError, \
+    ParamValidationError
 from botocore.paginate import Paginator
 from botocore.signers import RequestSigner
 
 from .paginate import AioPageIterator
-
 from .endpoint import AioEndpointCreator
+
+
+class AioConfig(botocore.client.Config):
+    def __init__(self, connector_args=None, **kwargs):
+        super().__init__(**kwargs)
+
+        self._validate_connector_args(connector_args)
+        self.connector_args = copy.copy(connector_args)
+        if not self.connector_args:
+            self.connector_args = dict()
+
+        if 'keepalive_timeout' not in self.connector_args:
+            # AWS has a 20 second idle timeout:
+            # https://forums.aws.amazon.com/message.jspa?messageID=215367
+            # and aiohttp default timeout is 30s so we set it to something
+            # reasonable here
+            self.connector_args['keepalive_timeout'] = 12
+
+    @staticmethod
+    def _validate_connector_args(connector_args):
+        if connector_args is None:
+            return
+
+        for k, v in connector_args.items():
+            if k in ['use_dns_cache', 'verify_ssl']:
+                if not isinstance(v, bool):
+                    raise ParamValidationError(
+                        report='{} value must be a boolean'.format(k))
+            elif k in ['conn_timeout', 'keepalive_timeout']:
+                if not isinstance(v, float) and not isinstance(v, int):
+                    raise ParamValidationError(
+                        report='{} value must be a float/int'.format(k))
+            elif k == 'limit':
+                if not isinstance(v, int):
+                    raise ParamValidationError(
+                        report='{} value must be an int'.format(k))
+            elif k == 'ssl_context':
+                import ssl
+                if not isinstance(v, ssl.SSLContext):
+                    raise ParamValidationError(
+                        report='{} must be an SSLContext instance'.format(k))
+            else:
+                raise ParamValidationError(
+                    report='invalid connector_arg:{}'.format(k))
 
 
 class AioClientCreator(botocore.client.ClientCreator):
@@ -77,20 +121,28 @@ class AioClientCreator(botocore.client.ClientCreator):
         config_kwargs = dict(
             region_name=region_name, signature_version=signature_version,
             user_agent=user_agent)
+
         if client_config is not None:
             config_kwargs.update(
                 connect_timeout=client_config.connect_timeout,
                 read_timeout=client_config.read_timeout)
-        new_config = botocore.client.Config(**config_kwargs)
+
+            if isinstance(client_config, AioConfig):
+                config_kwargs.update(
+                    connector_args=client_config.connector_args)
+
+        new_config = AioConfig(**config_kwargs)
 
         endpoint_creator = AioEndpointCreator(self._endpoint_resolver,
                                               region_name, event_emitter,
                                               self._loop)
+
         endpoint = endpoint_creator.create_endpoint(
             service_model, region_name, is_secure=is_secure,
             endpoint_url=endpoint_url, verify=verify,
             response_parser_factory=self._response_parser_factory,
-            timeout=(new_config.connect_timeout, new_config.read_timeout))
+            timeout=(new_config.connect_timeout, new_config.read_timeout),
+            connector_args=new_config.connector_args)
 
         return {
             'serializer': serializer,
