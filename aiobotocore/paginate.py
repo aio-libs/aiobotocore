@@ -116,17 +116,20 @@ class AioPageIterator(PageIterator):
             self._previous_next_token = self._next_token
             return response
 
-    if PY_35:  # pragma: no branch
-        @asyncio.coroutine
-        def __aiter__(self):
-            return self
+    @asyncio.coroutine
+    def __aiter__(self):
+        return self
 
-        @asyncio.coroutine
-        def __anext__(self):
-            if self._is_stop:
+    @asyncio.coroutine
+    def __anext__(self):
+        if self._is_stop:
+            if PY_35:
+                # this keyword does not exist until python 3.5
                 raise StopAsyncIteration
+            else:
+                return None
 
-            return self.next_page()
+        return self.next_page()
 
     def result_key_iters(self):
         raise NotImplementedError
