@@ -1,11 +1,15 @@
 import asyncio
 import aiohttp
+import sys
+import json
 from aiohttp.client_reqrep import ClientResponse
 
 from botocore.utils import is_valid_endpoint_url
 from botocore.endpoint import EndpointCreator, Endpoint, DEFAULT_TIMEOUT
 from botocore.exceptions import EndpointConnectionError, \
     BaseEndpointResolverError
+
+PY_35 = sys.version_info >= (3, 5)
 
 
 def text_(s, encoding='utf-8', errors='strict'):
@@ -44,8 +48,44 @@ class ClientResponseContentProxy:
 
     def __dir__(self):
         attrs = dir(self.__content)
-        attrs.append('close')
+        attrs += ['read_all', 'text', 'json' 'close']
         return attrs
+
+    def __del__(self):
+        self.close()
+
+    @asyncio.coroutine
+    def read_all(self):
+        """
+        Forwards to aiohttp.ClientResponse.read.  With release response on
+        success and close on exception.  Stores result in ClientResponse.
+        """
+        return self.__response.read()
+
+    @asyncio.coroutine
+    def text(self, encoding=None):
+        """
+        Forwards to aiohttp.ClientResponse.text  With release response on
+        success and close on exception.  Stores result in ClientResponse.
+        """
+        return self.__response.text(encoding=encoding)
+
+    @asyncio.coroutine
+    def json(self, *, encoding=None, loads=json.loads):
+        """
+        Forwards to aiohttp.ClientResponse.json  With release response on
+        success and close on exception.  Stores result in ClientResponse.
+        """
+        return self.__response.json(encoding=encoding, loads=loads)
+
+    if PY_35:
+        @asyncio.coroutine
+        def __aenter__(self):
+            return self.__response.__aenter__()
+
+        @asyncio.coroutine
+        def __aexit__(self, exc_type, exc_val, exc_tb):
+            return self.__response.__aexit__(exc_type, exc_val, exc_tb)
 
     def close(self):
         self.__response.close()
