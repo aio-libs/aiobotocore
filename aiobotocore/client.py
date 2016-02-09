@@ -172,9 +172,10 @@ class AioBaseClient(botocore.client.BaseClient):
 
     @asyncio.coroutine
     def _make_api_call(self, operation_name, api_params):
+        request_context = {}
         operation_model = self._service_model.operation_model(operation_name)
         request_dict = self._convert_to_request_dict(
-            api_params, operation_model)
+            api_params, operation_model, context=request_context)
 
         http, parsed_response = yield from self._endpoint.make_request(
             operation_model, request_dict)
@@ -184,7 +185,7 @@ class AioBaseClient(botocore.client.BaseClient):
                 endpoint_prefix=self._service_model.endpoint_prefix,
                 operation_name=operation_name),
             http_response=http, parsed=parsed_response,
-            model=operation_model
+            model=operation_model, context=request_context
         )
 
         if http.status >= 300:
