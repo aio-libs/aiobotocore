@@ -137,18 +137,19 @@ class AioEndpoint(Endpoint):
         else:
             connector = aiohttp.TCPConnector(loop=self._loop, **connector_args)
 
-        self._aio_seesion = aiohttp.ClientSession(
+        self._aio_session = aiohttp.ClientSession(
             connector=connector,
             skip_auto_headers={'CONTENT-TYPE'},
             response_class=ClientResponseProxy, loop=self._loop)
 
     @asyncio.coroutine
     def _request(self, method, url, headers, data):
+        expect100 = method in ['PUT', 'POST'] and hasattr(data, 'read')
 
         headers_ = dict(
             (z[0], text_(z[1], encoding='utf-8')) for z in headers.items())
-        resp = yield from self._aio_seesion.request(
-            method, url=url, headers=headers_, data=data)
+        resp = yield from self._aio_session.request(
+            method, url=url, headers=headers_, data=data, expect100=expect100)
         return resp
 
     @asyncio.coroutine
