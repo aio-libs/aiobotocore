@@ -47,6 +47,10 @@ class AioConfig(botocore.client.Config):
                 if not isinstance(v, float) and not isinstance(v, int):
                     raise ParamValidationError(
                         report='{} value must be a float/int'.format(k))
+            elif k == 'force_close':
+                if not isinstance(v, bool):
+                    raise ParamValidationError(
+                        report='{} value must be a boolean'.format(k))
             elif k == 'limit':
                 if not isinstance(v, int):
                     raise ParamValidationError(
