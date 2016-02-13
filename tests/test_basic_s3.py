@@ -38,7 +38,3 @@ def test_can_delete_urlencoded_object(s3_client, bucket_name, create_object):
     response = yield from s3_client.delete_object(
         Bucket=bucket_name, Key=key_name)
     pytest.aio.assert_status_code(response, 204)
-
-
-
-
