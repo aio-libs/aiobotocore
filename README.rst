@@ -60,6 +60,25 @@ Basic Example
     loop.run_until_complete(go(loop))
 
 
+Run Tests
+---------
+
+Make sure you have development requirements installed and your amazon key and
+secret accessible via environment variables:
+
+::
+
+    $ cd aiobotocore
+    $ export AWS_ACCESS_KEY_ID=xxx
+    $ export AWS_SECRET_ACCESS_KEY=xxx
+    $ pip install -Ur requirements-dev.txt
+
+Execute tests suite:
+
+::
+    $ py.test -v tests
+
+
 Requirements
 ------------
 
