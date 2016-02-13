@@ -1,7 +1,7 @@
 aiobotocore
 ===========
-.. image:: https://travis-ci.org/jettify/aiobotocore.svg?branch=master
-    :target: https://travis-ci.org/jettify/aiobotocore
+.. image:: https://travis-ci.org/aio-libs/aiobotocore.svg?branch=master
+    :target: https://travis-ci.org/aio-libs/aiobotocore
 
 Async client for amazon services using botocore_ and aiohttp_/asyncio_.
 
@@ -14,7 +14,7 @@ Install
 -------
 ::
 
-    $ pip install -e git+https://github.com/jettify/aiobotocore.git@master#egg=aiobotocore
+    $ pip install -e git+https://github.com/aio-libs/aiobotocore.git@master#egg=aiobotocore
 
 
 Basic Example
@@ -76,6 +76,7 @@ secret accessible via environment variables:
 Execute tests suite:
 
 ::
+
     $ py.test -v tests
 
 
