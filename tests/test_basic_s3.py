@@ -2,6 +2,17 @@ import asyncio
 import pytest
 
 
+@asyncio.coroutine
+def fetch_all(pages):
+    responses = []
+    while True:
+        n = yield from pages.next_page()
+        if n is None:
+            break
+        responses.append(n)
+    return responses
+
+
 @pytest.mark.run_loop
 def test_can_make_request(s3_client):
     # Basic smoke test to ensure we can talk to s3.
@@ -27,9 +38,8 @@ def test_can_delete_urlencoded_object(s3_client, bucket_name, create_object):
     yield from create_object(key_name=key_name)
     resp = yield from s3_client.list_objects(Bucket=bucket_name)
     bucket_contents = resp['Contents']
-    # assert len(bucket_contents) == 1
-    assert len(bucket_contents) > 0
-    # assert bucket_contents[-1]['Key'] == 'a+b/foo'
+    assert len(bucket_contents) == 1
+    assert bucket_contents[-1]['Key'] == 'a+b/foo'
 
     resp = yield from s3_client.list_objects(Bucket=bucket_name, Prefix='a+b')
     subdir_contents = resp['Contents']
@@ -51,15 +61,28 @@ def test_can_paginate(s3_client, bucket_name, create_object, loop):
     yield from asyncio.sleep(3, loop=loop)
     paginator = s3_client.get_paginator('list_objects')
     pages = paginator.paginate(MaxKeys=1, Bucket=bucket_name)
-
-    responses = []
-    while True:
-        n = yield from pages.next_page()
-        print(n)
-        if n is None:
-            break
-        responses.append(n)
+    responses = yield from fetch_all(pages)
 
     assert len(responses) == 5, responses
     key_names = [el['Contents'][0]['Key'] for el in responses]
+    assert key_names == ['key0', 'key1', 'key2', 'key3', 'key4']
+
+
+@pytest.mark.run_loop
+def test_can_paginate_with_page_size(s3_client, bucket_name, create_object,
+                                     loop):
+    for i in range(5):
+        key_name = 'key%s' % i
+        yield from create_object(key_name)
+
+    # Eventual consistency.
+    yield from asyncio.sleep(3, loop=loop)
+    paginator = s3_client.get_paginator('list_objects')
+    pages = paginator.paginate(PaginationConfig={'PageSize': 1},
+                               Bucket=bucket_name)
+
+    responses = yield from fetch_all(pages)
+    assert len(responses) == 5, responses
+    data = [r for r in responses]
+    key_names = [el['Contents'][0]['Key'] for el in data]
     assert key_names == ['key0', 'key1', 'key2', 'key3', 'key4']
