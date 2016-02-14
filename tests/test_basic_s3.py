@@ -86,3 +86,41 @@ def test_can_paginate_with_page_size(s3_client, bucket_name, create_object,
     data = [r for r in responses]
     key_names = [el['Contents'][0]['Key'] for el in data]
     assert key_names == ['key0', 'key1', 'key2', 'key3', 'key4']
+
+
+@pytest.mark.xfail(raises=NotImplementedError)
+@pytest.mark.run_loop
+def test_result_key_iters(s3_client, bucket_name,):
+    paginator = s3_client.get_paginator('list_objects')
+    pages = paginator.paginate(MaxKeys=2, Prefix='key/', Delimiter='/',
+                               Bucket=bucket_name)
+    iterators = pages.result_key_iters()
+    assert iterators
+
+
+@pytest.mark.run_loop
+def test_can_get_and_put_object(s3_client, create_object, bucket_name, loop):
+    yield from create_object('foobarbaz', body='body contents')
+    # Eventual consistency.
+    yield from asyncio.sleep(3, loop=loop)
+
+    resp = yield from s3_client.get_object(Bucket=bucket_name, Key='foobarbaz')
+    data = yield from resp['Body'].read()
+    # TODO: think about better api and make behavior like in aiohttp
+    resp['Body'].close()
+    assert data == b'body contents'
+
+
+@pytest.mark.run_loop
+def test_get_object_stream_wrapper(s3_client, create_object, bucket_name):
+    yield from create_object('foobarbaz', body='body contents')
+    response = yield from s3_client.get_object(Bucket=bucket_name,
+                                               Key='foobarbaz')
+    body = response['Body']
+    # TODO add set_socket_timeout function
+    # Am able to set a socket timeout
+    # body.set_socket_timeout(10)
+    chunk1 = yield from body.read(1)
+    chunk2 = yield from body.read()
+    assert chunk1 == b'b'
+    assert chunk2 == b'ody contents'
