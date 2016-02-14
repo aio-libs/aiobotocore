@@ -98,6 +98,9 @@ def recursive_delete(s3_client, bucket_name):
         if n is None:
             break
 
+        if 'Contents' not in n:
+            continue
+
         for obj in n['Contents']:
             key = obj['Key']
             if key is None:
