@@ -1,3 +1,4 @@
+import asyncio
 import pytest
 
 
@@ -38,3 +39,27 @@ def test_can_delete_urlencoded_object(s3_client, bucket_name, create_object):
     response = yield from s3_client.delete_object(
         Bucket=bucket_name, Key=key_name)
     pytest.aio.assert_status_code(response, 204)
+
+
+@pytest.mark.run_loop
+def test_can_paginate(s3_client, bucket_name, create_object, loop):
+    for i in range(5):
+        key_name = 'key%s' % i
+        yield from create_object(key_name)
+
+    # Eventual consistency.
+    yield from asyncio.sleep(3, loop=loop)
+    paginator = s3_client.get_paginator('list_objects')
+    pages = paginator.paginate(MaxKeys=1, Bucket=bucket_name)
+
+    responses = []
+    while True:
+        n = yield from pages.next_page()
+        print(n)
+        if n is None:
+            break
+        responses.append(n)
+
+    assert len(responses) == 5, responses
+    key_names = [el['Contents'][0]['Key'] for el in responses]
+    assert key_names == ['key0', 'key1', 'key2', 'key3', 'key4']

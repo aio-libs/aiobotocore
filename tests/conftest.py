@@ -87,9 +87,31 @@ def s3_client(request, session, region):
     return client
 
 
+@asyncio.coroutine
+def recursive_delete(s3_client, bucket_name):
+    # Recursively deletes a bucket and all of its contents.
+    pages = s3_client.get_paginator('list_objects').paginate(
+        Bucket=bucket_name)
+
+    while True:
+        n = yield from pages.next_page()
+        if n is None:
+            break
+
+        for obj in n['Contents']:
+            key = obj['Key']
+            if key is None:
+                continue
+            yield from s3_client.delete_object(Bucket=bucket_name, Key=key)
+
+    resp = yield from s3_client.delete_bucket(Bucket=bucket_name)
+    assert_status_code(resp, 204)
+
+
 @pytest.fixture
-def bucket_name(region):
-    return 'dataintake-test'
+def bucket_name(region, create_bucket, loop):
+    name = loop.run_until_complete(create_bucket(region))
+    return name
 
 
 @pytest.fixture
@@ -98,10 +120,8 @@ def create_bucket(request, s3_client, loop):
 
     @asyncio.coroutine
     def _f(region_name, bucket_name=None):
-        return 'dataintake-test'
 
         nonlocal _bucket_name
-        bucket_kwargs = {}
         if bucket_name is None:
             bucket_name = random_bucketname()
         _bucket_name = bucket_name
@@ -110,17 +130,14 @@ def create_bucket(request, s3_client, loop):
             bucket_kwargs['CreateBucketConfiguration'] = {
                 'LocationConstraint': region_name,
             }
-        response = s3_client.create_bucket(**bucket_kwargs)
+        response = yield from s3_client.create_bucket(**bucket_kwargs)
         assert_status_code(response, 200)
-        return 'dataintake-test'
-        # return bucket_name
+        return bucket_name
 
     def fin():
-        resp = loop.run_unti_complete(
-            s3_client.delete_bucket(Bucket=_bucket_name))
-        assert_status_code(resp, 200)
+        loop.run_until_complete(recursive_delete(s3_client, _bucket_name))
 
-    # request.addfinalizer(fin)
+    request.addfinalizer(fin)
     return _f
 
 
@@ -141,6 +158,7 @@ def create_object(s3_client, bucket_name):
     def _f(key_name, body='foo'):
         r = yield from s3_client.put_object(Bucket=bucket_name, Key=key_name,
                                             Body=body)
+        assert_status_code(r, 200)
         return r
     return _f
 
