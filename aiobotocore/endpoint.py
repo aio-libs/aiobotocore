@@ -1,11 +1,15 @@
 import asyncio
 import aiohttp
+import sys
+import json
 from aiohttp.client_reqrep import ClientResponse
 
 from botocore.utils import is_valid_endpoint_url
 from botocore.endpoint import EndpointCreator, Endpoint, DEFAULT_TIMEOUT
 from botocore.exceptions import EndpointConnectionError, \
     BaseEndpointResolverError
+
+PY_35 = sys.version_info >= (3, 5)
 
 
 def text_(s, encoding='utf-8', errors='strict'):
@@ -46,6 +50,18 @@ class ClientResponseContentProxy:
         attrs = dir(self.__content)
         attrs.append('close')
         return attrs
+
+    def __del__(self):
+        self.close()
+
+    if PY_35:
+        @asyncio.coroutine
+        def __aenter__(self):
+            return self.__response.__aenter__()
+
+        @asyncio.coroutine
+        def __aexit__(self, exc_type, exc_val, exc_tb):
+            return self.__response.__aexit__(exc_type, exc_val, exc_tb)
 
     def close(self):
         self.__response.close()
@@ -97,17 +113,16 @@ class AioEndpoint(Endpoint):
         else:
             connector = aiohttp.TCPConnector(loop=self._loop, **connector_args)
 
-        self._aio_seesion = aiohttp.ClientSession(
+        self._aio_session = aiohttp.ClientSession(
             connector=connector,
             skip_auto_headers={'CONTENT-TYPE'},
             response_class=ClientResponseProxy, loop=self._loop)
 
     @asyncio.coroutine
     def _request(self, method, url, headers, data):
-
         headers_ = dict(
             (z[0], text_(z[1], encoding='utf-8')) for z in headers.items())
-        resp = yield from self._aio_seesion.request(
+        resp = yield from self._aio_session.request(
             method, url=url, headers=headers_, data=data)
         return resp
 

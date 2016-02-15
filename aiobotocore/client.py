@@ -17,6 +17,7 @@ from .endpoint import AioEndpointCreator
 
 
 class AioConfig(botocore.client.Config):
+
     def __init__(self, connector_args=None, **kwargs):
         super().__init__(**kwargs)
 
@@ -46,6 +47,10 @@ class AioConfig(botocore.client.Config):
                 if not isinstance(v, float) and not isinstance(v, int):
                     raise ParamValidationError(
                         report='{} value must be a float/int'.format(k))
+            elif k == 'force_close':
+                if not isinstance(v, bool):
+                    raise ParamValidationError(
+                        report='{} value must be a boolean'.format(k))
             elif k == 'limit':
                 if not isinstance(v, int):
                     raise ParamValidationError(
@@ -169,12 +174,20 @@ class AioClientCreator(botocore.client.ClientCreator):
 
 
 class AioBaseClient(botocore.client.BaseClient):
-
     @asyncio.coroutine
     def _make_api_call(self, operation_name, api_params):
+        request_context = {}
         operation_model = self._service_model.operation_model(operation_name)
         request_dict = self._convert_to_request_dict(
-            api_params, operation_model)
+            api_params, operation_model, context=request_context)
+
+        self.meta.events.emit(
+            'before-call.{endpoint_prefix}.{operation_name}'.format(
+                endpoint_prefix=self._service_model.endpoint_prefix,
+                operation_name=operation_name),
+            model=operation_model, params=request_dict,
+            request_signer=self._request_signer, context=request_context
+        )
 
         http, parsed_response = yield from self._endpoint.make_request(
             operation_model, request_dict)
@@ -184,7 +197,7 @@ class AioBaseClient(botocore.client.BaseClient):
                 endpoint_prefix=self._service_model.endpoint_prefix,
                 operation_name=operation_name),
             http_response=http, parsed=parsed_response,
-            model=operation_model
+            model=operation_model, context=request_context
         )
 
         if http.status >= 300:
@@ -222,6 +235,7 @@ class AioBaseClient(botocore.client.BaseClient):
                 self._cache['page_config'][actual_operation_name])
             return paginator
 
+    @asyncio.coroutine
     def close(self):
         """Close all http connections"""
-        self._endpoint._aio_seesion.close()
+        yield from self._endpoint._aio_session.close()
