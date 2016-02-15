@@ -2,6 +2,7 @@ import asyncio
 import sys
 from botocore.exceptions import PaginationError
 from botocore.paginate import PageIterator
+from botocore.utils import set_value_from_jmespath, merge_dicts
 
 PY_35 = sys.version_info >= (3, 5)
 
@@ -133,3 +134,52 @@ class AioPageIterator(PageIterator):
         # teed_results = tee(self, len(self.result_keys))
         # return [ResultKeyIterator(i, result_key) for i, result_key in
         #         zip(teed_results, self.result_keys)]
+
+    @asyncio.coroutine
+    def build_full_result(self):
+        complete_result = {}
+        while True:
+            response = yield from self.next_page()
+            if response is None:
+                break
+            page = response
+            # We want to try to catch operation object pagination
+            # and format correctly for those. They come in the form
+            # of a tuple of two elements: (http_response, parsed_responsed).
+            # We want the parsed_response as that is what the page iterator
+            # uses. We can remove it though once operation objects are removed.
+            if isinstance(response, tuple) and len(response) == 2:
+                page = response[1]
+            # We're incrementally building the full response page
+            # by page.  For each page in the response we need to
+            # inject the necessary components from the page
+            # into the complete_result.
+            for result_expression in self.result_keys:
+                # In order to incrementally update a result key
+                # we need to search the existing value from complete_result,
+                # then we need to search the _current_ page for the
+                # current result key value.  Then we append the current
+                # value onto the existing value, and re-set that value
+                # as the new value.
+                result_value = result_expression.search(page)
+                if result_value is None:
+                    continue
+                existing_value = result_expression.search(complete_result)
+                if existing_value is None:
+                    # Set the initial result
+                    set_value_from_jmespath(
+                        complete_result, result_expression.expression,
+                        result_value)
+                    continue
+                # Now both result_value and existing_value contain something
+                if isinstance(result_value, list):
+                    existing_value.extend(result_value)
+                elif isinstance(result_value, (int, float, str)):
+                    # Modify the existing result with the sum or concatenation
+                    set_value_from_jmespath(
+                        complete_result, result_expression.expression,
+                        existing_value + result_value)
+        merge_dicts(complete_result, self.non_aggregate_part)
+        if self.resume_token is not None:
+            complete_result['NextToken'] = self.resume_token
+        return complete_result

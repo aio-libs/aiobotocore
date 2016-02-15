@@ -124,3 +124,71 @@ def test_get_object_stream_wrapper(s3_client, create_object, bucket_name):
     chunk2 = yield from body.read()
     assert chunk1 == b'b'
     assert chunk2 == b'ody contents'
+
+
+@pytest.mark.run_loop
+def test_paginate_max_items(s3_client, create_multipart_upload, bucket_name,
+                            loop):
+    yield from create_multipart_upload('foo/key1')
+    yield from create_multipart_upload('foo/key1')
+    yield from create_multipart_upload('foo/key1')
+    yield from create_multipart_upload('foo/key2')
+    yield from create_multipart_upload('foobar/key1')
+    yield from create_multipart_upload('foobar/key2')
+    yield from create_multipart_upload('bar/key1')
+    yield from create_multipart_upload('bar/key2')
+
+    # Verify when we have MaxItems=None, we get back all 8 uploads.
+    yield from pytest.aio.assert_num_uploads_found(
+        s3_client, bucket_name, 'list_multipart_uploads', max_items=None,
+        num_uploads=8, loop=loop)
+
+    # Verify when we have MaxItems=1, we get back 1 upload.
+    yield from pytest.aio.assert_num_uploads_found(
+        s3_client, bucket_name, 'list_multipart_uploads', max_items=1,
+        num_uploads=1, loop=loop)
+
+    paginator = s3_client.get_paginator('list_multipart_uploads')
+    # Works similar with build_full_result()
+    pages = paginator.paginate(PaginationConfig={'MaxItems': 1},
+                               Bucket=bucket_name)
+    full_result = yield from pages.build_full_result()
+    assert len(full_result['Uploads']) == 1
+
+
+@pytest.mark.run_loop
+def test_paginate_within_page_boundaries(s3_client, create_object,
+                                         bucket_name):
+    yield from create_object('a')
+    yield from create_object('b')
+    yield from create_object('c')
+    yield from create_object('d')
+    paginator = s3_client.get_paginator('list_objects')
+    # First do it without a max keys so we're operating on a single page of
+    # results.
+    pages = paginator.paginate(PaginationConfig={'MaxItems': 1},
+                               Bucket=bucket_name)
+    first = yield from pages.build_full_result()
+    t1 = first['NextToken']
+
+    pages = paginator.paginate(
+        PaginationConfig={'MaxItems': 1, 'StartingToken': t1},
+        Bucket=bucket_name)
+    second = yield from pages.build_full_result()
+    t2 = second['NextToken']
+
+    pages = paginator.paginate(
+        PaginationConfig={'MaxItems': 1, 'StartingToken': t2},
+        Bucket=bucket_name)
+    third = yield from pages.build_full_result()
+    t3 = third['NextToken']
+
+    pages = paginator.paginate(
+        PaginationConfig={'MaxItems': 1, 'StartingToken': t3},
+        Bucket=bucket_name)
+    fourth = yield from pages.build_full_result()
+
+    assert first['Contents'][-1]['Key'] == 'a'
+    assert second['Contents'][-1]['Key'] == 'b'
+    assert third['Contents'][-1]['Key'] == 'c'
+    assert fourth['Contents'][-1]['Key'] == 'd'
