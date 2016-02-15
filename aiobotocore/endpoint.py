@@ -48,35 +48,11 @@ class ClientResponseContentProxy:
 
     def __dir__(self):
         attrs = dir(self.__content)
-        attrs += ['read_all', 'text', 'json' 'close']
+        attrs.append('close')
         return attrs
 
     def __del__(self):
         self.close()
-
-    @asyncio.coroutine
-    def read_all(self):
-        """
-        Forwards to aiohttp.ClientResponse.read.  With release response on
-        success and close on exception.  Stores result in ClientResponse.
-        """
-        return self.__response.read()
-
-    @asyncio.coroutine
-    def text(self, encoding=None):
-        """
-        Forwards to aiohttp.ClientResponse.text  With release response on
-        success and close on exception.  Stores result in ClientResponse.
-        """
-        return self.__response.text(encoding=encoding)
-
-    @asyncio.coroutine
-    def json(self, *, encoding=None, loads=json.loads):
-        """
-        Forwards to aiohttp.ClientResponse.json  With release response on
-        success and close on exception.  Stores result in ClientResponse.
-        """
-        return self.__response.json(encoding=encoding, loads=loads)
 
     if PY_35:
         @asyncio.coroutine
@@ -144,12 +120,10 @@ class AioEndpoint(Endpoint):
 
     @asyncio.coroutine
     def _request(self, method, url, headers, data):
-        expect100 = method in ['PUT', 'POST'] and hasattr(data, 'read')
-
         headers_ = dict(
             (z[0], text_(z[1], encoding='utf-8')) for z in headers.items())
         resp = yield from self._aio_session.request(
-            method, url=url, headers=headers_, data=data, expect100=expect100)
+            method, url=url, headers=headers_, data=data)
         return resp
 
     @asyncio.coroutine
