@@ -65,6 +65,36 @@ def assert_status_code(response, status_code):
     assert response['ResponseMetadata']['HTTPStatusCode'] == status_code
 
 
+@asyncio.coroutine
+def assert_num_uploads_found(s3_client, bucket_name, operation,
+                             num_uploads, *, max_items=None, num_attempts=5,
+                             loop):
+    amount_seen = None
+    paginator = s3_client.get_paginator(operation)
+    for _ in range(num_attempts):
+        pages = paginator.paginate(Bucket=bucket_name,
+                                   PaginationConfig={'MaxItems': max_items})
+        responses = []
+        while True:
+            resp = yield from pages.next_page()
+            if resp is None:
+                break
+            responses.append(resp)
+        # It sometimes takes a while for all the uploads to show up,
+        # especially if the upload was just created.  If we don't
+        # see the expected amount, we retry up to num_attempts time
+        # before failing.
+        amount_seen = len(responses[0]['Uploads'])
+        if amount_seen == num_uploads:
+            # Test passed.
+            return
+        else:
+            # Sleep and try again.
+            yield from asyncio.sleep(2, loop=loop)
+        pytest.fail("Expected to see %s uploads, instead saw: %s" % (
+            num_uploads, amount_seen))
+
+
 @pytest.fixture
 def session(loop):
     session = aiobotocore.get_session(loop=loop)
@@ -166,5 +196,31 @@ def create_object(s3_client, bucket_name):
     return _f
 
 
+@pytest.fixture
+def create_multipart_upload(request, s3_client, bucket_name, loop):
+    _key_name = None
+    upload_id = None
+
+    @asyncio.coroutine
+    def _f(key_name):
+        nonlocal _key_name
+        nonlocal upload_id
+        _key_name = key_name
+
+        parsed = yield from s3_client.create_multipart_upload(
+            Bucket=bucket_name, Key=key_name)
+        upload_id = parsed['UploadId']
+        return upload_id
+
+    def fin():
+        loop.run_until_complete(s3_client.abort_multipart_upload(
+            UploadId=upload_id, Bucket=bucket_name, Key=_key_name))
+
+    request.addfinalizer(fin)
+    return _f
+
+
 def pytest_namespace():
-    return {'aio': {'assert_status_code': assert_status_code}}
+    return {'aio': {'assert_status_code': assert_status_code,
+                    'assert_num_uploads_found': assert_num_uploads_found},
+            }
