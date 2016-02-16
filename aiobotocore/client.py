@@ -235,7 +235,6 @@ class AioBaseClient(botocore.client.BaseClient):
                 self._cache['page_config'][actual_operation_name])
             return paginator
 
-    @asyncio.coroutine
     def close(self):
         """Close all http connections"""
-        yield from self._endpoint._aio_session.close()
+        self._endpoint._aio_session.close()

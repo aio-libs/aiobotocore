@@ -1,7 +1,6 @@
 import asyncio
 import aiohttp
 import sys
-import json
 from aiohttp.client_reqrep import ClientResponse
 
 from botocore.utils import is_valid_endpoint_url
