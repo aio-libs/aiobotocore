@@ -4,12 +4,12 @@ import sys
 from setuptools import setup, find_packages
 
 
-install_requires = ['botocore==1.3.1', 'aiohttp>=0.18.1']
+install_requires = ['botocore>=1.3.26', 'aiohttp>=0.21.2']
 
 PY_VER = sys.version_info
 
 if not PY_VER >= (3, 4, 1):
-    raise RuntimeError("aiobotocore doesn't suppport Python earllier than 3.5")
+    raise RuntimeError("aiobotocore doesn't suppport Python earllier than 3.4")
 
 
 def read(f):
