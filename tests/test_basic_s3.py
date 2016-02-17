@@ -192,3 +192,42 @@ def test_paginate_within_page_boundaries(s3_client, create_object,
     assert second['Contents'][-1]['Key'] == 'b'
     assert third['Contents'][-1]['Key'] == 'c'
     assert fourth['Contents'][-1]['Key'] == 'd'
+
+
+@pytest.mark.run_loop
+def test_unicode_key_put_list(s3_client, bucket_name, create_object):
+    # Verify we can upload a key with a unicode char and list it as well.
+    key_name = u'\u2713'
+    yield from create_object(key_name)
+    parsed = yield from s3_client.list_objects(Bucket=bucket_name)
+    assert len(parsed['Contents']) == 1
+    assert parsed['Contents'][0]['Key'] == key_name
+    parsed = yield from s3_client.get_object(Bucket=bucket_name, Key=key_name)
+    data = yield from parsed['Body'].read()
+    assert data == b'foo'
+
+
+@pytest.mark.run_loop
+def test_unicode_system_character(s3_client, bucket_name, create_object):
+    # Verify we can use a unicode system character which would normally
+    # break the xml parser
+    key_name = 'foo\x08'
+    yield from create_object(key_name)
+    parsed = yield from s3_client.list_objects(Bucket=bucket_name)
+    assert len(parsed['Contents']) == 1
+    assert parsed['Contents'][0]['Key'] == key_name
+
+    parsed = yield from s3_client.list_objects(Bucket=bucket_name,
+                                               EncodingType='url')
+    assert len(parsed['Contents']) == 1
+    assert parsed['Contents'][0]['Key'] == 'foo%08'
+
+
+@pytest.mark.run_loop
+def test_non_normalized_key_paths(s3_client, bucket_name, create_object):
+    # The create_object method has assertEqual checks for 200 status.
+    yield from create_object('key./././name')
+    bucket = yield from s3_client.list_objects(Bucket=bucket_name)
+    bucket_contents = bucket['Contents']
+    assert len(bucket_contents) == 1
+    assert bucket_contents[0]['Key'] == 'key./././name'
