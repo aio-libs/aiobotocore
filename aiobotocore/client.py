@@ -237,4 +237,6 @@ class AioBaseClient(botocore.client.BaseClient):
 
     def close(self):
         """Close all http connections"""
-        self._endpoint._aio_session.close()
+        # ClientSession.close() from aiohttp returns asyncio.Future here so
+        # this method could be used with yield from/await
+        return self._endpoint._aio_session.close()
