@@ -231,3 +231,12 @@ def test_non_normalized_key_paths(s3_client, bucket_name, create_object):
     bucket_contents = bucket['Contents']
     assert len(bucket_contents) == 1
     assert bucket_contents[0]['Key'] == 'key./././name'
+
+
+@pytest.mark.skipif(True, reason='Not supported')
+@pytest.mark.run_loop
+def test_reset_stream_on_redirects(region, create_bucket):
+    # Create a bucket in a non classic region.
+    bucket_name = yield from create_bucket(region)
+    # Then try to put a file like object to this location.
+    assert bucket_name
