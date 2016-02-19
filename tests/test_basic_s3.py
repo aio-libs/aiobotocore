@@ -272,3 +272,32 @@ def test_copy_with_query_string(s3_client, create_object, bucket_name):
     resp = yield from s3_client.get_object(Bucket=bucket_name, Key=key_name2)
     data = yield from resp['Body'].read()
     assert data == b'foo'
+
+
+@pytest.mark.run_loop
+def test_can_copy_with_dict_form(s3_client, create_object, bucket_name):
+    key_name = 'a+b/foo?versionId=abcd'
+    yield from create_object(key_name=key_name)
+
+    key_name2 = key_name + 'bar'
+    yield from s3_client.copy_object(
+        Bucket=bucket_name, Key=key_name2,
+        CopySource={'Bucket': bucket_name, 'Key': key_name})
+
+    # Now verify we can retrieve the copied object.
+    resp = yield from s3_client.get_object(Bucket=bucket_name, Key=key_name2)
+    data = yield from resp['Body'].read()
+    assert data == b'foo'
+
+
+@pytest.mark.run_loop
+def test_copy_with_s3_metadata(s3_client, create_object, bucket_name):
+    key_name = 'foo.txt'
+    yield from create_object(key_name=key_name)
+    copied_key = 'copied.txt'
+    parsed = yield from s3_client.copy_object(
+        Bucket=bucket_name, Key=copied_key,
+        CopySource='%s/%s' % (bucket_name, key_name),
+        MetadataDirective='REPLACE',
+        Metadata={"mykey": "myvalue", "mykey2": "myvalue2"})
+    pytest.aio.assert_status_code(parsed, 200)
