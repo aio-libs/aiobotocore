@@ -240,3 +240,35 @@ def test_reset_stream_on_redirects(region, create_bucket):
     bucket_name = yield from create_bucket(region)
     # Then try to put a file like object to this location.
     assert bucket_name
+
+
+@pytest.mark.run_loop
+def test_copy_with_quoted_char(s3_client, create_object, bucket_name):
+    key_name = 'a+b/foo'
+    yield from create_object(key_name=key_name)
+
+    key_name2 = key_name + 'bar'
+    source = '%s/%s' % (bucket_name, key_name)
+    yield from s3_client.copy_object(
+        Bucket=bucket_name, Key=key_name2, CopySource=source)
+
+    # Now verify we can retrieve the copied object.
+    resp = yield from s3_client.get_object(Bucket=bucket_name, Key=key_name2)
+    data = yield from resp['Body'].read()
+    assert data == b'foo'
+
+
+@pytest.mark.run_loop
+def test_copy_with_query_string(s3_client, create_object, bucket_name):
+    key_name = 'a+b/foo?notVersionid=bar'
+    yield from create_object(key_name=key_name)
+
+    key_name2 = key_name + 'bar'
+    yield from s3_client.copy_object(
+        Bucket=bucket_name, Key=key_name2,
+        CopySource='%s/%s' % (bucket_name, key_name))
+
+    # Now verify we can retrieve the copied object.
+    resp = yield from s3_client.get_object(Bucket=bucket_name, Key=key_name2)
+    data = yield from resp['Body'].read()
+    assert data == b'foo'
