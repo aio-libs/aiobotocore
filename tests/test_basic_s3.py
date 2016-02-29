@@ -301,3 +301,25 @@ def test_copy_with_s3_metadata(s3_client, create_object, bucket_name):
         MetadataDirective='REPLACE',
         Metadata={"mykey": "myvalue", "mykey2": "myvalue2"})
     pytest.aio.assert_status_code(parsed, 200)
+
+
+@pytest.mark.parametrize('region', ['us-east-1'])
+@pytest.mark.parametrize('signature_version', ['s3'])
+@pytest.mark.run_loop
+def test_presign_with_existing_query_string_values(s3_client, bucket_name,
+                                                   aio_session, create_object):
+    key_name = 'foo.txt'
+    yield from create_object(key_name=key_name)
+    content_disposition = 'attachment; filename=foo.txt;'
+    params = {'Bucket': bucket_name,
+              'Key': key_name,
+              'ResponseContentDisposition': content_disposition}
+    presigned_url = s3_client.generate_presigned_url(
+        'get_object', Params=params)
+    # Try to retrieve the object using the presigned url.
+
+    resp = yield from aio_session.get(presigned_url)
+    data = yield from resp.read()
+    resp.close()
+    assert resp.headers['Content-Disposition'] == content_disposition
+    assert data == b'foo'
