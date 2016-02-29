@@ -1,6 +1,7 @@
 import asyncio
 import pytest
 import time
+import aiohttp
 import aiobotocore
 import tempfile
 import shutil
@@ -218,6 +219,17 @@ def create_multipart_upload(request, s3_client, bucket_name, loop):
 
     request.addfinalizer(fin)
     return _f
+
+
+@pytest.fixture
+def aio_session(request, loop):
+    _session = aiohttp.ClientSession(loop=loop)
+
+    def fin():
+        _session.close()
+
+    request.addfinalizer(fin)
+    return _session
 
 
 def pytest_namespace():
