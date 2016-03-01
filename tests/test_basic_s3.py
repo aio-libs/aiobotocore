@@ -323,3 +323,22 @@ def test_presign_with_existing_query_string_values(s3_client, bucket_name,
     resp.close()
     assert resp.headers['Content-Disposition'] == content_disposition
     assert data == b'foo'
+
+
+@pytest.mark.parametrize('region', ['us-east-1'])
+@pytest.mark.parametrize('signature_version', ['s3v4'])
+@pytest.mark.run_loop
+def test_presign_sigv4(s3_client, bucket_name, aio_session, create_object):
+    key = 'myobject'
+    yield from create_object(key_name=key)
+    presigned_url = s3_client.generate_presigned_url(
+        'get_object', Params={'Bucket': bucket_name, 'Key': key})
+    msg = "Host was suppose to be the us-east-1 endpoint, " \
+          "instead got: %s" % presigned_url
+    assert presigned_url.startswith('https://s3.amazonaws.com/%s/%s'
+                                    % (bucket_name, key)), msg
+
+    # Try to retrieve the object using the presigned url.
+    resp = yield from aio_session.get(presigned_url)
+    data = yield from resp.read()
+    assert data == b'foo'
