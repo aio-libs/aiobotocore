@@ -223,13 +223,13 @@ def create_multipart_upload(request, s3_client, bucket_name, loop):
 
 @pytest.fixture
 def aio_session(request, loop):
-    _session = aiohttp.ClientSession(loop=loop)
+    session = aiohttp.ClientSession(loop=loop)
 
     def fin():
-        _session.close()
+        session.close()
 
     request.addfinalizer(fin)
-    return _session
+    return session
 
 
 def pytest_namespace():
