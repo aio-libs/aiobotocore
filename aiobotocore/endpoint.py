@@ -5,8 +5,7 @@ from aiohttp.client_reqrep import ClientResponse
 
 from botocore.utils import is_valid_endpoint_url
 from botocore.endpoint import EndpointCreator, Endpoint, DEFAULT_TIMEOUT
-from botocore.exceptions import EndpointConnectionError, \
-    BaseEndpointResolverError
+from botocore.exceptions import EndpointConnectionError
 
 PY_35 = sys.version_info >= (3, 5)
 
@@ -191,49 +190,24 @@ class AioEndpoint(Endpoint):
 
 class AioEndpointCreator(EndpointCreator):
 
-    def __init__(self, endpoint_resolver, configured_region, event_emitter,
-                 loop):
-        super().__init__(endpoint_resolver, configured_region, event_emitter)
+    def __init__(self, event_emitter, loop):
+        super().__init__(event_emitter)
         self._loop = loop
 
-    def create_endpoint(self, service_model, region_name=None, is_secure=True,
+    def create_endpoint(self, service_model, region_name=None,
                         endpoint_url=None, verify=None,
                         response_parser_factory=None, timeout=DEFAULT_TIMEOUT,
                         connector_args=None):
-        if region_name is None:
-            region_name = self._configured_region
-        # Use the endpoint resolver heuristics to build the endpoint url.
-        scheme = 'https' if is_secure else 'http'
-        try:
-            endpoint = self._endpoint_resolver.construct_endpoint(
-                service_model.endpoint_prefix,
-                region_name, scheme=scheme)
-        except BaseEndpointResolverError:
-            if endpoint_url is not None:
-                # If the user provides an endpoint_url, it's ok
-                # if the heuristics didn't find anything.  We use the
-                # user provided endpoint_url.
-                endpoint = {'uri': endpoint_url, 'properties': {}}
-            else:
-                raise
 
-        if endpoint_url is not None:
-            # If the user provides an endpoint url, we'll use that
-            # instead of what the heuristics rule gives us.
-            final_endpoint_url = endpoint_url
-        else:
-            final_endpoint_url = endpoint['uri']
-        if not is_valid_endpoint_url(final_endpoint_url):
-            raise ValueError("Invalid endpoint: %s" % final_endpoint_url)
+        if not is_valid_endpoint_url(endpoint_url):
+            raise ValueError("Invalid endpoint: %s" % endpoint_url)
 
-        proxies = self._get_proxies(final_endpoint_url)
-        verify_value = self._get_verify_value(verify)
         return AioEndpoint(
-            final_endpoint_url,
+            endpoint_url,
             endpoint_prefix=service_model.endpoint_prefix,
             event_emitter=self._event_emitter,
-            proxies=proxies,
-            verify=verify_value,
+            proxies=self._get_proxies(endpoint_url),
+            verify=self._get_verify_value(verify),
             timeout=timeout,
             response_parser_factory=response_parser_factory, loop=self._loop,
             connector_args=connector_args)
