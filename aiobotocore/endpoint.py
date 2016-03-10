@@ -5,8 +5,7 @@ from aiohttp.client_reqrep import ClientResponse
 
 from botocore.utils import is_valid_endpoint_url
 from botocore.endpoint import EndpointCreator, Endpoint, DEFAULT_TIMEOUT
-from botocore.exceptions import EndpointConnectionError, \
-    BaseEndpointResolverError
+from botocore.exceptions import EndpointConnectionError
 
 PY_35 = sys.version_info >= (3, 5)
 
