@@ -34,13 +34,13 @@ class AioClientCreator(botocore.client.ClientCreator):
         # we call the super class' version and replace as necessary to avoid
         # having to duplicate and maintain this method
         parent_args = super()._get_client_args(service_model=service_model,
-                                        region_name=region_name,
-                                        is_secure=is_secure,
-                                        endpoint_url=endpoint_url,
-                                        verify=verify,
-                                        credentials=credentials,
-                                        scoped_config=scoped_config,
-                                        client_config=client_config)
+                                               region_name=region_name,
+                                               is_secure=is_secure,
+                                               endpoint_url=endpoint_url,
+                                               verify=verify,
+                                               credentials=credentials,
+                                               scoped_config=scoped_config,
+                                               client_config=client_config)
 
         event_emitter = copy.copy(self._event_emitter)
         endpoint_creator = AioEndpointCreator(event_emitter, self._loop)
