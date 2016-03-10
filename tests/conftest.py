@@ -1,7 +1,9 @@
 import asyncio
 import pytest
 import time
+import aiohttp
 import aiobotocore
+from aiobotocore.client import AioConfig
 import tempfile
 import shutil
 
@@ -107,9 +109,19 @@ def region():
 
 
 @pytest.fixture
-def s3_client(request, session, region):
-    region = 'us-east-1'
-    client = session.create_client('s3', region_name=region)
+def signature_version():
+    return 's3'
+
+
+@pytest.fixture
+def config(signature_version, region):
+    conf = AioConfig(region_name=region, signature_version=signature_version)
+    return conf
+
+
+@pytest.fixture
+def s3_client(request, session, region, config):
+    client = session.create_client('s3', region_name=region, config=config)
 
     def fin():
         client.close()
@@ -142,7 +154,7 @@ def recursive_delete(s3_client, bucket_name):
 
 
 @pytest.fixture
-def bucket_name(region, create_bucket, loop):
+def bucket_name(region, create_bucket, s3_client, loop):
     name = loop.run_until_complete(create_bucket(region))
     return name
 
@@ -218,6 +230,17 @@ def create_multipart_upload(request, s3_client, bucket_name, loop):
 
     request.addfinalizer(fin)
     return _f
+
+
+@pytest.fixture
+def aio_session(request, loop):
+    session = aiohttp.ClientSession(loop=loop)
+
+    def fin():
+        session.close()
+
+    request.addfinalizer(fin)
+    return session
 
 
 def pytest_namespace():

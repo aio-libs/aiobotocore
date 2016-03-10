@@ -192,3 +192,153 @@ def test_paginate_within_page_boundaries(s3_client, create_object,
     assert second['Contents'][-1]['Key'] == 'b'
     assert third['Contents'][-1]['Key'] == 'c'
     assert fourth['Contents'][-1]['Key'] == 'd'
+
+
+@pytest.mark.run_loop
+def test_unicode_key_put_list(s3_client, bucket_name, create_object):
+    # Verify we can upload a key with a unicode char and list it as well.
+    key_name = u'\u2713'
+    yield from create_object(key_name)
+    parsed = yield from s3_client.list_objects(Bucket=bucket_name)
+    assert len(parsed['Contents']) == 1
+    assert parsed['Contents'][0]['Key'] == key_name
+    parsed = yield from s3_client.get_object(Bucket=bucket_name, Key=key_name)
+    data = yield from parsed['Body'].read()
+    assert data == b'foo'
+
+
+@pytest.mark.run_loop
+def test_unicode_system_character(s3_client, bucket_name, create_object):
+    # Verify we can use a unicode system character which would normally
+    # break the xml parser
+    key_name = 'foo\x08'
+    yield from create_object(key_name)
+    parsed = yield from s3_client.list_objects(Bucket=bucket_name)
+    assert len(parsed['Contents']) == 1
+    assert parsed['Contents'][0]['Key'] == key_name
+
+    parsed = yield from s3_client.list_objects(Bucket=bucket_name,
+                                               EncodingType='url')
+    assert len(parsed['Contents']) == 1
+    assert parsed['Contents'][0]['Key'] == 'foo%08'
+
+
+@pytest.mark.run_loop
+def test_non_normalized_key_paths(s3_client, bucket_name, create_object):
+    # The create_object method has assertEqual checks for 200 status.
+    yield from create_object('key./././name')
+    bucket = yield from s3_client.list_objects(Bucket=bucket_name)
+    bucket_contents = bucket['Contents']
+    assert len(bucket_contents) == 1
+    assert bucket_contents[0]['Key'] == 'key./././name'
+
+
+@pytest.mark.skipif(True, reason='Not supported')
+@pytest.mark.run_loop
+def test_reset_stream_on_redirects(region, create_bucket):
+    # Create a bucket in a non classic region.
+    bucket_name = yield from create_bucket(region)
+    # Then try to put a file like object to this location.
+    assert bucket_name
+
+
+@pytest.mark.run_loop
+def test_copy_with_quoted_char(s3_client, create_object, bucket_name):
+    key_name = 'a+b/foo'
+    yield from create_object(key_name=key_name)
+
+    key_name2 = key_name + 'bar'
+    source = '%s/%s' % (bucket_name, key_name)
+    yield from s3_client.copy_object(
+        Bucket=bucket_name, Key=key_name2, CopySource=source)
+
+    # Now verify we can retrieve the copied object.
+    resp = yield from s3_client.get_object(Bucket=bucket_name, Key=key_name2)
+    data = yield from resp['Body'].read()
+    assert data == b'foo'
+
+
+@pytest.mark.run_loop
+def test_copy_with_query_string(s3_client, create_object, bucket_name):
+    key_name = 'a+b/foo?notVersionid=bar'
+    yield from create_object(key_name=key_name)
+
+    key_name2 = key_name + 'bar'
+    yield from s3_client.copy_object(
+        Bucket=bucket_name, Key=key_name2,
+        CopySource='%s/%s' % (bucket_name, key_name))
+
+    # Now verify we can retrieve the copied object.
+    resp = yield from s3_client.get_object(Bucket=bucket_name, Key=key_name2)
+    data = yield from resp['Body'].read()
+    assert data == b'foo'
+
+
+@pytest.mark.run_loop
+def test_can_copy_with_dict_form(s3_client, create_object, bucket_name):
+    key_name = 'a+b/foo?versionId=abcd'
+    yield from create_object(key_name=key_name)
+
+    key_name2 = key_name + 'bar'
+    yield from s3_client.copy_object(
+        Bucket=bucket_name, Key=key_name2,
+        CopySource={'Bucket': bucket_name, 'Key': key_name})
+
+    # Now verify we can retrieve the copied object.
+    resp = yield from s3_client.get_object(Bucket=bucket_name, Key=key_name2)
+    data = yield from resp['Body'].read()
+    assert data == b'foo'
+
+
+@pytest.mark.run_loop
+def test_copy_with_s3_metadata(s3_client, create_object, bucket_name):
+    key_name = 'foo.txt'
+    yield from create_object(key_name=key_name)
+    copied_key = 'copied.txt'
+    parsed = yield from s3_client.copy_object(
+        Bucket=bucket_name, Key=copied_key,
+        CopySource='%s/%s' % (bucket_name, key_name),
+        MetadataDirective='REPLACE',
+        Metadata={"mykey": "myvalue", "mykey2": "myvalue2"})
+    pytest.aio.assert_status_code(parsed, 200)
+
+
+@pytest.mark.parametrize('region', ['us-east-1'])
+@pytest.mark.parametrize('signature_version', ['s3'])
+@pytest.mark.run_loop
+def test_presign_with_existing_query_string_values(s3_client, bucket_name,
+                                                   aio_session, create_object):
+    key_name = 'foo.txt'
+    yield from create_object(key_name=key_name)
+    content_disposition = 'attachment; filename=foo.txt;'
+    params = {'Bucket': bucket_name,
+              'Key': key_name,
+              'ResponseContentDisposition': content_disposition}
+    presigned_url = s3_client.generate_presigned_url(
+        'get_object', Params=params)
+    # Try to retrieve the object using the presigned url.
+
+    resp = yield from aio_session.get(presigned_url)
+    data = yield from resp.read()
+    resp.close()
+    assert resp.headers['Content-Disposition'] == content_disposition
+    assert data == b'foo'
+
+
+@pytest.mark.parametrize('region', ['us-east-1'])
+@pytest.mark.parametrize('signature_version', ['s3v4'])
+@pytest.mark.run_loop
+def test_presign_sigv4(s3_client, bucket_name, aio_session, create_object):
+    key = 'myobject'
+    yield from create_object(key_name=key)
+    presigned_url = s3_client.generate_presigned_url(
+        'get_object', Params={'Bucket': bucket_name, 'Key': key})
+    msg = "Host was suppose to be the us-east-1 endpoint, " \
+          "instead got: %s" % presigned_url
+    assert presigned_url.startswith('https://s3.amazonaws.com/%s/%s'
+                                    % (bucket_name, key)), msg
+
+    # Try to retrieve the object using the presigned url.
+    resp = yield from aio_session.get(presigned_url)
+    data = yield from resp.read()
+    assert data == b'foo'
