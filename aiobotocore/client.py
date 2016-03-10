@@ -10,6 +10,7 @@ import botocore.parsers
 from botocore.exceptions import ClientError, OperationNotPageableError
 from botocore.paginate import Paginator
 from botocore.client import ClientEndpointBridge
+from botocore.signers import RequestSigner
 
 from .paginate import AioPageIterator
 from .endpoint import AioEndpointCreator
@@ -31,36 +32,63 @@ class AioClientCreator(botocore.client.ClientCreator):
                          endpoint_url, verify, credentials,
                          scoped_config, client_config):
 
-        # we call the super class' version and replace as necessary to avoid
-        # having to duplicate and maintain this method
-        parent_args = super()._get_client_args(service_model=service_model,
-                                               region_name=region_name,
-                                               is_secure=is_secure,
-                                               endpoint_url=endpoint_url,
-                                               verify=verify,
-                                               credentials=credentials,
-                                               scoped_config=scoped_config,
-                                               client_config=client_config)
+        # This is a near copy of botocore.client.ClientCreator. What's replaced
+        # is Config->AioConfig and EndpointCreator->AioEndpointCreator
+        # We don't re-use the parent's implementations due to weak refs
+
+        service_name = service_model.endpoint_prefix
+        protocol = service_model.metadata['protocol']
+        parameter_validation = True
+        if client_config:
+            parameter_validation = client_config.parameter_validation
+        serializer = botocore.serialize.create_serializer(
+            protocol, parameter_validation)
 
         event_emitter = copy.copy(self._event_emitter)
-        endpoint_creator = AioEndpointCreator(event_emitter, self._loop)
+        response_parser = botocore.parsers.create_parser(protocol)
+        endpoint_bridge = ClientEndpointBridge(
+            self._endpoint_resolver, scoped_config, client_config,
+            service_signing_name=service_model.metadata.get('signingName'))
+        endpoint_config = endpoint_bridge.resolve(
+            service_name, region_name, endpoint_url, is_secure)
+
+        # Override the user agent if specified in the client config.
+        user_agent = self._user_agent
+        if client_config is not None:
+            if client_config.user_agent is not None:
+                user_agent = client_config.user_agent
+            if client_config.user_agent_extra is not None:
+                user_agent += ' %s' % client_config.user_agent_extra
+
+        signer = RequestSigner(
+            service_name, endpoint_config['signing_region'],
+            endpoint_config['signing_name'],
+            endpoint_config['signature_version'],
+            credentials, event_emitter)
+
+        # Create a new client config to be passed to the client based
+        # on the final values. We do not want the user to be able
+        # to try to modify an existing client with a client config.
+        config_kwargs = dict(
+            region_name=endpoint_config['region_name'],
+            signature_version=endpoint_config['signature_version'],
+            user_agent=user_agent)
+        if client_config is not None:
+            config_kwargs.update(
+                connect_timeout=client_config.connect_timeout,
+                read_timeout=client_config.read_timeout)
+
+        # Add any additional s3 configuration for client
+        self._inject_s3_configuration(
+            config_kwargs, scoped_config, client_config)
 
         if isinstance(client_config, AioConfig):
             connector_args = client_config.connector_args
         else:
             connector_args = None
 
-        new_config = AioConfig(connector_args)
-        new_config = new_config.merge(parent_args['client_config'])
-
-        endpoint_bridge = ClientEndpointBridge(
-            self._endpoint_resolver, scoped_config, client_config,
-            service_signing_name=service_model.metadata.get('signingName'))
-
-        service_name = service_model.endpoint_prefix
-        endpoint_config = endpoint_bridge.resolve(
-            service_name, region_name, endpoint_url, is_secure)
-
+        new_config = AioConfig(connector_args, **config_kwargs)
+        endpoint_creator = AioEndpointCreator(event_emitter, self._loop)
         endpoint = endpoint_creator.create_endpoint(
             service_model, region_name=endpoint_config['region_name'],
             endpoint_url=endpoint_config['endpoint_url'], verify=verify,
@@ -69,14 +97,14 @@ class AioClientCreator(botocore.client.ClientCreator):
             connector_args=new_config.connector_args)
 
         return {
-            'serializer': parent_args['serializer'],
+            'serializer': serializer,
             'endpoint': endpoint,
-            'response_parser': parent_args['response_parser'],
+            'response_parser': response_parser,
             'event_emitter': event_emitter,
-            'request_signer': parent_args['request_signer'],
+            'request_signer': signer,
             'service_model': service_model,
             'loader': self._loader,
-            'client_config': new_config,
+            'client_config': new_config
         }
 
     def _create_client_class(self, service_name, service_model):
