@@ -13,24 +13,6 @@ class AioPageIterator(PageIterator):
         super().__init__(*args, **kwargs)
         self._init_pager()
 
-    @property
-    def result_keys(self):
-        return self._result_keys
-
-    @property
-    def resume_token(self):
-        """Token to specify to resume pagination."""
-        return self._resume_token
-
-    @resume_token.setter
-    def resume_token(self, value):
-        if isinstance(value, list):
-            self._resume_token = '___'.join([str(v) for v in value])
-
-    @property
-    def non_aggregate_part(self):
-        return self._non_aggregate_part
-
     def __iter__(self):
         raise NotImplementedError
 
