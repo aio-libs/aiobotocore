@@ -9,24 +9,8 @@ PY_35 = sys.version_info >= (3, 5)
 
 class AioPageIterator(PageIterator):
 
-    def __init__(self, method, input_token, output_token, more_results,
-                 result_keys, non_aggregate_keys, limit_key, max_items,
-                 starting_token, page_size, op_kwargs):
-        self._method = method
-        self._op_kwargs = op_kwargs
-        self._input_token = input_token
-        self._output_token = output_token
-        self._more_results = more_results
-        self._result_keys = result_keys
-        self._max_items = max_items
-        self._limit_key = limit_key
-        self._starting_token = starting_token
-        self._page_size = page_size
-        self._op_kwargs = op_kwargs
-        self._resume_token = None
-        self._non_aggregate_key_exprs = non_aggregate_keys
-        self._non_aggregate_part = {}
-
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self._init_pager()
 
     @property
@@ -54,7 +38,7 @@ class AioPageIterator(PageIterator):
         self._is_stop = False
         self._current_kwargs = self._op_kwargs
         self._previous_next_token = None
-        self._next_token = [None for _ in range(len(self._input_token))]
+        self._next_token = dict((key, None) for key in self._input_token)
         # The number of items from result_key we've seen so far.
         self._total_items = 0
         self._first_request = True
