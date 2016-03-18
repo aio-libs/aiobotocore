@@ -63,7 +63,7 @@ class AioPageIterator(PageIterator):
         else:
             self._total_items += num_current_response
             self._next_token = self._get_next_token(parsed)
-            if all(t is None for t in self._next_token):
+            if all(t is None for t in self._next_token.values()):
                 self._is_stop = True
                 return response
             if self._max_items is not None and \
