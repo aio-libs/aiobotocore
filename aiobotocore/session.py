@@ -8,13 +8,10 @@ from .client import AioClientCreator
 
 class AioSession(botocore.session.Session):
 
-    def __init__(self, session_vars=None, event_hooks=None,
-                 include_builtin_handlers=True, loader=None, loop=None):
+    def __init__(self, *args, **kwargs):
+        self._loop = kwargs.pop('loop', None)
 
-        super().__init__(session_vars=session_vars, event_hooks=event_hooks,
-                         include_builtin_handlers=include_builtin_handlers)
-        self._loop = loop
-        self._loader = loader
+        super().__init__(*args, **kwargs)
 
     def create_client(self, service_name, region_name=None, api_version=None,
                       use_ssl=True, verify=None, endpoint_url=None,
