@@ -9,8 +9,7 @@ from .client import AioClientCreator
 class AioSession(botocore.session.Session):
 
     def __init__(self, *args, **kwargs):
-
-        loop = kwargs.pop('loop')
+        loop = kwargs.pop('loop', None)
 
         super().__init__(*args, **kwargs)
         self._loop = loop
