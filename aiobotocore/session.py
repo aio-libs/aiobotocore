@@ -9,8 +9,9 @@ from .client import AioClientCreator
 class AioSession(botocore.session.Session):
 
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
         self._loop = kwargs.pop('loop', None)
+
+        super().__init__(*args, **kwargs)
 
     def create_client(self, service_name, region_name=None, api_version=None,
                       use_ssl=True, verify=None, endpoint_url=None,
