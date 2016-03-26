@@ -102,15 +102,23 @@ class AioEndpoint(Endpoint):
                          timeout=timeout,
                          response_parser_factory=response_parser_factory)
 
+        if isinstance(timeout, (list, tuple)):
+            self._conn_timeout, self._read_timeout = timeout
+        else:
+            self._conn_timeout = self._read_timeout = timeout
+
         self._loop = loop or asyncio.get_event_loop()
         if connector_args is None:
             # AWS has a 20 second idle timeout:
             #   https://forums.aws.amazon.com/message.jspa?messageID=215367
             # aiohttp default timeout is 30s so set something reasonable here
             connector = aiohttp.TCPConnector(loop=self._loop,
-                                             keepalive_timeout=12)
+                                             keepalive_timeout=12,
+                                             conn_timeout=self._conn_timeout)
         else:
-            connector = aiohttp.TCPConnector(loop=self._loop, **connector_args)
+            connector = aiohttp.TCPConnector(loop=self._loop,
+                                             conn_timeout=self._conn_timeout,
+                                             **connector_args)
 
         self._aio_session = aiohttp.ClientSession(
             connector=connector,
@@ -121,8 +129,10 @@ class AioEndpoint(Endpoint):
     def _request(self, method, url, headers, data):
         headers_ = dict(
             (z[0], text_(z[1], encoding='utf-8')) for z in headers.items())
-        resp = yield from self._aio_session.request(
-            method, url=url, headers=headers_, data=data)
+        request_coro = self._aio_session.request(method, url=url,
+                                                 headers=headers_, data=data)
+        resp = yield from asyncio.wait_for(
+            request_coro, timeout=self._read_timeout, loop=self._loop)
         return resp
 
     @asyncio.coroutine
@@ -171,13 +181,13 @@ class AioEndpoint(Endpoint):
                 endpoint_url = request.url
                 better_exception = EndpointConnectionError(
                     endpoint_url=endpoint_url, error=e)
-                return (None, better_exception)
+                return None, better_exception
             else:
-                return (None, e)
+                return None, e
         except Exception as e:
             # logger.debug("Exception received when sending HTTP request.",
             #              exc_info=True)
-            return (None, e)
+            return None, e
 
         # This returns the http_response and the parsed_data.
         response_dict = yield from convert_to_response_dict(
