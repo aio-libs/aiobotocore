@@ -1,11 +1,12 @@
 import asyncio
-import aiohttp
 import sys
-from aiohttp.client_reqrep import ClientResponse
 
-from botocore.utils import is_valid_endpoint_url
+import aiohttp
+
+from aiohttp.client_reqrep import ClientResponse
 from botocore.endpoint import EndpointCreator, Endpoint, DEFAULT_TIMEOUT
 from botocore.exceptions import EndpointConnectionError
+from botocore.utils import is_valid_endpoint_url
 
 PY_35 = sys.version_info >= (3, 5)
 
