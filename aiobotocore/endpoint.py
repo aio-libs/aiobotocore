@@ -116,8 +116,9 @@ class AioEndpoint(Endpoint):
                                              keepalive_timeout=12,
                                              conn_timeout=self._conn_timeout)
         else:
-            connector = aiohttp.TCPConnector(loop=self._loop, **connector_args,
-                                             conn_timeout=self._conn_timeout)
+            connector = aiohttp.TCPConnector(loop=self._loop,
+                                             conn_timeout=self._conn_timeout,
+                                             **connector_args)
 
         self._aio_session = aiohttp.ClientSession(
             connector=connector,
