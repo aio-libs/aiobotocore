@@ -1,68 +1,21 @@
 import asyncio
-from botocore.utils import get_service_module_name
 import copy
 
 import botocore.auth
 import botocore.client
+import botocore.parsers
 import botocore.serialize
 import botocore.validate
-import botocore.parsers
-from botocore.exceptions import ClientError, OperationNotPageableError, \
-    ParamValidationError
+
+from botocore.client import ClientEndpointBridge
+from botocore.exceptions import ClientError, OperationNotPageableError
 from botocore.paginate import Paginator
 from botocore.signers import RequestSigner
+from botocore.utils import get_service_module_name
 
-from .paginate import AioPageIterator
+from .config import AioConfig
 from .endpoint import AioEndpointCreator
-
-
-class AioConfig(botocore.client.Config):
-
-    def __init__(self, connector_args=None, **kwargs):
-        super().__init__(**kwargs)
-
-        self._validate_connector_args(connector_args)
-        self.connector_args = copy.copy(connector_args)
-        if not self.connector_args:
-            self.connector_args = dict()
-
-        if 'keepalive_timeout' not in self.connector_args:
-            # AWS has a 20 second idle timeout:
-            # https://forums.aws.amazon.com/message.jspa?messageID=215367
-            # and aiohttp default timeout is 30s so we set it to something
-            # reasonable here
-            self.connector_args['keepalive_timeout'] = 12
-
-    @staticmethod
-    def _validate_connector_args(connector_args):
-        if connector_args is None:
-            return
-
-        for k, v in connector_args.items():
-            if k in ['use_dns_cache', 'verify_ssl']:
-                if not isinstance(v, bool):
-                    raise ParamValidationError(
-                        report='{} value must be a boolean'.format(k))
-            elif k in ['conn_timeout', 'keepalive_timeout']:
-                if not isinstance(v, float) and not isinstance(v, int):
-                    raise ParamValidationError(
-                        report='{} value must be a float/int'.format(k))
-            elif k == 'force_close':
-                if not isinstance(v, bool):
-                    raise ParamValidationError(
-                        report='{} value must be a boolean'.format(k))
-            elif k == 'limit':
-                if not isinstance(v, int):
-                    raise ParamValidationError(
-                        report='{} value must be an int'.format(k))
-            elif k == 'ssl_context':
-                import ssl
-                if not isinstance(v, ssl.SSLContext):
-                    raise ParamValidationError(
-                        report='{} must be an SSLContext instance'.format(k))
-            else:
-                raise ParamValidationError(
-                    report='invalid connector_arg:{}'.format(k))
+from .paginate import AioPageIterator
 
 
 class AioClientCreator(botocore.client.ClientCreator):
@@ -80,32 +33,25 @@ class AioClientCreator(botocore.client.ClientCreator):
                          endpoint_url, verify, credentials,
                          scoped_config, client_config):
 
+        # This is a near copy of botocore.client.ClientCreator. What's replaced
+        # is Config->AioConfig and EndpointCreator->AioEndpointCreator
+        # We don't re-use the parent's implementations due to weak refs
+
+        service_name = service_model.endpoint_prefix
         protocol = service_model.metadata['protocol']
+        parameter_validation = True
+        if client_config:
+            parameter_validation = client_config.parameter_validation
         serializer = botocore.serialize.create_serializer(
-            protocol, include_validation=True)
+            protocol, parameter_validation)
 
         event_emitter = copy.copy(self._event_emitter)
-
         response_parser = botocore.parsers.create_parser(protocol)
-
-        # Determine what region the user provided either via the
-        # region_name argument or the client_config.
-        if region_name is None:
-            if client_config and client_config.region_name is not None:
-                region_name = client_config.region_name
-
-        # Based on what the user provided use the scoped config file
-        # to determine if the region is going to change and what
-        # signature should be used.
-        signature_version, region_name = \
-            self._get_signature_version_and_region(
-                service_model, region_name, is_secure, scoped_config,
-                endpoint_url)
-
-        # Override the signature if the user specifies it in the client
-        # config.
-        if client_config and client_config.signature_version is not None:
-            signature_version = client_config.signature_version
+        endpoint_bridge = ClientEndpointBridge(
+            self._endpoint_resolver, scoped_config, client_config,
+            service_signing_name=service_model.metadata.get('signingName'))
+        endpoint_config = endpoint_bridge.resolve(
+            service_name, region_name, endpoint_url, is_secure)
 
         # Override the user agent if specified in the client config.
         user_agent = self._user_agent
@@ -115,36 +61,38 @@ class AioClientCreator(botocore.client.ClientCreator):
             if client_config.user_agent_extra is not None:
                 user_agent += ' %s' % client_config.user_agent_extra
 
-        signer = RequestSigner(service_model.service_name, region_name,
-                               service_model.signing_name,
-                               signature_version, credentials,
-                               event_emitter)
+        signer = RequestSigner(
+            service_name, endpoint_config['signing_region'],
+            endpoint_config['signing_name'],
+            endpoint_config['signature_version'],
+            credentials, event_emitter)
 
         # Create a new client config to be passed to the client based
         # on the final values. We do not want the user to be able
         # to try to modify an existing client with a client config.
         config_kwargs = dict(
-            region_name=region_name, signature_version=signature_version,
+            region_name=endpoint_config['region_name'],
+            signature_version=endpoint_config['signature_version'],
             user_agent=user_agent)
-
         if client_config is not None:
             config_kwargs.update(
                 connect_timeout=client_config.connect_timeout,
                 read_timeout=client_config.read_timeout)
 
-            if isinstance(client_config, AioConfig):
-                config_kwargs.update(
-                    connector_args=client_config.connector_args)
+        # Add any additional s3 configuration for client
+        self._inject_s3_configuration(
+            config_kwargs, scoped_config, client_config)
 
-        new_config = AioConfig(**config_kwargs)
+        if isinstance(client_config, AioConfig):
+            connector_args = client_config.connector_args
+        else:
+            connector_args = None
 
-        endpoint_creator = AioEndpointCreator(self._endpoint_resolver,
-                                              region_name, event_emitter,
-                                              self._loop)
-
+        new_config = AioConfig(connector_args, **config_kwargs)
+        endpoint_creator = AioEndpointCreator(event_emitter, self._loop)
         endpoint = endpoint_creator.create_endpoint(
-            service_model, region_name, is_secure=is_secure,
-            endpoint_url=endpoint_url, verify=verify,
+            service_model, region_name=endpoint_config['region_name'],
+            endpoint_url=endpoint_config['endpoint_url'], verify=verify,
             response_parser_factory=self._response_parser_factory,
             timeout=(new_config.connect_timeout, new_config.read_timeout),
             connector_args=new_config.connector_args)
