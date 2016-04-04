@@ -4,9 +4,10 @@ import sys
 import aiohttp
 
 from aiohttp.client_reqrep import ClientResponse
-from botocore.endpoint import EndpointCreator, Endpoint, DEFAULT_TIMEOUT
+from botocore.endpoint import EndpointCreator, Endpoint, DEFAULT_TIMEOUT, logger
 from botocore.exceptions import EndpointConnectionError
 from botocore.utils import is_valid_endpoint_url
+from botocore.hooks import first_non_none_response
 
 PY_35 = sys.version_info >= (3, 5)
 
@@ -141,8 +142,8 @@ class AioEndpoint(Endpoint):
         request = self.create_request(request_dict, operation_model)
         success_response, exception = yield from self._get_response(
             request, operation_model, attempts)
-        while self._needs_retry(attempts, operation_model,
-                                success_response, exception):
+        while (yield from self._needs_retry(attempts, operation_model,
+                                success_response, exception)):
             attempts += 1
             # If there is a stream associated with the request, we need
             # to reset it before attempting to send the request again.
@@ -158,6 +159,27 @@ class AioEndpoint(Endpoint):
             raise exception
         else:
             return success_response
+
+    # NOTE: The only line changed here changing time.sleep to asyncio.sleep
+    @asyncio.coroutine
+    def _needs_retry(self, attempts, operation_model, response=None,
+                     caught_exception=None):
+        event_name = 'needs-retry.%s.%s' % (self._endpoint_prefix,
+                                            operation_model.name)
+        responses = self._event_emitter.emit(
+            event_name, response=response, endpoint=self,
+            operation=operation_model, attempts=attempts,
+            caught_exception=caught_exception)
+        handler_response = first_non_none_response(responses)
+        if handler_response is None:
+            return False
+        else:
+            # Request needs to be retried, and we need to sleep
+            # for the specified number of times.
+            logger.debug("Response received to retry, sleeping for "
+                         "%s seconds", handler_response)
+            yield from asyncio.sleep(handler_response, loop=self._loop)
+            return True
 
     @asyncio.coroutine
     def _get_response(self, request, operation_model, attempts):
