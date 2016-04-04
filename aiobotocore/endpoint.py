@@ -4,7 +4,8 @@ import sys
 import aiohttp
 
 from aiohttp.client_reqrep import ClientResponse
-from botocore.endpoint import EndpointCreator, Endpoint, DEFAULT_TIMEOUT, logger
+from botocore.endpoint import EndpointCreator, Endpoint, DEFAULT_TIMEOUT
+from botocore.endpoint import logger
 from botocore.exceptions import EndpointConnectionError
 from botocore.utils import is_valid_endpoint_url
 from botocore.hooks import first_non_none_response
@@ -143,7 +144,7 @@ class AioEndpoint(Endpoint):
         success_response, exception = yield from self._get_response(
             request, operation_model, attempts)
         while (yield from self._needs_retry(attempts, operation_model,
-                                success_response, exception)):
+                                            success_response, exception)):
             attempts += 1
             # If there is a stream associated with the request, we need
             # to reset it before attempting to send the request again.
