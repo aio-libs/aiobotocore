@@ -38,9 +38,11 @@ def convert_to_response_dict(http_response, operation_model):
 
 
 class ClientResponseContentProxy:
-    """Proxy object for content stream of http response"""
+    """Proxy object for content stream of http response.  This is here in case
+    you want to pass around the "Body" of the response without closing the
+    response itself."""
 
-    def __init__(self, response):
+    def __init__(self, response: ClientResponse):
         self.__response = response
         self.__content = self.__response.content
 
@@ -52,13 +54,11 @@ class ClientResponseContentProxy:
         attrs.append('close')
         return attrs
 
-    def __del__(self):
-        self.close()
-
     if PY_35:
         @asyncio.coroutine
         def __aenter__(self):
-            return self.__response.__aenter__()
+            self.__response.__aenter__()
+            return self
 
         @asyncio.coroutine
         def __aexit__(self, exc_type, exc_val, exc_tb):
@@ -68,28 +68,22 @@ class ClientResponseContentProxy:
         self.__response.close()
 
 
-class ClientResponseProxy:
+class ClientResponseProxy(ClientResponse):
     """Proxy object for http response useful for porting from
     botocore underlying http library."""
 
     def __init__(self, *args, **kwargs):
-        self._impl = ClientResponse(*args, **kwargs)
-        self._body = None
+        super().__init__(*args, **kwargs)
 
     def __getattr__(self, item):
         if item == 'status_code':
-            return getattr(self._impl, 'status')
+            return self.status
         if item == 'content':
-            return self._body
+            return self._content
         if item == 'raw':
-            return ClientResponseContentProxy(self._impl)
+            return ClientResponseContentProxy(self)
 
-        return getattr(self._impl, item)
-
-    @asyncio.coroutine
-    def read(self):
-        self._body = yield from self._impl.read()
-        return self._body
+        raise AttributeError
 
 
 class AioEndpoint(Endpoint):
