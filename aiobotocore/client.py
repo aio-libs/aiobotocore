@@ -194,7 +194,8 @@ class AioBaseClient(botocore.client.BaseClient):
 
         @asyncio.coroutine
         def __aexit__(self, exc_type, exc_val, exc_tb):
-            yield from self._endpoint._aio_session.__aexit__(exc_type, exc_val, exc_tb)
+            yield from self._endpoint._aio_session.__aexit__(exc_type,
+                                                             exc_val, exc_tb)
 
     def close(self):
         """Close all http connections"""

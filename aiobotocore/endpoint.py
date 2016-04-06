@@ -69,7 +69,8 @@ class ClientResponseContentProxy:
 
         @asyncio.coroutine
         def __aexit__(self, exc_type, exc_val, exc_tb):
-            return (yield from self.__response.__aexit__(exc_type, exc_val, exc_tb))
+            return (yield from self.__response.__aexit__(exc_type,
+                                                         exc_val, exc_tb))
 
     def close(self):
         self.__response.close()
