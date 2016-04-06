@@ -54,15 +54,22 @@ class ClientResponseContentProxy:
         attrs.append('close')
         return attrs
 
+    def __del__(self):
+        # callers may not read the Body resulting in an unclosed ClientResponse
+        if self._loop.is_running():
+            asyncio.ensure_future(self.__response.release(), loop=self._loop)
+        else:
+            self.close()
+
     if PY_35:
         @asyncio.coroutine
         def __aenter__(self):
-            self.__response.__aenter__()
+            yield from self.__response.__aenter__()
             return self
 
         @asyncio.coroutine
         def __aexit__(self, exc_type, exc_val, exc_tb):
-            return self.__response.__aexit__(exc_type, exc_val, exc_tb)
+            return (yield from self.__response.__aexit__(exc_type, exc_val, exc_tb))
 
     def close(self):
         self.__response.close()
