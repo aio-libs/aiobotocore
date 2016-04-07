@@ -2,15 +2,29 @@ import asyncio
 import sys
 
 import aiohttp
+import botocore.retryhandler
+import botocore.endpoint
 
 from aiohttp.client_reqrep import ClientResponse
 from botocore.endpoint import EndpointCreator, Endpoint, DEFAULT_TIMEOUT
-from botocore.endpoint import logger
-from botocore.exceptions import EndpointConnectionError
+from botocore.exceptions import EndpointConnectionError, ConnectionClosedError
 from botocore.utils import is_valid_endpoint_url
 from botocore.hooks import first_non_none_response
 
 PY_35 = sys.version_info >= (3, 5)
+
+# Monkey patching: We need to insert the aiohttp exception equivalents
+# The only other way to do this would be to have another config file :(
+_aiohttp_retryable_exceptions = [
+    aiohttp.errors.ClientConnectionError,
+    aiohttp.errors.TimeoutError,
+    aiohttp.errors.DisconnectedError,
+    aiohttp.errors.ClientHttpProcessingError,
+]
+
+botocore.retryhandler.EXCEPTION_MAP['GENERAL_CONNECTION_ERROR'].extend(
+    _aiohttp_retryable_exceptions
+)
 
 
 def text_(s, encoding='utf-8', errors='strict'):
@@ -136,7 +150,7 @@ class AioEndpoint(Endpoint):
         request_coro = self._aio_session.request(method, url=url,
                                                  headers=headers_, data=data)
         resp = yield from asyncio.wait_for(
-            request_coro, timeout=self._read_timeout, loop=self._loop)
+            request_coro, timeout=self._conn_timeout + self._read_timeout, loop=self._loop)
         return resp
 
     @asyncio.coroutine
@@ -179,8 +193,10 @@ class AioEndpoint(Endpoint):
         else:
             # Request needs to be retried, and we need to sleep
             # for the specified number of times.
-            logger.debug("Response received to retry, sleeping for "
-                         "%s seconds", handler_response)
+            botocore.retryhandler.logger.debug("Response received to retry, "
+                                               "sleeping for %s seconds",
+                                               handler_response)
+
             yield from asyncio.sleep(handler_response, loop=self._loop)
             return True
 
@@ -193,19 +209,28 @@ class AioEndpoint(Endpoint):
         # If no exception occurs then exception is None.
         try:
             # http request substituted too async one
+            botocore.endpoint.logger.debug("Sending http request: %s", request)
             resp = yield from self._request(
                 request.method, request.url, request.headers, request.body)
             http_response = resp
+        except aiohttp.errors.BadStatusLine:
+            better_exception = ConnectionClosedError(
+                endpoint_url=request.url, request=request)
+            return None, better_exception
+        except aiohttp.errors.ClientConnectionError as e:
+            e.request = request  # botocore expects the request property
 
-        except ConnectionError as e:
             # For a connection error, if it looks like it's a DNS
             # lookup issue, 99% of the time this is due to a misconfigured
             # region/endpoint so we'll raise a more specific error message
             # to help users.
+            botocore.endpoint.logger.debug("ConnectionError received when "
+                                           "sending HTTP request.",
+                                           exc_info=True)
+
             if self._looks_like_dns_error(e):
-                endpoint_url = request.url
                 better_exception = EndpointConnectionError(
-                    endpoint_url=endpoint_url, error=e)
+                    endpoint_url=request.url, error=e)
                 return None, better_exception
             else:
                 return None, e
