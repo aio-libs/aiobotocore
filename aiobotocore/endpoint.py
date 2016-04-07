@@ -150,7 +150,8 @@ class AioEndpoint(Endpoint):
         request_coro = self._aio_session.request(method, url=url,
                                                  headers=headers_, data=data)
         resp = yield from asyncio.wait_for(
-            request_coro, timeout=self._conn_timeout + self._read_timeout, loop=self._loop)
+            request_coro, timeout=self._conn_timeout + self._read_timeout,
+            loop=self._loop)
         return resp
 
     @asyncio.coroutine
@@ -235,8 +236,9 @@ class AioEndpoint(Endpoint):
             else:
                 return None, e
         except Exception as e:
-            # logger.debug("Exception received when sending HTTP request.",
-            #              exc_info=True)
+            botocore.endpoint.logger.debug("Exception received when sending "
+                                           "HTTP request.",
+                                           exc_info=True)
             return None, e
 
         # This returns the http_response and the parsed_data.
