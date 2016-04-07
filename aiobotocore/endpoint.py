@@ -97,15 +97,17 @@ class ClientResponseProxy(ClientResponse):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    def __getattr__(self, item):
-        if item == 'status_code':
-            return self.status
-        if item == 'content':
-            return self._content
-        if item == 'raw':
-            return ClientResponseContentProxy(self)
+    @property
+    def status_code(self):
+        return self.status
 
-        raise AttributeError
+    @property
+    def content(self):
+        return self._content
+
+    @property
+    def raw(self):
+        return ClientResponseContentProxy(self)
 
 
 class AioEndpoint(Endpoint):
