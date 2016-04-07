@@ -68,12 +68,11 @@ class ClientResponseContentProxy:
         attrs.append('close')
         return attrs
 
-    def __del__(self):
-        # callers may not read the Body resulting in an unclosed ClientResponse
-        if self._loop.is_running():
-            asyncio.ensure_future(self.__response.release(), loop=self._loop)
-        else:
-            self.close()
+    # Note: we don't have a __del__ method as the ClientResponse has a __del__
+    # which will warn the user if they didn't close/release the response
+    # explicitly.  A release here would mean reading all the unread data
+    # (which could be very large), and a close would mean being unable to re-
+    # use the connection, so the user MUST chose.  Default is to warn + close
 
     if PY_35:
         @asyncio.coroutine
@@ -90,24 +89,32 @@ class ClientResponseContentProxy:
         self.__response.close()
 
 
-class ClientResponseProxy(ClientResponse):
+class ClientResponseProxy:
     """Proxy object for http response useful for porting from
     botocore underlying http library."""
 
+    # NOTE: unfortunately we cannot inherit from ClientReponse because it also
+    # uses the `content` property
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        self._response = ClientResponse(*args, **kwargs)
 
     @property
     def status_code(self):
-        return self.status
+        return self._response.status
 
     @property
     def content(self):
-        return self._content
+        # ClientResponse._content is set by the coroutine ClientResponse.read
+        return self._response._content
 
     @property
     def raw(self):
-        return ClientResponseContentProxy(self)
+        return ClientResponseContentProxy(self._response)
+
+    def __getattr__(self, item):
+        # All other properties forward to the underlying ClientResponse to
+        # support things like aenter/aexit/read
+        return getattr(self._response, item)
 
 
 class AioEndpoint(Endpoint):
