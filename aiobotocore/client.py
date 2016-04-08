@@ -1,5 +1,6 @@
 import asyncio
 import copy
+import sys
 
 import botocore.auth
 import botocore.client
@@ -16,6 +17,8 @@ from botocore.utils import get_service_module_name
 from .config import AioConfig
 from .endpoint import AioEndpointCreator
 from .paginate import AioPageIterator
+
+PY_35 = sys.version_info >= (3, 5)
 
 
 class AioClientCreator(botocore.client.ClientCreator):
@@ -182,6 +185,17 @@ class AioBaseClient(botocore.client.BaseClient):
                 getattr(self, operation_name),
                 self._cache['page_config'][actual_operation_name])
             return paginator
+
+    if PY_35:
+        @asyncio.coroutine
+        def __aenter__(self):
+            yield from self._endpoint._aio_session.__aenter__()
+            return self
+
+        @asyncio.coroutine
+        def __aexit__(self, exc_type, exc_val, exc_tb):
+            yield from self._endpoint._aio_session.__aexit__(exc_type,
+                                                             exc_val, exc_tb)
 
     def close(self):
         """Close all http connections"""

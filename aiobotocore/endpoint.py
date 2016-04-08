@@ -2,15 +2,29 @@ import asyncio
 import sys
 
 import aiohttp
+import botocore.retryhandler
+import botocore.endpoint
 
 from aiohttp.client_reqrep import ClientResponse
 from botocore.endpoint import EndpointCreator, Endpoint, DEFAULT_TIMEOUT
-from botocore.endpoint import logger
-from botocore.exceptions import EndpointConnectionError
+from botocore.exceptions import EndpointConnectionError, ConnectionClosedError
 from botocore.utils import is_valid_endpoint_url
 from botocore.hooks import first_non_none_response
 
 PY_35 = sys.version_info >= (3, 5)
+
+# Monkey patching: We need to insert the aiohttp exception equivalents
+# The only other way to do this would be to have another config file :(
+_aiohttp_retryable_exceptions = [
+    aiohttp.errors.ClientConnectionError,
+    aiohttp.errors.TimeoutError,
+    aiohttp.errors.DisconnectedError,
+    aiohttp.errors.ClientHttpProcessingError,
+]
+
+botocore.retryhandler.EXCEPTION_MAP['GENERAL_CONNECTION_ERROR'].extend(
+    _aiohttp_retryable_exceptions
+)
 
 
 def text_(s, encoding='utf-8', errors='strict'):
@@ -38,9 +52,11 @@ def convert_to_response_dict(http_response, operation_model):
 
 
 class ClientResponseContentProxy:
-    """Proxy object for content stream of http response"""
+    """Proxy object for content stream of http response.  This is here in case
+    you want to pass around the "Body" of the response without closing the
+    response itself."""
 
-    def __init__(self, response):
+    def __init__(self, response: ClientResponse):
         self.__response = response
         self.__content = self.__response.content
 
@@ -52,17 +68,22 @@ class ClientResponseContentProxy:
         attrs.append('close')
         return attrs
 
-    def __del__(self):
-        self.close()
+    # Note: we don't have a __del__ method as the ClientResponse has a __del__
+    # which will warn the user if they didn't close/release the response
+    # explicitly.  A release here would mean reading all the unread data
+    # (which could be very large), and a close would mean being unable to re-
+    # use the connection, so the user MUST chose.  Default is to warn + close
 
     if PY_35:
         @asyncio.coroutine
         def __aenter__(self):
-            return self.__response.__aenter__()
+            yield from self.__response.__aenter__()
+            return self
 
         @asyncio.coroutine
         def __aexit__(self, exc_type, exc_val, exc_tb):
-            return self.__response.__aexit__(exc_type, exc_val, exc_tb)
+            return (yield from self.__response.__aexit__(exc_type,
+                                                         exc_val, exc_tb))
 
     def close(self):
         self.__response.close()
@@ -72,24 +93,28 @@ class ClientResponseProxy:
     """Proxy object for http response useful for porting from
     botocore underlying http library."""
 
+    # NOTE: unfortunately we cannot inherit from ClientReponse because it also
+    # uses the `content` property
     def __init__(self, *args, **kwargs):
-        self._impl = ClientResponse(*args, **kwargs)
-        self._body = None
+        self._response = ClientResponse(*args, **kwargs)
+
+    @property
+    def status_code(self):
+        return self._response.status
+
+    @property
+    def content(self):
+        # ClientResponse._content is set by the coroutine ClientResponse.read
+        return self._response._content
+
+    @property
+    def raw(self):
+        return ClientResponseContentProxy(self._response)
 
     def __getattr__(self, item):
-        if item == 'status_code':
-            return getattr(self._impl, 'status')
-        if item == 'content':
-            return self._body
-        if item == 'raw':
-            return ClientResponseContentProxy(self._impl)
-
-        return getattr(self._impl, item)
-
-    @asyncio.coroutine
-    def read(self):
-        self._body = yield from self._impl.read()
-        return self._body
+        # All other properties forward to the underlying ClientResponse to
+        # support things like aenter/aexit/read
+        return getattr(self._response, item)
 
 
 class AioEndpoint(Endpoint):
@@ -134,7 +159,8 @@ class AioEndpoint(Endpoint):
         request_coro = self._aio_session.request(method, url=url,
                                                  headers=headers_, data=data)
         resp = yield from asyncio.wait_for(
-            request_coro, timeout=self._read_timeout, loop=self._loop)
+            request_coro, timeout=self._conn_timeout + self._read_timeout,
+            loop=self._loop)
         return resp
 
     @asyncio.coroutine
@@ -177,8 +203,10 @@ class AioEndpoint(Endpoint):
         else:
             # Request needs to be retried, and we need to sleep
             # for the specified number of times.
-            logger.debug("Response received to retry, sleeping for "
-                         "%s seconds", handler_response)
+            botocore.retryhandler.logger.debug("Response received to retry, "
+                                               "sleeping for %s seconds",
+                                               handler_response)
+
             yield from asyncio.sleep(handler_response, loop=self._loop)
             return True
 
@@ -191,25 +219,35 @@ class AioEndpoint(Endpoint):
         # If no exception occurs then exception is None.
         try:
             # http request substituted too async one
+            botocore.endpoint.logger.debug("Sending http request: %s", request)
             resp = yield from self._request(
                 request.method, request.url, request.headers, request.body)
             http_response = resp
+        except aiohttp.errors.BadStatusLine:
+            better_exception = ConnectionClosedError(
+                endpoint_url=request.url, request=request)
+            return None, better_exception
+        except aiohttp.errors.ClientConnectionError as e:
+            e.request = request  # botocore expects the request property
 
-        except ConnectionError as e:
             # For a connection error, if it looks like it's a DNS
             # lookup issue, 99% of the time this is due to a misconfigured
             # region/endpoint so we'll raise a more specific error message
             # to help users.
+            botocore.endpoint.logger.debug("ConnectionError received when "
+                                           "sending HTTP request.",
+                                           exc_info=True)
+
             if self._looks_like_dns_error(e):
-                endpoint_url = request.url
                 better_exception = EndpointConnectionError(
-                    endpoint_url=endpoint_url, error=e)
+                    endpoint_url=request.url, error=e)
                 return None, better_exception
             else:
                 return None, e
         except Exception as e:
-            # logger.debug("Exception received when sending HTTP request.",
-            #              exc_info=True)
+            botocore.endpoint.logger.debug("Exception received when sending "
+                                           "HTTP request.",
+                                           exc_info=True)
             return None, e
 
         # This returns the http_response and the parsed_data.
