@@ -4,16 +4,12 @@ import sys
 from setuptools import setup, find_packages
 
 
-install_requires = ['botocore==1.1.7']
+install_requires = ['botocore>=1.4.0', 'aiohttp>=0.21.2']
 
 PY_VER = sys.version_info
 
-if PY_VER >= (3, 4):
-    pass
-elif PY_VER >= (3, 3):
-    install_requires.append('asyncio')
-else:
-    raise RuntimeError("aiobotocore doesn't suppport Python earllier than 3.3")
+if not PY_VER >= (3, 4, 1):
+    raise RuntimeError("aiobotocore doesn't suppport Python earllier than 3.4")
 
 
 def read(f):
@@ -32,15 +28,15 @@ def read_version():
             if match is not None:
                 return match.group(1)
         else:
-            raise RuntimeError('Cannot find version in aiobotocore/__init__.py')
+            raise RuntimeError('Cannot find version in '
+                               'aiobotocore/__init__.py')
 
 classifiers = [
     'Intended Audience :: Developers',
     'Intended Audience :: System Administrators',
     'Programming Language :: Python :: 3',
-    'Programming Language :: Python :: 3.3',
     'Programming Language :: Python :: 3.4',
-    'Operating System :: POSIX',
+    'Programming Language :: Python :: 3.5',
     'Environment :: Web Environment',
     'Development Status :: 3 - Alpha',
 ]
@@ -50,12 +46,11 @@ setup(name='aiobotocore',
       version=read_version(),
       long_description='\n\n'.join((read('README.rst'), read('CHANGES.txt'))),
       classifiers=classifiers,
-      platforms=['POSIX'],
-      author="",
-      author_email="",
-      url="",
-      download_url="",
-      license="",
+      author="Nikolay Novik",
+      author_email="nickolainovik@gmail.com",
+      url='https://github.com/aio-libs/aiobotocore',
+      download_url='https://pypi.python.org/pypi/aiobotocore',
+      license='Apache 2',
       packages=find_packages(),
       install_requires=install_requires,
       extras_require=extras_require,

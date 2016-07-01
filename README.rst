@@ -1,5 +1,7 @@
 aiobotocore
 ===========
+.. image:: https://travis-ci.org/aio-libs/aiobotocore.svg?branch=master
+    :target: https://travis-ci.org/aio-libs/aiobotocore
 
 Async client for amazon services using botocore_ and aiohttp_/asyncio_.
 
@@ -12,7 +14,7 @@ Install
 -------
 ::
 
-    $ pip install git+https://github.com/jettify/aiobotocore.git@master
+    $ pip install -e git+https://github.com/aio-libs/aiobotocore.git@master#egg=aiobotocore
 
 
 Basic Example
@@ -56,6 +58,26 @@ Basic Example
 
     loop = asyncio.get_event_loop()
     loop.run_until_complete(go(loop))
+
+
+Run Tests
+---------
+
+Make sure you have development requirements installed and your amazon key and
+secret accessible via environment variables:
+
+::
+
+    $ cd aiobotocore
+    $ export AWS_ACCESS_KEY_ID=xxx
+    $ export AWS_SECRET_ACCESS_KEY=xxx
+    $ pip install -Ur requirements-dev.txt
+
+Execute tests suite:
+
+::
+
+    $ py.test -v tests
 
 
 Requirements
