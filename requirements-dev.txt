@@ -4,4 +4,4 @@ pytest-cov==2.3.1
 coverage==4.2
 sphinx==1.4.6
 ipdb==0.10.1
-ipython
+ipython==5.1.0
