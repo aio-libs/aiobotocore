@@ -1,6 +1,6 @@
 flake8
 pytest
-pytest-cov
+pytest-cov==2.3.1
 coverage
 sphinx
 ipdb==0.10.1
