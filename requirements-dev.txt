@@ -3,5 +3,5 @@ pytest
 pytest-cov
 coverage
 sphinx
-ipdb
+ipdb==0.10.1
 ipython
