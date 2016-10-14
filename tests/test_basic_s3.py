@@ -1,5 +1,6 @@
 import asyncio
 import pytest
+import tempfile
 
 
 @asyncio.coroutine
@@ -109,6 +110,19 @@ def test_can_get_and_put_object(s3_client, create_object, bucket_name, loop):
     # TODO: think about better api and make behavior like in aiohttp
     resp['Body'].close()
     assert data == b'body contents'
+
+
+@pytest.mark.run_loop
+def test_put_object_file(s3_client, bucket_name, loop):
+    with tempfile.TemporaryFile() as testfile:
+        testfile.write(b'data')
+        testfile.seek(0)
+        yield from s3_client.put_object(Bucket=bucket_name,
+                                        Key='foobarbaz',
+                                        Body=testfile)
+    # clean
+    yield from s3_client.delete_object(Bucket=bucket_name,
+                                       Key='foobarbaz')
 
 
 @pytest.mark.run_loop
