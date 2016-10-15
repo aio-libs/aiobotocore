@@ -58,9 +58,17 @@ def pytest_runtest_setup(item):
 
 def random_bucketname():
     # 63 is the max bucket length.
-    bucket_name = 'aiobotocoretest_{}'
+    return random_name()
+
+
+def random_tablename():
+    return random_name()
+
+
+def random_name():
+    table_name = 'aiobotocoretest_{}'
     t = time.time()
-    return bucket_name.format(int(t))
+    return table_name.format(int(t))
 
 
 def assert_status_code(response, status_code):
@@ -114,14 +122,25 @@ def signature_version():
 
 
 @pytest.fixture
-def config(signature_version, region):
-    conf = AioConfig(region_name=region, signature_version=signature_version)
-    return conf
+def config(region, signature_version):
+    return AioConfig(region_name=region, signature_version=signature_version)
 
 
 @pytest.fixture
 def s3_client(request, session, region, config):
-    client = session.create_client('s3', region_name=region, config=config)
+    client = create_client('s3', request, session, region, config)
+    return client
+
+
+@pytest.fixture
+def dynamodb_client(request, session, region, config):
+    client = create_client('dynamodb', request, session, region, config)
+    return client
+
+
+def create_client(client_type, request, session, region, config):
+    client = session.create_client(client_type, region_name=region,
+                                   config=config)
 
     def fin():
         client.close()
@@ -160,6 +179,12 @@ def bucket_name(region, create_bucket, s3_client, loop):
 
 
 @pytest.fixture
+def table_name(region, create_table, dynamodb_client, loop):
+    name = loop.run_until_complete(create_table())
+    return name
+
+
+@pytest.fixture
 def create_bucket(request, s3_client, loop):
     _bucket_name = None
 
@@ -184,6 +209,64 @@ def create_bucket(request, s3_client, loop):
 
     request.addfinalizer(fin)
     return _f
+
+
+@pytest.fixture
+def create_table(request, dynamodb_client, loop):
+    _table_name = None
+
+    @asyncio.coroutine
+    def _is_table_ready(table_name):
+        response = yield from dynamodb_client.describe_table(
+            TableName=table_name
+        )
+        return response['Table']['TableStatus'] == 'ACTIVE'
+
+    @asyncio.coroutine
+    def _f(table_name=None):
+
+        nonlocal _table_name
+        if table_name is None:
+            table_name = random_tablename()
+        _table_name = table_name
+        table_kwargs = {
+            'TableName': table_name,
+            'AttributeDefinitions': [
+                {
+                    'AttributeName': 'testKey',
+                    'AttributeType': 'S'
+                },
+            ],
+            'KeySchema': [
+                {
+                    'AttributeName': 'testKey',
+                    'KeyType': 'HASH'
+                },
+            ],
+            'ProvisionedThroughput': {
+                'ReadCapacityUnits': 1,
+                'WriteCapacityUnits': 1
+            },
+        }
+        response = yield from dynamodb_client.create_table(**table_kwargs)
+        while not (yield from _is_table_ready(table_name)):
+            pass
+        assert_status_code(response, 200)
+        return table_name
+
+    def fin():
+        loop.run_until_complete(delete_table(dynamodb_client, _table_name))
+
+    request.addfinalizer(fin)
+    return _f
+
+
+@asyncio.coroutine
+def delete_table(dynamodb_client, table_name):
+    response = yield from dynamodb_client.delete_table(
+        TableName=table_name
+    )
+    assert_status_code(response, 200)
 
 
 @pytest.fixture
@@ -243,3 +326,21 @@ def pytest_namespace():
     return {'aio': {'assert_status_code': assert_status_code,
                     'assert_num_uploads_found': assert_num_uploads_found},
             }
+
+
+@pytest.fixture
+def dynamodb_put_item(request, dynamodb_client, table_name, loop):
+
+    @asyncio.coroutine
+    def _f(key_string_value):
+        response = yield from dynamodb_client.put_item(
+            TableName=table_name,
+            Item={
+                'testKey': {
+                    'S': key_string_value
+                }
+            },
+        )
+        assert_status_code(response, 200)
+
+    return _f
