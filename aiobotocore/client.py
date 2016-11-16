@@ -140,8 +140,10 @@ class AioBaseClient(botocore.client.BaseClient):
 
 
 class AioClientArgsCreator(botocore.args.ClientArgsCreator):
-    def __init__(self, event_emitter, user_agent, response_parser_factory, loader, loop=None):
-        super().__init__(event_emitter, user_agent, response_parser_factory, loader)
+    def __init__(self, event_emitter, user_agent, response_parser_factory,
+                 loader, loop=None):
+        super().__init__(event_emitter, user_agent,
+                         response_parser_factory, loader)
         self._loop = loop or asyncio.get_event_loop()
 
     def get_client_args(self, service_model, region_name, is_secure,

@@ -181,8 +181,8 @@ class AioEndpoint(Endpoint):
         request = self.create_request(request_dict, operation_model)
         success_response, exception = yield from self._get_response(
             request, operation_model, attempts)
-        while (yield from self._needs_retry(attempts, operation_model, request_dict,
-                                            success_response, exception)):
+        while (yield from self._needs_retry(attempts, operation_model,
+                                request_dict, success_response, exception)):
             attempts += 1
             # If there is a stream associated with the request, we need
             # to reset it before attempting to send the request again.
@@ -201,8 +201,8 @@ class AioEndpoint(Endpoint):
 
     # NOTE: The only line changed here changing time.sleep to asyncio.sleep
     @asyncio.coroutine
-    def _needs_retry(self, attempts, operation_model, request_dict, response=None,
-                     caught_exception=None):
+    def _needs_retry(self, attempts, operation_model, request_dict,
+                     response=None, caught_exception=None):
         event_name = 'needs-retry.%s.%s' % (self._endpoint_prefix,
                                             operation_model.name)
         responses = self._event_emitter.emit(
