@@ -118,7 +118,6 @@ class ClientResponseProxy:
 
 
 class AioEndpoint(Endpoint):
-
     def __init__(self, host,
                  endpoint_prefix, event_emitter, proxies=None, verify=True,
                  timeout=DEFAULT_TIMEOUT, response_parser_factory=None,
@@ -182,7 +181,8 @@ class AioEndpoint(Endpoint):
         success_response, exception = yield from self._get_response(
             request, operation_model, attempts)
         while (yield from self._needs_retry(attempts, operation_model,
-                                            success_response, exception)):
+                                            request_dict, success_response,
+                                            exception)):
             attempts += 1
             # If there is a stream associated with the request, we need
             # to reset it before attempting to send the request again.
@@ -201,14 +201,14 @@ class AioEndpoint(Endpoint):
 
     # NOTE: The only line changed here changing time.sleep to asyncio.sleep
     @asyncio.coroutine
-    def _needs_retry(self, attempts, operation_model, response=None,
-                     caught_exception=None):
+    def _needs_retry(self, attempts, operation_model, request_dict,
+                     response=None, caught_exception=None):
         event_name = 'needs-retry.%s.%s' % (self._endpoint_prefix,
                                             operation_model.name)
         responses = self._event_emitter.emit(
             event_name, response=response, endpoint=self,
             operation=operation_model, attempts=attempts,
-            caught_exception=caught_exception)
+            caught_exception=caught_exception, request_dict=request_dict)
         handler_response = first_non_none_response(responses)
         if handler_response is None:
             return False
@@ -273,7 +273,6 @@ class AioEndpoint(Endpoint):
 
 
 class AioEndpointCreator(EndpointCreator):
-
     def __init__(self, event_emitter, loop):
         super().__init__(event_emitter)
         self._loop = loop
@@ -282,7 +281,6 @@ class AioEndpointCreator(EndpointCreator):
                         endpoint_url=None, verify=None,
                         response_parser_factory=None, timeout=DEFAULT_TIMEOUT,
                         connector_args=None):
-
         if not is_valid_endpoint_url(endpoint_url):
             raise ValueError("Invalid endpoint: %s" % endpoint_url)
 
