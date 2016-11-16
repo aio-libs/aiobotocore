@@ -118,7 +118,6 @@ class ClientResponseProxy:
 
 
 class AioEndpoint(Endpoint):
-
     def __init__(self, host,
                  endpoint_prefix, event_emitter, proxies=None, verify=True,
                  timeout=DEFAULT_TIMEOUT, response_parser_factory=None,
@@ -182,7 +181,8 @@ class AioEndpoint(Endpoint):
         success_response, exception = yield from self._get_response(
             request, operation_model, attempts)
         while (yield from self._needs_retry(attempts, operation_model,
-                                request_dict, success_response, exception)):
+                                            request_dict, success_response,
+                                            exception)):
             attempts += 1
             # If there is a stream associated with the request, we need
             # to reset it before attempting to send the request again.
@@ -273,7 +273,6 @@ class AioEndpoint(Endpoint):
 
 
 class AioEndpointCreator(EndpointCreator):
-
     def __init__(self, event_emitter, loop):
         super().__init__(event_emitter)
         self._loop = loop
@@ -282,7 +281,6 @@ class AioEndpointCreator(EndpointCreator):
                         endpoint_url=None, verify=None,
                         response_parser_factory=None, timeout=DEFAULT_TIMEOUT,
                         connector_args=None):
-
         if not is_valid_endpoint_url(endpoint_url):
             raise ValueError("Invalid endpoint: %s" % endpoint_url)
 
