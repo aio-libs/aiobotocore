@@ -81,6 +81,12 @@ Execute tests suite:
     $ py.test -v tests
 
 
+Mailing List
+------------
+
+https://groups.google.com/forum/#!forum/aio-libs
+
+
 Requirements
 ------------
 * Python_ 3.4+
