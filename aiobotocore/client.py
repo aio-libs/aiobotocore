@@ -133,9 +133,10 @@ class AioBaseClient(botocore.client.BaseClient):
                                                              exc_val, exc_tb)
 
     def close(self):
-        """Close all http connections"""
-        # ClientSession.close() from aiohttp returns asyncio.Future here so
-        # this method could be used with yield from/await
+        """Close all http connections. This is coroutine, and should be
+        awaited. Method will be coroutine (instead returning Future) once
+        aiohttp does that.
+        """
         return self._endpoint._aio_session.close()
 
 

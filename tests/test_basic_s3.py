@@ -124,6 +124,7 @@ def test_get_object_stream_wrapper(s3_client, create_object, bucket_name):
     chunk2 = yield from body.read()
     assert chunk1 == b'b'
     assert chunk2 == b'ody contents'
+    response['Body'].close()
 
 
 @pytest.mark.run_loop
@@ -204,6 +205,7 @@ def test_unicode_key_put_list(s3_client, bucket_name, create_object):
     assert parsed['Contents'][0]['Key'] == key_name
     parsed = yield from s3_client.get_object(Bucket=bucket_name, Key=key_name)
     data = yield from parsed['Body'].read()
+    parsed['Body'].close()
     assert data == b'foo'
 
 
@@ -255,6 +257,7 @@ def test_copy_with_quoted_char(s3_client, create_object, bucket_name):
     # Now verify we can retrieve the copied object.
     resp = yield from s3_client.get_object(Bucket=bucket_name, Key=key_name2)
     data = yield from resp['Body'].read()
+    resp['Body'].close()
     assert data == b'foo'
 
 
@@ -271,6 +274,7 @@ def test_copy_with_query_string(s3_client, create_object, bucket_name):
     # Now verify we can retrieve the copied object.
     resp = yield from s3_client.get_object(Bucket=bucket_name, Key=key_name2)
     data = yield from resp['Body'].read()
+    resp['Body'].close()
     assert data == b'foo'
 
 
@@ -287,6 +291,7 @@ def test_can_copy_with_dict_form(s3_client, create_object, bucket_name):
     # Now verify we can retrieve the copied object.
     resp = yield from s3_client.get_object(Bucket=bucket_name, Key=key_name2)
     data = yield from resp['Body'].read()
+    resp['Body'].close()
     assert data == b'foo'
 
 
