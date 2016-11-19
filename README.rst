@@ -6,15 +6,16 @@ aiobotocore
 Async client for amazon services using botocore_ and aiohttp_/asyncio_.
 
 Main purpose of this library to support amazon s3 api, but other services
-should work (but may be with minor fixes). For now we have tested
-only upload/download api for s3. More tests coming soon.
+should work (may be with minor fixes). For now we have tested
+only upload/download api for s3, other users report that SQS and Dynamo
+services work also. More tests coming soon.
 
 
 Install
 -------
 ::
 
-    $ pip install -e git+https://github.com/aio-libs/aiobotocore.git@master#egg=aiobotocore
+    $ pip install aiobotocore
 
 
 Basic Example
@@ -82,9 +83,7 @@ Execute tests suite:
 
 Requirements
 ------------
-
-* Python_ 3.3+
-* asyncio_ or Python_ 3.4+
+* Python_ 3.4+
 * aiohttp_
 * botocore_
 
