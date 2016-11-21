@@ -1,4 +1,4 @@
-flake8==3.2.0
+flake8==3.2.1
 pytest==3.0.4
 pytest-cov==2.4.0
 coverage==4.2
