@@ -1,7 +1,7 @@
 flake8==3.2.1
 pytest==3.0.5
 pytest-cov==2.4.0
-coverage==4.2
+coverage==4.3
 sphinx==1.5.1
 ipdb==0.10.1
 ipython==5.1.0
