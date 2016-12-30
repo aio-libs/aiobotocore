@@ -168,8 +168,9 @@ class AioEndpoint(Endpoint):
         headers_ = dict(
             (z[0], text_(z[1], encoding='utf-8')) for z in headers.items())
         resp = yield from self._aio_session.request(method, url=url,
-                                                 headers=headers_, data=data,
-                                                 timeout=self._read_timeout)
+                                                    headers=headers_,
+                                                    data=data,
+                                                    timeout=self._read_timeout)
         return resp
 
     @asyncio.coroutine
