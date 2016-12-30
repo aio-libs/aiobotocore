@@ -172,10 +172,9 @@ class AioEndpoint(Endpoint):
 
         request_coro = self._aio_session.request(method, url=url,
                                                  headers=headers_, data=data,
-                                                 timeout=None)
+                                                 timeout=timeout)
 
-        with aiohttp.Timeout(timeout, loop=self._loop):
-            return (yield from request_coro)
+        return (yield from request_coro)
 
     @asyncio.coroutine
     def _send_request(self, request_dict, operation_model):
