@@ -167,12 +167,9 @@ class AioEndpoint(Endpoint):
         headers['Accept-Encoding'] = 'identity'
         headers_ = dict(
             (z[0], text_(z[1], encoding='utf-8')) for z in headers.items())
-        request_coro = self._aio_session.request(method, url=url,
+        resp = yield from self._aio_session.request(method, url=url,
                                                  headers=headers_, data=data,
                                                  timeout=self._read_timeout)
-        resp = yield from asyncio.wait_for(
-            request_coro, timeout=self._conn_timeout + self._read_timeout,
-            loop=self._loop)
         return resp
 
     @asyncio.coroutine
