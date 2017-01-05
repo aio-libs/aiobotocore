@@ -139,10 +139,12 @@ class AioEndpoint(Endpoint):
             #   https://forums.aws.amazon.com/message.jspa?messageID=215367
             # aiohttp default timeout is 30s so set something reasonable here
             connector = aiohttp.TCPConnector(loop=self._loop,
+                                             verify_ssl=self.verify,
                                              keepalive_timeout=12,
                                              conn_timeout=self._conn_timeout)
         else:
             connector = aiohttp.TCPConnector(loop=self._loop,
+                                             verify_ssl=self.verify,
                                              conn_timeout=self._conn_timeout,
                                              **connector_args)
 
