@@ -11,6 +11,8 @@ from botocore.exceptions import EndpointConnectionError, ConnectionClosedError
 from botocore.utils import is_valid_endpoint_url
 from botocore.hooks import first_non_none_response
 
+from urllib.parse import urlparse
+
 PY_35 = sys.version_info >= (3, 5)
 
 # Monkey patching: We need to insert the aiohttp exception equivalents
@@ -147,6 +149,8 @@ class AioEndpoint(Endpoint):
                                              verify_ssl=self.verify,
                                              conn_timeout=self._conn_timeout,
                                              **connector_args)
+        scheme = urlparse(host).scheme
+        self.proxy = proxies.get(scheme)
 
         self._aio_session = aiohttp.ClientSession(
             connector=connector,
@@ -170,7 +174,8 @@ class AioEndpoint(Endpoint):
         headers_ = dict(
             (z[0], text_(z[1], encoding='utf-8')) for z in headers.items())
         request_coro = self._aio_session.request(method, url=url,
-                                                 headers=headers_, data=data)
+                                                 headers=headers_, data=data,
+                                                 proxy=self.proxy)
         resp = yield from asyncio.wait_for(
             request_coro, timeout=self._conn_timeout + self._read_timeout,
             loop=self._loop)
