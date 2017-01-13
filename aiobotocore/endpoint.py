@@ -169,8 +169,8 @@ class AioEndpoint(Endpoint):
             (z[0], text_(z[1], encoding='utf-8')) for z in headers.items())
 
         # For now the request timeout is: read_timeout and max(conn_timeout)
-        # So we want to ensure that your conn_timeout won't get truncated by the
-        # read_timeout. This should be removed after
+        # So we want to ensure that your conn_timeout won't get truncated by
+        # the read_timeout. This should be removed after
         # (https://github.com/KeepSafe/aiohttp/issues/1524) is resolved
         if self._read_timeout < self._conn_timeout:
             warnings.warn("connection timeout may be reduced due to current "
