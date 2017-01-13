@@ -1,15 +1,15 @@
 import asyncio
 import sys
+import warnings
 
 import aiohttp
-import botocore.retryhandler
 import botocore.endpoint
-
+import botocore.retryhandler
 from aiohttp.client_reqrep import ClientResponse
 from botocore.endpoint import EndpointCreator, Endpoint, DEFAULT_TIMEOUT
 from botocore.exceptions import EndpointConnectionError, ConnectionClosedError
-from botocore.utils import is_valid_endpoint_url
 from botocore.hooks import first_non_none_response
+from botocore.utils import is_valid_endpoint_url
 
 PY_35 = sys.version_info >= (3, 5)
 
@@ -167,6 +167,15 @@ class AioEndpoint(Endpoint):
         headers['Accept-Encoding'] = 'identity'
         headers_ = dict(
             (z[0], text_(z[1], encoding='utf-8')) for z in headers.items())
+
+        # For now the request timeout is: read_timeout and max(conn_timeout)
+        # So we want to ensure that your conn_timeout won't get truncated by the
+        # read_timeout. This should be removed after
+        # (https://github.com/KeepSafe/aiohttp/issues/1524) is resolved
+        if self._read_timeout < self._conn_timeout:
+            warnings.warn("connection timeout may be reduced due to current "
+                          "read timeout")
+
         resp = yield from self._aio_session.request(method, url=url,
                                                     headers=headers_,
                                                     data=data,
