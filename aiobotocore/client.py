@@ -60,8 +60,12 @@ class AioClientCreator(botocore.client.ClientCreator):
 class AioBaseClient(botocore.client.BaseClient):
     @asyncio.coroutine
     def _make_api_call(self, operation_name, api_params):
-        request_context = {}
         operation_model = self._service_model.operation_model(operation_name)
+        request_context = {
+            'client_region': self.meta.region_name,
+            'client_config': self.meta.config,
+            'has_streaming_input': operation_model.has_streaming_input
+        }
         request_dict = self._convert_to_request_dict(
             api_params, operation_model, context=request_context)
 

@@ -1,6 +1,11 @@
 Changes
 -------
 
+0.1.0 (2017-01-12)
+^^^^^^^^^^^^^^^^^^
+* Pass timeout to aiohttp.request to enforce read_timeout #86 (thanks @vharitonsky)
+  (bumped up to next semantic version due to read_timeout enabling change)
+
 0.0.6 (2016-11-19)
 ^^^^^^^^^^^^^^^^^^
 

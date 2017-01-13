@@ -1,15 +1,17 @@
 import asyncio
 import sys
-
+import warnings
+import yarl
 import aiohttp
-import botocore.retryhandler
 import botocore.endpoint
-
+import botocore.retryhandler
 from aiohttp.client_reqrep import ClientResponse
-from botocore.endpoint import EndpointCreator, Endpoint, DEFAULT_TIMEOUT
+from botocore.endpoint import EndpointCreator, Endpoint, DEFAULT_TIMEOUT, \
+    MAX_POOL_CONNECTIONS
 from botocore.exceptions import EndpointConnectionError, ConnectionClosedError
-from botocore.utils import is_valid_endpoint_url
 from botocore.hooks import first_non_none_response
+from botocore.utils import is_valid_endpoint_url
+from aiohttp import MultiDict
 
 PY_35 = sys.version_info >= (3, 5)
 
@@ -121,12 +123,14 @@ class AioEndpoint(Endpoint):
     def __init__(self, host,
                  endpoint_prefix, event_emitter, proxies=None, verify=True,
                  timeout=DEFAULT_TIMEOUT, response_parser_factory=None,
+                 max_pool_connections=MAX_POOL_CONNECTIONS,
                  loop=None, connector_args=None):
 
         super().__init__(host, endpoint_prefix,
                          event_emitter, proxies=proxies, verify=verify,
                          timeout=timeout,
-                         response_parser_factory=response_parser_factory)
+                         response_parser_factory=response_parser_factory,
+                         max_pool_connections=max_pool_connections)
 
         if isinstance(timeout, (list, tuple)):
             self._conn_timeout, self._read_timeout = timeout
@@ -167,13 +171,22 @@ class AioEndpoint(Endpoint):
         # we can remove the following line and take advantage of
         # aws gzip compression.
         headers['Accept-Encoding'] = 'identity'
-        headers_ = dict(
+        headers_ = MultiDict(
             (z[0], text_(z[1], encoding='utf-8')) for z in headers.items())
-        request_coro = self._aio_session.request(method, url=url,
-                                                 headers=headers_, data=data)
-        resp = yield from asyncio.wait_for(
-            request_coro, timeout=self._conn_timeout + self._read_timeout,
-            loop=self._loop)
+
+        # For now the request timeout is: read_timeout and max(conn_timeout)
+        # So we want to ensure that your conn_timeout won't get truncated by
+        # the read_timeout. This should be removed after
+        # (https://github.com/KeepSafe/aiohttp/issues/1524) is resolved
+        if self._read_timeout < self._conn_timeout:
+            warnings.warn("connection timeout may be reduced due to current "
+                          "read timeout")
+
+        url = yarl.URL(url, encoded=True)
+        resp = yield from self._aio_session.request(method, url=url,
+                                                    headers=headers_,
+                                                    data=data,
+                                                    timeout=self._read_timeout)
         return resp
 
     @asyncio.coroutine
@@ -193,9 +206,15 @@ class AioEndpoint(Endpoint):
             request.reset_stream()
             # Create a new request when retried (including a new signature).
             request = self.create_request(
-                request_dict, operation_model=operation_model)
+                request_dict, operation_model)
             success_response, exception = yield from self._get_response(
                 request, operation_model, attempts)
+        if success_response is not None and \
+                'ResponseMetadata' in success_response[1]:
+            # We want to share num retries, not num attempts.
+            total_retries = attempts - 1
+            success_response[1]['ResponseMetadata']['RetryAttempts'] = \
+                total_retries
         if exception is not None:
             raise exception
         else:
@@ -234,6 +253,8 @@ class AioEndpoint(Endpoint):
         try:
             # http request substituted too async one
             botocore.endpoint.logger.debug("Sending http request: %s", request)
+
+            # TODO: handle self.proxies
             resp = yield from self._request(
                 request.method, request.url, request.headers, request.body)
             http_response = resp
@@ -269,9 +290,9 @@ class AioEndpoint(Endpoint):
             http_response, operation_model)
         parser = self._response_parser_factory.create_parser(
             operation_model.metadata['protocol'])
-        return ((http_response, parser.parse(response_dict,
-                                             operation_model.output_shape)),
-                None)
+        parsed_response = parser.parse(
+            response_dict, operation_model.output_shape)
+        return (http_response, parsed_response), None
 
 
 class AioEndpointCreator(EndpointCreator):
@@ -282,6 +303,7 @@ class AioEndpointCreator(EndpointCreator):
     def create_endpoint(self, service_model, region_name=None,
                         endpoint_url=None, verify=None,
                         response_parser_factory=None, timeout=DEFAULT_TIMEOUT,
+                        max_pool_connections=MAX_POOL_CONNECTIONS,
                         connector_args=None):
         if not is_valid_endpoint_url(endpoint_url):
             raise ValueError("Invalid endpoint: %s" % endpoint_url)
@@ -293,5 +315,6 @@ class AioEndpointCreator(EndpointCreator):
             proxies=self._get_proxies(endpoint_url),
             verify=self._get_verify_value(verify),
             timeout=timeout,
-            response_parser_factory=response_parser_factory, loop=self._loop,
-            connector_args=connector_args)
+            max_pool_connections=max_pool_connections,
+            response_parser_factory=response_parser_factory,
+            loop=self._loop, connector_args=connector_args)
