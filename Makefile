@@ -6,13 +6,13 @@ flake:
 	flake8 aiobotocore tests examples
 
 test: flake
-	py.test -s $(FLAGS) ./tests/
+	python3 -m pytest -s $(FLAGS) ./tests/
 
 vtest:
-	py.test -s -v $(FLAGS) ./tests/
+	python3 -m pytest -s -v $(FLAGS) ./tests/
 
 cov cover coverage: flake
-	py.test -s -v  --cov-report term --cov-report html --cov aiomysql ./tests
+	python3 -m pytest -s -v  --cov-report term --cov-report html --cov aiomysql ./tests
 	@echo "open file://`pwd`/htmlcov/index.html"
 
 clean:

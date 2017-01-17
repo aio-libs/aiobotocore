@@ -64,10 +64,11 @@ class AioSession(botocore.session.Session):
         else:
             credentials = self.get_credentials()
         endpoint_resolver = self.get_component('endpoint_resolver')
-
+        exceptions_factory = self.get_component('exceptions_factory')
         client_creator = AioClientCreator(
             loader, endpoint_resolver, self.user_agent(), event_emitter,
-            retryhandler, translate, response_parser_factory, loop=self._loop)
+            retryhandler, translate, response_parser_factory,
+            exceptions_factory, loop=self._loop)
         client = client_creator.create_client(
             service_name=service_name, region_name=region_name,
             is_secure=use_ssl, endpoint_url=endpoint_url, verify=verify,
