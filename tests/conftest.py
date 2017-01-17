@@ -3,7 +3,7 @@ import pytest
 import time
 import aiohttp
 import aiobotocore
-from aiobotocore.client import AioConfig
+from aiobotocore.config import AioConfig
 import tempfile
 import shutil
 
