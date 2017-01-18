@@ -1,7 +1,7 @@
 Changes
 -------
 
-0.1.2 (XXX-XX-XX)
+0.1.2a0 (XXX-XX-XX)
 ^^^^^^^^^^^^^^^^^
 * add support for proxies (thanks @jjonek)
 * remove AioConfig verify_ssl connector_arg as this is handled by the
