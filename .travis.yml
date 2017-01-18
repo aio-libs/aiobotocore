@@ -16,3 +16,13 @@ install:
 
 script:
     - make flake
+deploy:
+    provider: pypi
+    user: jettify
+    password:
+        secure: XEkSVVE0h9F2mG9mMyfssBJ9aXw8/sLUeSFQPqYVZzM1arDu9Ir3UgABCxrBqLHO6jp4aVRW3kqvZ01vtnl26zlyTC6J/tmev0mgUPuM/V+99Yq6QmXHfV6fk/4DfgJgeXzjZ4PFixwRFL2RVQA5wT88PcwDqmfy6AE19rXTeLSdYvXP0HytamQ5XzDujjZXhBEG2N6VlQ6XSJHTm/r2nD4MulXckrVgbnqp2ZvReOek3bAysqHdGgrSwr3Stu+65wtnJbGKFKB53bRXF3mFCd6dRQq29WYRjL0QHR6bWzhb2EQISXR3Bk41OBUEwJIGS4CPfSE0QDvy9KQy25Lj/pLhnH3LoSz7M+gJMtUGUvIcLCqPfcIssWbcHfj9iSEjLiFguBduCRbllIkOHdob/Te56Yzgl/Utk3mCEVNXydP32SIO5mez+ts9lUULEL3x4YQLZR60qiojSmMZjLY9L7GqrbiRsX7LfCrTJMicLBcHLuoPiWZhwcLOEtsu96WOjN8uYxrKi6di5jPIRGD+45tDSMQiNkxddiArbKkCRXwZOKfzt8o0V+Stl4FkOjw9z94lHczbzuOOdAxb1L44waPAdKV76pVOW819cqPFzhJWcY9kjdwZTRJ+9OMX0UkqFpnaFkHW291S7cXMwB+Nb0LeFhtEJIq+vtlWKgagSWg=
+    on:
+        tags: true
+        repo: aio-libs/aiobotocore
+        all_branches: true
+        python: 3.5
