@@ -1,8 +1,8 @@
 Changes
 -------
 
-0.1.2 (2017-01-16)
-^^^^^^^^^^^^^^^^^^
+0.1.2 (XXX-XX-XX)
+^^^^^^^^^^^^^^^^^
 * add support for proxies (thanks @jjonek)
 * remove AioConfig verify_ssl connector_arg as this is handled by the
   create_client verify param
