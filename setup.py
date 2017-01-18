@@ -45,6 +45,7 @@ classifiers = [
 setup(name='aiobotocore',
       version=read_version(),
       long_description='\n\n'.join((read('README.rst'), read('CHANGES.txt'))),
+      description=("Async client for AWS services using botocore and aiohttp"),
       classifiers=classifiers,
       author="Nikolay Novik",
       author_email="nickolainovik@gmail.com",
