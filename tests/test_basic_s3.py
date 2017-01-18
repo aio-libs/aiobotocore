@@ -1,5 +1,6 @@
 import asyncio
 import pytest
+from aiohttp.errors import ProxyConnectionError
 
 
 @asyncio.coroutine
@@ -19,6 +20,21 @@ def test_can_make_request(s3_client):
     result = yield from s3_client.list_buckets()
     # Can't really assume anything about whether or not they have buckets,
     # but we can assume something about the structure of the response.
+    actual_keys = sorted(list(result.keys()))
+    assert actual_keys == ['Buckets', 'Owner', 'ResponseMetadata']
+
+
+@pytest.mark.run_loop
+def test_fail_proxy_request(aa_fail_proxy_config, s3_client):
+    # based on test_can_make_request
+
+    with pytest.raises(ProxyConnectionError):
+        yield from s3_client.list_buckets()
+
+
+@pytest.mark.run_loop
+def test_succeed_proxy_request(aa_succeed_proxy_config, s3_client):
+    result = yield from s3_client.list_buckets()
     actual_keys = sorted(list(result.keys()))
     assert actual_keys == ['Buckets', 'Owner', 'ResponseMetadata']
 

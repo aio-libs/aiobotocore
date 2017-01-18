@@ -106,6 +106,23 @@ def assert_num_uploads_found(s3_client, bucket_name, operation,
 
 
 @pytest.fixture
+def aa_fail_proxy_config(monkeypatch):
+    # NOTE: name of this fixture must be alphabetically first to run first
+    monkeypatch.setenv('HTTP_PROXY', 'http://localhost:54321')
+    monkeypatch.setenv('HTTPS_PROXY', 'http://localhost:54321')
+
+
+@pytest.fixture
+def aa_succeed_proxy_config(monkeypatch):
+    # NOTE: name of this fixture must be alphabetically first to run first
+    monkeypatch.setenv('HTTP_PROXY', 'http://localhost:54321')
+    monkeypatch.setenv('HTTPS_PROXY', 'http://localhost:54321')
+
+    # this will cause us to skip proxying
+    monkeypatch.setenv('NO_PROXY', 'amazonaws.com')
+
+
+@pytest.fixture
 def session(loop):
     session = aiobotocore.get_session(loop=loop)
     return session
@@ -123,7 +140,8 @@ def signature_version():
 
 @pytest.fixture
 def config(region, signature_version):
-    return AioConfig(region_name=region, signature_version=signature_version)
+    return AioConfig(region_name=region, signature_version=signature_version,
+                     read_timeout=5, connect_timeout=5)
 
 
 @pytest.fixture
