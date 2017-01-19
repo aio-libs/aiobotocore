@@ -16,6 +16,7 @@ install:
 
 script:
     - make flake
+    - py.test -v --cov-report term --cov-report html --cov aiobotocore tests/test_basic_s3.py
 deploy:
     provider: pypi
     user: jettify

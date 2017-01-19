@@ -127,8 +127,9 @@ def config(region, signature_version):
 
 
 @pytest.fixture
-def s3_client(request, session, region, config):
-    client = create_client('s3', request, session, region, config)
+def s3_client(request, session, region, config, s3_server):
+    client = create_client('s3', request, session, region, config,
+                           s3_server)
     return client
 
 
@@ -138,9 +139,14 @@ def dynamodb_client(request, session, region, config):
     return client
 
 
-def create_client(client_type, request, session, region, config):
+def create_client(client_type, request, session, region, config, endpoint_url):
+    AWS_ACCESS_KEY_ID = "xxx"
+    AWS_SECRET_ACCESS_KEY = "xxx"
     client = session.create_client(client_type, region_name=region,
-                                   config=config)
+                                   config=config,
+                                   endpoint_url=endpoint_url,
+                                   aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
+                                   aws_access_key_id=AWS_ACCESS_KEY_ID)
 
     def fin():
         client.close()
@@ -344,3 +350,6 @@ def dynamodb_put_item(request, dynamodb_client, table_name, loop):
         assert_status_code(response, 200)
 
     return _f
+
+
+pytest_plugins = ['mock_server']
