@@ -8,18 +8,23 @@ import tempfile
 import shutil
 
 
-@pytest.fixture
-def loop(request):
+@pytest.fixture(scope="session", params=[True, False],
+                ids=['debug[true]', 'debug[false]'])
+def debug(request):
+    return request.param
+
+
+@pytest.yield_fixture
+def loop(request, debug):
     old_loop = asyncio.get_event_loop()
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(None)
+    loop.set_debug(debug)
 
-    def fin():
-        loop.close()
-        asyncio.set_event_loop(old_loop)
+    yield loop
 
-    request.addfinalizer(fin)
-    return loop
+    loop.close()
+    asyncio.set_event_loop(old_loop)
 
 
 @pytest.mark.tryfirst
