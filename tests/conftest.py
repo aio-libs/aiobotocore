@@ -151,8 +151,12 @@ def s3_client(request, session, region, config, s3_server, mocking_test):
 
 
 @pytest.fixture
-def dynamodb_client(request, session, region, config):
-    client = create_client('dynamodb', request, session, region, config)
+def dynamodb_client(request, session, region, config, dynamodb2_server,
+                    mocking_test):
+    kw = {}
+    if mocking_test:
+        kw = moto_config(dynamodb2_server)
+    client = create_client('dynamodb', request, session, region, config, **kw)
     return client
 
 
