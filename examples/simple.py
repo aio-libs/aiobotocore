@@ -15,7 +15,6 @@ def go(loop):
 
     session = aiobotocore.get_session(loop=loop)
     client = session.create_client('s3', region_name='us-west-2',
-                                   endpoint_url='http://127.0.0.1:5000',
                                    aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
                                    aws_access_key_id=AWS_ACCESS_KEY_ID)
     # upload object to amazon s3
