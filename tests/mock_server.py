@@ -5,19 +5,6 @@ import subprocess as sp
 import time
 
 
-def stop_process(process):
-    try:
-        process.send_signal(signal.SIGTERM)
-        process.communicate(timeout=20)
-    except sp.TimeoutExpired:
-        process.kill()
-        outs, errors = process.communicate(timeout=20)
-        exit_code = process.returncode
-        msg = "Child process finished {} not in clean way: {} {}" \
-            .format(exit_code, outs, errors)
-        raise RuntimeError(msg)
-
-
 def start_service(service_name, host, port):
     command = ("moto_server {service} -H {host} -p {port}"
                .format(service=service_name, host=host, port=port)
@@ -31,7 +18,22 @@ def start_service(service_name, host, port):
             break
         except requests.exceptions.ConnectionError:
             time.sleep(1)
+    else:
+        pytest.fail("Can not start service: {}".format(service_name))
     return process
+
+
+def stop_process(process):
+    try:
+        process.send_signal(signal.SIGTERM)
+        process.communicate(timeout=20)
+    except sp.TimeoutExpired:
+        process.kill()
+        outs, errors = process.communicate(timeout=20)
+        exit_code = process.returncode
+        msg = "Child process finished {} not in clean way: {} {}" \
+            .format(exit_code, outs, errors)
+        raise RuntimeError(msg)
 
 
 @pytest.yield_fixture(scope="session")
