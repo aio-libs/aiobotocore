@@ -13,6 +13,7 @@ def fetch_all(pages):
     return responses
 
 
+@pytest.mark.moto
 @pytest.mark.run_loop
 def test_can_make_request(s3_client):
     # Basic smoke test to ensure we can talk to s3.
@@ -23,15 +24,17 @@ def test_can_make_request(s3_client):
     assert actual_keys == ['Buckets', 'Owner', 'ResponseMetadata']
 
 
+@pytest.mark.moto
 @pytest.mark.run_loop
 def test_can_get_bucket_location(s3_client, bucket_name):
     result = yield from s3_client.get_bucket_location(Bucket=bucket_name)
     assert 'LocationConstraint' in result
     # For buckets in us-east-1 (US Classic Region) this will be None
     # TODO fix this
-    assert result['LocationConstraint'] in [None, 'us-west-2']
+    assert result['LocationConstraint'] in [None, 'us-west-2', 'us-east-1']
 
 
+@pytest.mark.moto
 @pytest.mark.run_loop
 def test_can_delete_urlencoded_object(s3_client, bucket_name, create_object):
     key_name = 'a+b/foo'
@@ -98,6 +101,7 @@ def test_result_key_iters(s3_client, bucket_name,):
     assert iterators
 
 
+@pytest.mark.moto
 @pytest.mark.run_loop
 def test_can_get_and_put_object(s3_client, create_object, bucket_name, loop):
     yield from create_object('foobarbaz', body='body contents')
@@ -111,6 +115,7 @@ def test_can_get_and_put_object(s3_client, create_object, bucket_name, loop):
     assert data == b'body contents'
 
 
+@pytest.mark.moto
 @pytest.mark.run_loop
 def test_get_object_stream_wrapper(s3_client, create_object, bucket_name):
     yield from create_object('foobarbaz', body='body contents')
@@ -157,6 +162,7 @@ def test_paginate_max_items(s3_client, create_multipart_upload, bucket_name,
     assert len(full_result['Uploads']) == 1
 
 
+@pytest.mark.moto
 @pytest.mark.run_loop
 def test_paginate_within_page_boundaries(s3_client, create_object,
                                          bucket_name):
@@ -225,6 +231,7 @@ def test_unicode_system_character(s3_client, bucket_name, create_object):
     assert parsed['Contents'][0]['Key'] == 'foo%08'
 
 
+@pytest.mark.moto
 @pytest.mark.run_loop
 def test_non_normalized_key_paths(s3_client, bucket_name, create_object):
     # The create_object method has assertEqual checks for 200 status.
@@ -244,6 +251,7 @@ def test_reset_stream_on_redirects(region, create_bucket):
     assert bucket_name
 
 
+@pytest.mark.moto
 @pytest.mark.run_loop
 def test_copy_with_quoted_char(s3_client, create_object, bucket_name):
     key_name = 'a+b/foo'
@@ -261,6 +269,7 @@ def test_copy_with_quoted_char(s3_client, create_object, bucket_name):
     assert data == b'foo'
 
 
+@pytest.mark.moto
 @pytest.mark.run_loop
 def test_copy_with_query_string(s3_client, create_object, bucket_name):
     key_name = 'a+b/foo?notVersionid=bar'
@@ -278,6 +287,7 @@ def test_copy_with_query_string(s3_client, create_object, bucket_name):
     assert data == b'foo'
 
 
+@pytest.mark.moto
 @pytest.mark.run_loop
 def test_can_copy_with_dict_form(s3_client, create_object, bucket_name):
     key_name = 'a+b/foo?versionId=abcd'
@@ -295,6 +305,7 @@ def test_can_copy_with_dict_form(s3_client, create_object, bucket_name):
     assert data == b'foo'
 
 
+@pytest.mark.moto
 @pytest.mark.run_loop
 def test_copy_with_s3_metadata(s3_client, create_object, bucket_name):
     key_name = 'foo.txt'
