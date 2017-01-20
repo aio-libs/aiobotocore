@@ -132,15 +132,20 @@ def mocking_test():
     return True
 
 
+def moto_config(endpoint_url):
+    AWS_ACCESS_KEY_ID = "xxx"
+    AWS_SECRET_ACCESS_KEY = "xxx"
+    kw = dict(endpoint_url=endpoint_url,
+              aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
+              aws_access_key_id=AWS_ACCESS_KEY_ID)
+    return kw
+
+
 @pytest.fixture
 def s3_client(request, session, region, config, s3_server, mocking_test):
     kw = {}
     if mocking_test:
-        AWS_ACCESS_KEY_ID = "xxx"
-        AWS_SECRET_ACCESS_KEY = "xxx"
-        kw = dict(endpoint_url=s3_server,
-                  aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
-                  aws_access_key_id=AWS_ACCESS_KEY_ID)
+        kw = moto_config(s3_server)
     client = create_client('s3', request, session, region, config, **kw)
     return client
 
