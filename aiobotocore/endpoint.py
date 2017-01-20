@@ -12,6 +12,7 @@ from botocore.exceptions import EndpointConnectionError, ConnectionClosedError
 from botocore.hooks import first_non_none_response
 from botocore.utils import is_valid_endpoint_url
 from aiohttp import MultiDict
+from urllib.parse import urlparse
 
 PY_35 = sys.version_info >= (3, 5)
 
@@ -143,11 +144,13 @@ class AioEndpoint(Endpoint):
             #   https://forums.aws.amazon.com/message.jspa?messageID=215367
             # aiohttp default timeout is 30s so set something reasonable here
             connector = aiohttp.TCPConnector(loop=self._loop,
+                                             limit=max_pool_connections,
                                              verify_ssl=self.verify,
                                              keepalive_timeout=12,
                                              conn_timeout=self._conn_timeout)
         else:
             connector = aiohttp.TCPConnector(loop=self._loop,
+                                             limit=max_pool_connections,
                                              verify_ssl=self.verify,
                                              conn_timeout=self._conn_timeout,
                                              **connector_args)
@@ -182,10 +185,14 @@ class AioEndpoint(Endpoint):
             warnings.warn("connection timeout may be reduced due to current "
                           "read timeout")
 
+        # botocore does this during the request so we do this here as well
+        proxy = self.proxies.get(urlparse(url.lower()).scheme)
+
         url = yarl.URL(url, encoded=True)
         resp = yield from self._aio_session.request(method, url=url,
                                                     headers=headers_,
                                                     data=data,
+                                                    proxy=proxy,
                                                     timeout=self._read_timeout)
         return resp
 
@@ -254,7 +261,6 @@ class AioEndpoint(Endpoint):
             # http request substituted too async one
             botocore.endpoint.logger.debug("Sending http request: %s", request)
 
-            # TODO: handle self.proxies
             resp = yield from self._request(
                 request.method, request.url, request.headers, request.body)
             http_response = resp

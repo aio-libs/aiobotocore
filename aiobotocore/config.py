@@ -33,7 +33,8 @@ class AioConfig(botocore.client.Config):
             return
 
         for k, v in connector_args.items():
-            if k in ['use_dns_cache', 'verify_ssl']:
+            # verify_ssl is handled by verify parameter to create_client
+            if k == 'use_dns_cache':
                 if not isinstance(v, bool):
                     raise ParamValidationError(
                         report='{} value must be a boolean'.format(k))
@@ -45,10 +46,7 @@ class AioConfig(botocore.client.Config):
                 if not isinstance(v, bool):
                     raise ParamValidationError(
                         report='{} value must be a boolean'.format(k))
-            elif k == 'limit':
-                if not isinstance(v, int):
-                    raise ParamValidationError(
-                        report='{} value must be an int'.format(k))
+            # limit is handled by max_pool_connections
             elif k == 'ssl_context':
                 import ssl
                 if not isinstance(v, ssl.SSLContext):
