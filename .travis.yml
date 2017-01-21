@@ -8,11 +8,13 @@ python:
 install:
     - pip install -Ur requirements-dev.txt
     - pip install -e .
-    - pip install coveralls
+    - pip install codecov
 
 script:
     - make flake
     - make mototest
+after_success:
+    codecov
 deploy:
     provider: pypi
     user: jettify
