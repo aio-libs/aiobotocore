@@ -2,6 +2,10 @@ aiobotocore
 ===========
 .. image:: https://travis-ci.org/aio-libs/aiobotocore.svg?branch=master
     :target: https://travis-ci.org/aio-libs/aiobotocore
+.. image:: https://codecov.io/gh/aio-libs/aiobotocore/branch/master/graph/badge.svg
+    :target: https://codecov.io/gh/aio-libs/aiobotocore
+.. image:: https://img.shields.io/pypi/v/aiobotocore.svg
+    :target: https://pypi.python.org/pypi/aiobotocore
 
 Async client for amazon services using botocore_ and aiohttp_/asyncio_.
 
