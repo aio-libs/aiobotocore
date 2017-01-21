@@ -8,18 +8,23 @@ import tempfile
 import shutil
 
 
-@pytest.fixture
-def loop(request):
+@pytest.fixture(scope="session", params=[True, False],
+                ids=['debug[true]', 'debug[false]'])
+def debug(request):
+    return request.param
+
+
+@pytest.yield_fixture
+def loop(request, debug):
     old_loop = asyncio.get_event_loop()
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(None)
+    loop.set_debug(debug)
 
-    def fin():
-        loop.close()
-        asyncio.set_event_loop(old_loop)
+    yield loop
 
-    request.addfinalizer(fin)
-    return loop
+    loop.close()
+    asyncio.set_event_loop(old_loop)
 
 
 @pytest.mark.tryfirst
@@ -145,20 +150,42 @@ def config(region, signature_version):
 
 
 @pytest.fixture
-def s3_client(request, session, region, config):
-    client = create_client('s3', request, session, region, config)
+def mocking_test():
+    # change this flag for test with real aws
+    return True
+
+
+def moto_config(endpoint_url):
+    AWS_ACCESS_KEY_ID = "xxx"
+    AWS_SECRET_ACCESS_KEY = "xxx"
+    kw = dict(endpoint_url=endpoint_url,
+              aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
+              aws_access_key_id=AWS_ACCESS_KEY_ID)
+    return kw
+
+
+@pytest.fixture
+def s3_client(request, session, region, config, s3_server, mocking_test):
+    kw = {}
+    if mocking_test:
+        kw = moto_config(s3_server)
+    client = create_client('s3', request, session, region, config, **kw)
     return client
 
 
 @pytest.fixture
-def dynamodb_client(request, session, region, config):
-    client = create_client('dynamodb', request, session, region, config)
+def dynamodb_client(request, session, region, config, dynamodb2_server,
+                    mocking_test):
+    kw = {}
+    if mocking_test:
+        kw = moto_config(dynamodb2_server)
+    client = create_client('dynamodb', request, session, region, config, **kw)
     return client
 
 
-def create_client(client_type, request, session, region, config):
+def create_client(client_type, request, session, region, config, **kw):
     client = session.create_client(client_type, region_name=region,
-                                   config=config)
+                                   config=config, **kw)
 
     def fin():
         client.close()
@@ -362,3 +389,6 @@ def dynamodb_put_item(request, dynamodb_client, table_name, loop):
         assert_status_code(response, 200)
 
     return _f
+
+
+pytest_plugins = ['mock_server']

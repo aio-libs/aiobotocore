@@ -15,6 +15,10 @@ cov cover coverage: flake
 	python3 -m pytest -s -v  --cov-report term --cov-report html --cov aiomysql ./tests
 	@echo "open file://`pwd`/htmlcov/index.html"
 
+mototest:
+	py.test -v -m moto --cov-report term --cov-report html --cov aiobotocore tests
+
+
 clean:
 	rm -rf `find . -name __pycache__`
 	rm -f `find . -type f -name '*.py[co]' `

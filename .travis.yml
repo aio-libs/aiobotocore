@@ -3,11 +3,7 @@ language: python
 python:
     - 3.4
     - 3.5
-
-env:
-    matrix:
-        - PYTHONASYNCIODEBUG=1
-        - PYTHONASYNCIODEBUG=
+    - 3.6
 
 install:
     - pip install -Ur requirements-dev.txt
@@ -16,6 +12,7 @@ install:
 
 script:
     - make flake
+    - make mototest
 deploy:
     provider: pypi
     user: jettify
