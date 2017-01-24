@@ -1,3 +1,4 @@
+Flask==0.12
 coverage==4.3.4
 flake8==3.2.1
 ipdb==0.10.1
