@@ -1,8 +1,9 @@
+Flask==0.12
 coverage==4.3.4
 flake8==3.2.1
 ipdb==0.10.1
 ipython==5.1.0
-moto==0.4.27
+moto==0.4.31
 pytest-cov==2.4.0
 pytest==3.0.6
 sphinx==1.5.2
