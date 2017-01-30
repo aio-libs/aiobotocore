@@ -2,6 +2,10 @@ aiobotocore
 ===========
 .. image:: https://travis-ci.org/aio-libs/aiobotocore.svg?branch=master
     :target: https://travis-ci.org/aio-libs/aiobotocore
+.. image:: https://codecov.io/gh/aio-libs/aiobotocore/branch/master/graph/badge.svg
+    :target: https://codecov.io/gh/aio-libs/aiobotocore
+.. image:: https://img.shields.io/pypi/v/aiobotocore.svg
+    :target: https://pypi.python.org/pypi/aiobotocore
 
 Async client for amazon services using botocore_ and aiohttp_/asyncio_.
 
@@ -30,9 +34,7 @@ Basic Example
     AWS_SECRET_ACCESS_KEY = "xxx"
 
 
-    @asyncio.coroutine
-    def go(loop):
-
+    async def go(loop):
         bucket = 'dataintake'
         filename = 'dummy.bin'
         folder = 'aiobotocore'
@@ -44,19 +46,31 @@ Basic Example
                                        aws_access_key_id=AWS_ACCESS_KEY_ID)
         # upload object to amazon s3
         data = b'\x01'*1024
-        resp = yield from client.put_object(Bucket=bucket,
+        resp = await client.put_object(Bucket=bucket,
                                             Key=key,
                                             Body=data)
         print(resp)
 
         # getting s3 object properties of file we just uploaded
-        resp = yield from client.get_object_acl(Bucket=bucket, Key=key)
+        resp = await client.get_object_acl(Bucket=bucket, Key=key)
         print(resp)
 
         # delete object from s3
-        resp = yield from client.delete_object(Bucket=bucket, Key=key)
+        resp = await client.delete_object(Bucket=bucket, Key=key)
         print(resp)
 
+        # list s3 objects using paginator
+        paginator = client.get_paginator('list_objects')
+        async for result in paginator.paginate(Bucket=bucket, Prefix=folder):
+            for c in result.get('Contents', []):
+                print(c)
+                
+        # get object from s3
+        response = await client.get_object(Bucket=bucket, key=key)
+        # this will ensure the connection is correctly re-used/closed
+        async with response['Body'] as stream:
+            bytes = await stream.read()
+    
     loop = asyncio.get_event_loop()
     loop.run_until_complete(go(loop))
 
