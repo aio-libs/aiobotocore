@@ -42,21 +42,6 @@ def test_succeed_proxy_request(aa_succeed_proxy_config, s3_client):
 
 
 @pytest.mark.run_loop
-def test_fail_proxy_request(aa_fail_proxy_config, s3_client):
-    # based on test_can_make_request
-
-    with pytest.raises(ProxyConnectionError):
-        yield from s3_client.list_buckets()
-
-
-@pytest.mark.run_loop
-def test_succeed_proxy_request(aa_succeed_proxy_config, s3_client):
-    result = yield from s3_client.list_buckets()
-    actual_keys = sorted(list(result.keys()))
-    assert actual_keys == ['Buckets', 'Owner', 'ResponseMetadata']
-
-
-@pytest.mark.run_loop
 def test_can_get_bucket_location(s3_client, bucket_name):
     result = yield from s3_client.get_bucket_location(Bucket=bucket_name)
     assert 'LocationConstraint' in result
