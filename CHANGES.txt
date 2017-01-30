@@ -1,6 +1,9 @@
 Changes
 -------
 
+0.2.1a0 (XXXX-XX-XX)
+^^^^^^^^^^^^^^^^^^
+
 0.2.0 (2017-01-30)
 ^^^^^^^^^^^^^^^^^^
 * add support for proxies (thanks @jjonek)
