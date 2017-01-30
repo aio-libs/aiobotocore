@@ -1,13 +1,13 @@
 Changes
 -------
 
-0.2.0a0 (XXX-XX-XX)
-^^^^^^^^^^^^^^^^^
+0.2.0 (2017-01-30)
+^^^^^^^^^^^^^^^^^^
 * add support for proxies (thanks @jjonek)
 * remove AioConfig verify_ssl connector_arg as this is handled by the
   create_client verify param
 * remove AioConfig limit connector_arg as this is now handled by
-  by the Config max_pool_connections property (note default is 10)
+  by the Config `max_pool_connections` property (note default is 10)
 
 0.1.1 (2017-01-16)
 ^^^^^^^^^^^^^^^^^^
