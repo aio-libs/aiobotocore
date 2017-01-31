@@ -71,7 +71,12 @@ def random_tablename():
 
 
 def random_name():
-    table_name = 'aiobotocoretest_{}'
+    """Return a string with presumably unique contents
+
+    The string contains only symbols allowed for s3 buckets
+    (alpfanumeric, dot and hyphen).
+    """
+    table_name = 'aiobotocoretest-{}'
     t = time.time()
     return table_name.format(int(t))
 
@@ -139,6 +144,11 @@ def region():
 
 
 @pytest.fixture
+def alternative_region():
+    return 'us-west-2'
+
+
+@pytest.fixture
 def signature_version():
     return 's3'
 
@@ -170,6 +180,22 @@ def s3_client(request, session, region, config, s3_server, mocking_test):
     if mocking_test:
         kw = moto_config(s3_server)
     client = create_client('s3', request, session, region, config, **kw)
+    return client
+
+
+@pytest.fixture
+def alternative_s3_client(request, session, alternative_region,
+                          signature_version, s3_server,
+                          mocking_test):
+    kw = {}
+    if mocking_test:
+        kw = moto_config(s3_server)
+
+    config = AioConfig(
+        region_name=alternative_region, signature_version=signature_version,
+        read_timeout=5, connect_timeout=5)
+    client = create_client(
+        's3', request, session, alternative_region, config, **kw)
     return client
 
 
