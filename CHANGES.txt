@@ -3,6 +3,7 @@ Changes
 
 0.2.1a0 (XXXX-XX-XX)
 ^^^^^^^^^^^^^^^^^^
+* Normalize headers and handle redirection by botocore #115 (thanks @Fedorof)
 
 0.2.0 (2017-01-30)
 ^^^^^^^^^^^^^^^^^^
