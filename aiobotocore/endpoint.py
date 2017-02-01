@@ -40,7 +40,8 @@ def text_(s, encoding='utf-8', errors='strict'):
 def convert_to_response_dict(http_response, operation_model):
     response_dict = {
         # botocore converts keys to str, so make sure that they are in
-        # the expected case.
+        # the expected case. See detailed discussion here:
+        # https://github.com/aio-libs/aiobotocore/pull/116
         'headers': {k.lower(): v for k, v in http_response.headers.items()},
         'status_code': http_response.status_code,
     }
