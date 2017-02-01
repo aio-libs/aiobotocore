@@ -39,7 +39,9 @@ def text_(s, encoding='utf-8', errors='strict'):
 @asyncio.coroutine
 def convert_to_response_dict(http_response, operation_model):
     response_dict = {
-        'headers': http_response.headers,
+        # botocore converts keys to str, so make sure that they are in
+        # the expected case.
+        'headers': {k.lower(): v for k, v in http_response.headers.items()},
         'status_code': http_response.status_code,
     }
 
@@ -193,7 +195,8 @@ class AioEndpoint(Endpoint):
                                                     headers=headers_,
                                                     data=data,
                                                     proxy=proxy,
-                                                    timeout=self._read_timeout)
+                                                    timeout=self._read_timeout,
+                                                    allow_redirects=False)
         return resp
 
     @asyncio.coroutine

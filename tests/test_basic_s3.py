@@ -374,3 +374,20 @@ def test_presign_sigv4(s3_client, bucket_name, aio_session, create_object):
     resp = yield from aio_session.get(presigned_url)
     data = yield from resp.read()
     assert data == b'foo'
+
+
+@pytest.mark.parametrize('signature_version', ['s3v4'])
+@pytest.mark.parametrize('mocking_test', [False])
+@pytest.mark.run_loop
+def test_can_follow_signed_url_redirect(alternative_s3_client,
+                                        create_object, bucket_name, loop):
+    yield from create_object('foobarbaz')
+    # Eventual consistency.
+    yield from asyncio.sleep(3, loop=loop)
+
+    # Simulate redirection by provide wrong endpoint intentionally
+    resp = yield from alternative_s3_client.get_object(
+        Bucket=bucket_name, Key='foobarbaz')
+    data = yield from resp['Body'].read()
+    resp['Body'].close()
+    assert data == b'foo'
