@@ -175,18 +175,18 @@ def moto_config(endpoint_url):
 
 
 @pytest.fixture
-def s3_client(request, session, region, config, s3_server, mocking_test):
+def s3_client(request, session, region, config, s3_server, mocking_test, loop):
     kw = {}
     if mocking_test:
         kw = moto_config(s3_server)
-    client = create_client('s3', request, session, region, config, **kw)
+    client = create_client('s3', request, loop, session, region, config, **kw)
     return client
 
 
 @pytest.fixture
 def alternative_s3_client(request, session, alternative_region,
                           signature_version, s3_server,
-                          mocking_test):
+                          mocking_test, loop):
     kw = {}
     if mocking_test:
         kw = moto_config(s3_server)
@@ -195,26 +195,30 @@ def alternative_s3_client(request, session, alternative_region,
         region_name=alternative_region, signature_version=signature_version,
         read_timeout=5, connect_timeout=5)
     client = create_client(
-        's3', request, session, alternative_region, config, **kw)
+        's3', request, loop, session, alternative_region, config, **kw)
     return client
 
 
 @pytest.fixture
 def dynamodb_client(request, session, region, config, dynamodb2_server,
-                    mocking_test):
+                    mocking_test, loop):
     kw = {}
     if mocking_test:
         kw = moto_config(dynamodb2_server)
-    client = create_client('dynamodb', request, session, region, config, **kw)
+    client = create_client('dynamodb', request, loop, session, region,
+                           config, **kw)
     return client
 
 
-def create_client(client_type, request, session, region, config, **kw):
-    client = session.create_client(client_type, region_name=region,
-                                   config=config, **kw)
+def create_client(client_type, request, loop, session, region, config, **kw):
+    @asyncio.coroutine
+    def f():
+        return session.create_client(client_type, region_name=region,
+                                     config=config, **kw)
+    client = loop.run_until_complete(f())
 
     def fin():
-        client.close()
+        loop.run_until_complete(client.close())
     request.addfinalizer(fin)
     return client
 
@@ -388,7 +392,12 @@ def create_multipart_upload(request, s3_client, bucket_name, loop):
 
 @pytest.yield_fixture
 def aio_session(request, loop):
-    session = aiohttp.ClientSession(loop=loop)
+
+    @asyncio.coroutine
+    def create_session(loop):
+        return aiohttp.ClientSession(loop=loop)
+
+    session = loop.run_until_complete(create_session())
     yield session
     loop.run_until_complete(session.close())
 
