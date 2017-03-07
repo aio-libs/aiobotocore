@@ -1,5 +1,8 @@
 Changes
 -------
+0.2.3 (XXXX-XX-XX)
+^^^^^^^^^^^^^^^^^^
+
 0.2.2 (2017-03-07)
 ^^^^^^^^^^^^^^^^^^
 * set aiobotocore.__all__ for * imports #121 (thanks @graingert)
