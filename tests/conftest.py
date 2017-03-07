@@ -162,6 +162,7 @@ def config(region, signature_version):
 @pytest.fixture
 def mocking_test():
     # change this flag for test with real aws
+    # TODO: this should be merged with pytest.mark.moto
     return True
 
 
@@ -397,7 +398,7 @@ def aio_session(request, loop):
     def create_session(loop):
         return aiohttp.ClientSession(loop=loop)
 
-    session = loop.run_until_complete(create_session())
+    session = loop.run_until_complete(create_session(loop))
     yield session
     loop.run_until_complete(session.close())
 

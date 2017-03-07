@@ -3,14 +3,14 @@ import sys
 import warnings
 import yarl
 import aiohttp
-import botocore.endpoint
 import botocore.retryhandler
 from aiohttp.client_reqrep import ClientResponse
 from botocore.endpoint import EndpointCreator, Endpoint, DEFAULT_TIMEOUT, \
-    MAX_POOL_CONNECTIONS
+    MAX_POOL_CONNECTIONS, logger
 from botocore.exceptions import EndpointConnectionError, ConnectionClosedError
 from botocore.hooks import first_non_none_response
 from botocore.utils import is_valid_endpoint_url
+from botocore.vendored.requests.structures import CaseInsensitiveDict
 from aiohttp import MultiDict
 from urllib.parse import urlparse
 
@@ -42,7 +42,10 @@ def convert_to_response_dict(http_response, operation_model):
         # botocore converts keys to str, so make sure that they are in
         # the expected case. See detailed discussion here:
         # https://github.com/aio-libs/aiobotocore/pull/116
-        'headers': {k.lower(): v for k, v in http_response.headers.items()},
+        # aiohttp's CIMultiDict camel cases the headers :(
+        'headers': CaseInsensitiveDict(
+            {k.decode('utf-8').lower(): v.decode('utf-8')
+             for k, v in http_response.raw_headers}),
         'status_code': http_response.status_code,
     }
 
@@ -247,10 +250,8 @@ class AioEndpoint(Endpoint):
         else:
             # Request needs to be retried, and we need to sleep
             # for the specified number of times.
-            botocore.retryhandler.logger.debug("Response received to retry, "
-                                               "sleeping for %s seconds",
-                                               handler_response)
-
+            logger.debug("Response received to retry, sleeping for "
+                         "%s seconds", handler_response)
             yield from asyncio.sleep(handler_response, loop=self._loop)
             return True
 
@@ -263,15 +264,11 @@ class AioEndpoint(Endpoint):
         # If no exception occurs then exception is None.
         try:
             # http request substituted too async one
-            botocore.endpoint.logger.debug("Sending http request: %s", request)
+            logger.debug("Sending http request: %s", request)
 
             resp = yield from self._request(
                 request.method, request.url, request.headers, request.body)
             http_response = resp
-        except aiohttp.errors.BadStatusLine:
-            better_exception = ConnectionClosedError(
-                endpoint_url=request.url, request=request)
-            return None, better_exception
         except aiohttp.errors.ClientConnectionError as e:
             e.request = request  # botocore expects the request property
 
@@ -279,9 +276,8 @@ class AioEndpoint(Endpoint):
             # lookup issue, 99% of the time this is due to a misconfigured
             # region/endpoint so we'll raise a more specific error message
             # to help users.
-            botocore.endpoint.logger.debug("ConnectionError received when "
-                                           "sending HTTP request.",
-                                           exc_info=True)
+            logger.debug("ConnectionError received when sending HTTP request.",
+                         exc_info=True)
 
             if self._looks_like_dns_error(e):
                 better_exception = EndpointConnectionError(
@@ -289,15 +285,18 @@ class AioEndpoint(Endpoint):
                 return None, better_exception
             else:
                 return None, e
+        except aiohttp.errors.BadStatusLine:
+            better_exception = ConnectionClosedError(
+                endpoint_url=request.url, request=request)
+            return None, better_exception
         except Exception as e:
-            botocore.endpoint.logger.debug("Exception received when sending "
-                                           "HTTP request.",
-                                           exc_info=True)
+            logger.debug("Exception received when sending HTTP request.",
+                         exc_info=True)
             return None, e
 
         # This returns the http_response and the parsed_data.
-        response_dict = yield from convert_to_response_dict(
-            http_response, operation_model)
+        response_dict = yield from convert_to_response_dict(http_response,
+                                                            operation_model)
         parser = self._response_parser_factory.create_parser(
             operation_model.metadata['protocol'])
         parsed_response = parser.parse(

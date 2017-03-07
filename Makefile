@@ -12,11 +12,11 @@ vtest:
 	python3 -m pytest -s -v $(FLAGS) ./tests/
 
 cov cover coverage: flake
-	python3 -m pytest -s -v  --cov-report term --cov-report html --cov aiobotocore ./tests
+	python3 -m pytest -s -v --cov-report term --cov-report html --cov aiobotocore ./tests
 	@echo "open file://`pwd`/htmlcov/index.html"
 
 mototest:
-	py.test -v -m moto --cov-report term --cov-report html --cov aiobotocore tests
+	python3 -m pytest -v -m moto --cov-report term --cov-report html --cov aiobotocore tests
 	@echo "open file://`pwd`/htmlcov/index.html"
 
 

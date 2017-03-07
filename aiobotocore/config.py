@@ -39,7 +39,7 @@ class AioConfig(botocore.client.Config):
                     raise ParamValidationError(
                         report='{} value must be a boolean'.format(k))
             elif k in ['keepalive_timeout']:
-                if not isinstance(v, float) and not isinstance(v, int):
+                if not isinstance(v, (float, int)):
                     raise ParamValidationError(
                         report='{} value must be a float/int'.format(k))
             elif k == 'force_close':
