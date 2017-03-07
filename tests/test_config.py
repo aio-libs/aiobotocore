@@ -4,6 +4,8 @@ from botocore.exceptions import ParamValidationError
 import pytest
 
 
+# NOTE: this doesn't require moto but needs to be marked to run with coverage
+@pytest.mark.moto
 def test_connector_args():
     with pytest.raises(ParamValidationError):
         # wrong type
