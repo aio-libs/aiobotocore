@@ -302,6 +302,16 @@ class AioEndpoint(Endpoint):
             operation_model.metadata['protocol'])
         parsed_response = parser.parse(
             response_dict, operation_model.output_shape)
+
+        # Workaround to provide lowercase headers to botocore for redirects
+        # TODO: remove this code block when
+        # https://github.com/boto/botocore/pull/1145 is merged
+        if 300 <= resp.status_code < 400:  # pragma: no cover
+            parsed_response['ResponseMetadata']['HTTPHeaders'] = {
+                k.lower(): v for k, v in
+                parsed_response['ResponseMetadata']['HTTPHeaders'].items()
+            }
+
         return (http_response, parsed_response), None
 
 

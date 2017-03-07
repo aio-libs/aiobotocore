@@ -200,6 +200,22 @@ def alternative_s3_client(request, session, alternative_region,
 
 
 @pytest.fixture
+def alternative_s3_client(request, session, alternative_region,
+                          signature_version, s3_server,
+                          mocking_test):
+    kw = {}
+    if mocking_test:
+        kw = moto_config(s3_server)
+
+    config = AioConfig(
+        region_name=alternative_region, signature_version=signature_version,
+        read_timeout=5, connect_timeout=5)
+    client = create_client(
+        's3', request, session, alternative_region, config, **kw)
+    return client
+
+
+@pytest.fixture
 def dynamodb_client(request, session, region, config, dynamodb2_server,
                     mocking_test, loop):
     kw = {}
