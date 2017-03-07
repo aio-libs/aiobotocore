@@ -35,6 +35,7 @@ def test_fail_proxy_request(aa_fail_proxy_config, s3_client):
 
 
 @pytest.mark.run_loop
+@pytest.mark.parametrize('mocking_test', [False])
 def test_succeed_proxy_request(aa_succeed_proxy_config, s3_client):
     result = yield from s3_client.list_buckets()
     actual_keys = sorted(list(result.keys()))
@@ -42,6 +43,7 @@ def test_succeed_proxy_request(aa_succeed_proxy_config, s3_client):
 
 
 @pytest.mark.run_loop
+@pytest.mark.parametrize('mocking_test', [False])
 def test_can_get_bucket_location(s3_client, bucket_name):
     result = yield from s3_client.get_bucket_location(Bucket=bucket_name)
     assert 'LocationConstraint' in result
@@ -71,6 +73,7 @@ def test_can_delete_urlencoded_object(s3_client, bucket_name, create_object):
 
 
 @pytest.mark.run_loop
+@pytest.mark.parametrize('mocking_test', [False])
 def test_can_paginate(s3_client, bucket_name, create_object, loop):
     for i in range(5):
         key_name = 'key%s' % i
@@ -88,6 +91,7 @@ def test_can_paginate(s3_client, bucket_name, create_object, loop):
 
 
 @pytest.mark.run_loop
+@pytest.mark.parametrize('mocking_test', [False])
 def test_can_paginate_with_page_size(s3_client, bucket_name, create_object,
                                      loop):
     for i in range(5):
@@ -149,6 +153,7 @@ def test_get_object_stream_wrapper(s3_client, create_object, bucket_name):
 
 
 @pytest.mark.run_loop
+@pytest.mark.parametrize('mocking_test', [False])
 def test_paginate_max_items(s3_client, create_multipart_upload, bucket_name,
                             loop):
     yield from create_multipart_upload('foo/key1')
@@ -218,6 +223,7 @@ def test_paginate_within_page_boundaries(s3_client, create_object,
 
 
 @pytest.mark.run_loop
+@pytest.mark.parametrize('mocking_test', [False])
 def test_unicode_key_put_list(s3_client, bucket_name, create_object):
     # Verify we can upload a key with a unicode char and list it as well.
     key_name = u'\u2713'
@@ -232,6 +238,7 @@ def test_unicode_key_put_list(s3_client, bucket_name, create_object):
 
 
 @pytest.mark.run_loop
+@pytest.mark.parametrize('mocking_test', [False])
 def test_unicode_system_character(s3_client, bucket_name, create_object):
     # Verify we can use a unicode system character which would normally
     # break the xml parser
@@ -336,6 +343,7 @@ def test_copy_with_s3_metadata(s3_client, create_object, bucket_name):
 
 
 @pytest.mark.parametrize('region', ['us-east-1'])
+@pytest.mark.parametrize('mocking_test', [False])
 @pytest.mark.parametrize('signature_version', ['s3'])
 @pytest.mark.run_loop
 def test_presign_with_existing_query_string_values(s3_client, bucket_name,
@@ -358,6 +366,7 @@ def test_presign_with_existing_query_string_values(s3_client, bucket_name,
 
 
 @pytest.mark.parametrize('region', ['us-east-1'])
+@pytest.mark.parametrize('mocking_test', [False])
 @pytest.mark.parametrize('signature_version', ['s3v4'])
 @pytest.mark.run_loop
 def test_presign_sigv4(s3_client, bucket_name, aio_session, create_object):
@@ -391,3 +400,21 @@ def test_can_follow_signed_url_redirect(alternative_s3_client,
     data = yield from resp['Body'].read()
     resp['Body'].close()
     assert data == b'foo'
+
+
+@pytest.mark.parametrize('signature_version', ['s3v4'])
+@pytest.mark.parametrize('mocking_test', [False])
+@pytest.mark.run_loop
+def test_head_object_keys(s3_client, create_object, bucket_name, loop):
+    yield from create_object('foobarbaz')
+    # Eventual consistency.
+    yield from asyncio.sleep(3, loop=loop)
+
+    resp = yield from s3_client.head_object(
+        Bucket=bucket_name, Key='foobarbaz')
+
+    # this is to ensure things like:
+    # https://github.com/aio-libs/aiobotocore/issues/131 don't happen again
+    assert set(resp.keys()) == {
+        'AcceptRanges', 'ETag', 'ContentType', 'Metadata', 'LastModified',
+        'ResponseMetadata', 'ContentLength'}

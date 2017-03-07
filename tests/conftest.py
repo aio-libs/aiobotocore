@@ -397,7 +397,6 @@ def aio_session(request, loop):
     def create_session(loop):
         return aiohttp.ClientSession(loop=loop)
 
-    session = loop.run_until_complete(create_session())
     yield session
     loop.run_until_complete(session.close())
 

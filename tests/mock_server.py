@@ -1,25 +1,39 @@
 import pytest
 import requests
+import shutil
 import signal
 import subprocess as sp
+import sys
 import time
 
 
+_proxy_bypass = {
+  "http": None,
+  "https": None,
+}
+
+
 def start_service(service_name, host, port):
-    command = ("moto_server {service} -H {host} -p {port}"
-               .format(service=service_name, host=host, port=port)
-               .split(" "))
-    process = sp.Popen(command, stdin=sp.PIPE, stdout=sp.PIPE,
-                       stderr=sp.DEVNULL)
+    moto_svr_path = shutil.which("moto_server")
+    args = [sys.executable, moto_svr_path, service_name, "-H", host,
+            "-p", str(port)]
+    process = sp.Popen(args, stdin=sp.PIPE, stdout=sp.PIPE, stderr=sp.DEVNULL)
     url = "http://{host}:{port}".format(host=host, port=port)
-    for i in range(0, 60):
+
+    for i in range(0, 10):
+        if process.poll() is not None:
+            break
+
         try:
-            requests.get(url)
+            # we need to bypass the proxies due to monkeypatches
+            requests.get(url, timeout=0.5, proxies=_proxy_bypass)
             break
         except requests.exceptions.ConnectionError:
-            time.sleep(1)
+            time.sleep(0.5)
     else:
+        stop_process(process)  # pytest.fail doesn't call stop_process
         pytest.fail("Can not start service: {}".format(service_name))
+
     return process
 
 

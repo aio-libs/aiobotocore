@@ -44,7 +44,7 @@ def convert_to_response_dict(http_response, operation_model):
         # https://github.com/aio-libs/aiobotocore/pull/116
         # aiohttp's CIMultiDict camel cases the headers :(
         'headers': CaseInsensitiveDict(
-            {k.decode('utf-8'): v.decode('utf-8')
+            {k.decode('utf-8').lower(): v.decode('utf-8')
              for k, v in http_response.raw_headers}),
         'status_code': http_response.status_code,
     }
