@@ -9,6 +9,7 @@ install:
     - pip install -Ur requirements-dev.txt
     - pip install -e .
     - pip install codecov
+    - pip install -U git+https://github.com/aio-libs/aiohttp.git
     - pip freeze
 
 script:
