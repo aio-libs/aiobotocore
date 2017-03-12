@@ -11,7 +11,7 @@ from botocore.exceptions import EndpointConnectionError, ConnectionClosedError
 from botocore.hooks import first_non_none_response
 from botocore.utils import is_valid_endpoint_url
 from botocore.vendored.requests.structures import CaseInsensitiveDict
-from aiohttp import MultiDict
+from multidict import MultiDict
 from urllib.parse import urlparse
 
 PY_35 = sys.version_info >= (3, 5)
