@@ -1,5 +1,9 @@
 Changes
 -------
+0.2.4 (XXXX-XX-XX)
+^^^^^^^^^^^^^^^^^^
+*
+
 0.2.3 (2017-03-22)
 ^^^^^^^^^^^^^^^^^^
 * update botocore requirement to: botocore>=1.5.0, <1.5.29
