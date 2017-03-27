@@ -11,7 +11,7 @@ from botocore.exceptions import EndpointConnectionError, ConnectionClosedError
 from botocore.hooks import first_non_none_response
 from botocore.utils import is_valid_endpoint_url
 from botocore.vendored.requests.structures import CaseInsensitiveDict
-from aiohttp import MultiDict
+from multidict import MultiDict
 from urllib.parse import urlparse
 
 PY_35 = sys.version_info >= (3, 5)
@@ -19,10 +19,10 @@ PY_35 = sys.version_info >= (3, 5)
 # Monkey patching: We need to insert the aiohttp exception equivalents
 # The only other way to do this would be to have another config file :(
 _aiohttp_retryable_exceptions = [
-    aiohttp.errors.ClientConnectionError,
-    aiohttp.errors.TimeoutError,
-    aiohttp.errors.DisconnectedError,
-    aiohttp.errors.ClientHttpProcessingError,
+    aiohttp.ClientConnectionError,
+    aiohttp.ServerDisconnectedError,
+    aiohttp.http_exceptions.HttpProcessingError,
+    asyncio.TimeoutError,
 ]
 
 botocore.retryhandler.EXCEPTION_MAP['GENERAL_CONNECTION_ERROR'].extend(
@@ -152,17 +152,17 @@ class AioEndpoint(Endpoint):
             connector = aiohttp.TCPConnector(loop=self._loop,
                                              limit=max_pool_connections,
                                              verify_ssl=self.verify,
-                                             keepalive_timeout=12,
-                                             conn_timeout=self._conn_timeout)
+                                             keepalive_timeout=12)
         else:
             connector = aiohttp.TCPConnector(loop=self._loop,
                                              limit=max_pool_connections,
                                              verify_ssl=self.verify,
-                                             conn_timeout=self._conn_timeout,
                                              **connector_args)
 
         self._aio_session = aiohttp.ClientSession(
             connector=connector,
+            read_timeout=self._read_timeout,
+            conn_timeout=self._conn_timeout,
             skip_auto_headers={'CONTENT-TYPE'},
             response_class=ClientResponseProxy, loop=self._loop)
 
@@ -183,14 +183,6 @@ class AioEndpoint(Endpoint):
         headers_ = MultiDict(
             (z[0], text_(z[1], encoding='utf-8')) for z in headers.items())
 
-        # For now the request timeout is: read_timeout and max(conn_timeout)
-        # So we want to ensure that your conn_timeout won't get truncated by
-        # the read_timeout. This should be removed after
-        # (https://github.com/KeepSafe/aiohttp/issues/1524) is resolved
-        if self._read_timeout < self._conn_timeout:
-            warnings.warn("connection timeout may be reduced due to current "
-                          "read timeout")
-
         # botocore does this during the request so we do this here as well
         proxy = self.proxies.get(urlparse(url.lower()).scheme)
 
@@ -199,7 +191,6 @@ class AioEndpoint(Endpoint):
                                                     headers=headers_,
                                                     data=data,
                                                     proxy=proxy,
-                                                    timeout=self._read_timeout,
                                                     allow_redirects=False)
         return resp
 
@@ -269,7 +260,7 @@ class AioEndpoint(Endpoint):
             resp = yield from self._request(
                 request.method, request.url, request.headers, request.body)
             http_response = resp
-        except aiohttp.errors.ClientConnectionError as e:
+        except aiohttp.ClientConnectionError as e:
             e.request = request  # botocore expects the request property
 
             # For a connection error, if it looks like it's a DNS
@@ -285,7 +276,7 @@ class AioEndpoint(Endpoint):
                 return None, better_exception
             else:
                 return None, e
-        except aiohttp.errors.BadStatusLine:
+        except aiohttp.http_exceptions.BadStatusLine:
             better_exception = ConnectionClosedError(
                 endpoint_url=request.url, request=request)
             return None, better_exception
