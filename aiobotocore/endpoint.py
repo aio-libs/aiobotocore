@@ -11,7 +11,7 @@ from botocore.exceptions import EndpointConnectionError, ConnectionClosedError
 from botocore.hooks import first_non_none_response
 from botocore.utils import is_valid_endpoint_url
 from botocore.vendored.requests.structures import CaseInsensitiveDict
-from aiohttp import MultiDict
+from multidict import MultiDict
 from urllib.parse import urlparse
 
 PY_35 = sys.version_info >= (3, 5)
@@ -19,10 +19,8 @@ PY_35 = sys.version_info >= (3, 5)
 # Monkey patching: We need to insert the aiohttp exception equivalents
 # The only other way to do this would be to have another config file :(
 _aiohttp_retryable_exceptions = [
-    aiohttp.errors.ClientConnectionError,
-    aiohttp.errors.TimeoutError,
-    aiohttp.errors.DisconnectedError,
-    aiohttp.errors.ClientHttpProcessingError,
+    aiohttp.ClientConnectionError,
+    asyncio.TimeoutError,
 ]
 
 botocore.retryhandler.EXCEPTION_MAP['GENERAL_CONNECTION_ERROR'].extend(
@@ -153,12 +151,11 @@ class AioEndpoint(Endpoint):
                                              limit=max_pool_connections,
                                              verify_ssl=self.verify,
                                              keepalive_timeout=12,
-                                             conn_timeout=self._conn_timeout)
+                                             )
         else:
             connector = aiohttp.TCPConnector(loop=self._loop,
                                              limit=max_pool_connections,
                                              verify_ssl=self.verify,
-                                             conn_timeout=self._conn_timeout,
                                              **connector_args)
 
         self._aio_session = aiohttp.ClientSession(

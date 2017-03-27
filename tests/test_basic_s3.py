@@ -1,6 +1,5 @@
 import asyncio
 import pytest
-from aiohttp.errors import ProxyConnectionError
 
 
 @asyncio.coroutine
@@ -29,6 +28,7 @@ def test_can_make_request(s3_client):
 @pytest.mark.run_loop
 def test_fail_proxy_request(aa_fail_proxy_config, s3_client):
     # based on test_can_make_request
+    from aiohttp import ProxyConnectionError
 
     with pytest.raises(ProxyConnectionError):
         yield from s3_client.list_buckets()
