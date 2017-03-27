@@ -1,6 +1,5 @@
 import asyncio
 import sys
-import warnings
 import yarl
 import aiohttp
 import botocore.retryhandler
