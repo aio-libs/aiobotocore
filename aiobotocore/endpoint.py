@@ -190,6 +190,7 @@ class AioEndpoint(Endpoint):
                                                     headers=headers_,
                                                     data=data,
                                                     proxy=proxy,
+                                                    timeout=None,
                                                     allow_redirects=False)
         return resp
 
