@@ -4,7 +4,8 @@ import sys
 from setuptools import setup, find_packages
 
 
-install_requires = ['botocore>=1.5.0, <=1.5.33', 'aiohttp>=2.0.4', 'multidict>=2.1.4']
+install_requires = ['botocore>=1.5.0, <=1.5.33', 'aiohttp>=2.0.4',
+                    'multidict>=2.1.4']
 
 PY_VER = sys.version_info
 
@@ -14,6 +15,7 @@ if not PY_VER >= (3, 4, 1):
 
 def read(f):
     return open(os.path.join(os.path.dirname(__file__), f)).read().strip()
+
 
 extras_require = {}
 
@@ -30,6 +32,7 @@ def read_version():
         else:
             raise RuntimeError('Cannot find version in '
                                'aiobotocore/__init__.py')
+
 
 classifiers = [
     'Intended Audience :: Developers',
