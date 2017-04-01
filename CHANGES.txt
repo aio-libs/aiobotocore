@@ -1,6 +1,6 @@
 Changes
 -------
-0.3.0 (XXXX-XX-XX)
+0.3.0 (2017-04-01)
 ^^^^^^^^^^^^^^^^^^
 * Added support for aiohttp>=2.0.4(thanks @achimnol)
 * update botocore requirement to: botocore>=1.5.0, <=1.5.33
