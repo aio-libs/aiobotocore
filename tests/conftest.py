@@ -216,8 +216,8 @@ def dynamodb_client(request, session, region, config, dynamodb2_server,
 
 
 @pytest.fixture
-def cloudformation_client(request, session, region, config, cloudformation_server,
-                    mocking_test, loop):
+def cloudformation_client(request, session, region, config,
+                          cloudformation_server, mocking_test, loop):
     kw = {}
     if mocking_test:
         kw = moto_config(cloudformation_server)
