@@ -6,10 +6,11 @@ import botocore.client
 from botocore.exceptions import OperationNotPageableError
 from botocore.paginate import Paginator
 from botocore.utils import get_service_module_name
+from botocore.waiter import xform_name
 
 from .paginate import AioPageIterator
 from .args import AioClientArgsCreator
-
+from . import waiter
 PY_35 = sys.version_info >= (3, 5)
 
 
@@ -121,6 +122,20 @@ class AioBaseClient(botocore.client.BaseClient):
                 getattr(self, operation_name),
                 self._cache['page_config'][actual_operation_name])
             return paginator
+
+    def get_waiter(self, waiter_name):
+        config = self._get_waiter_config()
+        if not config:
+            raise ValueError("Waiter does not exist: %s" % waiter_name)
+        model = waiter.WaiterModel(config)
+        mapping = {}
+        for name in model.waiter_names:
+            mapping[xform_name(name)] = name
+        if waiter_name not in mapping:
+            raise ValueError("Waiter does not exist: %s" % waiter_name)
+
+        return waiter.create_waiter_with_client(
+            mapping[waiter_name], model, self)
 
     if PY_35:
         @asyncio.coroutine
