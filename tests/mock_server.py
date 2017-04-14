@@ -68,3 +68,13 @@ def dynamodb2_server():
     process = start_service('dynamodb2', host, port)
     yield url
     stop_process(process)
+
+
+@pytest.yield_fixture(scope="session")
+def cloudformation_server():
+    host = "localhost"
+    port = 5002
+    url = "http://{host}:{port}".format(host=host, port=port)
+    process = start_service('cloudformation', host, port)
+    yield url
+    stop_process(process)

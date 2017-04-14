@@ -16,7 +16,11 @@ def debug(request):
 
 @pytest.yield_fixture
 def loop(request, debug):
-    old_loop = asyncio.get_event_loop()
+    try:
+        old_loop = asyncio.get_event_loop()
+    except RuntimeError:
+        old_loop = None
+
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(None)
     loop.set_debug(debug)
@@ -207,6 +211,17 @@ def dynamodb_client(request, session, region, config, dynamodb2_server,
     if mocking_test:
         kw = moto_config(dynamodb2_server)
     client = create_client('dynamodb', request, loop, session, region,
+                           config, **kw)
+    return client
+
+
+@pytest.fixture
+def cloudformation_client(request, session, region, config,
+                          cloudformation_server, mocking_test, loop):
+    kw = {}
+    if mocking_test:
+        kw = moto_config(cloudformation_server)
+    client = create_client('cloudformation', request, loop, session, region,
                            config, **kw)
     return client
 
