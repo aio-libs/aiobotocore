@@ -69,7 +69,7 @@ Basic Example
             response = await client.get_object(Bucket=bucket, key=key)
             # this will ensure the connection is correctly re-used/closed
             async with response['Body'] as stream:
-                bytes = await stream.read()
+                data = await stream.read()
 
     loop = asyncio.get_event_loop()
     loop.run_until_complete(go(loop))
