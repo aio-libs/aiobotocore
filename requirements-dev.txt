@@ -8,5 +8,5 @@ pytest-cov==2.4.0
 pytest==3.0.7
 sphinx==1.5.5
 aiohttp==2.0.7
-botocore==1.5.40
+botocore==1.5.41
 multidict==2.1.4
