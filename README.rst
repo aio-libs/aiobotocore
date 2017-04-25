@@ -66,7 +66,7 @@ Basic Example
                     print(c)
 
             # get object from s3
-            response = await client.get_object(Bucket=bucket, key=key)
+            response = await client.get_object(Bucket=bucket, Key=key)
             # this will ensure the connection is correctly re-used/closed
             async with response['Body'] as stream:
                 data = await stream.read()
