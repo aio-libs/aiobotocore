@@ -226,6 +226,15 @@ def cloudformation_client(request, session, region, config,
     return client
 
 
+@pytest.fixture
+def sns_client(request, session, region, config, sns_server,
+               mocking_test, loop):
+    kw = moto_config(sns_server) if mocking_test else {}
+    client = create_client('sns', request, loop, session, region,
+                           config, **kw)
+    return client
+
+
 def create_client(client_type, request, loop, session, region, config, **kw):
     @asyncio.coroutine
     def f():
@@ -439,6 +448,39 @@ def dynamodb_put_item(request, dynamodb_client, table_name, loop):
         )
         assert_status_code(response, 200)
 
+    return _f
+
+
+@pytest.fixture
+def topic_arn(region, create_topic, sns_client, loop):
+    arn = loop.run_until_complete(create_topic())
+    return arn
+
+
+@asyncio.coroutine
+def delete_topic(sns_client, topic_arn):
+    response = yield from sns_client.delete_topic(
+        TopicArn=topic_arn
+    )
+    assert_status_code(response, 200)
+
+
+@pytest.fixture
+def create_topic(request, sns_client, loop):
+    _topic_arn = None
+
+    @asyncio.coroutine
+    def _f():
+        nonlocal _topic_arn
+        response = yield from sns_client.create_topic(Name=random_name())
+        _topic_arn = response['TopicArn']
+        assert_status_code(response, 200)
+        return _topic_arn
+
+    def fin():
+        loop.run_until_complete(delete_topic(sns_client, _topic_arn))
+
+    request.addfinalizer(fin)
     return _f
 
 
