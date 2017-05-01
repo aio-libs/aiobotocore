@@ -10,7 +10,9 @@ def test_topic_attributes(sns_client, topic_arn):
     response = yield from sns_client.list_topics()
     pytest.aio.assert_status_code(response, 200)
     arn1 = response['Topics'][0]['TopicArn']
-    topic_properties = yield from sns_client.get_topic_attributes(TopicArn=arn1)
+    topic_properties = yield from sns_client.get_topic_attributes(
+        TopicArn=arn1
+    )
     attributes = topic_properties['Attributes']
 
     assert arn1 == topic_arn
@@ -22,7 +24,9 @@ def test_topic_attributes(sns_client, topic_arn):
                                                AttributeName='DisplayName',
                                                AttributeValue=display_name)
 
-    topic_properties = yield from sns_client.get_topic_attributes(TopicArn=arn1)
+    topic_properties = yield from sns_client.get_topic_attributes(
+        TopicArn=arn1
+    )
     attributes = topic_properties['Attributes']
     assert attributes['DisplayName'] == display_name
 
