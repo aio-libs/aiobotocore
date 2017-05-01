@@ -34,20 +34,26 @@ def test_creating_subscription(sns_client, topic_arn):
                                                Protocol="http",
                                                Endpoint="http://httpbin.org/")
     subscription_arn = response['SubscriptionArn']
-    subscriptions = (yield from sns_client.list_subscriptions())["Subscriptions"]
+    subscriptions = (
+        yield from sns_client.list_subscriptions()
+    )["Subscriptions"]
     assert len([s for s in subscriptions if s['Protocol'] == 'http']) == 1
 
     yield from sns_client.unsubscribe(SubscriptionArn=subscription_arn)
-    subscriptions = (yield from sns_client.list_subscriptions())["Subscriptions"]
+    subscriptions = (
+        yield from sns_client.list_subscriptions()
+    )["Subscriptions"]
     assert len([s for s in subscriptions if s['Protocol'] == 'http']) == 0
 
 
 @pytest.mark.moto
 @pytest.mark.run_loop
 def test_publish_to_http(sns_client, topic_arn):
-    response = yield from sns_client.subscribe(TopicArn=topic_arn,
-                                               Protocol='http',
-                                               Endpoint="http://httpbin.org/endpoint")
+    response = yield from sns_client.subscribe(
+        TopicArn=topic_arn,
+        Protocol='http',
+        Endpoint="http://httpbin.org/endpoint"
+    )
     subscription_arn = response['SubscriptionArn']
 
     response = yield from sns_client.publish(
