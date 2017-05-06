@@ -78,3 +78,13 @@ def cloudformation_server():
     process = start_service('cloudformation', host, port)
     yield url
     stop_process(process)
+
+
+@pytest.yield_fixture(scope="session")
+def sns_server():
+    host = "localhost"
+    port = 5003
+    url = "http://{host}:{port}".format(host=host, port=port)
+    process = start_service('sns', host, port)
+    yield url
+    stop_process(process)
