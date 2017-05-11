@@ -4,7 +4,7 @@ flake8==3.3.0
 ipdb==0.10.2
 ipython==6.0.0
 moto==0.4.31
-pytest-cov==2.4.0
+pytest-cov==2.5.1
 pytest==3.0.7
 sphinx==1.5.5
 aiohttp==2.0.7
