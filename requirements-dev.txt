@@ -1,7 +1,7 @@
 Flask==0.12.1
 coverage==4.4
 flake8==3.3.0
-ipdb==0.10.2
+ipdb==0.10.3
 ipython==6.0.0
 moto==0.4.31
 pytest-cov==2.5.1
