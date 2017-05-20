@@ -6,6 +6,7 @@ python:
     - 3.6
 
 install:
+    - pip install -U setuptools
     - pip install -Ur requirements-dev.txt
     - pip install -e .
     - pip install codecov
