@@ -7,4 +7,4 @@ pytest==3.0.7
 sphinx==1.5.5
 aiohttp==2.0.7
 botocore==1.5.48
-multidict==2.1.4
+multidict==2.1.5
