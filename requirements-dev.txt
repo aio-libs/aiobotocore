@@ -1,4 +1,4 @@
-Flask==0.12.1
+Flask==0.12.2
 coverage==4.4
 flake8==3.3.0
 moto==0.4.31
