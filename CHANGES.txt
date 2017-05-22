@@ -1,7 +1,7 @@
 Changes
 -------
-0.3.2 (XXXX-XX-XX)
-^^^^^^^^^^^^^^^^^^^^
+0.3.2 (2017-05-22)
+^^^^^^^^^^^^^^^^^^
 * Fix botocore integration
 * Provisional fix for aiohttp 2.x stream support
 
