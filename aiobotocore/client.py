@@ -60,7 +60,8 @@ class AioBaseClient(botocore.client.BaseClient):
         request_context = {
             'client_region': self.meta.region_name,
             'client_config': self.meta.config,
-            'has_streaming_input': operation_model.has_streaming_input
+            'has_streaming_input': operation_model.has_streaming_input,
+            'auth_type': operation_model.auth_type,
         }
         request_dict = self._convert_to_request_dict(
             api_params, operation_model, context=request_context)
