@@ -46,7 +46,7 @@ def text_(s, encoding='utf-8', errors='strict'):
 if AIOHTTP_2:
     class _IOBaseWrapper(wrapt.ObjectProxy):
         def close(self):
-            # this stream should not be closed by aiohttp, likeh 1.x
+            # this stream should not be closed by aiohttp, like 1.x
             pass
 
 
