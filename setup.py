@@ -4,8 +4,8 @@ import sys
 from setuptools import setup, find_packages
 
 
-install_requires = ['botocore>=1.5.0, <=1.5.52', 'aiohttp>=2.0.4',
-                    'multidict>=2.1.4']
+install_requires = ['botocore>=1.5.34, <=1.5.52', 'aiohttp>=2.0.4',
+                    'multidict>=2.1.4', 'wrapt>=1.10.10']
 
 PY_VER = sys.version_info
 
@@ -40,6 +40,7 @@ classifiers = [
     'Programming Language :: Python :: 3',
     'Programming Language :: Python :: 3.4',
     'Programming Language :: Python :: 3.5',
+    'Programming Language :: Python :: 3.6',
     'Environment :: Web Environment',
     'Development Status :: 3 - Alpha',
     'Framework :: AsyncIO',

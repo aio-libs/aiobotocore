@@ -2,7 +2,10 @@ import asyncio
 import sys
 import yarl
 import aiohttp
+import io
+import wrapt
 import botocore.retryhandler
+import aiohttp.http_exceptions
 from aiohttp.client_reqrep import ClientResponse
 from botocore.endpoint import EndpointCreator, Endpoint, DEFAULT_TIMEOUT, \
     MAX_POOL_CONNECTIONS, logger
@@ -10,10 +13,12 @@ from botocore.exceptions import EndpointConnectionError, ConnectionClosedError
 from botocore.hooks import first_non_none_response
 from botocore.utils import is_valid_endpoint_url
 from botocore.vendored.requests.structures import CaseInsensitiveDict
+from distutils.version import StrictVersion
 from multidict import MultiDict
 from urllib.parse import urlparse
 
 PY_35 = sys.version_info >= (3, 5)
+AIOHTTP_2 = StrictVersion(aiohttp.__version__) > StrictVersion('2.0.0')
 
 # Monkey patching: We need to insert the aiohttp exception equivalents
 # The only other way to do this would be to have another config file :(
@@ -33,6 +38,16 @@ def text_(s, encoding='utf-8', errors='strict'):
     if isinstance(s, bytes):
         return s.decode(encoding, errors)
     return s  # pragma: no cover
+
+
+# Unfortunately aiohttp changed the behavior of streams:
+#   github.com/aio-libs/aiohttp/issues/1907
+# We need this wrapper until we have a final resolution
+if AIOHTTP_2:
+    class _IOBaseWrapper(wrapt.ObjectProxy):
+        def close(self):
+            # this stream should not be closed by aiohttp, like 1.x
+            pass
 
 
 @asyncio.coroutine
@@ -184,6 +199,9 @@ class AioEndpoint(Endpoint):
 
         # botocore does this during the request so we do this here as well
         proxy = self.proxies.get(urlparse(url.lower()).scheme)
+
+        if AIOHTTP_2 and isinstance(data, io.IOBase):
+            data = _IOBaseWrapper(data)
 
         url = yarl.URL(url, encoded=True)
         resp = yield from self._aio_session.request(method, url=url,
