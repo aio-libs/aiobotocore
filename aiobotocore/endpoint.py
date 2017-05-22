@@ -13,7 +13,7 @@ from botocore.exceptions import EndpointConnectionError, ConnectionClosedError
 from botocore.hooks import first_non_none_response
 from botocore.utils import is_valid_endpoint_url
 from botocore.vendored.requests.structures import CaseInsensitiveDict
-from pkg_resources import parse_version
+from packaging.version import parse as parse_version
 from multidict import MultiDict
 from urllib.parse import urlparse
 
