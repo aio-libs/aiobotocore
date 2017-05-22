@@ -20,9 +20,6 @@ from urllib.parse import urlparse
 PY_35 = sys.version_info >= (3, 5)
 AIOHTTP_2 = StrictVersion(aiohttp.__version__) > StrictVersion('2.0.0')
 
-if AIOHTTP_2:
-    from aiohttp.payload import IOBasePayload
-
 # Monkey patching: We need to insert the aiohttp exception equivalents
 # The only other way to do this would be to have another config file :(
 _aiohttp_retryable_exceptions = [
@@ -49,7 +46,7 @@ def text_(s, encoding='utf-8', errors='strict'):
 if AIOHTTP_2:
     class _IOBaseWrapper(wrapt.ObjectProxy):
         def close(self):
-            # this stream should not be closed by aiohttp, like 1.x
+            # this stream should not be closed by aiohttp, likeh 1.x
             pass
 
 
