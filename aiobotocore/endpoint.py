@@ -43,12 +43,13 @@ def text_(s, encoding='utf-8', errors='strict'):
     return s  # pragma: no cover
 
 
-# Unfortunately aiohttp changed the behavior of streams: github.com/aio-libs/aiohttp/issues/1907
+# Unfortunately aiohttp changed the behavior of streams:
+#   github.com/aio-libs/aiohttp/issues/1907
 # We need this wrapper until we have a final resolution
 if AIOHTTP_2:
     class _IOBaseWrapper(wrapt.ObjectProxy):
         def close(self):
-            # this stream should not be closed by aiohttp, like it wasn't in 1.x
+            # this stream should not be closed by aiohttp, like 1.x
             pass
 
 
