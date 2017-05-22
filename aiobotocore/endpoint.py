@@ -13,12 +13,12 @@ from botocore.exceptions import EndpointConnectionError, ConnectionClosedError
 from botocore.hooks import first_non_none_response
 from botocore.utils import is_valid_endpoint_url
 from botocore.vendored.requests.structures import CaseInsensitiveDict
-from distutils.version import StrictVersion
+from pkg_resources import parse_version
 from multidict import MultiDict
 from urllib.parse import urlparse
 
 PY_35 = sys.version_info >= (3, 5)
-AIOHTTP_2 = StrictVersion(aiohttp.__version__) > StrictVersion('2.0.0')
+AIOHTTP_2 = parse_version(aiohttp.__version__) > parse_version('2.0.0')
 
 # Monkey patching: We need to insert the aiohttp exception equivalents
 # The only other way to do this would be to have another config file :(
