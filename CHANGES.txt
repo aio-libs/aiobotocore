@@ -1,5 +1,8 @@
 Changes
 -------
+0.3.4a0 (XXXX-XX-XX)
+^^^^^^^^^^^^^^^^^^
+
 0.3.3 (2017-05-22)
 ^^^^^^^^^^^^^^^^^^
 * switch to PEP 440 version parser to support 'dev' versions
