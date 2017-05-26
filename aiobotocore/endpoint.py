@@ -1,3 +1,4 @@
+import io
 import asyncio
 import sys
 import yarl
@@ -34,6 +35,12 @@ botocore.retryhandler.EXCEPTION_MAP['GENERAL_CONNECTION_ERROR'].extend(
 )
 
 
+class AsyncBytesIO(io.BytesIO):
+    @asyncio.coroutine
+    def read(self, *args, **kwargs):
+        return super().read(*args, **kwargs)
+
+
 def text_(s, encoding='utf-8', errors='strict'):
     if isinstance(s, bytes):
         return s.decode(encoding, errors)
@@ -67,7 +74,8 @@ def convert_to_response_dict(http_response, operation_model):
         body = yield from http_response.read()
         response_dict['body'] = body
     elif operation_model.has_streaming_output:
-        response_dict['body'] = http_response.raw
+         body = yield from http_response.read()
+         response_dict['body'] = AsyncBytesIO(body)
     else:
         body = yield from http_response.read()
         response_dict['body'] = body
