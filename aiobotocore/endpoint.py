@@ -146,19 +146,20 @@ class WrappedResponseHandler(ResponseHandler):
         with CeilTimeout(self.__wrapped_read_timeout, loop=self._loop):
             resp_msg, str_reader = yield from super().read()
 
-            str_reader._wait = wrapt.FunctionWrapper(str_reader._wait, self._wrapped_wait)
+            str_reader._wait = wrapt.FunctionWrapper(str_reader._wait,
+                                                     self._wrapped_wait)
             return resp_msg, str_reader
 
 
 class WrappedTCPConnector(aiohttp.TCPConnector):
     def __init__(self, *args, **kwargs):
-        read_timeout = kwargs.pop('wrapped_read_timeout')
+        read_timeout = kwargs.pop('read_timeout')
         super().__init__(*args, **kwargs)
 
         assert self._factory.func == ResponseHandler
         self._factory = functools.partial(
             WrappedResponseHandler,
-            *self._factory.args,
+            *self._factory.args,  # noqa: E999
             **self._factory.keywords,
             wrapped_read_timeout=read_timeout)
 
@@ -190,7 +191,7 @@ class AioEndpoint(Endpoint):
             connector_args = dict(keepalive_timeout=12)
 
         connector = WrappedTCPConnector(loop=self._loop,
-                                        wrapped_read_timeout=self._read_timeout,
+                                        read_timeout=self._read_timeout,
                                         limit=max_pool_connections,
                                         verify_ssl=self.verify,
                                         **connector_args)
