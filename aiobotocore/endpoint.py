@@ -160,7 +160,7 @@ class WrappedTCPConnector(aiohttp.TCPConnector):
         self._factory = functools.partial(
             WrappedResponseHandler,
             *self._factory.args,  # noqa: E999
-            **self._factory.keywords,
+            **self._factory.keywords,  # noqa: E999
             wrapped_read_timeout=read_timeout)
 
 
