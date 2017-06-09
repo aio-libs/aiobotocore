@@ -111,8 +111,6 @@ class ClientResponseProxy(wrapt.ObjectProxy):
     """Proxy object for http response useful for porting from
     botocore underlying http library."""
 
-    # NOTE: unfortunately we cannot inherit from ClientResponse because it also
-    # uses the `content` property
     def __init__(self, *args, **kwargs):
         super().__init__(ClientResponse(*args, **kwargs))
 
