@@ -177,16 +177,16 @@ class AioEndpoint(Endpoint):
             # aiohttp default timeout is 30s so set something reasonable here
             connector_args = dict(keepalive_timeout=12)
 
-        # This begins the journey into our replacement of aiohttp's
-        # `read_timeout`.  Their implementation represents an absolute time
-        # from the initial request, to the last read.  So if the client delays
-        # reading the body for long enough the request would be cancelled.
-        # See https://github.com/aio-libs/aiobotocore/issues/245
         connector = aiohttp.TCPConnector(loop=self._loop,
                                          limit=max_pool_connections,
                                          verify_ssl=self.verify,
                                          **connector_args)
 
+        # This begins the journey into our replacement of aiohttp's
+        # `read_timeout`.  Their implementation represents an absolute time
+        # from the initial request, to the last read.  So if the client delays
+        # reading the body for long enough the request would be cancelled.
+        # See https://github.com/aio-libs/aiobotocore/issues/245
         assert connector._factory.func == ResponseHandler
 
         connector._factory = functools.partial(
