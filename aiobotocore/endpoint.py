@@ -153,19 +153,6 @@ class WrappedResponseHandler(ResponseHandler):
             return resp_msg, stream_reader
 
 
-class WrappedTCPConnector(aiohttp.TCPConnector):
-    def __init__(self, *args, **kwargs):
-        read_timeout = kwargs.pop('read_timeout')
-        super().__init__(*args, **kwargs)
-
-        assert self._factory.func == ResponseHandler
-        self._factory = functools.partial(
-            WrappedResponseHandler,
-            wrapped_read_timeout=read_timeout,
-            *self._factory.args,
-            **self._factory.keywords)
-
-
 class AioEndpoint(Endpoint):
     def __init__(self, host,
                  endpoint_prefix, event_emitter, proxies=None, verify=True,
@@ -197,11 +184,18 @@ class AioEndpoint(Endpoint):
         # from the initial request, to the last read.  So if the client delays
         # reading the body for long enough the request would be cancelled.
         # See https://github.com/aio-libs/aiobotocore/issues/245
-        connector = WrappedTCPConnector(loop=self._loop,
-                                        read_timeout=self._read_timeout,
-                                        limit=max_pool_connections,
-                                        verify_ssl=self.verify,
-                                        **connector_args)
+        connector = aiohttp.TCPConnector(loop=self._loop,
+                                         limit=max_pool_connections,
+                                         verify_ssl=self.verify,
+                                         **connector_args)
+
+        assert connector._factory.func == ResponseHandler
+
+        connector._factory = functools.partial(
+            WrappedResponseHandler,
+            wrapped_read_timeout=self._read_timeout,
+            *connector._factory.args,
+            **connector._factory.keywords)
 
         self._aio_session = aiohttp.ClientSession(
             connector=connector,
