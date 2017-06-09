@@ -144,11 +144,13 @@ class WrappedResponseHandler(ResponseHandler):
     @asyncio.coroutine
     def read(self):
         with CeilTimeout(self.__wrapped_read_timeout, loop=self._loop):
-            resp_msg, str_reader = yield from super().read()
+            resp_msg, stream_reader = yield from super().read()
 
-            str_reader._wait = wrapt.FunctionWrapper(str_reader._wait,
-                                                     self._wrapped_wait)
-            return resp_msg, str_reader
+            if hasattr(stream_reader, '_wait'):
+                stream_reader._wait = wrapt.FunctionWrapper(
+                    stream_reader._wait, self._wrapped_wait)
+
+            return resp_msg, stream_reader
 
 
 class WrappedTCPConnector(aiohttp.TCPConnector):
@@ -159,9 +161,9 @@ class WrappedTCPConnector(aiohttp.TCPConnector):
         assert self._factory.func == ResponseHandler
         self._factory = functools.partial(
             WrappedResponseHandler,
-            *self._factory.args,  # noqa: E999
-            **self._factory.keywords,  # noqa: E999
-            wrapped_read_timeout=read_timeout)
+            wrapped_read_timeout=read_timeout,
+            *self._factory.args,
+            **self._factory.keywords)
 
 
 class AioEndpoint(Endpoint):
