@@ -13,8 +13,8 @@ from botocore.paginate import PageIterator
 from botocore.session import Session, get_session
 
 
-# This file ensures that our private patches will work going forward.  If a method
-# gets updated this will assert and someone will need to validate three things:
+# This file ensures that our private patches will work going forward.  If a
+# method gets updated this will assert and someone will need to validate:
 # 1) If our code needs to be updated
 # 2) If our minimum botocore version needs to be updated
 # 3) If we need to replace the below hash or add to the set
@@ -55,17 +55,12 @@ _API_DIGESTS = {
 def test_patches():
     for obj, digests in _READ_TIMEOUT_DIGESTS.items():
         digest = hashlib.sha1(getsource(obj).encode('utf-8')).hexdigest()
-        try:
-            assert digest in digests
-        except:
-            print("Digest of {} not found int: {}".format(obj.__name__, digests))
-            raise
+        assert digest in digests, \
+            "Digest of {} not found int: {}".format(obj.__name__, digests)
 
     for obj, digests in _API_DIGESTS.items():
-        try:
-            digest = hashlib.sha1(getsource(obj).encode('utf-8')).hexdigest()
-            assert digest in digests
-        except:
-            print("Digest of {} not found int: {}".format(obj.__name__, digests))
-            raise
+        digest = hashlib.sha1(getsource(obj).encode('utf-8')).hexdigest()
+        assert digest in digests, \
+            "Digest of {} not found int: {}".format(obj.__name__, digests)
+
 
