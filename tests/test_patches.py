@@ -39,12 +39,12 @@ _READ_TIMEOUT_DIGESTS = {
 _API_DIGESTS = {
     ClientArgsCreator: {'60b8b70358d25dcce1ad74b2f5f0b4830d5749a3'},
     ClientCreator: {'a8c12a6b933fa22477cd4d168a96443be002ae79'},
-    BaseClient: {'d7eb25704dc2cf891c065baa4ed46c10918d3dc7'},
+    BaseClient: {'a91ffdb8d0c7cb2dfd63a4332a0a7a76e76cef28'},
     Config: {'c6bdc8f47c90e114d406ecab3fcfbc6e4d034279'},
     convert_to_response_dict: {'ed634b3f0c24f8858aee8ed745051397270b1e46'},
     Endpoint: {'7aa956cf3f28f573384dbaeb2f819b0a05724e65'},
     EndpointCreator: {'63fb01d5cad63d96d0fdd2f1764df51bc1197ff8'},
-    PageIterator: {'3acc9ac99ba6b11bd5a9f7e128509dcaf98fd491'},
+    PageIterator: {'21fc6a86071177b55761af9f723ade5b8a23d153'},
     Session: {'0203d047c8e23e648da1c50f9e6fb5dd53b797f7'},
     get_session: {'c47d588f5da9b8bde81ccc26eaef3aee19ddd901'},
 }
@@ -52,11 +52,20 @@ _API_DIGESTS = {
 
 # NOTE: this doesn't require moto but needs to be marked to run with coverage
 @pytest.mark.moto
-def test_aiohttp():
+def test_patches():
     for obj, digests in _READ_TIMEOUT_DIGESTS.items():
         digest = hashlib.sha1(getsource(obj).encode('utf-8')).hexdigest()
-        assert digest in digests
+        try:
+            assert digest in digests
+        except:
+            print("Digest of {} not found int: {}".format(obj.__name__, digests))
+            raise
 
     for obj, digests in _API_DIGESTS.items():
-        digest = hashlib.sha1(getsource(obj).encode('utf-8')).hexdigest()
-        assert digest in digests
+        try:
+            digest = hashlib.sha1(getsource(obj).encode('utf-8')).hexdigest()
+            assert digest in digests
+        except:
+            print("Digest of {} not found int: {}".format(obj.__name__, digests))
+            raise
+
