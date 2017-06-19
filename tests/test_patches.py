@@ -62,5 +62,3 @@ def test_patches():
         digest = hashlib.sha1(getsource(obj).encode('utf-8')).hexdigest()
         assert digest in digests, \
             "Digest of {} not found int: {}".format(obj.__name__, digests)
-
-
