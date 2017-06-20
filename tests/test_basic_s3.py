@@ -142,9 +142,7 @@ def test_get_object_stream_wrapper(s3_client, create_object, bucket_name):
     response = yield from s3_client.get_object(Bucket=bucket_name,
                                                Key='foobarbaz')
     body = response['Body']
-    # TODO add set_socket_timeout function
-    # Am able to set a socket timeout
-    # body.set_socket_timeout(10)
+    body.set_socket_timeout(10)
     chunk1 = yield from body.read(1)
     chunk2 = yield from body.read()
     assert chunk1 == b'b'

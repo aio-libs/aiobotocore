@@ -78,6 +78,7 @@ def convert_to_response_dict(http_response, operation_model):
     return response_dict
 
 
+# This is similar to botocore.response.StreamingBody
 class ClientResponseContentProxy(wrapt.ObjectProxy):
     """Proxy object for content stream of http response.  This is here in case
     you want to pass around the "Body" of the response without closing the
@@ -86,6 +87,11 @@ class ClientResponseContentProxy(wrapt.ObjectProxy):
     def __init__(self, response):
         super().__init__(response.__wrapped__.content)
         self.__response = response
+
+    def set_socket_timeout(self, timeout):
+        """Set the timeout seconds on the socket."""
+        # TODO: see if we can do this w/o grabbing _protocol
+        self.__response._protocol.set_timeout(timeout)
 
     # Note: we don't have a __del__ method as the ClientResponse has a __del__
     # which will warn the user if they didn't close/release the response
@@ -133,6 +139,9 @@ class WrappedResponseHandler(ResponseHandler):
         self.__wrapped_read_timeout = kwargs.pop('wrapped_read_timeout')
         super().__init__(*args, **kwargs)
 
+    def set_timeout(self, timeout):
+        self.__wrapped_read_timeout = timeout
+    
     @asyncio.coroutine
     def _wrapped_wait(self, wrapped, instance, args, kwargs):
         with CeilTimeout(self.__wrapped_read_timeout, loop=self._loop):

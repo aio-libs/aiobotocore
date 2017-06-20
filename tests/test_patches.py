@@ -4,6 +4,7 @@ from dill.source import getsource
 
 from aiohttp.client_proto import ResponseHandler
 from aiohttp import TCPConnector
+from aiohttp.client import ClientResponse
 from aiohttp.streams import DataQueue, StreamReader
 from botocore.args import ClientArgsCreator
 from botocore.client import ClientCreator, BaseClient, Config
@@ -33,6 +34,9 @@ _READ_TIMEOUT_DIGESTS = {
 
     # for our patch of _wait
     StreamReader: {'dc5a5a33e86cedf2d2c8413d951d2274a79303f4'},
+
+    # for digging into _protocol
+    ClientResponse: {'d1e0c16dea4fe3426caa1e9b0dc9f5f1992d838e'},
 }
 
 # These are guards to our main patches
