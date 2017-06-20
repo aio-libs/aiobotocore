@@ -1,11 +1,14 @@
+import aiohttp
 import asyncio
+import functools
 import sys
 import yarl
-import aiohttp
 import io
 import wrapt
 import botocore.retryhandler
 import aiohttp.http_exceptions
+from aiohttp.client_proto import ResponseHandler
+from aiohttp.helpers import CeilTimeout
 from aiohttp.client_reqrep import ClientResponse
 from botocore.endpoint import EndpointCreator, Endpoint, DEFAULT_TIMEOUT, \
     MAX_POOL_CONNECTIONS, logger
@@ -16,6 +19,7 @@ from botocore.vendored.requests.structures import CaseInsensitiveDict
 from packaging.version import parse as parse_version
 from multidict import MultiDict
 from urllib.parse import urlparse
+
 
 PY_35 = sys.version_info >= (3, 5)
 AIOHTTP_2 = parse_version(aiohttp.__version__) > parse_version('2.0.0')
@@ -74,29 +78,26 @@ def convert_to_response_dict(http_response, operation_model):
     return response_dict
 
 
-class ClientResponseContentProxy:
+# This is similar to botocore.response.StreamingBody
+class ClientResponseContentProxy(wrapt.ObjectProxy):
     """Proxy object for content stream of http response.  This is here in case
     you want to pass around the "Body" of the response without closing the
     response itself."""
 
-    def __init__(self, response: ClientResponse):
+    def __init__(self, response):
+        super().__init__(response.__wrapped__.content)
         self.__response = response
-        self.__content = self.__response.content
 
-    def __getattr__(self, item):
-        return getattr(self.__content, item)
-
-    def __dir__(self):
-        attrs = dir(self.__content)
-        attrs.append('close')
-        return attrs
+    def set_socket_timeout(self, timeout):
+        """Set the timeout seconds on the socket."""
+        # TODO: see if we can do this w/o grabbing _protocol
+        self.__response._protocol.set_timeout(timeout)
 
     # Note: we don't have a __del__ method as the ClientResponse has a __del__
     # which will warn the user if they didn't close/release the response
     # explicitly.  A release here would mean reading all the unread data
     # (which could be very large), and a close would mean being unable to re-
     # use the connection, so the user MUST chose.  Default is to warn + close
-
     if PY_35:
         @asyncio.coroutine
         def __aenter__(self):
@@ -112,32 +113,51 @@ class ClientResponseContentProxy:
         self.__response.close()
 
 
-class ClientResponseProxy:
+class ClientResponseProxy(wrapt.ObjectProxy):
     """Proxy object for http response useful for porting from
     botocore underlying http library."""
 
-    # NOTE: unfortunately we cannot inherit from ClientReponse because it also
-    # uses the `content` property
     def __init__(self, *args, **kwargs):
-        self._response = ClientResponse(*args, **kwargs)
+        super().__init__(ClientResponse(*args, **kwargs))
 
     @property
     def status_code(self):
-        return self._response.status
+        return self.status
 
     @property
     def content(self):
         # ClientResponse._content is set by the coroutine ClientResponse.read
-        return self._response._content
+        return self._content
 
     @property
     def raw(self):
-        return ClientResponseContentProxy(self._response)
+        return ClientResponseContentProxy(self)
 
-    def __getattr__(self, item):
-        # All other properties forward to the underlying ClientResponse to
-        # support things like aenter/aexit/read
-        return getattr(self._response, item)
+
+class WrappedResponseHandler(ResponseHandler):
+    def __init__(self, *args, **kwargs):
+        self.__wrapped_read_timeout = kwargs.pop('wrapped_read_timeout')
+        super().__init__(*args, **kwargs)
+
+    def set_timeout(self, timeout):
+        self.__wrapped_read_timeout = timeout
+
+    @asyncio.coroutine
+    def _wrapped_wait(self, wrapped, instance, args, kwargs):
+        with CeilTimeout(self.__wrapped_read_timeout, loop=self._loop):
+            result = yield from wrapped(*args, **kwargs)
+            return result
+
+    @asyncio.coroutine
+    def read(self):
+        with CeilTimeout(self.__wrapped_read_timeout, loop=self._loop):
+            resp_msg, stream_reader = yield from super().read()
+
+            if hasattr(stream_reader, '_wait'):
+                stream_reader._wait = wrapt.FunctionWrapper(
+                    stream_reader._wait, self._wrapped_wait)
+
+            return resp_msg, stream_reader
 
 
 class AioEndpoint(Endpoint):
@@ -159,40 +179,53 @@ class AioEndpoint(Endpoint):
             self._conn_timeout = self._read_timeout = timeout
 
         self._loop = loop or asyncio.get_event_loop()
+
         if connector_args is None:
             # AWS has a 20 second idle timeout:
             #   https://forums.aws.amazon.com/message.jspa?messageID=215367
             # aiohttp default timeout is 30s so set something reasonable here
-            connector = aiohttp.TCPConnector(loop=self._loop,
-                                             limit=max_pool_connections,
-                                             verify_ssl=self.verify,
-                                             keepalive_timeout=12)
-        else:
-            connector = aiohttp.TCPConnector(loop=self._loop,
-                                             limit=max_pool_connections,
-                                             verify_ssl=self.verify,
-                                             **connector_args)
+            connector_args = dict(keepalive_timeout=12)
+
+        connector = aiohttp.TCPConnector(loop=self._loop,
+                                         limit=max_pool_connections,
+                                         verify_ssl=self.verify,
+                                         **connector_args)
+
+        # This begins the journey into our replacement of aiohttp's
+        # `read_timeout`.  Their implementation represents an absolute time
+        # from the initial request, to the last read.  So if the client delays
+        # reading the body for long enough the request would be cancelled.
+        # See https://github.com/aio-libs/aiobotocore/issues/245
+        assert connector._factory.func == ResponseHandler
+
+        connector._factory = functools.partial(
+            WrappedResponseHandler,
+            wrapped_read_timeout=self._read_timeout,
+            *connector._factory.args,
+            **connector._factory.keywords)
 
         self._aio_session = aiohttp.ClientSession(
             connector=connector,
-            read_timeout=self._read_timeout,
+            read_timeout=None,
             conn_timeout=self._conn_timeout,
             skip_auto_headers={'CONTENT-TYPE'},
-            response_class=ClientResponseProxy, loop=self._loop)
+            response_class=ClientResponseProxy,
+            loop=self._loop)
 
     @asyncio.coroutine
     def _request(self, method, url, headers, data):
         # Note: When using aiobotocore with dynamodb, requests fail on crc32
         # checksum computation as soon as the response data reaches ~5KB.
-        # When aws response is gzip compressed:
-        # 1. aiohttp is automatically uncompressessing the data
+        # When AWS response is gzip compressed:
+        # 1. aiohttp is automatically decompressing the data
         # (http://aiohttp.readthedocs.io/en/stable/client.html#binary-response-content)
         # 2. botocore computes crc32 on the uncompressed data bytes and fails
         # cause crc32 has been computed on the compressed data
         # The following line forces aws not to use gzip compression,
-        # if there is a way to configure aiohttp not to perform uncompression,
+        # if there is a way to configure aiohttp not to perform decompression,
         # we can remove the following line and take advantage of
         # aws gzip compression.
+        # See: https://github.com/aio-libs/aiohttp/issues/1992
         headers['Accept-Encoding'] = 'identity'
         headers_ = MultiDict(
             (z[0], text_(z[1], encoding='utf-8')) for z in headers.items())

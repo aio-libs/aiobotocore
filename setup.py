@@ -4,7 +4,9 @@ import sys
 from setuptools import setup, find_packages
 
 
-install_requires = ['botocore>=1.5.34, <=1.5.70', 'aiohttp>=2.0.4',
+# aiohttp requirement is pegged as we need to manually ensure that
+# https://github.com/aio-libs/aiobotocore/pull/248 will continue working
+install_requires = ['botocore>=1.5.34, <=1.5.70', 'aiohttp>=2.0.4, <=2.2.0',
                     'multidict>=2.1.4', 'wrapt>=1.10.10', 'packaging>=16.8']
 
 PY_VER = sys.version_info
