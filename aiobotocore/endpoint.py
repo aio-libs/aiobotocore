@@ -141,7 +141,7 @@ class WrappedResponseHandler(ResponseHandler):
 
     def set_timeout(self, timeout):
         self.__wrapped_read_timeout = timeout
-    
+
     @asyncio.coroutine
     def _wrapped_wait(self, wrapped, instance, args, kwargs):
         with CeilTimeout(self.__wrapped_read_timeout, loop=self._loop):
