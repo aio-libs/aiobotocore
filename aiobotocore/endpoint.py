@@ -280,7 +280,7 @@ class AioEndpoint(Endpoint):
 
         url = URL(url, encoded=True)
 
-        # See https://github.com/aio-libs/aiobotocore/issues/267 for
+        # See https://github.com/aio-libs/aiobotocore/issues/267 for details
         for i in range(MAX_REDIRECTS):
             resp = yield from self._aio_session.request(method, url=url,
                                                         headers=headers_,
