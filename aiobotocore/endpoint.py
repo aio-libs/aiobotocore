@@ -2,13 +2,14 @@ import aiohttp
 import asyncio
 import functools
 import sys
-import yarl
 import io
 import wrapt
 import botocore.retryhandler
 import aiohttp.http_exceptions
 from aiohttp.client_proto import ResponseHandler
 from aiohttp.helpers import CeilTimeout
+from aiohttp import hdrs
+from aiohttp.client import URL
 from aiohttp.client_reqrep import ClientResponse
 from botocore.endpoint import EndpointCreator, Endpoint, DEFAULT_TIMEOUT, \
     MAX_POOL_CONNECTIONS, logger
@@ -23,6 +24,8 @@ from urllib.parse import urlparse
 
 PY_35 = sys.version_info >= (3, 5)
 AIOHTTP_2 = parse_version(aiohttp.__version__) > parse_version('2.0.0')
+MAX_REDIRECTS = 10
+
 
 # Monkey patching: We need to insert the aiohttp exception equivalents
 # The only other way to do this would be to have another config file :(
@@ -160,6 +163,45 @@ class WrappedResponseHandler(ResponseHandler):
             return resp_msg, stream_reader
 
 
+def _aiohttp_do_redirect(session, method, url, headers, data, resp):
+    # This is the redirect code from aiohttp, remove once
+    # https://github.com/aio-libs/aiobotocore/issues/267 is supported
+
+    # For 301 and 302, mimic IE, now changed in RFC
+    # https://github.com/kennethreitz/requests/pull/269
+
+    if (resp.status == 303 and
+            resp.method != hdrs.METH_HEAD) \
+            or (resp.status in (301, 302) and
+                resp.method == hdrs.METH_POST):
+        method = hdrs.METH_GET
+        data = None
+        if headers.get(hdrs.CONTENT_LENGTH):
+            headers.pop(hdrs.CONTENT_LENGTH)
+
+    r_url = (resp.headers.get(hdrs.LOCATION) or
+             resp.headers.get(hdrs.URI))
+    if r_url is None:
+        return None
+
+    r_url = URL(
+        r_url, encoded=not session.requote_redirect_url)
+
+    scheme = r_url.scheme
+    if scheme not in ('http', 'https', ''):
+        resp.close()
+        raise ValueError(
+            'Can redirect only to http or https')
+    elif not scheme:
+        r_url = url.join(r_url)
+
+    url = r_url
+    params = None
+    resp.release()
+
+    return method, url, headers, params, data
+
+
 class AioEndpoint(Endpoint):
     def __init__(self, host,
                  endpoint_prefix, event_emitter, proxies=None, verify=True,
@@ -236,13 +278,28 @@ class AioEndpoint(Endpoint):
         if AIOHTTP_2 and isinstance(data, io.IOBase):
             data = _IOBaseWrapper(data)
 
-        url = yarl.URL(url, encoded=True)
-        resp = yield from self._aio_session.request(method, url=url,
-                                                    headers=headers_,
-                                                    data=data,
-                                                    proxy=proxy,
-                                                    timeout=None,
-                                                    allow_redirects=False)
+        url = URL(url, encoded=True)
+
+        # See https://github.com/aio-libs/aiobotocore/issues/267 for details
+        for i in range(MAX_REDIRECTS):
+            resp = yield from self._aio_session.request(method, url=url,
+                                                        headers=headers_,
+                                                        data=data,
+                                                        proxy=proxy,
+                                                        timeout=None,
+                                                        allow_redirects=False)
+
+            if resp.status in {301, 302, 303, 307}:
+                redir_arr = _aiohttp_do_redirect(self._aio_session, method,
+                                                 url, headers, data, resp)
+
+                if redir_arr is None:
+                    break
+
+                method, url, headers, params, data = redir_arr
+            else:
+                break
+
         return resp
 
     @asyncio.coroutine

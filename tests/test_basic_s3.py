@@ -79,8 +79,6 @@ def test_can_paginate(s3_client, bucket_name, create_object, loop):
         key_name = 'key%s' % i
         yield from create_object(key_name)
 
-    # Eventual consistency.
-    yield from asyncio.sleep(3, loop=loop)
     paginator = s3_client.get_paginator('list_objects')
     pages = paginator.paginate(MaxKeys=1, Bucket=bucket_name)
     responses = yield from fetch_all(pages)
@@ -98,8 +96,6 @@ def test_can_paginate_with_page_size(s3_client, bucket_name, create_object,
         key_name = 'key%s' % i
         yield from create_object(key_name)
 
-    # Eventual consistency.
-    yield from asyncio.sleep(3, loop=loop)
     paginator = s3_client.get_paginator('list_objects')
     pages = paginator.paginate(PaginationConfig={'PageSize': 1},
                                Bucket=bucket_name)
@@ -125,9 +121,6 @@ def test_result_key_iters(s3_client, bucket_name,):
 @pytest.mark.run_loop
 def test_can_get_and_put_object(s3_client, create_object, bucket_name, loop):
     yield from create_object('foobarbaz', body='body contents')
-    # Eventual consistency.
-    yield from asyncio.sleep(3, loop=loop)
-
     resp = yield from s3_client.get_object(Bucket=bucket_name, Key='foobarbaz')
     data = yield from resp['Body'].read()
     # TODO: think about better api and make behavior like in aiohttp
@@ -389,8 +382,6 @@ def test_presign_sigv4(s3_client, bucket_name, aio_session, create_object):
 def test_can_follow_signed_url_redirect(alternative_s3_client,
                                         create_object, bucket_name, loop):
     yield from create_object('foobarbaz')
-    # Eventual consistency.
-    yield from asyncio.sleep(3, loop=loop)
 
     # Simulate redirection by provide wrong endpoint intentionally
     resp = yield from alternative_s3_client.get_object(
@@ -400,13 +391,31 @@ def test_can_follow_signed_url_redirect(alternative_s3_client,
     assert data == b'foo'
 
 
+@pytest.mark.parametrize('region', ['eu-west-1'])
+@pytest.mark.parametrize('alternative_region', ['us-west-2'])
+@pytest.mark.parametrize('mocking_test', [False])
+@pytest.mark.run_loop
+def test_bucket_redirect(s3_client, alternative_s3_client, region,
+                         create_bucket):
+    key = 'foobarbaz'
+
+    # create bucket in alternative region
+    bucket_name = yield from create_bucket(region)
+
+    yield from s3_client.put_object(Bucket=bucket_name, Key=key, Body=b'')
+    yield from s3_client.get_object(Bucket=bucket_name, Key=key)
+
+    # This should not raise
+    yield from alternative_s3_client.put_object(Bucket=bucket_name, Key=key,
+                                                Body=b'')
+    yield from alternative_s3_client.get_object(Bucket=bucket_name, Key=key)
+
+
 @pytest.mark.parametrize('signature_version', ['s3v4'])
 @pytest.mark.parametrize('mocking_test', [False])
 @pytest.mark.run_loop
 def test_head_object_keys(s3_client, create_object, bucket_name, loop):
     yield from create_object('foobarbaz')
-    # Eventual consistency.
-    yield from asyncio.sleep(3, loop=loop)
 
     resp = yield from s3_client.head_object(
         Bucket=bucket_name, Key='foobarbaz')

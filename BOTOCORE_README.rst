@@ -10,7 +10,7 @@ works is by working backwards from `AioEndpoint._request`.  Because of this tigh
 integration aiobotocore is typically version locked to a particular release of
 botocore.
 
-How to upgrade botocore
+How to Upgrade Botocore
 -------------
 aiobotocore's file names try to match the botocore files they functionally match.
 For the most part botocore classes are sub-classed with the majority of the
@@ -31,6 +31,9 @@ Notable changes we've seen in the past:
 * bodies of methods being updated
 
 basically your typical code refactoring :)
+
+NOTE: we've added hashes of the methods we replace in test_patches.py so if a
+      aiohttp/botocore method changes that we depend on the test should fail.
 
 The Future
 -------------
