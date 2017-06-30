@@ -19,7 +19,7 @@ def read(f):
     return open(os.path.join(os.path.dirname(__file__), f)).read().strip()
 
 
-extras_require = {}
+extras_require = {'awscli': ['awscli>=1.11.108, <=1.11.115']}
 
 
 def read_version():
