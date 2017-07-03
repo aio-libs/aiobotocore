@@ -17,6 +17,13 @@ AIOHTTP_BAD_CLOSE_VERSION = PY_34 and (parse_version('2.2.0') <=
                                        parse_version('2.2.2'))
 
 
+if AIOHTTP_BAD_CLOSE_VERSION:
+    from asyncio import coroutines
+    import aiohttp.helpers
+
+    coroutines._COROUTINE_TYPES += (aiohttp.helpers._CoroGuard, )
+
+
 @pytest.fixture(scope="session", params=[True, False],
                 ids=['debug[true]', 'debug[false]'])
 def debug(request):
@@ -252,10 +259,7 @@ def create_client(client_type, request, loop, session, region, config, **kw):
     client = loop.run_until_complete(f())
 
     def fin():
-        if AIOHTTP_BAD_CLOSE_VERSION:
-            client.close()
-        else:
-            loop.run_until_complete(client.close())
+        loop.run_until_complete(client.close())
     request.addfinalizer(fin)
     return client
 
