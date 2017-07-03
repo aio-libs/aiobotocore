@@ -36,14 +36,17 @@ _READ_TIMEOUT_DIGESTS = {
     StreamReader: {'dc5a5a33e86cedf2d2c8413d951d2274a79303f4'},
 
     # for digging into _protocol ( 2.1.x, 2.2.x )
-    ClientResponse: {'d1e0c16dea4fe3426caa1e9b0dc9f5f1992d838e', 'bc374038ac3bfd7cc13dadb6aebbf0f67ebb7620'},
+    ClientResponse: {'d1e0c16dea4fe3426caa1e9b0dc9f5f1992d838e',
+                     'bc374038ac3bfd7cc13dadb6aebbf0f67ebb7620'},
 }
 
 # These are guards to our main patches
 _API_DIGESTS = {
     # ( <=1.5.70, >=1.5.71)
-    ClientArgsCreator: {'60b8b70358d25dcce1ad74b2f5f0b4830d5749a3', '813098fb076fc4739f7f6ec335960845e119f5f4'},
-    ClientCreator: {'a8c12a6b933fa22477cd4d168a96443be002ae79', '1533fe9ffa395f8555ffad0fb5b6f5294d2c0f30'},
+    ClientArgsCreator: {'60b8b70358d25dcce1ad74b2f5f0b4830d5749a3',
+                        '813098fb076fc4739f7f6ec335960845e119f5f4'},
+    ClientCreator: {'a8c12a6b933fa22477cd4d168a96443be002ae79',
+                    '1533fe9ffa395f8555ffad0fb5b6f5294d2c0f30'},
     BaseClient: {'a91ffdb8d0c7cb2dfd63a4332a0a7a76e76cef28'},
     Config: {'c6bdc8f47c90e114d406ecab3fcfbc6e4d034279'},
     convert_to_response_dict: {'ed634b3f0c24f8858aee8ed745051397270b1e46'},
