@@ -6,6 +6,15 @@ import aiobotocore
 from aiobotocore.config import AioConfig
 import tempfile
 import shutil
+import sys
+from packaging.version import parse as parse_version
+
+
+PY_34 = (3, 4) <= sys.version_info <= (3, 5)
+
+AIOHTTP_BAD_CLOSE_VERSION = PY_34 and (parse_version('2.2.0') <=
+                                       parse_version(aiohttp.__version__) <=
+                                       parse_version('2.2.2'))
 
 
 @pytest.fixture(scope="session", params=[True, False],
@@ -243,7 +252,10 @@ def create_client(client_type, request, loop, session, region, config, **kw):
     client = loop.run_until_complete(f())
 
     def fin():
-        loop.run_until_complete(client.close())
+        if AIOHTTP_BAD_CLOSE_VERSION:
+            client.close()
+        else:
+            loop.run_until_complete(client.close())
     request.addfinalizer(fin)
     return client
 
