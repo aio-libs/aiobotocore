@@ -2,7 +2,8 @@ Changes
 -------
 0.4.2 (2017-07-03)
 ^^^^^^^^^^^^^^^^^^
-* update supported aiohttp/botocore versions
+* update supported aiohttp requirement to: >=2.0.4, <=2.2.2
+* update supported botocore requirement to: >=1.5.71, <=1.5.78
 
 0.4.1 (2017-06-27)
 ^^^^^^^^^^^^^^^^^^
