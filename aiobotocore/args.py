@@ -4,13 +4,9 @@ import botocore.args
 import botocore.serialize
 import botocore.parsers
 from botocore.signers import RequestSigner
-from packaging.version import parse as parse_version
 
 from .config import AioConfig
 from .endpoint import AioEndpointCreator
-
-# https://github.com/boto/botocore/commit/5af85bf0b3cf6dac8d0487a2e97425cf3d53e4ee
-BOTO_1_5_71 = parse_version(botocore.__version__) >= parse_version('1.5.71')
 
 
 class AioClientArgsCreator(botocore.args.ClientArgsCreator):
@@ -39,11 +35,10 @@ class AioClientArgsCreator(botocore.args.ClientArgsCreator):
 
         signing_region = endpoint_config['signing_region']
         endpoint_region_name = endpoint_config['region_name']
-        if BOTO_1_5_71:
-            if signing_region is None and endpoint_region_name is None:
-                signing_region, endpoint_region_name = \
-                    self._get_default_s3_region(service_name, endpoint_bridge)
-                config_kwargs['region_name'] = endpoint_region_name
+        if signing_region is None and endpoint_region_name is None:
+            signing_region, endpoint_region_name = \
+                self._get_default_s3_region(service_name, endpoint_bridge)
+            config_kwargs['region_name'] = endpoint_region_name
 
         event_emitter = copy.copy(self._event_emitter)
         signer = RequestSigner(

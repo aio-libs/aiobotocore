@@ -42,9 +42,7 @@ _READ_TIMEOUT_DIGESTS = {
 
 # These are guards to our main patches
 _API_DIGESTS = {
-    # ( <=1.5.70, >=1.5.71)
-    ClientArgsCreator: {'60b8b70358d25dcce1ad74b2f5f0b4830d5749a3',
-                        '813098fb076fc4739f7f6ec335960845e119f5f4'},
+    ClientArgsCreator: {'813098fb076fc4739f7f6ec335960845e119f5f4'},
     ClientCreator: {'a8c12a6b933fa22477cd4d168a96443be002ae79',
                     '1533fe9ffa395f8555ffad0fb5b6f5294d2c0f30'},
     BaseClient: {'a91ffdb8d0c7cb2dfd63a4332a0a7a76e76cef28'},
