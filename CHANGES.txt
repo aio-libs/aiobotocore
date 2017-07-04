@@ -1,5 +1,8 @@
 Changes
 -------
+0.4.3a0 (XXXX-XX-XX)
+^^^^^^^^^^^^^^^^^^
+
 0.4.2 (2017-07-03)
 ^^^^^^^^^^^^^^^^^^
 * update supported aiohttp requirement to: >=2.0.4, <=2.3.0
