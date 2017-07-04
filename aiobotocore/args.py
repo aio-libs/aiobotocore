@@ -16,6 +16,8 @@ class AioClientArgsCreator(botocore.args.ClientArgsCreator):
                          response_parser_factory, loader, exceptions_factory)
         self._loop = loop or asyncio.get_event_loop()
 
+    # NOTE: we override this so we can pull out the custom AioConfig params and
+    #       use an AioEndpointCreator
     def get_client_args(self, service_model, region_name, is_secure,
                         endpoint_url, verify, credentials, scoped_config,
                         client_config, endpoint_bridge):
@@ -31,9 +33,16 @@ class AioClientArgsCreator(botocore.args.ClientArgsCreator):
         s3_config = final_args['s3_config']
         partition = endpoint_config['metadata'].get('partition', None)
 
+        signing_region = endpoint_config['signing_region']
+        endpoint_region_name = endpoint_config['region_name']
+        if signing_region is None and endpoint_region_name is None:
+            signing_region, endpoint_region_name = \
+                self._get_default_s3_region(service_name, endpoint_bridge)
+            config_kwargs['region_name'] = endpoint_region_name
+
         event_emitter = copy.copy(self._event_emitter)
         signer = RequestSigner(
-            service_name, endpoint_config['signing_region'],
+            service_name, signing_region,
             endpoint_config['signing_name'],
             endpoint_config['signature_version'],
             credentials, event_emitter)
@@ -49,7 +58,7 @@ class AioClientArgsCreator(botocore.args.ClientArgsCreator):
         endpoint_creator = AioEndpointCreator(event_emitter, self._loop)
 
         endpoint = endpoint_creator.create_endpoint(
-            service_model, region_name=endpoint_config['region_name'],
+            service_model, region_name=endpoint_region_name,
             endpoint_url=endpoint_config['endpoint_url'], verify=verify,
             response_parser_factory=self._response_parser_factory,
             max_pool_connections=new_config.max_pool_connections,

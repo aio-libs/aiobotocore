@@ -6,6 +6,10 @@ import aiobotocore
 from aiobotocore.config import AioConfig
 import tempfile
 import shutil
+import sys
+
+
+PY_34 = (3, 4) <= sys.version_info <= (3, 5)
 
 
 @pytest.fixture(scope="session", params=[True, False],
