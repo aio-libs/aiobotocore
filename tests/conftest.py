@@ -7,21 +7,9 @@ from aiobotocore.config import AioConfig
 import tempfile
 import shutil
 import sys
-from packaging.version import parse as parse_version
 
 
 PY_34 = (3, 4) <= sys.version_info <= (3, 5)
-
-AIOHTTP_BAD_CLOSE_VERSION = PY_34 and (parse_version('2.2.0') <=
-                                       parse_version(aiohttp.__version__) <=
-                                       parse_version('2.2.2'))
-
-
-if AIOHTTP_BAD_CLOSE_VERSION:
-    from asyncio import coroutines
-    import aiohttp.helpers
-
-    coroutines._COROUTINE_TYPES += (aiohttp.helpers._CoroGuard, )
 
 
 @pytest.fixture(scope="session", params=[True, False],
