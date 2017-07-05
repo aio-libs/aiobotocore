@@ -2,6 +2,7 @@ Changes
 -------
 0.4.3a0 (XXXX-XX-XX)
 ^^^^^^^^^^^^^^^^^^
+* add the supported versions of awscli to extras require #273 (thanks @graingert)
 
 0.4.2 (2017-07-03)
 ^^^^^^^^^^^^^^^^^^
