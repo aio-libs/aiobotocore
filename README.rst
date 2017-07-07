@@ -111,3 +111,13 @@ Requirements
 .. _asyncio: http://docs.python.org/3.4/library/asyncio.html
 .. _botocore: https://github.com/boto/botocore
 .. _aiohttp: https://github.com/KeepSafe/aiohttp
+
+
+awscli
+------
+
+awscli depends on a single version of botocore, however aiobotocore only supports a
+specific range of botocore versions. To ensure you install the latest version of
+awscli that your specific combination or aiobotocore and botocore can support use::
+
+    pip install -U aiobotocore[awscli]
