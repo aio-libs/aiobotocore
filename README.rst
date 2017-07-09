@@ -66,7 +66,7 @@ Basic Example
             async for result in paginator.paginate(Bucket=bucket, Prefix=folder):
                 for c in result.get('Contents', []):
                     print(c)
-                    
+
             # delete object from s3
             resp = await client.delete_object(Bucket=bucket, Key=key)
             print(resp)
