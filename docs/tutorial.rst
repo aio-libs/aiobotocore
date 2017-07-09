@@ -43,8 +43,7 @@ above::
     # upload object to amazon s3
     data = b'\x01'*1024
     resp = await client.put_object(Bucket=bucket,
-                                        Key=key,
-                                        Body=data)
+                                   Key=key, Body=data)
     print(resp)
 
     # getting s3 object properties of file we just uploaded
