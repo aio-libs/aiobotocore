@@ -41,6 +41,7 @@ Contents
 .. toctree::
    :maxdepth: 2
 
+   tutorial
    examples
    api
    contributing
