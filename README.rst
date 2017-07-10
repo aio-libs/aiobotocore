@@ -6,6 +6,11 @@ aiobotocore
     :target: https://codecov.io/gh/aio-libs/aiobotocore
 .. image:: https://img.shields.io/pypi/v/aiobotocore.svg
     :target: https://pypi.python.org/pypi/aiobotocore
+.. image:: https://badges.gitter.im/Join%20Chat.svg
+    :target: https://gitter.im/aio-libs/aiobotocore
+    :alt: Chat on Gitter
+
+
 
 Async client for amazon services using botocore_ and aiohttp_/asyncio_.
 
