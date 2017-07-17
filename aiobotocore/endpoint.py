@@ -127,6 +127,13 @@ class ClientResponseProxy(wrapt.ObjectProxy):
     def status_code(self):
         return self.status
 
+    @status_code.setter
+    def status_code(self, value):
+        # botocore tries to set this, see:
+        # https://github.com/aio-libs/aiobotocore/issues/190
+        # Luckily status is an attribute we can override
+        self.status = value
+
     @property
     def content(self):
         # ClientResponse._content is set by the coroutine ClientResponse.read
