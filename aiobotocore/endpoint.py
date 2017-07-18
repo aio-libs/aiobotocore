@@ -252,23 +252,11 @@ class AioEndpoint(Endpoint):
             conn_timeout=self._conn_timeout,
             skip_auto_headers={'CONTENT-TYPE'},
             response_class=ClientResponseProxy,
-            loop=self._loop)
+            loop=self._loop,
+            auto_decompress=False)
 
     @asyncio.coroutine
     def _request(self, method, url, headers, data):
-        # Note: When using aiobotocore with dynamodb, requests fail on crc32
-        # checksum computation as soon as the response data reaches ~5KB.
-        # When AWS response is gzip compressed:
-        # 1. aiohttp is automatically decompressing the data
-        # (http://aiohttp.readthedocs.io/en/stable/client.html#binary-response-content)
-        # 2. botocore computes crc32 on the uncompressed data bytes and fails
-        # cause crc32 has been computed on the compressed data
-        # The following line forces aws not to use gzip compression,
-        # if there is a way to configure aiohttp not to perform decompression,
-        # we can remove the following line and take advantage of
-        # aws gzip compression.
-        # See: https://github.com/aio-libs/aiohttp/issues/1992
-        headers['Accept-Encoding'] = 'identity'
         headers_ = MultiDict(
             (z[0], text_(z[1], encoding='utf-8')) for z in headers.items())
 
