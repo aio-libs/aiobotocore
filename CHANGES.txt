@@ -4,6 +4,7 @@ Changes
 ^^^^^^^^^^^^^^^^^^
 * Fix error botocore error checking #190
 * Update supported botocore requirement to: >=1.7.28, <=1.7.40
+* Bump aiohttp requirement to support compressed responses correctly #298
 
 0.4.5 (2017-09-05)
 ^^^^^^^^^^^^^^^^^^
