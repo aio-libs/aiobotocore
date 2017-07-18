@@ -2,6 +2,7 @@ Changes
 -------
 0.4.4a0 (XXXX-XX-XX)
 ^^^^^^^^^^^^^^^^^^
+* bump aiohttp requirement to support compressed responses correctly #298
 
 0.4.3 (2017-07-05)
 ^^^^^^^^^^^^^^^^^^
