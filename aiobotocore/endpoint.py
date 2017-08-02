@@ -257,6 +257,19 @@ class AioEndpoint(Endpoint):
 
     @asyncio.coroutine
     def _request(self, method, url, headers, data):
+        # botocore itself does not support compressed responses yet:
+        #   https://github.com/boto/botocore/issues/1255.  However aiohttp sets
+        # the accept headers for a variety of compressed encodings...so for
+        # example when using aiobotocore with dynamodb calls, requests fail on
+        # crc32 checksum computation as soon as the response ata reaches ~5KB.
+        # When AWS response is gzip compressed:
+        # 1. aiohttp is automatically decompressing the data
+        # (http://aiohttp.readthedocs.io/en/stable/client.html#binary-response-content)
+        # 2. botocore computes crc32 on the uncompressed data bytes and fails
+        # cause crc32 has been computed on the compressed data
+        # The following line forces aws not to use gzip compression. After
+        # botocore adds compressed response support we can remove this section.
+        # headers['Accept-Encoding'] = 'identity'
         headers_ = MultiDict(
             (z[0], text_(z[1], encoding='utf-8')) for z in headers.items())
 
