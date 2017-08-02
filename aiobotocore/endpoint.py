@@ -269,7 +269,7 @@ class AioEndpoint(Endpoint):
         # cause crc32 has been computed on the compressed data
         # The following line forces aws not to use gzip compression. After
         # botocore adds compressed response support we can remove this section.
-        # headers['Accept-Encoding'] = 'identity'
+        headers['Accept-Encoding'] = 'identity'
         headers_ = MultiDict(
             (z[0], text_(z[1], encoding='utf-8')) for z in headers.items())
 
