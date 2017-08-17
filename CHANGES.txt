@@ -1,7 +1,8 @@
 Changes
 -------
-0.4.4a0 (XXXX-XX-XX)
+0.4.4 (2017-08-16)
 ^^^^^^^^^^^^^^^^^^
+* add the supported versions of boto3 to extras require
 
 0.4.3 (2017-07-05)
 ^^^^^^^^^^^^^^^^^^
