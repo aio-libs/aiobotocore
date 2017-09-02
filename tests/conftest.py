@@ -239,6 +239,15 @@ def sns_client(request, session, region, config, sns_server,
     return client
 
 
+@pytest.fixture
+def sqs_client(request, session, region, config, sqs_server,
+               mocking_test, loop):
+    kw = moto_config(sqs_server) if mocking_test else {}
+    client = create_client('sqs', request, loop, session, region,
+                           config, **kw)
+    return client
+
+
 def create_client(client_type, request, loop, session, region, config, **kw):
     @asyncio.coroutine
     def f():
@@ -486,6 +495,40 @@ def create_topic(request, sns_client, loop):
 
     request.addfinalizer(fin)
     return _f
+
+
+@pytest.fixture
+def create_sqs_queue(request, sqs_client, loop):
+    _queue_url = None
+
+    @asyncio.coroutine
+    def _f():
+        nonlocal _queue_url
+
+        response = yield from sqs_client.create_queue(QueueName=random_name())
+        _queue_url = response['QueueUrl']
+        assert_status_code(response, 200)
+        return _queue_url
+
+    def fin():
+        loop.run_until_complete(delete_sqs_queue(sqs_client, _queue_url))
+
+    request.addfinalizer(fin)
+    return _f
+
+
+@pytest.fixture
+def sqs_queue_url(region, create_sqs_queue, sqs_client, loop):
+    name = loop.run_until_complete(create_sqs_queue())
+    return name
+
+
+@asyncio.coroutine
+def delete_sqs_queue(sqs_client, queue_url):
+    response = yield from sqs_client.delete_queue(
+        QueueUrl=queue_url
+    )
+    assert_status_code(response, 200)
 
 
 pytest_plugins = ['mock_server']
