@@ -23,7 +23,7 @@ def go(loop):
         print(' ' + queue_name)
 
     print('Deleting queue {0}'.format(queue_url))
-    response = yield from  client.delete_queue(QueueUrl=queue_url)
+    response = yield from client.delete_queue(QueueUrl=queue_url)
     assert response['ResponseMetadata']['HTTPStatusCode'] == 200
 
     print('Done')

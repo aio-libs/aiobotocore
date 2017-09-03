@@ -43,6 +43,7 @@ def go(loop):
     print('Finished')
     yield from client.close()
 
+
 try:
     loop = asyncio.get_event_loop()
     loop.run_until_complete(go(loop))
