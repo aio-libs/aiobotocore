@@ -11,27 +11,28 @@ def go(loop):
 
     print('Creating test_queue1')
     response = yield from client.create_queue(QueueName='test_queue1')
-    assert response['ResponseMetadata']['HTTPStatusCode'] == 200
-    assert 'QueueUrl' in response
     queue_url = response['QueueUrl']
 
     response = yield from client.list_queues()
-    assert response['ResponseMetadata']['HTTPStatusCode'] == 200
 
     print('Queue URLs:')
     for queue_name in response.get('QueueUrls', []):
         print(' ' + queue_name)
 
     print('Deleting queue {0}'.format(queue_url))
-    response = yield from client.delete_queue(QueueUrl=queue_url)
-    assert response['ResponseMetadata']['HTTPStatusCode'] == 200
+    yield from client.delete_queue(QueueUrl=queue_url)
 
     print('Done')
     yield from client.close()
 
 
-try:
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(go(loop))
-except KeyboardInterrupt:
-    pass
+def main():
+    try:
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(go(loop))
+    except KeyboardInterrupt:
+        pass
+
+
+if __name__ == '__main__':
+    main()

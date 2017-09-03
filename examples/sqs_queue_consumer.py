@@ -2,22 +2,31 @@
 """
 aiobotocore SQS Consumer Example
 """
-
-# Boto should get credentials from ~/.aws/credentials or the environment
 import asyncio
+import sys
 
 import aiobotocore
+import botocore.exceptions
 
-QUEUE_NAME = 'test_queue1'
+QUEUE_NAME = 'test_queue12'
 
 
 @asyncio.coroutine
 def go(loop):
+    # Boto should get credentials from ~/.aws/credentials or the environment
     session = aiobotocore.get_session(loop=loop)
     client = session.create_client('sqs', region_name='us-west-2')
-    response = yield from client.get_queue_url(QueueName=QUEUE_NAME)
-    assert response['ResponseMetadata']['HTTPStatusCode'] == 200
-    assert 'QueueUrl' in response
+    try:
+        response = yield from client.get_queue_url(QueueName=QUEUE_NAME)
+    except botocore.exceptions.ClientError as err:
+        if err.response['Error']['Code'] == \
+                'AWS.SimpleQueueService.NonExistentQueue':
+            print("Queue {0} does not exist".format(QUEUE_NAME))
+            yield from client.close()
+            sys.exit(1)
+        else:
+            raise
+
     queue_url = response['QueueUrl']
 
     print('Pulling messages off the queue')
@@ -30,8 +39,6 @@ def go(loop):
                 QueueUrl=queue_url,
                 WaitTimeSeconds=2,
             )
-            resp_status = response['ResponseMetadata']['HTTPStatusCode']
-            assert resp_status == 200
 
             if 'Messages' in response:
                 for msg in response['Messages']:
@@ -50,8 +57,13 @@ def go(loop):
     yield from client.close()
 
 
-try:
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(go(loop))
-except KeyboardInterrupt:
-    pass
+def main():
+    try:
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(go(loop))
+    except KeyboardInterrupt:
+        pass
+
+
+if __name__ == '__main__':
+    main()
