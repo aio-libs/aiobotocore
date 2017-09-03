@@ -12,34 +12,39 @@ import aiobotocore
 QUEUE_NAME = 'test_queue1'
 
 
-async def go(loop):
+@asyncio.coroutine
+def go(loop):
     session = aiobotocore.get_session(loop=loop)
-    async with session.create_client('sqs', region_name='us-west-2') as client:
-        response = await client.get_queue_url(QueueName=QUEUE_NAME)
-        assert response['ResponseMetadata']['HTTPStatusCode'] == 200
-        assert 'QueueUrl' in response
-        queue_url = response['QueueUrl']
+    client = session.create_client('sqs', region_name='us-west-2')
+    response = yield from client.get_queue_url(QueueName=QUEUE_NAME)
+    assert response['ResponseMetadata']['HTTPStatusCode'] == 200
+    assert 'QueueUrl' in response
+    queue_url = response['QueueUrl']
 
-        print('Putting messages on the queue')
+    print('Putting messages on the queue')
 
-        msg_no = 1
-        while True:
-            try:
-                msg_body = 'Message #{0}'.format(msg_no)
-                response = await client.send_message(
-                    QueueUrl=queue_url,
-                    MessageBody=msg_body
-                )
-                msg_no += 1
+    msg_no = 1
+    while True:
+        try:
+            msg_body = 'Message #{0}'.format(msg_no)
+            response = yield from client.send_message(
+                QueueUrl=queue_url,
+                MessageBody=msg_body
+            )
+            msg_no += 1
 
-                assert response['ResponseMetadata']['HTTPStatusCode'] == 200
-                print('Pushed "{0}" to queue'.format(msg_body))
+            assert response['ResponseMetadata']['HTTPStatusCode'] == 200
+            print('Pushed "{0}" to queue'.format(msg_body))
 
-                await asyncio.sleep(random.randint(1, 4))
-            except KeyboardInterrupt:
-                break
+            yield from asyncio.sleep(random.randint(1, 4))
+        except KeyboardInterrupt:
+            break
 
-        print('Finished')
+    print('Finished')
+    yield from client.close()
 
-loop = asyncio.get_event_loop()
-loop.run_until_complete(go(loop))
+try:
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(go(loop))
+except KeyboardInterrupt:
+    pass
