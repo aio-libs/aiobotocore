@@ -88,3 +88,13 @@ def sns_server():
     process = start_service('sns', host, port)
     yield url
     stop_process(process)
+
+
+@pytest.yield_fixture(scope="session")
+def sqs_server():
+    host = "localhost"
+    port = 5004
+    url = "http://{host}:{port}".format(host=host, port=port)
+    process = start_service('sqs', host, port)
+    yield url
+    stop_process(process)

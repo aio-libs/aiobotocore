@@ -4,7 +4,7 @@
    contain the root `toctree` directive.
 
 aiobotocore's documentation!
-===========================
+============================
 .. image:: https://travis-ci.org/aio-libs/aiobotocore.svg?branch=master
     :target: https://travis-ci.org/aio-libs/aiobotocore
 .. image:: https://codecov.io/gh/aio-libs/aiobotocore/branch/master/graph/badge.svg
