@@ -7,7 +7,7 @@ python:
 
 install:
     - pip install -U setuptools
-    - pip install -Ur requirements-dev.txt
+    - pip install -r requirements-dev.txt
     - pip install codecov
     - pip freeze
 
