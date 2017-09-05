@@ -9,6 +9,7 @@ import aiobotocore
 def go(loop):
     session = aiobotocore.get_session(loop=loop)
     client = session.create_client('dynamodb', region_name='us-west-2')
+    # Create random table name
     table_name = 'aiobotocore-' + str(uuid.uuid4())
 
     print('Requesting table creation...')
