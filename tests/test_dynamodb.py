@@ -102,7 +102,7 @@ def test_delete_table(dynamodb_client):
         AttributeDefinitions=[
             {
                 'AttributeName': 'testKey',
-                'AttributeType': 'S'
+                'AttributeType': 'N'
             },
         ],
         KeySchema=[
