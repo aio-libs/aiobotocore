@@ -1,3 +1,4 @@
+-e .
 Flask==0.12.2
 coverage==4.4.1
 flake8==3.4.1

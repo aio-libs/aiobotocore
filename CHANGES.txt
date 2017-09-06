@@ -5,6 +5,7 @@ Changes
 
 * Added SQS examples and tests #336
 * Changed requirements.txt structure #336
+* Added DynamoDB examples and tests #340
 
 0.4.4 (2017-08-16)
 ^^^^^^^^^^^^^^^^^^

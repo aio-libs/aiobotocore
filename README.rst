@@ -80,6 +80,31 @@ Basic Example
     loop.run_until_complete(go(loop))
 
 
+Supported AWS Services
+----------------------
+
+This is a non-exuastive list of what tests aiobotocore runs against AWS services. Not all methods are tested but we aim to test the majority of
+commonly used methods.
+
++----------------+-----------------------+
+| Service        | Status                |
++================+=======================+
+| S3             | Working               |
++----------------+-----------------------+
+| DynamoDB       | Basic methods tested  |
++----------------+-----------------------+
+| SNS            | Basic methods tested  |
++----------------+-----------------------+
+| SQS            | Basic methods tested  |
++----------------+-----------------------+
+| CloudFormation | Stack creation tested |
++----------------+-----------------------+
+
+Due to the way boto3 is implemented, its highly likely that even if services are not listed above that you can take any `boto3.client('service')` and
+stick `await` infront of methods to make them async, e.g. `await client.list_named_queries()` would asynchronous list all of the named Athena queries.
+
+If a service is not listed here and you could do with some tests or examples feel free to raise an issue.
+
 Run Tests
 ---------
 
