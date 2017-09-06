@@ -2,6 +2,7 @@ Changes
 -------
 0.4.5 (XXXX-XX-XX)
 ^^^^^^^^^^^^^^^^^^
+* bump aiohttp requirement to support compressed responses correctly #298
 
 * Added SQS examples and tests #336
 * Changed requirements.txt structure #336
