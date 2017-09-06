@@ -139,7 +139,8 @@ class AioBaseClient(botocore.client.BaseClient):
             documented_paginator_cls = type(
                 paginator_class_name, (Paginator,), {'paginate': paginate})
 
-            operation_model = self._service_model.operation_model(actual_operation_name)
+            operation_model = self._service_model.\
+                operation_model(actual_operation_name)
             paginator = documented_paginator_cls(
                 getattr(self, operation_name),
                 paginator_config,
