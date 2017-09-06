@@ -20,7 +20,7 @@ def start_service(service_name, host, port):
     process = sp.Popen(args, stdin=sp.PIPE, stdout=sp.PIPE, stderr=sp.DEVNULL)
     url = "http://{host}:{port}".format(host=host, port=port)
 
-    for i in range(0, 10):
+    for i in range(0, 30):
         if process.poll() is not None:
             break
 

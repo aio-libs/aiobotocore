@@ -42,15 +42,14 @@ _READ_TIMEOUT_DIGESTS = {
 
 # These are guards to our main patches
 _API_DIGESTS = {
-    ClientArgsCreator: {'813098fb076fc4739f7f6ec335960845e119f5f4'},
-    ClientCreator: {'a8c12a6b933fa22477cd4d168a96443be002ae79',
-                    '1533fe9ffa395f8555ffad0fb5b6f5294d2c0f30'},
-    BaseClient: {'a91ffdb8d0c7cb2dfd63a4332a0a7a76e76cef28'},
-    Config: {'c6bdc8f47c90e114d406ecab3fcfbc6e4d034279'},
+    ClientArgsCreator: {'a8d2e4159469622afcf938805b17ca76aefec7e7'},
+    ClientCreator: {'7d862f8663e93c310b2fd7c0b0741ce45dc0eb47'},
+    BaseClient: {'3e87626900a1374583cd9ecaecd6d58153a50cb6'},
+    Config: {'c9261822caa7509d7b30b7738a9f034674061e35'},
     convert_to_response_dict: {'ed634b3f0c24f8858aee8ed745051397270b1e46'},
     Endpoint: {'7aa956cf3f28f573384dbaeb2f819b0a05724e65'},
-    EndpointCreator: {'63fb01d5cad63d96d0fdd2f1764df51bc1197ff8'},
-    PageIterator: {'21fc6a86071177b55761af9f723ade5b8a23d153'},
+    EndpointCreator: {'00cb4303f8e9e775fe76996ad2f8852df7900398'},
+    PageIterator: {'d6d83b5c9314d4346ce021c85986b7c090569a34'},
     Session: {'0203d047c8e23e648da1c50f9e6fb5dd53b797f7'},
     get_session: {'c47d588f5da9b8bde81ccc26eaef3aee19ddd901'},
 }
@@ -62,9 +61,9 @@ def test_patches():
     for obj, digests in _READ_TIMEOUT_DIGESTS.items():
         digest = hashlib.sha1(getsource(obj).encode('utf-8')).hexdigest()
         assert digest in digests, \
-            "Digest of {} not found int: {}".format(obj.__name__, digests)
+            "Digest of {} not found in: {}".format(obj.__name__, digests)
 
     for obj, digests in _API_DIGESTS.items():
         digest = hashlib.sha1(getsource(obj).encode('utf-8')).hexdigest()
         assert digest in digests, \
-            "Digest of {} not found int: {}".format(obj.__name__, digests)
+            "Digest of {} not found in: {}".format(obj.__name__, digests)
