@@ -412,15 +412,16 @@ class AioEndpointCreator(EndpointCreator):
                         endpoint_url=None, verify=None,
                         response_parser_factory=None, timeout=DEFAULT_TIMEOUT,
                         max_pool_connections=MAX_POOL_CONNECTIONS,
-                        connector_args=None):
+                        proxies=None, connector_args=None):
         if not is_valid_endpoint_url(endpoint_url):
             raise ValueError("Invalid endpoint: %s" % endpoint_url)
-
+        if proxies is None:
+            proxies = self._get_proxies(endpoint_url)
         return AioEndpoint(
             endpoint_url,
             endpoint_prefix=service_model.endpoint_prefix,
             event_emitter=self._event_emitter,
-            proxies=self._get_proxies(endpoint_url),
+            proxies=proxies,
             verify=self._get_verify_value(verify),
             timeout=timeout,
             max_pool_connections=max_pool_connections,

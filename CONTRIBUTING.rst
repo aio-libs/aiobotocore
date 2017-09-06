@@ -71,7 +71,11 @@ The best way I've seen to upgrade botocore support is by downloading the sources
 of the release of botocore you're trying to upgrade to, and the version
 of botocore that aiobotocore is currently locked to and do a folder based file
 comparison (tools like DiffMerge are nice). You can then manually apply the
-relevant changes to their aiobotocore equivalent(s).
+relevant changes to their aiobotocore equivalent(s). In order to support a range
+of versions one would need validate the version each change was introduced and
+select the newest of these to the current version.  This is further complicated
+by the aiobotocore "extras" requirements which need to be updated to the
+versions that are compatible with the above changes.
 
 Notable changes we've seen in the past:
 
