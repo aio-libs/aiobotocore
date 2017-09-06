@@ -20,7 +20,7 @@ def start_service(service_name, host, port):
     process = sp.Popen(args, stdin=sp.PIPE, stdout=sp.PIPE, stderr=sp.DEVNULL)
     url = "http://{host}:{port}".format(host=host, port=port)
 
-    for i in range(0, 10):
+    for i in range(0, 30):
         if process.poll() is not None:
             break
 
@@ -29,7 +29,7 @@ def start_service(service_name, host, port):
             requests.get(url, timeout=0.5, proxies=_proxy_bypass)
             break
         except requests.exceptions.ConnectionError:
-            time.sleep(1.5)
+            time.sleep(0.5)
     else:
         stop_process(process)  # pytest.fail doesn't call stop_process
         pytest.fail("Can not start service: {}".format(service_name))
