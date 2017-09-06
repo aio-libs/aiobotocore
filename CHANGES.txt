@@ -1,10 +1,10 @@
 Changes
 -------
-0.4.5 (XXXX-XX-XX)
+0.4.5 (2017-09-05)
 ^^^^^^^^^^^^^^^^^^
-
 * Added SQS examples and tests #336
 * Changed requirements.txt structure #336
+* bump to botocore 1.7.4
 
 0.4.4 (2017-08-16)
 ^^^^^^^^^^^^^^^^^^

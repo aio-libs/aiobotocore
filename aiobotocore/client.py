@@ -116,12 +116,35 @@ class AioBaseClient(botocore.client.BaseClient):
         if not self.can_paginate(operation_name):
             raise OperationNotPageableError(operation_name=operation_name)
         else:
-            actual_operation_name = self._PY_TO_OP_NAME[operation_name]
             # substitute iterator with async one
             Paginator.PAGE_ITERATOR_CLS = AioPageIterator
-            paginator = Paginator(
+
+            actual_operation_name = self._PY_TO_OP_NAME[operation_name]
+
+            # Create a new paginate method that will serve as a proxy to
+            # the underlying Paginator.paginate method. This is needed to
+            # attach a docstring to the method.
+            def paginate(self, **kwargs):
+                return Paginator.paginate(self, **kwargs)
+
+            paginator_config = self._cache['page_config'][
+                actual_operation_name]
+
+            # Rename the paginator class based on the type of paginator.
+            paginator_class_name = str('%s.Paginator.%s' % (
+                get_service_module_name(self.meta.service_model),
+                actual_operation_name))
+
+            # Create the new paginator class
+            documented_paginator_cls = type(
+                paginator_class_name, (Paginator,), {'paginate': paginate})
+
+            operation_model = self._service_model.operation_model(actual_operation_name)
+            paginator = documented_paginator_cls(
                 getattr(self, operation_name),
-                self._cache['page_config'][actual_operation_name])
+                paginator_config,
+                operation_model)
+
             return paginator
 
     def get_waiter(self, waiter_name):

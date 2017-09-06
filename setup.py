@@ -6,8 +6,14 @@ from setuptools import setup, find_packages
 
 # aiohttp requirement is pegged as we need to manually ensure that
 # https://github.com/aio-libs/aiobotocore/pull/248 will continue working
-install_requires = ['botocore>=1.5.71, <=1.5.78', 'aiohttp>=2.0.4, <=2.3.0',
-                    'multidict>=2.1.4', 'wrapt>=1.10.10', 'packaging>=16.8']
+# If adding requirements make sure to also add to requirements-dev.txt
+install_requires = [
+    'botocore==1.7.4',
+    'aiohttp>=2.0.4, <=2.3.0',
+    'multidict>=2.1.4',
+    'wrapt>=1.10.10',
+    'packaging>=16.8',
+]
 
 PY_VER = sys.version_info
 
@@ -20,8 +26,8 @@ def read(f):
 
 
 extras_require = {
-    'awscli': ['awscli>=1.11.108, <=1.11.115'],
-    'boto3': ['boto3==1.4.4'],
+    'awscli': ['awscli==1.11.146'],
+    'boto3': ['boto3==1.4.7'],
 }
 
 
