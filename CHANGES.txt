@@ -1,5 +1,9 @@
 Changes
 -------
+0.4.6a0 (XXXX-XX-XX)
+^^^^^^^^^^^^^^^^^^
+*
+
 0.4.5 (2017-09-05)
 ^^^^^^^^^^^^^^^^^^
 * Added SQS examples and tests #336
