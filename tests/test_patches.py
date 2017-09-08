@@ -1,6 +1,9 @@
 import pytest
 import hashlib
 from dill.source import getsource
+from yarl import URL
+
+from aiobotocore.endpoint import ClientResponseProxy
 
 from aiohttp.client_proto import ResponseHandler
 from aiohttp import TCPConnector
@@ -67,3 +70,11 @@ def test_patches():
         digest = hashlib.sha1(getsource(obj).encode('utf-8')).hexdigest()
         assert digest in digests, \
             "Digest of {} not found in: {}".format(obj.__name__, digests)
+
+
+# NOTE: this doesn't require moto but needs to be marked to run with coverage
+@pytest.mark.moto
+def test_set_status_code():
+    resp = ClientResponseProxy('GET', URL('http://foo/bar'))
+    resp.status_code = 500
+    assert resp.status_code == 500
