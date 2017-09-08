@@ -20,7 +20,7 @@ def start_service(service_name, host, port):
     process = sp.Popen(args, stdin=sp.PIPE, stdout=sp.PIPE, stderr=sp.DEVNULL)
     url = "http://{host}:{port}".format(host=host, port=port)
 
-    for i in range(0, 10):
+    for i in range(0, 30):
         if process.poll() is not None:
             break
 
@@ -86,5 +86,15 @@ def sns_server():
     port = 5003
     url = "http://{host}:{port}".format(host=host, port=port)
     process = start_service('sns', host, port)
+    yield url
+    stop_process(process)
+
+
+@pytest.yield_fixture(scope="session")
+def sqs_server():
+    host = "localhost"
+    port = 5004
+    url = "http://{host}:{port}".format(host=host, port=port)
+    process = start_service('sqs', host, port)
     yield url
     stop_process(process)

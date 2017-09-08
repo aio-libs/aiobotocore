@@ -62,6 +62,7 @@ class AioClientArgsCreator(botocore.args.ClientArgsCreator):
             endpoint_url=endpoint_config['endpoint_url'], verify=verify,
             response_parser_factory=self._response_parser_factory,
             max_pool_connections=new_config.max_pool_connections,
+            proxies=new_config.proxies,
             timeout=(new_config.connect_timeout, new_config.read_timeout),
             connector_args=new_config.connector_args)
 
