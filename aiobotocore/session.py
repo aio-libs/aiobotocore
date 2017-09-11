@@ -77,9 +77,9 @@ class AioSession(botocore.session.Session):
         return client
 
 
-def get_session(*, env_vars=None, loop=None):
+def get_session(*, env_vars=None, loop=None, **kwargs):
     """
     Return a new session object.
     """
     loop = loop or asyncio.get_event_loop()
-    return AioSession(session_vars=env_vars, loop=loop)
+    return AioSession(session_vars=env_vars, loop=loop, **kwargs)
