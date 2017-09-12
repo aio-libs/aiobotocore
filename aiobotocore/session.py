@@ -10,7 +10,9 @@ from .client import AioClientCreator
 class AioSession(botocore.session.Session):
 
     def __init__(self, *args, **kwargs):
-        self._loop = kwargs.pop('loop', asyncio.get_event_loop())
+        self._loop = kwargs.pop('loop', None)
+        if self._loop is None:
+            self._loop = asyncio.get_event_loop()
 
         super().__init__(*args, **kwargs)
 
