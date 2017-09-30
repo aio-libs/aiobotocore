@@ -8,7 +8,7 @@ from setuptools import setup, find_packages
 # https://github.com/aio-libs/aiobotocore/pull/248 will continue working
 # If adding requirements make sure to also add to requirements-dev.txt
 install_requires = [
-    'botocore>=1.7.4, <=1.7.17',
+    'botocore>=1.7.4, <=1.7.20',
     'aiohttp>=2.0.4, <=2.3.0',
     'multidict>=2.1.4',
     'wrapt>=1.10.10',
