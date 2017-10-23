@@ -1,10 +1,13 @@
 import asyncio
 import sys
+import urllib
+import urllib.parse
 
 import aiohttp
 import botocore.retryhandler
 import botocore.endpoint
 
+from aiohttp import hdrs
 from aiohttp.client_reqrep import ClientResponse
 from botocore.endpoint import EndpointCreator, Endpoint, DEFAULT_TIMEOUT
 from botocore.exceptions import EndpointConnectionError, ConnectionClosedError
@@ -25,6 +28,41 @@ _aiohttp_retryable_exceptions = [
 botocore.retryhandler.EXCEPTION_MAP['GENERAL_CONNECTION_ERROR'].extend(
     _aiohttp_retryable_exceptions
 )
+
+
+MAX_REDIRECTS = 10
+
+
+@asyncio.coroutine
+def _aiohttp_do_redirect(session, method, url, headers, data, resp):
+    if (resp.status == 303 and resp.method != hdrs.METH_HEAD) \
+           or (resp.status in (301, 302) and
+               resp.method == hdrs.METH_POST):
+        method = hdrs.METH_GET
+        data = None
+        if headers.get(hdrs.CONTENT_LENGTH):
+            headers.pop(hdrs.CONTENT_LENGTH)
+
+    r_url = (resp.headers.get(hdrs.LOCATION) or
+             resp.headers.get(hdrs.URI))
+
+    if r_url is None:
+        return None
+
+    r_url = (resp.headers.get(hdrs.LOCATION) or
+             resp.headers.get(hdrs.URI))
+
+    scheme = urllib.parse.urlsplit(r_url)[0]
+    if scheme not in ('http', 'https', ''):
+        resp.close()
+        raise ValueError('Can redirect only to http or https')
+    elif not scheme:
+        r_url = urllib.parse.urljoin(url, r_url)
+
+    url = r_url
+    params = None
+    yield from resp.release()
+    return method, url, headers, params, data
 
 
 def text_(s, encoding='utf-8', errors='strict'):
@@ -156,11 +194,24 @@ class AioEndpoint(Endpoint):
     def _request(self, method, url, headers, data):
         headers_ = dict(
             (z[0], text_(z[1], encoding='utf-8')) for z in headers.items())
-        request_coro = self._aio_session.request(method, url=url,
-                                                 headers=headers_, data=data)
-        resp = yield from asyncio.wait_for(
-            request_coro, timeout=self._conn_timeout + self._read_timeout,
-            loop=self._loop)
+        for _ in range(MAX_REDIRECTS):
+            request_coro = self._aio_session.request(method, url=url,
+                                                     headers=headers_,
+                                                     data=data,
+                                                     allow_redirects=False)
+            resp = yield from asyncio.wait_for(
+                request_coro, timeout=self._conn_timeout + self._read_timeout,
+                loop=self._loop)
+
+            if resp.status in {301, 302, 303, 307}:
+                redir_arr = yield from _aiohttp_do_redirect(
+                    self._aio_session, method, url, headers, data, resp)
+
+                if redir_arr is None:
+                    break
+                method, url, headers, params, data = redir_arr
+            else:
+                break
         return resp
 
     @asyncio.coroutine
