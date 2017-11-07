@@ -8,7 +8,6 @@ import botocore.retryhandler
 import aiohttp.http_exceptions
 from aiohttp.client_proto import ResponseHandler
 from aiohttp.helpers import CeilTimeout
-from aiohttp import hdrs
 from aiohttp.client import URL
 from aiohttp.client_reqrep import ClientResponse
 from botocore.endpoint import EndpointCreator, Endpoint, DEFAULT_TIMEOUT, \
