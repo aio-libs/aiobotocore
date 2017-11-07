@@ -27,20 +27,19 @@ from botocore.session import Session, get_session
 #    github.com/aio-libs/aiobotocore/pull/248
 _READ_TIMEOUT_DIGESTS = {
     # for our replacement of _factory
-    TCPConnector: {'a153acda1bfc891d01a56597f77b33afbd786d3d'},
+    TCPConnector: {'1e6a3c14ce703781253da5cfdc7847b4ae898234'},
 
     # for its inheritance to DataQueue
-    ResponseHandler: {'1cfdb033cb4b4d586bbebf49bed3c2930c026809'},
+    ResponseHandler: {'5f11c28d0075e36dfec4705891f1c90248202ba4'},
 
     # for our replacement of read()
     DataQueue: {'8ad4d5df1d016547daea6389707bc656630582e5'},
 
     # for our patch of _wait
-    StreamReader: {'dc5a5a33e86cedf2d2c8413d951d2274a79303f4'},
+    StreamReader: {'c0a9a31a8c3e550de5985ab642028983f709b37b'},
 
     # for digging into _protocol ( 2.1.x, 2.2.x )
-    ClientResponse: {'d1e0c16dea4fe3426caa1e9b0dc9f5f1992d838e',
-                     'bc374038ac3bfd7cc13dadb6aebbf0f67ebb7620'},
+    ClientResponse: {'1dc0008e88b3f5ec2f59f6f5f03fae601f4a011d'},
 }
 
 # These are guards to our main patches
