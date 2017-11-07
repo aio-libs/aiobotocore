@@ -24,7 +24,7 @@ class AioPageIterator(PageIterator):
         self._next_token = dict((key, None) for key in self._input_token)
 
         if self._starting_token is not None:
-            next_token = self._parse_starting_token()[0]
+            self._next_token = self._parse_starting_token()[0]
 
         # The number of items from result_key we've seen so far.
         self._total_items = 0
