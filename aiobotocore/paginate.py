@@ -22,6 +22,10 @@ class AioPageIterator(PageIterator):
         self._current_kwargs = self._op_kwargs
         self._previous_next_token = None
         self._next_token = dict((key, None) for key in self._input_token)
+
+        if self._starting_token is not None:
+            self._next_token = self._parse_starting_token()[0]
+
         # The number of items from result_key we've seen so far.
         self._total_items = 0
         self._first_request = True
