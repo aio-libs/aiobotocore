@@ -8,7 +8,6 @@ import botocore.retryhandler
 import aiohttp.http_exceptions
 from aiohttp.client_proto import ResponseHandler
 from aiohttp.helpers import CeilTimeout
-from aiohttp import hdrs
 from aiohttp.client import URL
 from aiohttp.client_reqrep import ClientResponse
 from botocore.endpoint import EndpointCreator, Endpoint, DEFAULT_TIMEOUT, \
@@ -170,45 +169,6 @@ class WrappedResponseHandler(ResponseHandler):
             return resp_msg, stream_reader
 
 
-def _aiohttp_do_redirect(session, method, url, headers, data, resp):
-    # This is the redirect code from aiohttp, remove once
-    # https://github.com/aio-libs/aiobotocore/issues/267 is supported
-
-    # For 301 and 302, mimic IE, now changed in RFC
-    # https://github.com/kennethreitz/requests/pull/269
-
-    if (resp.status == 303 and
-            resp.method != hdrs.METH_HEAD) \
-            or (resp.status in (301, 302) and
-                resp.method == hdrs.METH_POST):
-        method = hdrs.METH_GET
-        data = None
-        if headers.get(hdrs.CONTENT_LENGTH):
-            headers.pop(hdrs.CONTENT_LENGTH)
-
-    r_url = (resp.headers.get(hdrs.LOCATION) or
-             resp.headers.get(hdrs.URI))
-    if r_url is None:
-        return None
-
-    r_url = URL(
-        r_url, encoded=not session.requote_redirect_url)
-
-    scheme = r_url.scheme
-    if scheme not in ('http', 'https', ''):
-        resp.close()
-        raise ValueError(
-            'Can redirect only to http or https')
-    elif not scheme:
-        r_url = url.join(r_url)
-
-    url = r_url
-    params = None
-    resp.release()
-
-    return method, url, headers, params, data
-
-
 class AioEndpoint(Endpoint):
     def __init__(self, host,
                  endpoint_prefix, event_emitter, proxies=None, verify=True,
@@ -259,23 +219,11 @@ class AioEndpoint(Endpoint):
             conn_timeout=self._conn_timeout,
             skip_auto_headers={'CONTENT-TYPE'},
             response_class=ClientResponseProxy,
-            loop=self._loop)
+            loop=self._loop,
+            auto_decompress=False)
 
     @asyncio.coroutine
     def _request(self, method, url, headers, data):
-        # Note: When using aiobotocore with dynamodb, requests fail on crc32
-        # checksum computation as soon as the response data reaches ~5KB.
-        # When AWS response is gzip compressed:
-        # 1. aiohttp is automatically decompressing the data
-        # (http://aiohttp.readthedocs.io/en/stable/client.html#binary-response-content)
-        # 2. botocore computes crc32 on the uncompressed data bytes and fails
-        # cause crc32 has been computed on the compressed data
-        # The following line forces aws not to use gzip compression,
-        # if there is a way to configure aiohttp not to perform decompression,
-        # we can remove the following line and take advantage of
-        # aws gzip compression.
-        # See: https://github.com/aio-libs/aiohttp/issues/1992
-        headers['Accept-Encoding'] = 'identity'
         headers_ = MultiDict(
             (z[0], text_(z[1], encoding='utf-8')) for z in headers.items())
 
@@ -286,27 +234,11 @@ class AioEndpoint(Endpoint):
             data = _IOBaseWrapper(data)
 
         url = URL(url, encoded=True)
-
-        # See https://github.com/aio-libs/aiobotocore/issues/267 for details
-        for i in range(MAX_REDIRECTS):
-            resp = yield from self._aio_session.request(method, url=url,
-                                                        headers=headers_,
-                                                        data=data,
-                                                        proxy=proxy,
-                                                        timeout=None,
-                                                        allow_redirects=False)
-
-            if resp.status in {301, 302, 303, 307}:
-                redir_arr = _aiohttp_do_redirect(self._aio_session, method,
-                                                 url, headers, data, resp)
-
-                if redir_arr is None:
-                    break
-
-                method, url, headers, params, data = redir_arr
-            else:
-                break
-
+        resp = yield from self._aio_session.request(method, url=url,
+                                                    headers=headers_,
+                                                    data=data,
+                                                    proxy=proxy,
+                                                    timeout=None)
         return resp
 
     @asyncio.coroutine

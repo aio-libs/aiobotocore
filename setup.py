@@ -9,7 +9,7 @@ from setuptools import setup, find_packages
 # If adding requirements make sure to also add to requirements-dev.txt
 install_requires = [
     'botocore>=1.7.28, <=1.7.40',
-    'aiohttp>=2.0.4, <=2.3.0',
+    'aiohttp>=2.3.0, <3.0.0',
     'multidict>=2.1.4',
     'wrapt>=1.10.10',
     'packaging>=16.8',
