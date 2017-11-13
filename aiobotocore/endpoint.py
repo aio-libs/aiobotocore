@@ -3,6 +3,7 @@ import asyncio
 import functools
 import sys
 import io
+import zlib
 import wrapt
 import botocore.retryhandler
 import aiohttp.http_exceptions
@@ -77,6 +78,13 @@ def convert_to_response_dict(http_response, operation_model):
     else:
         body = yield from http_response.read()
         response_dict['body'] = body
+
+    if response_dict['headers'].get('content-encoding', '').lower() == 'gzip' \
+            and isinstance(response_dict['body'], (bytes, bytearray)):
+        response_dict['body'] = zlib.decompress(
+            response_dict['body'],
+            16 + zlib.MAX_WBITS)
+
     return response_dict
 
 
