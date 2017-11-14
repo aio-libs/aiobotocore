@@ -1,5 +1,9 @@
 Changes
 -------
+0.5.1 (2017-11-10)
+^^^^^^^^^^^^^^^^^^
+* Disabled compressed response #430
+
 0.5.0 (2017-11-10)
 ^^^^^^^^^^^^^^^^^^
 * Fix error botocore error checking #190
