@@ -17,7 +17,7 @@ def test_topic_attributes(sns_client, topic_arn):
     attributes = topic_properties['Attributes']
 
     assert arn1 == topic_arn
-    assert json.loads(attributes['Policy']) == json.loads(DEFAULT_TOPIC_POLICY)
+    assert json.loads(attributes['Policy']) == DEFAULT_TOPIC_POLICY
     assert attributes['DisplayName'] == ''
 
     display_name = 'My display name'
