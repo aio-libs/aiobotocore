@@ -4,7 +4,7 @@ coverage==4.4.2
 flake8==3.5.0
 moto==1.1.25
 pytest-cov==2.5.1
-pytest==3.2.4
+pytest==3.3.0
 sphinx==1.6.5
 aiohttp==2.3.3
 botocore==1.7.43
