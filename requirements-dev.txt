@@ -6,7 +6,7 @@ moto==1.1.25
 pytest-cov==2.5.1
 pytest==3.3.0
 sphinx==1.6.5
-aiohttp==2.3.3
+aiohttp==2.3.4
 botocore==1.7.43
 multidict==3.3.2
 wrapt==1.10.11
