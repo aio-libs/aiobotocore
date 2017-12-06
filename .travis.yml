@@ -5,6 +5,13 @@ python:
     - 3.5
     - 3.6
 
+matrix:
+  include:
+  - python: 3.6
+    env: EXTRA="awscli"
+  - python: 3.6
+    env: EXTRA="boto3"
+
 install:
     - pip install -U setuptools
     - pip install -r requirements-dev.txt
@@ -12,8 +19,8 @@ install:
     - pip freeze
 
 script:
-    - make flake
-    - make mototest
+    - if [[ -v EXTRA ]]; then pip install .[$EXTRA]; fi
+    - if ! [[ -v EXTRA ]]; then make flake mototest; fi
 after_success:
     codecov
 deploy:
