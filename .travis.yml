@@ -27,3 +27,5 @@ deploy:
         repo: aio-libs/aiobotocore
         all_branches: true
         python: 3.5
+
+cache: pip
