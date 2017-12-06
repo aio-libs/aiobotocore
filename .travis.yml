@@ -14,7 +14,7 @@ matrix:
 
 install:
     - pip install -U setuptools
-    - pip install -r requirements-dev.txt
+    - if ! [[ -v EXTRA ]]; then pip install -r requirements-dev.txt; fi
     - pip install codecov
     - pip freeze
 
