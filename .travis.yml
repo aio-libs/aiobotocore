@@ -5,15 +5,23 @@ python:
     - 3.5
     - 3.6
 
+matrix:
+  include:
+  - python: 3.6
+    env: EXTRA="awscli"
+  - python: 3.6
+    env: EXTRA="boto3"
+
 install:
     - pip install -U setuptools
-    - pip install -r requirements-dev.txt
+    - if [[ -v EXTRA ]]; then pip install pipdeptree; fi
+    - if ! [[ -v EXTRA ]]; then pip install -r requirements-dev.txt; fi
     - pip install codecov
     - pip freeze
 
 script:
-    - make flake
-    - make mototest
+    - if [[ -v EXTRA ]]; then pip install -U .[$EXTRA] && pipdeptree --warn fail; fi
+    - if ! [[ -v EXTRA ]]; then make flake mototest; fi
 after_success:
     codecov
 deploy:
@@ -27,3 +35,5 @@ deploy:
         repo: aio-libs/aiobotocore
         all_branches: true
         python: 3.5
+
+cache: pip
