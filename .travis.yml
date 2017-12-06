@@ -14,12 +14,13 @@ matrix:
 
 install:
     - pip install -U setuptools
+    - if [[ -v EXTRA ]]; then pip install pipdeptree; fi
     - if ! [[ -v EXTRA ]]; then pip install -r requirements-dev.txt; fi
     - pip install codecov
     - pip freeze
 
 script:
-    - if [[ -v EXTRA ]]; then pip install -U .[$EXTRA]; fi
+    - if [[ -v EXTRA ]]; then pip install -U .[$EXTRA] && pipdeptree --warn fail; fi
     - if ! [[ -v EXTRA ]]; then make flake mototest; fi
 after_success:
     codecov
