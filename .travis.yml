@@ -19,7 +19,7 @@ install:
     - pip freeze
 
 script:
-    - if [[ -v EXTRA ]]; then pip install .[$EXTRA]; fi
+    - if [[ -v EXTRA ]]; then pip install -U .[$EXTRA]; fi
     - if ! [[ -v EXTRA ]]; then make flake mototest; fi
 after_success:
     codecov
