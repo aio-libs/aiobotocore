@@ -1,5 +1,10 @@
 Changes
 -------
+
+0.5.2 (2017-12-06)
+^^^^^^^^^^^^^^^^^^
+* Updated awscli dependency #461
+
 0.5.1 (2017-11-10)
 ^^^^^^^^^^^^^^^^^^
 * Disabled compressed response #430
