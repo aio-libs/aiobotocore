@@ -45,7 +45,7 @@ _READ_TIMEOUT_DIGESTS = {
 # These are guards to our main patches
 _API_DIGESTS = {
     ClientArgsCreator: {'a8d2e4159469622afcf938805b17ca76aefec7e7'},
-    ClientCreator: {'7d862f8663e93c310b2fd7c0b0741ce45dc0eb47'},
+    ClientCreator: {'9eef0e5fbd62fc495a5eee2dab118e36ae496dce'},
     BaseClient: {'23756d283379717b1320315c98399ba284b2d17c'},
     Config: {'c9261822caa7509d7b30b7738a9f034674061e35'},
     convert_to_response_dict: {'ed634b3f0c24f8858aee8ed745051397270b1e46'},
