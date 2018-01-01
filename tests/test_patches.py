@@ -46,10 +46,10 @@ _READ_TIMEOUT_DIGESTS = {
 _API_DIGESTS = {
     ClientArgsCreator: {'a8d2e4159469622afcf938805b17ca76aefec7e7'},
     ClientCreator: {'7d862f8663e93c310b2fd7c0b0741ce45dc0eb47'},
-    BaseClient: {'37ca6319cc9d6fc1fb36bf216e2b83d5766a5fab'},
+    BaseClient: {'23756d283379717b1320315c98399ba284b2d17c'},
     Config: {'c9261822caa7509d7b30b7738a9f034674061e35'},
     convert_to_response_dict: {'ed634b3f0c24f8858aee8ed745051397270b1e46'},
-    Endpoint: {'7aa956cf3f28f573384dbaeb2f819b0a05724e65'},
+    Endpoint: {'f1effcb1966ab690953f62a5cd48f510294a0440'},
     EndpointCreator: {'00cb4303f8e9e775fe76996ad2f8852df7900398'},
     PageIterator: {'5a14db3ee7bc8773974b36cfdb714649b17a6a42'},
     Session: {'87b50bbf6caf0d7ae0ed1498032194ec36ca00f5'},
