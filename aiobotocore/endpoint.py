@@ -16,6 +16,7 @@ from botocore.exceptions import EndpointConnectionError, ConnectionClosedError
 from botocore.hooks import first_non_none_response
 from botocore.utils import is_valid_endpoint_url
 from botocore.vendored.requests.structures import CaseInsensitiveDict
+from botocore.history import get_global_history_recorder
 from packaging.version import parse as parse_version
 from multidict import MultiDict
 from urllib.parse import urlparse
@@ -24,6 +25,7 @@ from urllib.parse import urlparse
 PY_35 = sys.version_info >= (3, 5)
 AIOHTTP_2 = parse_version(aiohttp.__version__) > parse_version('2.0.0')
 MAX_REDIRECTS = 10
+history_recorder = get_global_history_recorder()
 
 
 # Monkey patching: We need to insert the aiohttp exception equivalents
@@ -316,7 +318,13 @@ class AioEndpoint(Endpoint):
         try:
             # http request substituted too async one
             logger.debug("Sending http request: %s", request)
-
+            history_recorder.record('HTTP_REQUEST', {
+                'method': request.method,
+                'headers': request.headers,
+                'streaming': operation_model.has_streaming_input,
+                'url': request.url,
+                'body': request.body
+            })
             resp = yield from self._request(
                 request.method, request.url, request.headers, request.body)
             http_response = resp
@@ -348,10 +356,17 @@ class AioEndpoint(Endpoint):
         # This returns the http_response and the parsed_data.
         response_dict = yield from convert_to_response_dict(http_response,
                                                             operation_model)
+
+        http_response_record_dict = response_dict.copy()
+        http_response_record_dict['streaming'] = \
+            operation_model.has_streaming_output
+        history_recorder.record('HTTP_RESPONSE', http_response_record_dict)
+
         parser = self._response_parser_factory.create_parser(
             operation_model.metadata['protocol'])
         parsed_response = parser.parse(
             response_dict, operation_model.output_shape)
+        history_recorder.record('PARSED_RESPONSE', parsed_response)
         return (http_response, parsed_response), None
 
 

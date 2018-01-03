@@ -4,6 +4,7 @@ import sys
 import botocore.client
 
 from botocore.exceptions import OperationNotPageableError
+from botocore.history import get_global_history_recorder
 from botocore.paginate import Paginator
 from botocore.utils import get_service_module_name
 from botocore.waiter import xform_name
@@ -12,6 +13,9 @@ from .paginate import AioPageIterator
 from .args import AioClientArgsCreator
 from . import waiter
 PY_35 = sys.version_info >= (3, 5)
+
+
+history_recorder = get_global_history_recorder()
 
 
 class AioClientCreator(botocore.client.ClientCreator):
@@ -57,6 +61,12 @@ class AioBaseClient(botocore.client.BaseClient):
     @asyncio.coroutine
     def _make_api_call(self, operation_name, api_params):
         operation_model = self._service_model.operation_model(operation_name)
+        service_name = self._service_model.service_name
+        history_recorder.record('API_CALL', {
+            'service': service_name,
+            'operation': operation_name,
+            'params': api_params
+        })
         request_context = {
             'client_region': self.meta.region_name,
             'client_config': self.meta.config,
