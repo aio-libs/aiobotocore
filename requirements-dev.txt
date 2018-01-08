@@ -5,7 +5,7 @@ flake8==3.5.0
 moto==1.1.25
 pytest-cov==2.5.1
 pytest==3.3.1
-sphinx==1.6.5
+sphinx==1.6.6
 aiohttp==2.3.3
 botocore==1.8.21
 multidict==3.3.2
