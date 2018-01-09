@@ -26,7 +26,7 @@ from botocore.session import Session, get_session
 # The follow is for our monkeypatches for read_timeout:
 #    github.com/aio-libs/aiobotocore/pull/248
 _READ_TIMEOUT_DIGESTS = {
-    # for our replacement of _factory
+    # for our replacement of _factory and _create_connection
     TCPConnector: {'1e6a3c14ce703781253da5cfdc7847b4ae898234'},
 
     # for its inheritance to DataQueue

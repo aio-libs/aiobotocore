@@ -218,11 +218,12 @@ class AioEndpoint(Endpoint):
             # aiohttp default timeout is 30s so set something reasonable here
             connector_args = dict(keepalive_timeout=12)
 
-        connector = WrappedTCPConnector(loop=self._loop,
-                                        wrapped_conn_timeout=self._conn_timeout,
-                                        limit=max_pool_connections,
-                                        verify_ssl=self.verify,
-                                        **connector_args)
+        connector = WrappedTCPConnector(
+            loop=self._loop,
+            wrapped_conn_timeout=self._conn_timeout,
+            limit=max_pool_connections,
+            verify_ssl=self.verify,
+            **connector_args)
 
         # This begins the journey into our replacement of aiohttp's
         # `read_timeout`.  Their implementation represents an absolute time
