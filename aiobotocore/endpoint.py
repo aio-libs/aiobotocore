@@ -171,6 +171,27 @@ class WrappedResponseHandler(ResponseHandler):
             return resp_msg, stream_reader
 
 
+class WrappedTCPConnector(aiohttp.TCPConnector):
+    """
+    This class exists to correctly implement conn_timeout, remove once:
+    https://github.com/aio-libs/aiohttp/issues/2648 is resolved
+    """
+    def __init__(self, *args, **kwargs):
+        self.__wrapped_conn_timeout = kwargs.pop('wrapped_conn_timeout')
+        super().__init__(*args, **kwargs)
+
+    @asyncio.coroutine
+    def _create_connection(self, req):
+        # connection timeout
+        try:
+            with CeilTimeout(self.__wrapped_conn_timeout, loop=self._loop):
+                return super()._create_connection(req)
+        except asyncio.TimeoutError as exc:
+            raise aiohttp.ServerTimeoutError(
+                'Connection timeout '
+                'to host {0}'.format(req.url)) from exc
+
+
 class AioEndpoint(Endpoint):
     def __init__(self, host,
                  endpoint_prefix, event_emitter, proxies=None, verify=True,
@@ -197,10 +218,11 @@ class AioEndpoint(Endpoint):
             # aiohttp default timeout is 30s so set something reasonable here
             connector_args = dict(keepalive_timeout=12)
 
-        connector = aiohttp.TCPConnector(loop=self._loop,
-                                         limit=max_pool_connections,
-                                         verify_ssl=self.verify,
-                                         **connector_args)
+        connector = WrappedTCPConnector(loop=self._loop,
+                                        wrapped_conn_timeout=self._conn_timeout,
+                                        limit=max_pool_connections,
+                                        verify_ssl=self.verify,
+                                        **connector_args)
 
         # This begins the journey into our replacement of aiohttp's
         # `read_timeout`.  Their implementation represents an absolute time
@@ -218,7 +240,7 @@ class AioEndpoint(Endpoint):
         self._aio_session = aiohttp.ClientSession(
             connector=connector,
             read_timeout=None,
-            conn_timeout=self._conn_timeout,
+            conn_timeout=None,
             skip_auto_headers={'CONTENT-TYPE'},
             response_class=ClientResponseProxy,
             loop=self._loop,
