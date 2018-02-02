@@ -2,7 +2,7 @@
 Flask==0.12.2
 coverage==4.4.2
 flake8==3.5.0
-moto==1.1.25
+moto==1.2.0
 pytest-cov==2.5.1
 pytest==3.3.1
 sphinx==1.6.5
