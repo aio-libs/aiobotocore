@@ -1,6 +1,6 @@
 -e .
 Flask==0.12.2
-coverage==4.4.2
+coverage==4.5
 flake8==3.5.0
 moto==1.2.0
 pytest-cov==2.5.1
