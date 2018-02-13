@@ -7,7 +7,7 @@ pytest-cov==2.5.1
 pytest==3.3.1
 sphinx==1.6.5
 aiohttp==2.3.3
-botocore==1.8.21
+botocore==1.8.42
 multidict==3.3.2
 wrapt==1.10.11
 dill==0.2.7.1
