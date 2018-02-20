@@ -1,6 +1,8 @@
 import uuid
 import pytest
 
+from aiobotocore.waiter import WaiterError
+
 
 @pytest.mark.moto
 @pytest.mark.parametrize('signature_version', ['v4'])
@@ -128,3 +130,16 @@ def test_delete_table(dynamodb_client):
 
     response = yield from dynamodb_client.list_tables()
     assert table_name not in response['TableNames']
+
+
+@pytest.mark.moto
+@pytest.mark.parametrize('signature_version', ['v4'])
+@pytest.mark.run_loop
+def test_waiter_table_exists_failure(dynamodb_client):
+    waiter = dynamodb_client.get_waiter('table_exists')
+    with pytest.raises(
+            WaiterError,
+            match='Waiter TableExists failed: Max attempts exceeded'):
+        yield from waiter.wait(
+            TableName='unknown',
+            WaiterConfig=dict(Delay=1, MaxAttempts=1))
