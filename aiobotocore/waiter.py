@@ -21,6 +21,10 @@ class NormalizedOperationMethod(object):
 
 
 class AIOWaiter(Waiter):
+    def __init__(self, *args, **kwargs):
+        self._loop = kwargs.pop('loop', None) or asyncio.get_event_loop()
+        super().__init__(*args, **kwargs)
+
     @asyncio.coroutine
     def wait(self, **kwargs):
         acceptors = list(self.config.acceptors)
@@ -66,10 +70,10 @@ class AIOWaiter(Waiter):
                     reason='Max attempts exceeded',
                     last_response=response
                 )
-            yield from asyncio.sleep(sleep_amount)
+            yield from asyncio.sleep(sleep_amount, loop=self._loop)
 
 
-def create_waiter_with_client(waiter_name, waiter_model, client):
+def create_waiter_with_client(waiter_name, waiter_model, client, loop):
     """
 
     :type waiter_name: str
@@ -118,5 +122,5 @@ def create_waiter_with_client(waiter_name, waiter_model, client):
 
     # Return an instance of the new waiter class.
     return documented_waiter_cls(
-        waiter_name, single_waiter_config, operation_method
+        waiter_name, single_waiter_config, operation_method, loop=loop
     )

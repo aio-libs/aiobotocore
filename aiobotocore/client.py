@@ -58,6 +58,10 @@ class AioClientCreator(botocore.client.ClientCreator):
 
 
 class AioBaseClient(botocore.client.BaseClient):
+    def __init__(self, *args, **kwargs):
+        self._loop = kwargs.pop('loop', None) or asyncio.get_event_loop()
+        super().__init__(*args, **kwargs)
+
     @asyncio.coroutine
     def _make_api_call(self, operation_name, api_params):
         operation_model = self._service_model.operation_model(operation_name)
@@ -170,7 +174,7 @@ class AioBaseClient(botocore.client.BaseClient):
             raise ValueError("Waiter does not exist: %s" % waiter_name)
 
         return waiter.create_waiter_with_client(
-            mapping[waiter_name], model, self)
+            mapping[waiter_name], model, self, loop=self._loop)
 
     if PY_35:
         @asyncio.coroutine

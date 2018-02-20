@@ -79,5 +79,6 @@ class AioClientArgsCreator(botocore.args.ClientArgsCreator):
             'loader': self._loader,
             'client_config': new_config,
             'partition': partition,
-            'exceptions_factory': self._exceptions_factory
+            'exceptions_factory': self._exceptions_factory,
+            'loop': self._loop
         }
