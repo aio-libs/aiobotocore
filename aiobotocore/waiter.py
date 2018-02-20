@@ -1,11 +1,23 @@
 import asyncio
 
 # WaiterModel is required for client.py import
+from botocore.exceptions import ClientError
 from botocore.waiter import WaiterModel  # noqa: F401
-from botocore.waiter import Waiter, xform_name, NormalizedOperationMethod, \
-    logger, WaiterError
+from botocore.waiter import Waiter, xform_name, logger, WaiterError
 from botocore.docs.docstring import WaiterDocstring
 from botocore.utils import get_service_module_name
+
+
+class NormalizedOperationMethod(object):
+    def __init__(self, client_method):
+        self._client_method = client_method
+
+    @asyncio.coroutine
+    def __call__(self, **kwargs):
+        try:
+            return (yield from self._client_method(**kwargs))
+        except ClientError as e:
+            return e.response
 
 
 class AIOWaiter(Waiter):
