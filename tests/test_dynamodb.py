@@ -144,7 +144,7 @@ def test_waiter_table_exists(loop, dynamodb_client, dynamodb_table_def):
 
     @asyncio.coroutine
     def _create_table():
-        yield from asyncio.sleep(2)
+        yield from asyncio.sleep(2, loop=loop)
         yield from dynamodb_client.create_table(**dynamodb_table_def)
 
     task = loop.create_task(_create_table())
