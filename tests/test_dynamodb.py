@@ -1,7 +1,32 @@
+import asyncio
 import uuid
 import pytest
 
 from aiobotocore.waiter import WaiterError
+
+
+@pytest.fixture
+def dynamodb_table_def():
+    table_name = str(uuid.uuid4())
+    return dict(
+        TableName=table_name,
+        AttributeDefinitions=[
+            {
+                'AttributeName': 'testKey',
+                'AttributeType': 'N'
+            },
+        ],
+        KeySchema=[
+            {
+                'AttributeName': 'testKey',
+                'KeyType': 'HASH'
+            },
+        ],
+        ProvisionedThroughput={
+            'ReadCapacityUnits': 1,
+            'WriteCapacityUnits': 1
+        }
+    )
 
 
 @pytest.mark.moto
