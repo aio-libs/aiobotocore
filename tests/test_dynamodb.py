@@ -134,3 +134,25 @@ def test_waiter_table_exists_failure(dynamodb_client):
         yield from waiter.wait(
             TableName='unknown',
             WaiterConfig=dict(Delay=1, MaxAttempts=1))
+
+
+@pytest.mark.moto
+@pytest.mark.parametrize('signature_version', ['v4'])
+@pytest.mark.run_loop
+def test_waiter_table_exists(loop, dynamodb_client, dynamodb_table_def):
+    table_name = dynamodb_table_def['TableName']
+
+    @asyncio.coroutine
+    def _create_table():
+        yield from asyncio.sleep(2)
+        yield from dynamodb_client.create_table(**dynamodb_table_def)
+
+    task = loop.create_task(_create_table())
+    assert not task.done()
+
+    waiter = dynamodb_client.get_waiter('table_exists')
+    yield from waiter.wait(
+        TableName=table_name,
+        WaiterConfig=dict(Delay=1, MaxAttempts=5))
+
+    assert task.done()
