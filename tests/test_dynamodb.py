@@ -1,5 +1,32 @@
+import asyncio
 import uuid
 import pytest
+
+from aiobotocore.waiter import WaiterError
+
+
+@pytest.fixture
+def dynamodb_table_def():
+    table_name = str(uuid.uuid4())
+    return dict(
+        TableName=table_name,
+        AttributeDefinitions=[
+            {
+                'AttributeName': 'testKey',
+                'AttributeType': 'N'
+            },
+        ],
+        KeySchema=[
+            {
+                'AttributeName': 'testKey',
+                'KeyType': 'HASH'
+            },
+        ],
+        ProvisionedThroughput={
+            'ReadCapacityUnits': 1,
+            'WriteCapacityUnits': 1
+        }
+    )
 
 
 @pytest.mark.moto
@@ -23,28 +50,11 @@ def test_get_item(dynamodb_client, table_name, dynamodb_put_item):
 @pytest.mark.moto
 @pytest.mark.parametrize('signature_version', ['v4'])
 @pytest.mark.run_loop
-def test_create_waiter(dynamodb_client):
-    table_name = str(uuid.uuid4())
+def test_create_waiter(dynamodb_client, dynamodb_table_def):
+    table_name = dynamodb_table_def['TableName']
 
-    response = yield from dynamodb_client.create_table(
-        TableName=table_name,
-        AttributeDefinitions=[
-            {
-                'AttributeName': 'testKey',
-                'AttributeType': 'S'
-            },
-        ],
-        KeySchema=[
-            {
-                'AttributeName': 'testKey',
-                'KeyType': 'HASH'
-            },
-        ],
-        ProvisionedThroughput={
-            'ReadCapacityUnits': 1,
-            'WriteCapacityUnits': 1
-        }
-    )
+    response = yield from dynamodb_client.create_table(**dynamodb_table_def)
+
     pytest.aio.assert_status_code(response, 200)
 
     waiter = dynamodb_client.get_waiter('table_exists')
@@ -94,28 +104,11 @@ def test_batch_write_scan(dynamodb_client, table_name):
 @pytest.mark.moto
 @pytest.mark.parametrize('signature_version', ['v4'])
 @pytest.mark.run_loop
-def test_delete_table(dynamodb_client):
-    table_name = str(uuid.uuid4())
+def test_delete_table(dynamodb_client, dynamodb_table_def):
+    table_name = dynamodb_table_def['TableName']
 
-    yield from dynamodb_client.create_table(
-        TableName=table_name,
-        AttributeDefinitions=[
-            {
-                'AttributeName': 'testKey',
-                'AttributeType': 'N'
-            },
-        ],
-        KeySchema=[
-            {
-                'AttributeName': 'testKey',
-                'KeyType': 'HASH'
-            },
-        ],
-        ProvisionedThroughput={
-            'ReadCapacityUnits': 1,
-            'WriteCapacityUnits': 1
-        }
-    )
+    yield from dynamodb_client.create_table(**dynamodb_table_def)
+
     response = yield from dynamodb_client.describe_table(
         TableName=table_name
     )
@@ -128,3 +121,38 @@ def test_delete_table(dynamodb_client):
 
     response = yield from dynamodb_client.list_tables()
     assert table_name not in response['TableNames']
+
+
+@pytest.mark.moto
+@pytest.mark.parametrize('signature_version', ['v4'])
+@pytest.mark.run_loop
+def test_waiter_table_exists_failure(dynamodb_client):
+    waiter = dynamodb_client.get_waiter('table_exists')
+    with pytest.raises(
+            WaiterError,
+            match='Waiter TableExists failed: Max attempts exceeded'):
+        yield from waiter.wait(
+            TableName='unknown',
+            WaiterConfig=dict(Delay=1, MaxAttempts=1))
+
+
+@pytest.mark.moto
+@pytest.mark.parametrize('signature_version', ['v4'])
+@pytest.mark.run_loop
+def test_waiter_table_exists(loop, dynamodb_client, dynamodb_table_def):
+    table_name = dynamodb_table_def['TableName']
+
+    @asyncio.coroutine
+    def _create_table():
+        yield from asyncio.sleep(2, loop=loop)
+        yield from dynamodb_client.create_table(**dynamodb_table_def)
+
+    task = loop.create_task(_create_table())
+    assert not task.done()
+
+    waiter = dynamodb_client.get_waiter('table_exists')
+    yield from waiter.wait(
+        TableName=table_name,
+        WaiterConfig=dict(Delay=1, MaxAttempts=5))
+
+    assert task.done()
