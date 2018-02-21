@@ -8,7 +8,7 @@ from botocore.docs.docstring import WaiterDocstring
 from botocore.utils import get_service_module_name
 
 
-class NormalizedOperationMethod(object):
+class NormalizedOperationMethod:
     def __init__(self, client_method):
         self._client_method = client_method
 
