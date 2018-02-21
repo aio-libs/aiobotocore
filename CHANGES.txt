@@ -2,7 +2,7 @@ Changes
 -------
 0.5.3 (YYYY-MM-DD)
 ^^^^^^^^^^^^^^^^^^
-* Fixed waiters
+* Fixed waiters (thanks @dalazx)
 
 0.5.2 (2017-12-06)
 ^^^^^^^^^^^^^^^^^^
