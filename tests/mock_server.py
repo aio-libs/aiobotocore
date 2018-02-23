@@ -18,7 +18,7 @@ _proxy_bypass = {
 }
 
 
-host = "127.0.0.1"
+host = "localhost"
 
 
 def get_free_tcp_port():
@@ -36,7 +36,7 @@ class AIOServer(threading.Thread):
         self._port = get_free_tcp_port()
         self.start()
         self.endpoint_url = 'http://{}:{}'.format(host, self._port)
-        self._shutdown_evt = asyncio.Event()
+        self._shutdown_evt = threading.Event()
 
     def _run(self):
         self._loop = asyncio.new_event_loop()
@@ -94,14 +94,7 @@ class AIOServer(threading.Thread):
         if self._loop:
             self._loop.stop()
 
-            # for some reason yielding on wait hangs, so we busy loop
-            for i in range(20):
-                if not self._shutdown_evt.is_set():
-                    yield from asyncio.sleep(0.5)
-
-                break
-
-            if not self._shutdown_evt.is_set():
+            if not self._shutdown_evt.wait(20):
                 pytest.fail("Unable to shut down server")
 
 

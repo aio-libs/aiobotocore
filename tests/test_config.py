@@ -52,7 +52,9 @@ def test_connector_timeout(loop):
     config = AioConfig(max_pool_connections=1, connect_timeout=1,
                        retries={'max_attempts': 0})
     s3_client = session.create_client('s3', config=config,
-                                      endpoint_url=server.endpoint_url)
+                                      endpoint_url=server.endpoint_url,
+                                      aws_secret_access_key='xxx',
+                                      aws_access_key_id='xxx')
 
     try:
         server.wait_until_up()
