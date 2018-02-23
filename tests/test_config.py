@@ -69,7 +69,8 @@ def test_connector_timeout(loop):
         task2 = asyncio.Task(get_and_wait(), loop=loop)
 
         try:
-            done, pending = yield from asyncio.wait([task1, task2], timeout=3, loop=loop)
+            done, pending = yield from asyncio.wait([task1, task2],
+                                                    timeout=3, loop=loop)
 
             # second request should not timeout just because there isn't a
             # connector available
