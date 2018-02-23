@@ -66,7 +66,7 @@ class AIOServer(threading.Thread):
                               headers={'Content-Type': 'text/html'})
 
         yield from resp.prepare(request)
-        yield from asyncio.sleep(5)
+        yield from asyncio.sleep(5, loop=self._loop)
         yield from resp.drain()
         return resp
 

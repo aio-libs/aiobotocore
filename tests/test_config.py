@@ -1,6 +1,6 @@
 import asyncio
 from mock_server import AIOServer
-from aiobotocore import get_session
+from aiobotocore.session import AioSession
 from aiobotocore.config import AioConfig
 from botocore.config import Config
 from botocore.exceptions import ParamValidationError
@@ -45,11 +45,10 @@ def test_connector_args():
 
 
 @pytest.mark.moto
-@pytest.mark.asyncio
-@asyncio.coroutine
-def test_connector_timeout():
+@pytest.mark.run_loop
+def test_connector_timeout(loop):
     server = AIOServer()
-    session = get_session()
+    session = AioSession(loop=loop)
     config = AioConfig(max_pool_connections=1, connect_timeout=1,
                        retries={'max_attempts': 0})
     s3_client = session.create_client('s3', config=config,
@@ -66,11 +65,11 @@ def test_connector_timeout():
             yield from asyncio.sleep(100)
 
         # this should not raise as we won't have any issues connecting to the
-        task1 = asyncio.Task(get_and_wait())
-        task2 = asyncio.Task(get_and_wait())
+        task1 = asyncio.Task(get_and_wait(), loop=loop)
+        task2 = asyncio.Task(get_and_wait(), loop=loop)
 
         try:
-            done, pending = yield from asyncio.wait([task1, task2], timeout=3)
+            done, pending = yield from asyncio.wait([task1, task2], timeout=3, loop=loop)
 
             # second request should not timeout just because there isn't a
             # connector available
