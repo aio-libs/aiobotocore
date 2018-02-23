@@ -22,7 +22,7 @@ class AIOServer(threading.Thread):
         self._port = port
         self.start()
         self.endpoint_url = 'http://localhost:{}'.format(port)
-        self._shutdown_evt = asyncio.Event()
+        self._shutdown_evt = threading.Event()
 
     def _run(self):
         self._loop = asyncio.new_event_loop()
@@ -33,7 +33,7 @@ class AIOServer(threading.Thread):
         try:
             aiohttp.web.run_app(app, host='localhost', port=self._port,
                                 loop=self._loop, handle_signals=False)
-        except:
+        except BaseException:
             pytest.fail('unable to start and connect to aiohttp server')
             raise
         finally:
@@ -61,12 +61,14 @@ class AIOServer(threading.Thread):
         for i in range(0, 30):
             try:
                 # we need to bypass the proxies due to monkey patches
-                requests.get(self.endpoint_url + '/ok', timeout=0.5, proxies=_proxy_bypass)
+                requests.get(self.endpoint_url + '/ok', timeout=0.5,
+                             proxies=_proxy_bypass)
                 connected = True
                 break
-            except (requests.exceptions.ConnectionError, requests.exceptions.ReadTimeout):
+            except (requests.exceptions.ConnectionError,
+                    requests.exceptions.ReadTimeout):
                 time.sleep(0.5)
-            except:
+            except BaseException:
                 pytest.fail('unable to start and connect to aiohttp server')
                 raise
 
@@ -78,20 +80,8 @@ class AIOServer(threading.Thread):
         if self._loop:
             self._loop.stop()
 
-            try:
-                # FIXME
-                # yield from self._shutdown_evt.wait()
-                # for some reason yielding on wait hangs, so we busy loop
-                for i in range(20):
-                    if not self._shutdown_evt.is_set():
-                        yield from asyncio.sleep(0.5)
-
-                    break
-
-                if not self._shutdown_evt.is_set():
-                    pytest.fail("Unable to shut down server")
-            except:
-                raise
+            if not self._shutdown_evt.wait(20):
+                pytest.fail("Unable to shut down server")
 
 
 def start_service(service_name, host, port):
@@ -104,7 +94,8 @@ def start_service(service_name, host, port):
     for i in range(0, 30):
         if process.poll() is not None:
             stdout, stderr = process.communicate()
-            pytest.fail("service failed starting up: {}  stdout: {} stderr: {}".format(service_name, stdout, stderr))
+            pytest.fail("service failed starting up: {}  stdout: {} stderr: {}"
+                        "".format(service_name, stdout, stderr))
             break
 
         try:

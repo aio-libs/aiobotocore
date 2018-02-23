@@ -1,5 +1,4 @@
 import asyncio
-import aiohttp
 from mock_server import AIOServer
 from aiobotocore import get_session
 from aiobotocore.config import AioConfig
@@ -50,7 +49,10 @@ def test_connector_args():
 def test_connector_timeout(loop):
     server = AIOServer(8080)
     session = get_session(loop=loop)
-    s3_client = session.create_client('s3', config=AioConfig(max_pool_connections=1, connect_timeout=1, retries={'max_attempts': 0}), endpoint_url=server.endpoint_url)
+    config = AioConfig(max_pool_connections=1, connect_timeout=1,
+                       retries={'max_attempts': 0})
+    s3_client = session.create_client('s3', config=config,
+                                      endpoint_url=server.endpoint_url)
 
     try:
         server.wait_until_up()
@@ -67,13 +69,12 @@ def test_connector_timeout(loop):
         try:
             done, pending = yield from asyncio.wait([task1, task2], timeout=3)
 
-            # second request should not timeout just because there isn't a connector available
+            # second request should not timeout just because there isn't a
+            # connector available
             assert len(pending) == 2
         finally:
             task1.cancel()
             task2.cancel()
-    except:
-        raise
     finally:
         s3_client.close()
         yield from server.stop()
