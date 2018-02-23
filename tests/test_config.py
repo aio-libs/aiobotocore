@@ -45,10 +45,11 @@ def test_connector_args():
 
 
 @pytest.mark.moto
-@pytest.mark.run_loop
-def test_connector_timeout(loop):
+@pytest.mark.asyncio
+@asyncio.coroutine
+def test_connector_timeout():
     server = AIOServer()
-    session = get_session(loop=loop)
+    session = get_session()
     config = AioConfig(max_pool_connections=1, connect_timeout=1,
                        retries={'max_attempts': 0})
     s3_client = session.create_client('s3', config=config,
