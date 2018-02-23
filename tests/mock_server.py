@@ -9,6 +9,8 @@ import subprocess as sp
 import sys
 import time
 import threading
+import socket
+
 
 _proxy_bypass = {
   "http": None,
@@ -16,13 +18,24 @@ _proxy_bypass = {
 }
 
 
+host = "127.0.0.1"
+
+
+def get_free_tcp_port():
+    sckt = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sckt.bind((host, 0))
+    addr, port = sckt.getsockname()
+    sckt.close()
+    return port
+
+
 class AIOServer(threading.Thread):
-    def __init__(self, port):
+    def __init__(self):
         super().__init__(target=self._run)
         self._loop = None
-        self._port = port
+        self._port = get_free_tcp_port()
         self.start()
-        self.endpoint_url = 'http://127.0.0.1:{}'.format(port)
+        self.endpoint_url = 'http://{}:{}'.format(host, self._port)
         self._shutdown_evt = asyncio.Event()
 
     def _run(self):
@@ -32,7 +45,7 @@ class AIOServer(threading.Thread):
         app.router.add_route('*', '/{anything:.*}', self.stream_handler)
 
         try:
-            aiohttp.web.run_app(app, host='0.0.0.0', port=self._port,
+            aiohttp.web.run_app(app, host=host, port=self._port,
                                 loop=self._loop, handle_signals=False)
         except BaseException:
             pytest.fail('unable to start and connect to aiohttp server')

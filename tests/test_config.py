@@ -47,7 +47,7 @@ def test_connector_args():
 @pytest.mark.moto
 @pytest.mark.run_loop
 def test_connector_timeout(loop):
-    server = AIOServer(9999)
+    server = AIOServer()
     session = get_session(loop=loop)
     config = AioConfig(max_pool_connections=1, connect_timeout=1,
                        retries={'max_attempts': 0})
