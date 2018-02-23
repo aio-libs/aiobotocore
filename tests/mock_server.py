@@ -23,7 +23,7 @@ class AIOServer(threading.Thread):
         self._port = port
         self.start()
         self.endpoint_url = 'http://localhost:{}'.format(port)
-        self._shutdown_evt = threading.Event()
+        self._shutdown_evt = asyncio.Event()
 
     def _run(self):
         self._loop = asyncio.new_event_loop()
@@ -81,7 +81,14 @@ class AIOServer(threading.Thread):
         if self._loop:
             self._loop.stop()
 
-            if not self._shutdown_evt.wait(20):
+            # for some reason yielding on wait hangs, so we busy loop
+            for i in range(20):
+                if not self._shutdown_evt.is_set():
+                    yield from asyncio.sleep(0.5)
+
+                break
+
+            if not self._shutdown_evt.is_set():
                 pytest.fail("Unable to shut down server")
 
 
