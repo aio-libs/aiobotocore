@@ -15,6 +15,7 @@ from botocore.endpoint import convert_to_response_dict, Endpoint, \
     EndpointCreator
 from botocore.paginate import PageIterator
 from botocore.session import Session, get_session
+from botocore.waiter import NormalizedOperationMethod
 
 
 # This file ensures that our private patches will work going forward.  If a
@@ -54,6 +55,7 @@ _API_DIGESTS = {
     PageIterator: {'5a14db3ee7bc8773974b36cfdb714649b17a6a42'},
     Session: {'87b50bbf6caf0d7ae0ed1498032194ec36ca00f5'},
     get_session: {'c47d588f5da9b8bde81ccc26eaef3aee19ddd901'},
+    NormalizedOperationMethod: {'ee88834b123c6c77dfea0b4208308cd507a6ba36'},
 }
 
 

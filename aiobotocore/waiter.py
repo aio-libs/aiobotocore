@@ -1,14 +1,30 @@
 import asyncio
 
 # WaiterModel is required for client.py import
+from botocore.exceptions import ClientError
 from botocore.waiter import WaiterModel  # noqa: F401
-from botocore.waiter import Waiter, xform_name, NormalizedOperationMethod, \
-    logger, WaiterError
+from botocore.waiter import Waiter, xform_name, logger, WaiterError
 from botocore.docs.docstring import WaiterDocstring
 from botocore.utils import get_service_module_name
 
 
+class NormalizedOperationMethod:
+    def __init__(self, client_method):
+        self._client_method = client_method
+
+    @asyncio.coroutine
+    def __call__(self, **kwargs):
+        try:
+            return (yield from self._client_method(**kwargs))
+        except ClientError as e:
+            return e.response
+
+
 class AIOWaiter(Waiter):
+    def __init__(self, *args, **kwargs):
+        self._loop = kwargs.pop('loop', None) or asyncio.get_event_loop()
+        super().__init__(*args, **kwargs)
+
     @asyncio.coroutine
     def wait(self, **kwargs):
         acceptors = list(self.config.acceptors)
@@ -54,10 +70,10 @@ class AIOWaiter(Waiter):
                     reason='Max attempts exceeded',
                     last_response=response
                 )
-            yield from asyncio.sleep(sleep_amount)
+            yield from asyncio.sleep(sleep_amount, loop=self._loop)
 
 
-def create_waiter_with_client(waiter_name, waiter_model, client):
+def create_waiter_with_client(waiter_name, waiter_model, client, loop):
     """
 
     :type waiter_name: str
@@ -106,5 +122,5 @@ def create_waiter_with_client(waiter_name, waiter_model, client):
 
     # Return an instance of the new waiter class.
     return documented_waiter_cls(
-        waiter_name, single_waiter_config, operation_method
+        waiter_name, single_waiter_config, operation_method, loop=loop
     )
