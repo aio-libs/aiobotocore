@@ -99,6 +99,8 @@ commonly used methods.
 +----------------+-----------------------+
 | CloudFormation | Stack creation tested |
 +----------------+-----------------------+
+| Kinesis        | Basic methods tested  |
++----------------+-----------------------+
 
 Due to the way boto3 is implemented, its highly likely that even if services are not listed above that you can take any `boto3.client('service')` and
 stick `await` infront of methods to make them async, e.g. `await client.list_named_queries()` would asynchronous list all of the named Athena queries.
