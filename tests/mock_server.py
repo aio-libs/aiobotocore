@@ -49,7 +49,7 @@ class AIOServer(threading.Thread):
         # Without the Content-Type, most (all?) browsers will not render
         # partially downloaded content. Note, the response type is
         # StreamResponse not Response.
-        resp = StreamResponse(status=200,reason='OK',
+        resp = StreamResponse(status=200, reason='OK',
                               headers={'Content-Type': 'text/html'})
 
         yield from resp.prepare(request)
