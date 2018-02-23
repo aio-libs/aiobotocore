@@ -22,7 +22,7 @@ class AIOServer(threading.Thread):
         self._loop = None
         self._port = port
         self.start()
-        self.endpoint_url = 'http://localhost:{}'.format(port)
+        self.endpoint_url = 'http://127.0.0.1:{}'.format(port)
         self._shutdown_evt = asyncio.Event()
 
     def _run(self):
@@ -32,7 +32,7 @@ class AIOServer(threading.Thread):
         app.router.add_route('*', '/{anything:.*}', self.stream_handler)
 
         try:
-            aiohttp.web.run_app(app, host='localhost', port=self._port,
+            aiohttp.web.run_app(app, host='0.0.0.0', port=self._port,
                                 loop=self._loop, handle_signals=False)
         except BaseException:
             pytest.fail('unable to start and connect to aiohttp server')
