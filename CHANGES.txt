@@ -1,9 +1,9 @@
 Changes
 -------
-0.5.3 (2017-01-09)
+0.5.3 (2017-02-23)
 ^^^^^^^^^^^^^^^^^^
-* fix conn_timeout #485
 * Fixed waiters (thanks @dalazx)
+* fix conn_timeout #485
 
 0.5.2 (2017-12-06)
 ^^^^^^^^^^^^^^^^^^
