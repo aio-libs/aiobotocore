@@ -9,7 +9,7 @@ from setuptools import setup, find_packages
 # If adding requirements make sure to also add to requirements-dev.txt
 install_requires = [
     'botocore>=1.8.0, <=1.8.21',
-    'aiohttp>=2.3.0, <3.0.0',
+    'aiohttp>=3.0.0',
     'multidict>=2.1.4',
     'wrapt>=1.10.10',
     'packaging>=16.8',
@@ -17,8 +17,8 @@ install_requires = [
 
 PY_VER = sys.version_info
 
-if not PY_VER >= (3, 4, 1):
-    raise RuntimeError("aiobotocore doesn't support Python earlier than 3.4")
+if not PY_VER >= (3, 5, 3):
+    raise RuntimeError("aiobotocore doesn't support Python earlier than 3.5")
 
 
 def read(f):
@@ -49,7 +49,6 @@ classifiers = [
     'Intended Audience :: Developers',
     'Intended Audience :: System Administrators',
     'Programming Language :: Python :: 3',
-    'Programming Language :: Python :: 3.4',
     'Programming Language :: Python :: 3.5',
     'Programming Language :: Python :: 3.6',
     'Environment :: Web Environment',

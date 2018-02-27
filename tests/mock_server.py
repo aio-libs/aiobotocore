@@ -10,6 +10,7 @@ import sys
 import time
 import threading
 import socket
+from unittest import mock
 
 
 _proxy_bypass = {
@@ -45,8 +46,12 @@ class AIOServer(threading.Thread):
         app.router.add_route('*', '/{anything:.*}', self.stream_handler)
 
         try:
-            aiohttp.web.run_app(app, host=host, port=self._port,
-                                loop=self._loop, handle_signals=False)
+            # We need to mock `.get_event_loop` function and return
+            # `self._loop` explicitly because from `aiohttp>=3.0.0` we can't
+            # pass `loop` as a kwargs into `run_app`.
+            with mock.patch('asyncio.get_event_loop', return_value=self._loop):
+                aiohttp.web.run_app(app, host=host, port=self._port,
+                                    handle_signals=False)
         except BaseException:
             pytest.fail('unable to start and connect to aiohttp server')
             raise

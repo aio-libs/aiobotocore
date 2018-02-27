@@ -181,11 +181,11 @@ class WrappedTCPConnector(aiohttp.TCPConnector):
         super().__init__(*args, **kwargs)
 
     @asyncio.coroutine
-    def _create_connection(self, req):
+    def _create_connection(self, req, traces=None):
         # connection timeout
         try:
             with CeilTimeout(self.__wrapped_conn_timeout, loop=self._loop):
-                return super()._create_connection(req)
+                return super()._create_connection(req, traces=None)
         except asyncio.TimeoutError as exc:
             raise aiohttp.ServerTimeoutError(
                 'Connection timeout '
