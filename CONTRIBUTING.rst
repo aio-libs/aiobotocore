@@ -13,7 +13,7 @@ Fist of all just clone repository::
 
     $ git clone git@github.com:aio-libs/aiobotocore.git
 
-Create virtualenv with at least python3.4 (older version are not supported).
+Create virtualenv with at least python3.5 (older version are not supported).
 For example using *virtualenvwrapper* commands could look like::
 
    $ cd aiobotocore

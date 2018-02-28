@@ -28,19 +28,19 @@ from botocore.waiter import NormalizedOperationMethod
 #    github.com/aio-libs/aiobotocore/pull/248
 _READ_TIMEOUT_DIGESTS = {
     # for our replacement of _factory and _create_connection
-    TCPConnector: {'1e6a3c14ce703781253da5cfdc7847b4ae898234'},
+    TCPConnector: {'42a405b3d0b4aa9a61eb7d72925a5c8e373bec6b'},
 
     # for its inheritance to DataQueue
-    ResponseHandler: {'5f11c28d0075e36dfec4705891f1c90248202ba4'},
+    ResponseHandler: {'96d9eb3f04ff80a2acaf2fc18a103db474a3c965'},
 
     # for our replacement of read()
-    DataQueue: {'8ad4d5df1d016547daea6389707bc656630582e5'},
+    DataQueue: {'be516f7bcdbf5235218261d8ed1f490d299f611d'},
 
     # for our patch of _wait
-    StreamReader: {'c0a9a31a8c3e550de5985ab642028983f709b37b'},
+    StreamReader: {'d4ffb6ae823ef4bfd810aade8601ba7b01aa08ec'},
 
-    # for digging into _protocol ( 2.1.x, 2.2.x )
-    ClientResponse: {'1dc0008e88b3f5ec2f59f6f5f03fae601f4a011d'},
+    # for digging into _protocol
+    ClientResponse: {'c2f662e8d641e538ac2a0a0f44c2bf1805167dd1'},
 }
 
 # These are guards to our main patches
