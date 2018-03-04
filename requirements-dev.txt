@@ -13,4 +13,4 @@ botocore==1.8.21
 multidict==3.3.2
 wrapt==1.10.11
 dill==0.2.7.1
-packaging==16.8
+packaging==17.1
