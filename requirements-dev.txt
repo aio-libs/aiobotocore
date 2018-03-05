@@ -8,8 +8,8 @@ pytest-cov==2.5.1
 pytest==3.4.1
 sphinx==1.7.1
 yarl==1.1.1
-aiohttp==3.0.5
-botocore==1.8.21
+aiohttp==3.0.6
+botocore==1.9.3
 multidict==4.1.0
 wrapt==1.10.11
 dill==0.2.7.1
