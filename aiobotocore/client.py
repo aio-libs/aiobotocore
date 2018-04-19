@@ -1,6 +1,9 @@
 import asyncio
+import logging
 
 import botocore.client
+
+from botocore.docs.docstring import PaginatorDocstring
 from botocore.exceptions import OperationNotPageableError
 from botocore.history import get_global_history_recorder
 from botocore.paginate import Paginator
@@ -12,6 +15,7 @@ from .args import AioClientArgsCreator
 from . import waiter
 
 
+logger = logging.getLogger(__name__)
 history_recorder = get_global_history_recorder()
 
 
@@ -67,6 +71,9 @@ class AioBaseClient(botocore.client.BaseClient):
             'operation': operation_name,
             'params': api_params
         })
+        if operation_model.deprecated:
+            logger.debug('Warning: %s.%s() is deprecated',
+                         service_name, operation_name)
         request_context = {
             'client_region': self.meta.region_name,
             'client_config': self.meta.config,
@@ -139,6 +146,15 @@ class AioBaseClient(botocore.client.BaseClient):
 
             paginator_config = self._cache['page_config'][
                 actual_operation_name]
+
+            # Add the docstring for the paginate method.
+            paginate.__doc__ = PaginatorDocstring(
+                paginator_name=actual_operation_name,
+                event_emitter=self.meta.events,
+                service_model=self.meta.service_model,
+                paginator_config=paginator_config,
+                include_signature=False
+            )
 
             # Rename the paginator class based on the type of paginator.
             paginator_class_name = str('%s.Paginator.%s' % (
