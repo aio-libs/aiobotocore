@@ -1,11 +1,6 @@
-import asyncio
-import sys
-
 from botocore.exceptions import PaginationError
 from botocore.paginate import PageIterator
 from botocore.utils import set_value_from_jmespath, merge_dicts
-
-PY_35 = sys.version_info >= (3, 5)
 
 
 class AioPageIterator(PageIterator):
@@ -33,12 +28,11 @@ class AioPageIterator(PageIterator):
         self._starting_truncation = 0
         self._inject_starting_params(self._current_kwargs)
 
-    @asyncio.coroutine
-    def next_page(self):
+    async def next_page(self):
         if self._is_stop:
             return None
 
-        response = yield from self._make_request(self._current_kwargs)
+        response = await self._make_request(self._current_kwargs)
         parsed = self._extract_parsed_response(response)
         if self._first_request:
             # The first request is handled differently.  We could
@@ -93,17 +87,14 @@ class AioPageIterator(PageIterator):
             self._previous_next_token = self._next_token
             return response
 
-    if PY_35:
-        @asyncio.coroutine
-        def __aiter__(self):
-            return self
+    def __aiter__(self):
+        return self
 
-        @asyncio.coroutine
-        def __anext__(self):
-            if self._is_stop:
-                raise StopAsyncIteration  # noqa
+    async def __anext__(self):
+        if self._is_stop:
+            raise StopAsyncIteration  # noqa
 
-            return self.next_page()
+        return self.next_page()
 
     def result_key_iters(self):
         raise NotImplementedError
@@ -111,11 +102,10 @@ class AioPageIterator(PageIterator):
         # return [ResultKeyIterator(i, result_key) for i, result_key in
         #         zip(teed_results, self.result_keys)]
 
-    @asyncio.coroutine
-    def build_full_result(self):
+    async def build_full_result(self):
         complete_result = {}
         while True:
-            response = yield from self.next_page()
+            response = await self.next_page()
             if response is None:
                 break
             page = response
