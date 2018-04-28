@@ -1,4 +1,3 @@
-import asyncio
 import pytest
 import aiohttp
 
@@ -53,7 +52,8 @@ async def test_can_get_bucket_location(s3_client, bucket_name):
 
 @pytest.mark.moto
 @pytest.mark.asyncio
-async def test_can_delete_urlencoded_object(s3_client, bucket_name, create_object):
+async def test_can_delete_urlencoded_object(s3_client, bucket_name,
+                                            create_object):
     key_name = 'a+b/foo'
     await create_object(key_name=key_name)
     resp = await s3_client.list_objects(Bucket=bucket_name)
@@ -129,10 +129,10 @@ async def test_can_get_and_put_object(s3_client, create_object, bucket_name):
 
 @pytest.mark.moto
 @pytest.mark.asyncio
-async def test_get_object_stream_wrapper(s3_client, create_object, bucket_name):
+async def test_get_object_stream_wrapper(s3_client, create_object,
+                                         bucket_name):
     await create_object('foobarbaz', body='body contents')
-    response = await s3_client.get_object(Bucket=bucket_name,
-                                               Key='foobarbaz')
+    response = await s3_client.get_object(Bucket=bucket_name, Key='foobarbaz')
     body = response['Body']
     body.set_socket_timeout(10)
     chunk1 = await body.read(1)
@@ -359,7 +359,8 @@ async def test_presign_with_existing_query_string_values(
 @pytest.mark.parametrize('mocking_test', [False])
 @pytest.mark.parametrize('signature_version', ['s3v4'])
 @pytest.mark.asyncio
-async def test_presign_sigv4(s3_client, bucket_name, aio_session, create_object):
+async def test_presign_sigv4(s3_client, bucket_name, aio_session,
+                             create_object):
     key = 'myobject'
     await create_object(key_name=key)
     presigned_url = s3_client.generate_presigned_url(
@@ -379,7 +380,7 @@ async def test_presign_sigv4(s3_client, bucket_name, aio_session, create_object)
 @pytest.mark.parametrize('mocking_test', [False])
 @pytest.mark.asyncio
 async def test_can_follow_signed_url_redirect(alternative_s3_client,
-                                        create_object, bucket_name):
+                                              create_object, bucket_name):
     await create_object('foobarbaz')
 
     # Simulate redirection by provide wrong endpoint intentionally
@@ -406,7 +407,7 @@ async def test_bucket_redirect(
 
     # This should not raise
     await alternative_s3_client.put_object(Bucket=bucket_name, Key=key,
-                                                Body=b'')
+                                           Body=b'')
     await alternative_s3_client.get_object(Bucket=bucket_name, Key=key)
 
 

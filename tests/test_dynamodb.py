@@ -139,7 +139,8 @@ async def test_waiter_table_exists_failure(dynamodb_client):
 @pytest.mark.moto
 @pytest.mark.parametrize('signature_version', ['v4'])
 @pytest.mark.asyncio
-async def test_waiter_table_exists(event_loop, dynamodb_client, dynamodb_table_def):
+async def test_waiter_table_exists(event_loop, dynamodb_client,
+                                   dynamodb_table_def):
     table_name = dynamodb_table_def['TableName']
 
     async def _create_table():

@@ -58,10 +58,10 @@ class AIOServer(threading.Thread):
         finally:
             self._shutdown_evt.set()
 
-    async     def ok(self, request):
+    async def ok(self, request):
         return aiohttp.web.Response()
 
-    async     def stream_handler(self, request):
+    async def stream_handler(self, request):
         # Without the Content-Type, most (all?) browsers will not render
         # partially downloaded content. Note, the response type is
         # StreamResponse not Response.

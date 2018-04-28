@@ -22,8 +22,8 @@ async def test_topic_attributes(sns_client, topic_arn):
 
     display_name = 'My display name'
     await sns_client.set_topic_attributes(TopicArn=arn1,
-                                               AttributeName='DisplayName',
-                                               AttributeValue=display_name)
+                                          AttributeName='DisplayName',
+                                          AttributeValue=display_name)
 
     topic_properties = await sns_client.get_topic_attributes(
         TopicArn=arn1
@@ -36,8 +36,8 @@ async def test_topic_attributes(sns_client, topic_arn):
 @pytest.mark.asyncio
 async def test_creating_subscription(sns_client, topic_arn):
     response = await sns_client.subscribe(TopicArn=topic_arn,
-                                               Protocol="http",
-                                               Endpoint="http://httpbin.org/")
+                                          Protocol="http",
+                                          Endpoint="http://httpbin.org/")
     subscription_arn = response['SubscriptionArn']
     subscriptions = (
         await sns_client.list_subscriptions()

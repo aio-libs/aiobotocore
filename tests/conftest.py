@@ -6,7 +6,6 @@ import aiobotocore
 from aiobotocore.config import AioConfig
 import tempfile
 import shutil
-import sys
 
 
 @pytest.fixture(scope="session", params=[True, False],
@@ -129,11 +128,13 @@ def moto_config(endpoint_url):
 
 
 @pytest.fixture
-def s3_client(request, session, region, config, s3_server, mocking_test, event_loop):
+def s3_client(request, session, region, config, s3_server, mocking_test,
+              event_loop):
     kw = {}
     if mocking_test:
         kw = moto_config(s3_server)
-    client = create_client('s3', request, event_loop, session, region, config, **kw)
+    client = create_client('s3', request, event_loop, session, region, config,
+                           **kw)
     return client
 
 
@@ -170,8 +171,8 @@ def cloudformation_client(request, session, region, config,
     kw = {}
     if mocking_test:
         kw = moto_config(cloudformation_server)
-    client = create_client('cloudformation', request, event_loop, session, region,
-                           config, **kw)
+    client = create_client('cloudformation', request, event_loop, session,
+                           region, config, **kw)
     return client
 
 
@@ -193,7 +194,8 @@ def sqs_client(request, session, region, config, sqs_server,
     return client
 
 
-def create_client(client_type, request, event_loop, session, region, config, **kw):
+def create_client(client_type, request, event_loop, session, region,
+                  config, **kw):
     async def f():
         return session.create_client(client_type, region_name=region,
                                      config=config, **kw)
@@ -245,7 +247,6 @@ def create_bucket(request, s3_client, event_loop):
     _bucket_name = None
 
     async def _f(region_name, bucket_name=None):
-
         nonlocal _bucket_name
         if bucket_name is None:
             bucket_name = random_bucketname()
@@ -260,7 +261,8 @@ def create_bucket(request, s3_client, event_loop):
         return bucket_name
 
     def fin():
-        event_loop.run_until_complete(recursive_delete(s3_client, _bucket_name))
+        event_loop.run_until_complete(recursive_delete(s3_client,
+                                                       _bucket_name))
 
     request.addfinalizer(fin)
     return _f
@@ -308,7 +310,8 @@ def create_table(request, dynamodb_client, event_loop):
         return table_name
 
     def fin():
-        event_loop.run_until_complete(delete_table(dynamodb_client, _table_name))
+        event_loop.run_until_complete(delete_table(dynamodb_client,
+                                                   _table_name))
 
     request.addfinalizer(fin)
     return _f
@@ -333,7 +336,6 @@ def tempdir(request):
 
 @pytest.fixture
 def create_object(s3_client, bucket_name):
-
     async def _f(key_name, body='foo'):
         r = await s3_client.put_object(Bucket=bucket_name, Key=key_name,
                                             Body=body)
@@ -434,7 +436,7 @@ def create_topic(request, sns_client, event_loop):
 def create_sqs_queue(request, sqs_client, event_loop):
     _queue_url = None
 
-    async     def _f():
+    async def _f():
         nonlocal _queue_url
 
         response = await sqs_client.create_queue(QueueName=random_name())
