@@ -73,7 +73,7 @@ async def test_can_delete_urlencoded_object(s3_client, bucket_name, create_objec
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('mocking_test', [False])
-async def test_can_paginate(s3_client, bucket_name, create_object, loop):
+async def test_can_paginate(s3_client, bucket_name, create_object):
     for i in range(5):
         key_name = 'key%s' % i
         await create_object(key_name)
@@ -89,8 +89,8 @@ async def test_can_paginate(s3_client, bucket_name, create_object, loop):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('mocking_test', [False])
-async def test_can_paginate_with_page_size(s3_client, bucket_name, create_object,
-                                     loop):
+async def test_can_paginate_with_page_size(
+        s3_client, bucket_name, create_object):
     for i in range(5):
         key_name = 'key%s' % i
         await create_object(key_name)
@@ -118,7 +118,7 @@ async def test_result_key_iters(s3_client, bucket_name,):
 
 @pytest.mark.moto
 @pytest.mark.asyncio
-async def test_can_get_and_put_object(s3_client, create_object, bucket_name, loop):
+async def test_can_get_and_put_object(s3_client, create_object, bucket_name):
     await create_object('foobarbaz', body='body contents')
     resp = await s3_client.get_object(Bucket=bucket_name, Key='foobarbaz')
     data = await resp['Body'].read()
@@ -144,8 +144,8 @@ async def test_get_object_stream_wrapper(s3_client, create_object, bucket_name):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('mocking_test', [False])
-async def test_paginate_max_items(s3_client, create_multipart_upload, bucket_name,
-                            loop):
+async def test_paginate_max_items(
+        s3_client, create_multipart_upload, bucket_name, event_loop):
     await create_multipart_upload('foo/key1')
     await create_multipart_upload('foo/key1')
     await create_multipart_upload('foo/key1')
@@ -158,12 +158,12 @@ async def test_paginate_max_items(s3_client, create_multipart_upload, bucket_nam
     # Verify when we have MaxItems=None, we get back all 8 uploads.
     await pytest.aio.assert_num_uploads_found(
         s3_client, bucket_name, 'list_multipart_uploads', max_items=None,
-        num_uploads=8, loop=loop)
+        num_uploads=8, loop=event_loop)
 
     # Verify when we have MaxItems=1, we get back 1 upload.
     await pytest.aio.assert_num_uploads_found(
         s3_client, bucket_name, 'list_multipart_uploads', max_items=1,
-        num_uploads=1, loop=loop)
+        num_uploads=1, loop=event_loop)
 
     paginator = s3_client.get_paginator('list_multipart_uploads')
     # Works similar with build_full_result()
@@ -175,8 +175,8 @@ async def test_paginate_max_items(s3_client, create_multipart_upload, bucket_nam
 
 @pytest.mark.moto
 @pytest.mark.asyncio
-async def test_paginate_within_page_boundaries(s3_client, create_object,
-                                         bucket_name):
+async def test_paginate_within_page_boundaries(
+        s3_client, create_object, bucket_name):
     await create_object('a')
     await create_object('b')
     await create_object('c')
@@ -238,8 +238,8 @@ async def test_unicode_system_character(s3_client, bucket_name, create_object):
     assert len(parsed['Contents']) == 1
     assert parsed['Contents'][0]['Key'] == key_name
 
-    parsed = await s3_client.list_objects(Bucket=bucket_name,
-                                               EncodingType='url')
+    parsed = await s3_client.list_objects(
+        Bucket=bucket_name, EncodingType='url')
     assert len(parsed['Contents']) == 1
     assert parsed['Contents'][0]['Key'] == 'foo%08'
 
@@ -336,8 +336,8 @@ async def test_copy_with_s3_metadata(s3_client, create_object, bucket_name):
 @pytest.mark.parametrize('mocking_test', [False])
 @pytest.mark.parametrize('signature_version', ['s3'])
 @pytest.mark.asyncio
-async def test_presign_with_existing_query_string_values(s3_client, bucket_name,
-                                                   aio_session, create_object):
+async def test_presign_with_existing_query_string_values(
+        s3_client, bucket_name, aio_session, create_object):
     key_name = 'foo.txt'
     await create_object(key_name=key_name)
     content_disposition = 'attachment; filename=foo.txt;'
@@ -379,7 +379,7 @@ async def test_presign_sigv4(s3_client, bucket_name, aio_session, create_object)
 @pytest.mark.parametrize('mocking_test', [False])
 @pytest.mark.asyncio
 async def test_can_follow_signed_url_redirect(alternative_s3_client,
-                                        create_object, bucket_name, loop):
+                                        create_object, bucket_name):
     await create_object('foobarbaz')
 
     # Simulate redirection by provide wrong endpoint intentionally
@@ -394,8 +394,8 @@ async def test_can_follow_signed_url_redirect(alternative_s3_client,
 @pytest.mark.parametrize('alternative_region', ['us-west-2'])
 @pytest.mark.parametrize('mocking_test', [False])
 @pytest.mark.asyncio
-async def test_bucket_redirect(s3_client, alternative_s3_client, region,
-                         create_bucket):
+async def test_bucket_redirect(
+        s3_client, alternative_s3_client, region, create_bucket):
     key = 'foobarbaz'
 
     # create bucket in alternative region
@@ -413,7 +413,7 @@ async def test_bucket_redirect(s3_client, alternative_s3_client, region,
 @pytest.mark.parametrize('signature_version', ['s3v4'])
 @pytest.mark.parametrize('mocking_test', [False])
 @pytest.mark.asyncio
-async def test_head_object_keys(s3_client, create_object, bucket_name, loop):
+async def test_head_object_keys(s3_client, create_object, bucket_name):
     await create_object('foobarbaz')
 
     resp = await s3_client.head_object(
