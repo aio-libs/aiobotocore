@@ -22,13 +22,17 @@ from botocore.waiter import NormalizedOperationMethod
 # method gets updated this will assert and someone will need to validate:
 # 1) If our code needs to be updated
 # 2) If our minimum botocore version needs to be updated
-# 3) If we need to replace the below hash (not backwards compatible) or add to the set
+# 3) If we need to replace the below hash (not backwards compatible) or add
+#    to the set
 
 # The follow is for our monkeypatches for read_timeout:
 #    github.com/aio-libs/aiobotocore/pull/248
 _READ_TIMEOUT_DIGESTS = {
     # for our replacement of _factory and _create_connection
-    TCPConnector: {'42a405b3d0b4aa9a61eb7d72925a5c8e373bec6b', '3d92dd47383d5a6f918b56a946a975314c8359f1'},
+    TCPConnector: {
+        '42a405b3d0b4aa9a61eb7d72925a5c8e373bec6b',
+        '3d92dd47383d5a6f918b56a946a975314c8359f1'
+    },
 
     # for its inheritance to DataQueue
     ResponseHandler: {'96d9eb3f04ff80a2acaf2fc18a103db474a3c965'},

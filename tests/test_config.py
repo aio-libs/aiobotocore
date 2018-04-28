@@ -63,7 +63,6 @@ async def test_connector_timeout(event_loop):
                 await s3_client.get_object(Bucket='foo', Key='bar')
                 await asyncio.sleep(100)
 
-            # this should not raise as we won't have any issues connecting to the
             task1 = asyncio.Task(get_and_wait(), loop=event_loop)
             task2 = asyncio.Task(get_and_wait(), loop=event_loop)
 
