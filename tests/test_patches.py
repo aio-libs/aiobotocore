@@ -22,13 +22,13 @@ from botocore.waiter import NormalizedOperationMethod
 # method gets updated this will assert and someone will need to validate:
 # 1) If our code needs to be updated
 # 2) If our minimum botocore version needs to be updated
-# 3) If we need to replace the below hash or add to the set
+# 3) If we need to replace the below hash (not backwards compatible) or add to the set
 
 # The follow is for our monkeypatches for read_timeout:
 #    github.com/aio-libs/aiobotocore/pull/248
 _READ_TIMEOUT_DIGESTS = {
     # for our replacement of _factory and _create_connection
-    TCPConnector: {'42a405b3d0b4aa9a61eb7d72925a5c8e373bec6b'},
+    TCPConnector: {'42a405b3d0b4aa9a61eb7d72925a5c8e373bec6b', '3d92dd47383d5a6f918b56a946a975314c8359f1'},
 
     # for its inheritance to DataQueue
     ResponseHandler: {'96d9eb3f04ff80a2acaf2fc18a103db474a3c965'},
@@ -39,8 +39,8 @@ _READ_TIMEOUT_DIGESTS = {
     # for our patch of _wait
     StreamReader: {'d4ffb6ae823ef4bfd810aade8601ba7b01aa08ec'},
 
-    # for digging into _protocol
-    ClientResponse: {'c2f662e8d641e538ac2a0a0f44c2bf1805167dd1'},
+    # for digging into _protocol, and using _body
+    ClientResponse: {'5834c5174937df460b2452b68942e950bbaa5dd7'},
 }
 
 # These are guards to our main patches
@@ -75,7 +75,14 @@ def test_patches():
 
 # NOTE: this doesn't require moto but needs to be marked to run with coverage
 @pytest.mark.moto
-def test_set_status_code():
-    resp = ClientResponseProxy('GET', URL('http://foo/bar'))
+def test_set_status_code(event_loop):
+    resp = ClientResponseProxy(
+        'GET', URL('http://foo/bar'),
+        writer=None, continue100=None, timer=None,
+        request_info=None,
+        auto_decompress=None,
+        traces=None,
+        loop=event_loop,
+        session=None)
     resp.status_code = 500
     assert resp.status_code == 500

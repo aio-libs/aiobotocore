@@ -272,7 +272,7 @@ def create_bucket(request, s3_client, event_loop):
 def create_table(request, dynamodb_client, event_loop):
     _table_name = None
 
-    async     def _is_table_ready(table_name):
+    async def _is_table_ready(table_name):
         response = await dynamodb_client.describe_table(
             TableName=table_name
         )
@@ -338,7 +338,7 @@ def tempdir(request):
 def create_object(s3_client, bucket_name):
     async def _f(key_name, body='foo'):
         r = await s3_client.put_object(Bucket=bucket_name, Key=key_name,
-                                            Body=body)
+                                       Body=body)
         assert_status_code(r, 200)
         return r
     return _f
