@@ -127,8 +127,8 @@ class ClientResponseProxy(wrapt.ObjectProxy):
 
     @property
     def content(self):
-        # ClientResponse._content is set by the coroutine ClientResponse.read
-        return self._content
+        # ClientResponse._body is set by the coroutine ClientResponse.read
+        return self._body
 
     @property
     def raw(self):
@@ -168,11 +168,11 @@ class WrappedTCPConnector(aiohttp.TCPConnector):
         self.__wrapped_conn_timeout = kwargs.pop('wrapped_conn_timeout')
         super().__init__(*args, **kwargs)
 
-    async def _create_connection(self, req, traces=None):
+    async def _create_connection(self, req, *args, **kwargs):
         # connection timeout
         try:
             with CeilTimeout(self.__wrapped_conn_timeout, loop=self._loop):
-                return await super()._create_connection(req, traces=None)
+                return await super()._create_connection(req, *args, **kwargs)
         except asyncio.TimeoutError as exc:
             raise aiohttp.ServerTimeoutError(
                 'Connection timeout '
