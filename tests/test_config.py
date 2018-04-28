@@ -59,17 +59,16 @@ def test_connector_timeout(loop):
     try:
         server.wait_until_up()
 
-        @asyncio.coroutine
-        def get_and_wait():
-            yield from s3_client.get_object(Bucket='foo', Key='bar')
-            yield from asyncio.sleep(100)
+        async         def get_and_wait():
+            await s3_client.get_object(Bucket='foo', Key='bar')
+            await asyncio.sleep(100)
 
         # this should not raise as we won't have any issues connecting to the
         task1 = asyncio.Task(get_and_wait(), loop=loop)
         task2 = asyncio.Task(get_and_wait(), loop=loop)
 
         try:
-            done, pending = yield from asyncio.wait([task1, task2],
+            done, pending = await asyncio.wait([task1, task2],
                                                     timeout=3, loop=loop)
 
             # second request should not timeout just because there isn't a
@@ -80,4 +79,4 @@ def test_connector_timeout(loop):
             task2.cancel()
     finally:
         s3_client.close()
-        yield from server.stop()
+        await server.stop()

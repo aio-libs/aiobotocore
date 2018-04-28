@@ -22,8 +22,6 @@ from multidict import MultiDict
 from urllib.parse import urlparse
 
 
-PY_35 = sys.version_info >= (3, 5)
-AIOHTTP_2 = parse_version(aiohttp.__version__) > parse_version('2.0.0')
 MAX_REDIRECTS = 10
 history_recorder = get_global_history_recorder()
 
@@ -58,8 +56,7 @@ if AIOHTTP_2:
             pass
 
 
-@asyncio.coroutine
-def convert_to_response_dict(http_response, operation_model):
+async def convert_to_response_dict(http_response, operation_model):
     response_dict = {
         # botocore converts keys to str, so make sure that they are in
         # the expected case. See detailed discussion here:
@@ -72,12 +69,12 @@ def convert_to_response_dict(http_response, operation_model):
     }
 
     if response_dict['status_code'] >= 300:
-        body = yield from http_response.read()
+        body = await http_response.read()
         response_dict['body'] = body
     elif operation_model.has_streaming_output:
         response_dict['body'] = http_response.raw
     else:
-        body = yield from http_response.read()
+        body = await http_response.read()
         response_dict['body'] = body
     return response_dict
 
@@ -102,16 +99,13 @@ class ClientResponseContentProxy(wrapt.ObjectProxy):
     # explicitly.  A release here would mean reading all the unread data
     # (which could be very large), and a close would mean being unable to re-
     # use the connection, so the user MUST chose.  Default is to warn + close
-    if PY_35:
-        @asyncio.coroutine
-        def __aenter__(self):
-            yield from self.__response.__aenter__()
-            return self
+    async def __aenter__(self):
+        await self.__response.__aenter__()
+        return self
 
-        @asyncio.coroutine
-        def __aexit__(self, exc_type, exc_val, exc_tb):
-            return (yield from self.__response.__aexit__(exc_type,
-                                                         exc_val, exc_tb))
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        return (await self.__response.__aexit__(exc_type,
+                                                     exc_val, exc_tb))
 
     def close(self):
         self.__response.close()
@@ -153,16 +147,14 @@ class WrappedResponseHandler(ResponseHandler):
     def set_timeout(self, timeout):
         self.__wrapped_read_timeout = timeout
 
-    @asyncio.coroutine
-    def _wrapped_wait(self, wrapped, instance, args, kwargs):
+    async def _wrapped_wait(self, wrapped, instance, args, kwargs):
         with CeilTimeout(self.__wrapped_read_timeout, loop=self._loop):
-            result = yield from wrapped(*args, **kwargs)
+            result = await wrapped(*args, **kwargs)
             return result
 
-    @asyncio.coroutine
-    def read(self):
+    async def read(self):
         with CeilTimeout(self.__wrapped_read_timeout, loop=self._loop):
-            resp_msg, stream_reader = yield from super().read()
+            resp_msg, stream_reader = await super().read()
 
             if hasattr(stream_reader, '_wait'):
                 stream_reader._wait = wrapt.FunctionWrapper(
@@ -180,8 +172,7 @@ class WrappedTCPConnector(aiohttp.TCPConnector):
         self.__wrapped_conn_timeout = kwargs.pop('wrapped_conn_timeout')
         super().__init__(*args, **kwargs)
 
-    @asyncio.coroutine
-    def _create_connection(self, req, traces=None):
+    async def _create_connection(self, req, traces=None):
         # connection timeout
         try:
             with CeilTimeout(self.__wrapped_conn_timeout, loop=self._loop):
@@ -247,8 +238,7 @@ class AioEndpoint(Endpoint):
             loop=self._loop,
             auto_decompress=False)
 
-    @asyncio.coroutine
-    def _request(self, method, url, headers, data):
+    async def _request(self, method, url, headers, data):
         # Note: When using aiobotocore with dynamodb, requests fail on crc32
         # checksum computation as soon as the response data reaches ~5KB.
         # When AWS response is gzip compressed:
@@ -268,24 +258,23 @@ class AioEndpoint(Endpoint):
         # botocore does this during the request so we do this here as well
         proxy = self.proxies.get(urlparse(url.lower()).scheme)
 
-        if AIOHTTP_2 and isinstance(data, io.IOBase):
+        if isinstance(data, io.IOBase):
             data = _IOBaseWrapper(data)
 
         url = URL(url, encoded=True)
-        resp = yield from self._aio_session.request(method, url=url,
+        resp = await self._aio_session.request(method, url=url,
                                                     headers=headers_,
                                                     data=data,
                                                     proxy=proxy,
                                                     timeout=None)
         return resp
 
-    @asyncio.coroutine
-    def _send_request(self, request_dict, operation_model):
+    async def _send_request(self, request_dict, operation_model):
         attempts = 1
         request = self.create_request(request_dict, operation_model)
-        success_response, exception = yield from self._get_response(
+        success_response, exception = await self._get_response(
             request, operation_model, attempts)
-        while (yield from self._needs_retry(attempts, operation_model,
+        while (await self._needs_retry(attempts, operation_model,
                                             request_dict, success_response,
                                             exception)):
             attempts += 1
@@ -297,7 +286,7 @@ class AioEndpoint(Endpoint):
             # Create a new request when retried (including a new signature).
             request = self.create_request(
                 request_dict, operation_model)
-            success_response, exception = yield from self._get_response(
+            success_response, exception = await self._get_response(
                 request, operation_model, attempts)
         if success_response is not None and \
                 'ResponseMetadata' in success_response[1]:
@@ -311,9 +300,8 @@ class AioEndpoint(Endpoint):
             return success_response
 
     # NOTE: The only line changed here changing time.sleep to asyncio.sleep
-    @asyncio.coroutine
-    def _needs_retry(self, attempts, operation_model, request_dict,
-                     response=None, caught_exception=None):
+    async def _needs_retry(self, attempts, operation_model, request_dict,
+                           response=None, caught_exception=None):
         event_name = 'needs-retry.%s.%s' % (self._endpoint_prefix,
                                             operation_model.name)
         responses = self._event_emitter.emit(
@@ -328,11 +316,10 @@ class AioEndpoint(Endpoint):
             # for the specified number of times.
             logger.debug("Response received to retry, sleeping for "
                          "%s seconds", handler_response)
-            yield from asyncio.sleep(handler_response, loop=self._loop)
+            await asyncio.sleep(handler_response, loop=self._loop)
             return True
 
-    @asyncio.coroutine
-    def _get_response(self, request, operation_model, attempts):
+    async def _get_response(self, request, operation_model, attempts):
         # This will return a tuple of (success_response, exception)
         # and success_response is itself a tuple of
         # (http_response, parsed_dict).
@@ -348,7 +335,7 @@ class AioEndpoint(Endpoint):
                 'url': request.url,
                 'body': request.body
             })
-            resp = yield from self._request(
+            resp = await self._request(
                 request.method, request.url, request.headers, request.body)
             http_response = resp
         except aiohttp.ClientConnectionError as e:
@@ -377,7 +364,7 @@ class AioEndpoint(Endpoint):
             return None, e
 
         # This returns the http_response and the parsed_data.
-        response_dict = yield from convert_to_response_dict(http_response,
+        response_dict = await convert_to_response_dict(http_response,
                                                             operation_model)
 
         http_response_record_dict = response_dict.copy()

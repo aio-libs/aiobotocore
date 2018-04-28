@@ -93,8 +93,7 @@ def assert_status_code(response, status_code):
     assert response['ResponseMetadata']['HTTPStatusCode'] == status_code
 
 
-@asyncio.coroutine
-def assert_num_uploads_found(s3_client, bucket_name, operation,
+async def assert_num_uploads_found(s3_client, bucket_name, operation,
                              num_uploads, *, max_items=None, num_attempts=5,
                              loop):
     amount_seen = None
@@ -104,7 +103,7 @@ def assert_num_uploads_found(s3_client, bucket_name, operation,
                                    PaginationConfig={'MaxItems': max_items})
         responses = []
         while True:
-            resp = yield from pages.next_page()
+            resp = await pages.next_page()
             if resp is None:
                 break
             responses.append(resp)
@@ -118,7 +117,7 @@ def assert_num_uploads_found(s3_client, bucket_name, operation,
             return
         else:
             # Sleep and try again.
-            yield from asyncio.sleep(2, loop=loop)
+            await asyncio.sleep(2, loop=loop)
         pytest.fail("Expected to see %s uploads, instead saw: %s" % (
             num_uploads, amount_seen))
 
@@ -249,8 +248,7 @@ def sqs_client(request, session, region, config, sqs_server,
 
 
 def create_client(client_type, request, loop, session, region, config, **kw):
-    @asyncio.coroutine
-    def f():
+    async     def f():
         return session.create_client(client_type, region_name=region,
                                      config=config, **kw)
     client = loop.run_until_complete(f())
@@ -261,14 +259,13 @@ def create_client(client_type, request, loop, session, region, config, **kw):
     return client
 
 
-@asyncio.coroutine
-def recursive_delete(s3_client, bucket_name):
+async def recursive_delete(s3_client, bucket_name):
     # Recursively deletes a bucket and all of its contents.
     pages = s3_client.get_paginator('list_objects').paginate(
         Bucket=bucket_name)
 
     while True:
-        n = yield from pages.next_page()
+        n = await pages.next_page()
         if n is None:
             break
 
@@ -279,9 +276,9 @@ def recursive_delete(s3_client, bucket_name):
             key = obj['Key']
             if key is None:
                 continue
-            yield from s3_client.delete_object(Bucket=bucket_name, Key=key)
+            await s3_client.delete_object(Bucket=bucket_name, Key=key)
 
-    resp = yield from s3_client.delete_bucket(Bucket=bucket_name)
+    resp = await s3_client.delete_bucket(Bucket=bucket_name)
     assert_status_code(resp, 204)
 
 
@@ -301,8 +298,7 @@ def table_name(region, create_table, dynamodb_client, loop):
 def create_bucket(request, s3_client, loop):
     _bucket_name = None
 
-    @asyncio.coroutine
-    def _f(region_name, bucket_name=None):
+    async     def _f(region_name, bucket_name=None):
 
         nonlocal _bucket_name
         if bucket_name is None:
@@ -313,7 +309,7 @@ def create_bucket(request, s3_client, loop):
             bucket_kwargs['CreateBucketConfiguration'] = {
                 'LocationConstraint': region_name,
             }
-        response = yield from s3_client.create_bucket(**bucket_kwargs)
+        response = await s3_client.create_bucket(**bucket_kwargs)
         assert_status_code(response, 200)
         return bucket_name
 
@@ -328,15 +324,13 @@ def create_bucket(request, s3_client, loop):
 def create_table(request, dynamodb_client, loop):
     _table_name = None
 
-    @asyncio.coroutine
-    def _is_table_ready(table_name):
-        response = yield from dynamodb_client.describe_table(
+    async     def _is_table_ready(table_name):
+        response = await dynamodb_client.describe_table(
             TableName=table_name
         )
         return response['Table']['TableStatus'] == 'ACTIVE'
 
-    @asyncio.coroutine
-    def _f(table_name=None):
+    async     def _f(table_name=None):
 
         nonlocal _table_name
         if table_name is None:
@@ -361,8 +355,8 @@ def create_table(request, dynamodb_client, loop):
                 'WriteCapacityUnits': 1
             },
         }
-        response = yield from dynamodb_client.create_table(**table_kwargs)
-        while not (yield from _is_table_ready(table_name)):
+        response = await dynamodb_client.create_table(**table_kwargs)
+        while not (await _is_table_ready(table_name)):
             pass
         assert_status_code(response, 200)
         return table_name
@@ -374,9 +368,8 @@ def create_table(request, dynamodb_client, loop):
     return _f
 
 
-@asyncio.coroutine
-def delete_table(dynamodb_client, table_name):
-    response = yield from dynamodb_client.delete_table(
+async def delete_table(dynamodb_client, table_name):
+    response = await dynamodb_client.delete_table(
         TableName=table_name
     )
     assert_status_code(response, 200)
@@ -395,9 +388,8 @@ def tempdir(request):
 @pytest.fixture
 def create_object(s3_client, bucket_name):
 
-    @asyncio.coroutine
-    def _f(key_name, body='foo'):
-        r = yield from s3_client.put_object(Bucket=bucket_name, Key=key_name,
+    async     def _f(key_name, body='foo'):
+        r = await s3_client.put_object(Bucket=bucket_name, Key=key_name,
                                             Body=body)
         assert_status_code(r, 200)
         return r
@@ -409,13 +401,12 @@ def create_multipart_upload(request, s3_client, bucket_name, loop):
     _key_name = None
     upload_id = None
 
-    @asyncio.coroutine
-    def _f(key_name):
+    async     def _f(key_name):
         nonlocal _key_name
         nonlocal upload_id
         _key_name = key_name
 
-        parsed = yield from s3_client.create_multipart_upload(
+        parsed = await s3_client.create_multipart_upload(
             Bucket=bucket_name, Key=key_name)
         upload_id = parsed['UploadId']
         return upload_id
@@ -431,8 +422,7 @@ def create_multipart_upload(request, s3_client, bucket_name, loop):
 @pytest.yield_fixture
 def aio_session(request, loop):
 
-    @asyncio.coroutine
-    def create_session(loop):
+    async     def create_session(loop):
         return aiohttp.ClientSession(loop=loop)
 
     session = loop.run_until_complete(create_session(loop))
@@ -449,9 +439,8 @@ def pytest_namespace():
 @pytest.fixture
 def dynamodb_put_item(request, dynamodb_client, table_name, loop):
 
-    @asyncio.coroutine
-    def _f(key_string_value):
-        response = yield from dynamodb_client.put_item(
+    async     def _f(key_string_value):
+        response = await dynamodb_client.put_item(
             TableName=table_name,
             Item={
                 'testKey': {
@@ -470,9 +459,8 @@ def topic_arn(region, create_topic, sns_client, loop):
     return arn
 
 
-@asyncio.coroutine
-def delete_topic(sns_client, topic_arn):
-    response = yield from sns_client.delete_topic(
+async def delete_topic(sns_client, topic_arn):
+    response = await sns_client.delete_topic(
         TopicArn=topic_arn
     )
     assert_status_code(response, 200)
@@ -482,10 +470,9 @@ def delete_topic(sns_client, topic_arn):
 def create_topic(request, sns_client, loop):
     _topic_arn = None
 
-    @asyncio.coroutine
-    def _f():
+    async     def _f():
         nonlocal _topic_arn
-        response = yield from sns_client.create_topic(Name=random_name())
+        response = await sns_client.create_topic(Name=random_name())
         _topic_arn = response['TopicArn']
         assert_status_code(response, 200)
         return _topic_arn
@@ -501,11 +488,10 @@ def create_topic(request, sns_client, loop):
 def create_sqs_queue(request, sqs_client, loop):
     _queue_url = None
 
-    @asyncio.coroutine
-    def _f():
+    async     def _f():
         nonlocal _queue_url
 
-        response = yield from sqs_client.create_queue(QueueName=random_name())
+        response = await sqs_client.create_queue(QueueName=random_name())
         _queue_url = response['QueueUrl']
         assert_status_code(response, 200)
         return _queue_url
@@ -523,9 +509,8 @@ def sqs_queue_url(region, create_sqs_queue, sqs_client, loop):
     return name
 
 
-@asyncio.coroutine
-def delete_sqs_queue(sqs_client, queue_url):
-    response = yield from sqs_client.delete_queue(
+async def delete_sqs_queue(sqs_client, queue_url):
+    response = await sqs_client.delete_queue(
         QueueUrl=queue_url
     )
     assert_status_code(response, 200)
