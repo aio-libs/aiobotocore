@@ -92,7 +92,7 @@ class AIOServer(threading.Thread):
         if not connected:
             pytest.fail('unable to start and connect to aiohttp server')
 
-    async     def stop(self):
+    async def stop(self):
         if self._loop:
             self._loop.stop()
 
@@ -104,7 +104,9 @@ def start_service(service_name, host, port):
     moto_svr_path = shutil.which("moto_server")
     args = [sys.executable, moto_svr_path, service_name, "-H", host,
             "-p", str(port)]
-    process = sp.Popen(args, stdin=sp.PIPE, stdout=sp.PIPE, stderr=sp.PIPE)
+    # stdout = stderr = None
+    stdout = stderr = sp.PIPE
+    process = sp.Popen(args, stdin=sp.PIPE, stdout=stdout, stderr=stderr)
     url = "http://{host}:{port}".format(host=host, port=port)
 
     for i in range(0, 30):
