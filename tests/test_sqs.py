@@ -3,8 +3,8 @@ import pytest
 
 
 @pytest.mark.moto
-@pytest.mark.run_loop
-def test_list_queues(sqs_client, sqs_queue_url):
+@pytest.mark.asyncio
+async def test_list_queues(sqs_client, sqs_queue_url):
     response = await sqs_client.list_queues()
     pytest.aio.assert_status_code(response, 200)
 
@@ -12,8 +12,8 @@ def test_list_queues(sqs_client, sqs_queue_url):
 
 
 @pytest.mark.moto
-@pytest.mark.run_loop
-def test_get_queue_name(sqs_client, sqs_queue_url):
+@pytest.mark.asyncio
+async def test_get_queue_name(sqs_client, sqs_queue_url):
     queue_name = sqs_queue_url.rsplit('/', 1)[-1]
 
     response = await sqs_client.get_queue_url(QueueName=queue_name)
@@ -23,8 +23,8 @@ def test_get_queue_name(sqs_client, sqs_queue_url):
 
 
 @pytest.mark.moto
-@pytest.mark.run_loop
-def test_put_pull_delete_test(sqs_client, sqs_queue_url):
+@pytest.mark.asyncio
+async def test_put_pull_delete_test(sqs_client, sqs_queue_url):
     response = await sqs_client.send_message(
         QueueUrl=sqs_queue_url,
         MessageBody='test_message_1',
@@ -59,8 +59,8 @@ def test_put_pull_delete_test(sqs_client, sqs_queue_url):
 
 
 @pytest.mark.moto
-@pytest.mark.run_loop
-def test_put_pull_wait(sqs_client, sqs_queue_url):
+@pytest.mark.asyncio
+async def test_put_pull_wait(sqs_client, sqs_queue_url):
     start = time.perf_counter()
     response = await sqs_client.receive_message(
         QueueUrl=sqs_queue_url,

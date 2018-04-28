@@ -6,8 +6,8 @@ from moto.sns.models import DEFAULT_TOPIC_POLICY
 
 
 @pytest.mark.moto
-@pytest.mark.run_loop
-def test_topic_attributes(sns_client, topic_arn):
+@pytest.mark.asyncio
+async def test_topic_attributes(sns_client, topic_arn):
     response = await sns_client.list_topics()
     pytest.aio.assert_status_code(response, 200)
     arn1 = response['Topics'][0]['TopicArn']
@@ -33,8 +33,8 @@ def test_topic_attributes(sns_client, topic_arn):
 
 
 @pytest.mark.moto
-@pytest.mark.run_loop
-def test_creating_subscription(sns_client, topic_arn):
+@pytest.mark.asyncio
+async def test_creating_subscription(sns_client, topic_arn):
     response = await sns_client.subscribe(TopicArn=topic_arn,
                                                Protocol="http",
                                                Endpoint="http://httpbin.org/")
@@ -52,8 +52,8 @@ def test_creating_subscription(sns_client, topic_arn):
 
 
 @pytest.mark.moto
-@pytest.mark.run_loop
-def test_publish_to_http(sns_client, topic_arn):
+@pytest.mark.asyncio
+async def test_publish_to_http(sns_client, topic_arn):
     response = await sns_client.subscribe(
         TopicArn=topic_arn,
         Protocol='http',
@@ -71,15 +71,15 @@ def test_publish_to_http(sns_client, topic_arn):
 
 
 @pytest.mark.moto
-@pytest.mark.run_loop
-def test_get_missing_endpoint_attributes(sns_client):
+@pytest.mark.asyncio
+async def test_get_missing_endpoint_attributes(sns_client):
     with pytest.raises(botocore.exceptions.ClientError):
         await sns_client.get_endpoint_attributes(EndpointArn="arn1")
 
 
 @pytest.mark.moto
-@pytest.mark.run_loop
-def test_platform_applications(sns_client):
+@pytest.mark.asyncio
+async def test_platform_applications(sns_client):
     await sns_client.create_platform_application(
         Name="app1",
         Platform="APNS",

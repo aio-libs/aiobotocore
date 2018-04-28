@@ -49,11 +49,10 @@ def text_(s, encoding='utf-8', errors='strict'):
 # Unfortunately aiohttp changed the behavior of streams:
 #   github.com/aio-libs/aiohttp/issues/1907
 # We need this wrapper until we have a final resolution
-if AIOHTTP_2:
-    class _IOBaseWrapper(wrapt.ObjectProxy):
-        def close(self):
-            # this stream should not be closed by aiohttp, like 1.x
-            pass
+class _IOBaseWrapper(wrapt.ObjectProxy):
+    def close(self):
+        # this stream should not be closed by aiohttp, like 1.x
+        pass
 
 
 async def convert_to_response_dict(http_response, operation_model):
@@ -176,7 +175,7 @@ class WrappedTCPConnector(aiohttp.TCPConnector):
         # connection timeout
         try:
             with CeilTimeout(self.__wrapped_conn_timeout, loop=self._loop):
-                return super()._create_connection(req, traces=None)
+                return await super()._create_connection(req, traces=None)
         except asyncio.TimeoutError as exc:
             raise aiohttp.ServerTimeoutError(
                 'Connection timeout '
@@ -238,7 +237,7 @@ class AioEndpoint(Endpoint):
             loop=self._loop,
             auto_decompress=False)
 
-    async def _request(self, method, url, headers, data):
+    async def _request(self, method, url, headers, data, stream):
         # Note: When using aiobotocore with dynamodb, requests fail on crc32
         # checksum computation as soon as the response data reaches ~5KB.
         # When AWS response is gzip compressed:
@@ -262,11 +261,15 @@ class AioEndpoint(Endpoint):
             data = _IOBaseWrapper(data)
 
         url = URL(url, encoded=True)
-        resp = await self._aio_session.request(method, url=url,
-                                                    headers=headers_,
-                                                    data=data,
-                                                    proxy=proxy,
-                                                    timeout=None)
+        resp = await self._aio_session.request(
+            method, url=url, headers=headers_, data=data, proxy=proxy,
+            timeout=None)
+
+        # If we're not streaming, read the content so we can retry any timeout
+        #  errors, see: https://github.com/boto/botocore/blob/develop/botocore/vendored/requests/sessions.py#L604
+        if not stream:
+            await resp.read()
+
         return resp
 
     async def _send_request(self, request_dict, operation_model):
@@ -335,9 +338,9 @@ class AioEndpoint(Endpoint):
                 'url': request.url,
                 'body': request.body
             })
-            resp = await self._request(
-                request.method, request.url, request.headers, request.body)
-            http_response = resp
+            http_response = await self._request(
+                request.method, request.url, request.headers, request.body,
+                operation_model.has_streaming_output)
         except aiohttp.ClientConnectionError as e:
             e.request = request  # botocore expects the request property
 
@@ -365,7 +368,7 @@ class AioEndpoint(Endpoint):
 
         # This returns the http_response and the parsed_data.
         response_dict = await convert_to_response_dict(http_response,
-                                                            operation_model)
+                                                       operation_model)
 
         http_response_record_dict = response_dict.copy()
         http_response_record_dict['streaming'] = \

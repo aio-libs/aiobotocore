@@ -2,8 +2,8 @@ import pytest
 
 
 @pytest.mark.moto
-@pytest.mark.run_loop
-def test_sqs(cloudformation_client):
+@pytest.mark.asyncio
+async def test_sqs(cloudformation_client):
     cloudformation_template = """{
       "AWSTemplateFormatVersion": "2010-09-09",
       "Resources": {
