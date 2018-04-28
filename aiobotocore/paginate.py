@@ -1,6 +1,3 @@
-import asyncio
-import sys
-
 from botocore.exceptions import PaginationError
 from botocore.paginate import PageIterator
 from botocore.utils import set_value_from_jmespath, merge_dicts

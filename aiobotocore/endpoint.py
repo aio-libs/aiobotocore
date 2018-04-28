@@ -1,7 +1,6 @@
 import aiohttp
 import asyncio
 import functools
-import sys
 import io
 import wrapt
 import botocore.retryhandler
@@ -17,7 +16,6 @@ from botocore.hooks import first_non_none_response
 from botocore.utils import is_valid_endpoint_url
 from botocore.vendored.requests.structures import CaseInsensitiveDict
 from botocore.history import get_global_history_recorder
-from packaging.version import parse as parse_version
 from multidict import MultiDict
 from urllib.parse import urlparse
 
@@ -103,8 +101,7 @@ class ClientResponseContentProxy(wrapt.ObjectProxy):
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        return (await self.__response.__aexit__(exc_type,
-                                                     exc_val, exc_tb))
+        return await self.__response.__aexit__(exc_type, exc_val, exc_tb)
 
     def close(self):
         self.__response.close()
@@ -266,7 +263,8 @@ class AioEndpoint(Endpoint):
             timeout=None)
 
         # If we're not streaming, read the content so we can retry any timeout
-        #  errors, see: https://github.com/boto/botocore/blob/develop/botocore/vendored/requests/sessions.py#L604
+        #  errors, see:
+        # https://github.com/boto/botocore/blob/develop/botocore/vendored/requests/sessions.py#L604
         if not stream:
             await resp.read()
 
@@ -278,8 +276,8 @@ class AioEndpoint(Endpoint):
         success_response, exception = await self._get_response(
             request, operation_model, attempts)
         while (await self._needs_retry(attempts, operation_model,
-                                            request_dict, success_response,
-                                            exception)):
+                                       request_dict, success_response,
+                                       exception)):
             attempts += 1
             # If there is a stream associated with the request, we need
             # to reset it before attempting to send the request again.

@@ -1,8 +1,6 @@
 import asyncio
-import sys
 
 import botocore.client
-
 from botocore.exceptions import OperationNotPageableError
 from botocore.history import get_global_history_recorder
 from botocore.paginate import Paginator
@@ -179,8 +177,7 @@ class AioBaseClient(botocore.client.BaseClient):
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        await self._endpoint._aio_session.__aexit__(exc_type,
-                                                         exc_val, exc_tb)
+        await self._endpoint._aio_session.__aexit__(exc_type, exc_val, exc_tb)
 
     def close(self):
         """Close all http connections. This is coroutine, and should be
