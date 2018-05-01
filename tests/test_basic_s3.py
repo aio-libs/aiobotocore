@@ -142,6 +142,16 @@ async def test_get_object_stream_wrapper(s3_client, create_object,
     response['Body'].close()
 
 
+@pytest.mark.moto
+@pytest.mark.asyncio
+async def test_get_object_stream_context(s3_client, create_object,
+                                         bucket_name):
+    await create_object('foobarbaz', body='body contents')
+    response = await s3_client.get_object(Bucket=bucket_name, Key='foobarbaz')
+    async with response['Body'] as stream:
+        await stream.read()
+
+
 @pytest.mark.asyncio
 @pytest.mark.parametrize('mocking_test', [False])
 async def test_paginate_max_items(
