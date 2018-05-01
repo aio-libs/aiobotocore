@@ -248,7 +248,7 @@ class AioEndpoint(Endpoint):
             auto_decompress=False)
 
     @asyncio.coroutine
-    def _request(self, method, url, headers, data):
+    def _request(self, method, url, headers, data, stream):
         # Note: When using aiobotocore with dynamodb, requests fail on crc32
         # checksum computation as soon as the response data reaches ~5KB.
         # When AWS response is gzip compressed:
@@ -277,6 +277,13 @@ class AioEndpoint(Endpoint):
                                                     data=data,
                                                     proxy=proxy,
                                                     timeout=None)
+
+        # If we're not streaming, read the content so we can retry any timeout
+        #  errors, see:
+        # https://github.com/boto/botocore/blob/develop/botocore/vendored/requests/sessions.py#L604
+        if not stream:
+            yield from resp.read()
+
         return resp
 
     @asyncio.coroutine
@@ -349,7 +356,8 @@ class AioEndpoint(Endpoint):
                 'body': request.body
             })
             resp = yield from self._request(
-                request.method, request.url, request.headers, request.body)
+                request.method, request.url, request.headers, request.body,
+                operation_model.has_streaming_output)
             http_response = resp
         except aiohttp.ClientConnectionError as e:
             e.request = request  # botocore expects the request property
