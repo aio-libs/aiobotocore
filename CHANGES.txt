@@ -1,6 +1,6 @@
 Changes
 -------
-0.6.1a0 (2018-XX-XX)
+0.6.1 (2018-05-01)
 ^^^^^^^^^^^^^^^^^^
 * bump to aiohttp 3.1.x
 * switch tests to Python 3.5+
