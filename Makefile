@@ -2,7 +2,7 @@
 
 FLAGS=
 
-flake:
+flake: checkrst
 	flake8 aiobotocore tests examples setup.py
 
 test: flake
@@ -10,6 +10,9 @@ test: flake
 
 vtest:
 	python3 -m pytest -s -v $(FLAGS) ./tests/
+
+checkrst:
+	python setup.py check --restructuredtext
 
 cov cover coverage: flake
 	python3 -m pytest -s -v --cov-report term --cov-report html --cov aiobotocore ./tests
