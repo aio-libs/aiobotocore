@@ -262,6 +262,12 @@ class AioEndpoint(Endpoint):
             method, url=url, headers=headers_, data=data, proxy=proxy,
             timeout=None)
 
+        # If we're not streaming, read the content so we can retry any timeout
+        #  errors, see:
+        # https://github.com/boto/botocore/blob/develop/botocore/vendored/requests/sessions.py#L604
+        if not stream:
+            await resp.read()
+
         return resp
 
     async def _send_request(self, request_dict, operation_model):

@@ -5,6 +5,7 @@ Changes
 * bump to aiohttp 3.1.x
 * switch tests to Python 3.5+
 * switch to native coroutines
+* fix non-streaming body timeout retries
 
 0.6.0 (2018-03-04)
 ^^^^^^^^^^^^^^^^^^
