@@ -88,4 +88,5 @@ def test_set_status_code(event_loop):
         traces=None,
         loop=event_loop,
         session=None)
+    resp.status_code = 500
     assert resp.status_code == 500
