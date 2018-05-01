@@ -90,7 +90,7 @@ async def test_can_paginate(s3_client, bucket_name, create_object):
 @pytest.mark.asyncio
 @pytest.mark.parametrize('mocking_test', [False])
 async def test_can_paginate_with_page_size(
-        s3_client, bucket_name, create_object):
+s3_client, bucket_name, create_object):
     for i in range(5):
         key_name = 'key%s' % i
         await create_object(key_name)
@@ -100,6 +100,24 @@ async def test_can_paginate_with_page_size(
                                Bucket=bucket_name)
 
     responses = await fetch_all(pages)
+    assert len(responses) == 5, responses
+    data = [r for r in responses]
+    key_names = [el['Contents'][0]['Key'] for el in data]
+    assert key_names == ['key0', 'key1', 'key2', 'key3', 'key4']
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('mocking_test', [False])
+async def test_can_paginate_iterator(s3_client, bucket_name, create_object):
+    for i in range(5):
+        key_name = 'key%s' % i
+        await create_object(key_name)
+
+    paginator = s3_client.get_paginator('list_objects')
+    responses = []
+    async for page in paginator.paginate(
+            PaginationConfig={'PageSize': 1}, Bucket=bucket_name):
+        responses.append(page)
     assert len(responses) == 5, responses
     data = [r for r in responses]
     key_names = [el['Contents'][0]['Key'] for el in data]
