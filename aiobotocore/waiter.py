@@ -12,10 +12,9 @@ class NormalizedOperationMethod:
     def __init__(self, client_method):
         self._client_method = client_method
 
-    @asyncio.coroutine
-    def __call__(self, **kwargs):
+    async def __call__(self, **kwargs):
         try:
-            return (yield from self._client_method(**kwargs))
+            return await self._client_method(**kwargs)
         except ClientError as e:
             return e.response
 
@@ -25,8 +24,7 @@ class AIOWaiter(Waiter):
         self._loop = kwargs.pop('loop', None) or asyncio.get_event_loop()
         super().__init__(*args, **kwargs)
 
-    @asyncio.coroutine
-    def wait(self, **kwargs):
+    async def wait(self, **kwargs):
         acceptors = list(self.config.acceptors)
         current_state = 'waiting'
         # pop the invocation specific config
@@ -36,7 +34,7 @@ class AIOWaiter(Waiter):
         num_attempts = 0
 
         while True:
-            response = yield from self._operation_method(**kwargs)
+            response = await self._operation_method(**kwargs)
             num_attempts += 1
             for acceptor in acceptors:
                 if acceptor.matcher_func(response):
@@ -70,7 +68,7 @@ class AIOWaiter(Waiter):
                     reason='Max attempts exceeded',
                     last_response=response
                 )
-            yield from asyncio.sleep(sleep_amount, loop=self._loop)
+            await asyncio.sleep(sleep_amount, loop=self._loop)
 
 
 def create_waiter_with_client(waiter_name, waiter_model, client, loop):
@@ -99,9 +97,8 @@ def create_waiter_with_client(waiter_name, waiter_model, client, loop):
     # Create a new wait method that will serve as a proxy to the underlying
     # Waiter.wait method. This is needed to attach a docstring to the
     # method.
-    @asyncio.coroutine
-    def wait(self, **kwargs):
-        yield from AIOWaiter.wait(self, **kwargs)
+    async def wait(self, **kwargs):
+        await AIOWaiter.wait(self, **kwargs)
 
     wait.__doc__ = WaiterDocstring(
         waiter_name=waiter_name,
