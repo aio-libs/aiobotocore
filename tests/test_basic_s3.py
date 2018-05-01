@@ -106,6 +106,24 @@ async def test_can_paginate_with_page_size(
     assert key_names == ['key0', 'key1', 'key2', 'key3', 'key4']
 
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize('mocking_test', [False])
+async def test_can_paginate_iterator(s3_client, bucket_name, create_object):
+    for i in range(5):
+        key_name = 'key%s' % i
+        await create_object(key_name)
+
+    paginator = s3_client.get_paginator('list_objects')
+    responses = []
+    async for page in paginator.paginate(
+            PaginationConfig={'PageSize': 1}, Bucket=bucket_name):
+        responses.append(page)
+    assert len(responses) == 5, responses
+    data = [r for r in responses]
+    key_names = [el['Contents'][0]['Key'] for el in data]
+    assert key_names == ['key0', 'key1', 'key2', 'key3', 'key4']
+
+
 @pytest.mark.xfail(raises=NotImplementedError)
 @pytest.mark.asyncio
 async def test_result_key_iters(s3_client, bucket_name,):
@@ -140,6 +158,16 @@ async def test_get_object_stream_wrapper(s3_client, create_object,
     assert chunk1 == b'b'
     assert chunk2 == b'ody contents'
     response['Body'].close()
+
+
+@pytest.mark.moto
+@pytest.mark.asyncio
+async def test_get_object_stream_context(s3_client, create_object,
+                                         bucket_name):
+    await create_object('foobarbaz', body='body contents')
+    response = await s3_client.get_object(Bucket=bucket_name, Key='foobarbaz')
+    async with response['Body'] as stream:
+        await stream.read()
 
 
 @pytest.mark.asyncio
