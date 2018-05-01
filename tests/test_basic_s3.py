@@ -90,7 +90,7 @@ async def test_can_paginate(s3_client, bucket_name, create_object):
 @pytest.mark.asyncio
 @pytest.mark.parametrize('mocking_test', [False])
 async def test_can_paginate_with_page_size(
-s3_client, bucket_name, create_object):
+        s3_client, bucket_name, create_object):
     for i in range(5):
         key_name = 'key%s' % i
         await create_object(key_name)
