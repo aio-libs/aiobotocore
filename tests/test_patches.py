@@ -22,7 +22,8 @@ from botocore.waiter import NormalizedOperationMethod
 # method gets updated this will assert and someone will need to validate:
 # 1) If our code needs to be updated
 # 2) If our minimum botocore version needs to be updated
-# 3) If we need to replace the below hash or add to the set
+# 3) If we need to replace the below hash (not backwards compatible) or add
+#    to the set
 
 # The follow is for our monkeypatches for read_timeout:
 #    github.com/aio-libs/aiobotocore/pull/248
@@ -78,14 +79,14 @@ def test_patches():
 
 # NOTE: this doesn't require moto but needs to be marked to run with coverage
 @pytest.mark.moto
-def test_set_status_code(loop):
+def test_set_status_code(event_loop):
     resp = ClientResponseProxy(
         'GET', URL('http://foo/bar'),
         writer=None, continue100=None, timer=None,
         request_info=None,
         auto_decompress=None,
         traces=None,
-        loop=loop,
+        loop=event_loop,
         session=None)
     resp.status_code = 500
     assert resp.status_code == 500

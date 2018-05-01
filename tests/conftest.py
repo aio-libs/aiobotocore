@@ -6,67 +6,12 @@ import aiobotocore
 from aiobotocore.config import AioConfig
 import tempfile
 import shutil
-import sys
-
-
-PY_34 = (3, 4) <= sys.version_info <= (3, 5)
 
 
 @pytest.fixture(scope="session", params=[True, False],
                 ids=['debug[true]', 'debug[false]'])
 def debug(request):
     return request.param
-
-
-@pytest.yield_fixture
-def loop(request, debug):
-    try:
-        old_loop = asyncio.get_event_loop()
-    except RuntimeError:
-        old_loop = None
-
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(None)
-    loop.set_debug(debug)
-
-    yield loop
-
-    loop.close()
-    asyncio.set_event_loop(old_loop)
-
-
-@pytest.mark.tryfirst
-def pytest_pycollect_makeitem(collector, name, obj):
-    if collector.funcnamefilter(name):
-        item = pytest.Function(name, parent=collector)
-        if 'run_loop' in item.keywords:
-            return list(collector._genfunctions(name, obj))
-
-
-@pytest.mark.tryfirst
-def pytest_pyfunc_call(pyfuncitem):
-    """
-    Run asyncio marked test functions in an event loop instead of a normal
-    function call.
-    """
-    if 'run_loop' in pyfuncitem.keywords:
-        funcargs = pyfuncitem.funcargs
-        loop = funcargs['loop']
-        testargs = {arg: funcargs[arg]
-                    for arg in pyfuncitem._fixtureinfo.argnames}
-
-        if not asyncio.iscoroutinefunction(pyfuncitem.obj):
-            func = asyncio.coroutine(pyfuncitem.obj)
-        else:
-            func = pyfuncitem.obj
-        loop.run_until_complete(func(**testargs))
-        return True
-
-
-def pytest_runtest_setup(item):
-    if 'run_loop' in item.keywords and 'loop' not in item.fixturenames:
-        # inject an event loop fixture for all async tests
-        item.fixturenames.append('loop')
 
 
 def random_bucketname():
@@ -93,10 +38,9 @@ def assert_status_code(response, status_code):
     assert response['ResponseMetadata']['HTTPStatusCode'] == status_code
 
 
-@asyncio.coroutine
-def assert_num_uploads_found(s3_client, bucket_name, operation,
-                             num_uploads, *, max_items=None, num_attempts=5,
-                             loop):
+async def assert_num_uploads_found(
+        s3_client, bucket_name, operation, num_uploads, *, max_items=None,
+        num_attempts=5, event_loop):
     amount_seen = None
     paginator = s3_client.get_paginator(operation)
     for _ in range(num_attempts):
@@ -104,7 +48,7 @@ def assert_num_uploads_found(s3_client, bucket_name, operation,
                                    PaginationConfig={'MaxItems': max_items})
         responses = []
         while True:
-            resp = yield from pages.next_page()
+            resp = await pages.next_page()
             if resp is None:
                 break
             responses.append(resp)
@@ -118,7 +62,7 @@ def assert_num_uploads_found(s3_client, bucket_name, operation,
             return
         else:
             # Sleep and try again.
-            yield from asyncio.sleep(2, loop=loop)
+            await asyncio.sleep(2, loop=event_loop)
         pytest.fail("Expected to see %s uploads, instead saw: %s" % (
             num_uploads, amount_seen))
 
@@ -141,8 +85,8 @@ def aa_succeed_proxy_config(monkeypatch):
 
 
 @pytest.fixture
-def session(loop):
-    session = aiobotocore.get_session(loop=loop)
+def session(event_loop):
+    session = aiobotocore.get_session(loop=event_loop)
     return session
 
 
@@ -184,18 +128,20 @@ def moto_config(endpoint_url):
 
 
 @pytest.fixture
-def s3_client(request, session, region, config, s3_server, mocking_test, loop):
+def s3_client(request, session, region, config, s3_server, mocking_test,
+              event_loop):
     kw = {}
     if mocking_test:
         kw = moto_config(s3_server)
-    client = create_client('s3', request, loop, session, region, config, **kw)
+    client = create_client('s3', request, event_loop, session, region, config,
+                           **kw)
     return client
 
 
 @pytest.fixture
 def alternative_s3_client(request, session, alternative_region,
                           signature_version, s3_server,
-                          mocking_test, loop):
+                          mocking_test, event_loop):
     kw = {}
     if mocking_test:
         kw = moto_config(s3_server)
@@ -204,71 +150,70 @@ def alternative_s3_client(request, session, alternative_region,
         region_name=alternative_region, signature_version=signature_version,
         read_timeout=5, connect_timeout=5)
     client = create_client(
-        's3', request, loop, session, alternative_region, config, **kw)
+        's3', request, event_loop, session, alternative_region, config, **kw)
     return client
 
 
 @pytest.fixture
 def dynamodb_client(request, session, region, config, dynamodb2_server,
-                    mocking_test, loop):
+                    mocking_test, event_loop):
     kw = {}
     if mocking_test:
         kw = moto_config(dynamodb2_server)
-    client = create_client('dynamodb', request, loop, session, region,
+    client = create_client('dynamodb', request, event_loop, session, region,
                            config, **kw)
     return client
 
 
 @pytest.fixture
 def cloudformation_client(request, session, region, config,
-                          cloudformation_server, mocking_test, loop):
+                          cloudformation_server, mocking_test, event_loop):
     kw = {}
     if mocking_test:
         kw = moto_config(cloudformation_server)
-    client = create_client('cloudformation', request, loop, session, region,
-                           config, **kw)
+    client = create_client('cloudformation', request, event_loop, session,
+                           region, config, **kw)
     return client
 
 
 @pytest.fixture
 def sns_client(request, session, region, config, sns_server,
-               mocking_test, loop):
+               mocking_test, event_loop):
     kw = moto_config(sns_server) if mocking_test else {}
-    client = create_client('sns', request, loop, session, region,
+    client = create_client('sns', request, event_loop, session, region,
                            config, **kw)
     return client
 
 
 @pytest.fixture
 def sqs_client(request, session, region, config, sqs_server,
-               mocking_test, loop):
+               mocking_test, event_loop):
     kw = moto_config(sqs_server) if mocking_test else {}
-    client = create_client('sqs', request, loop, session, region,
+    client = create_client('sqs', request, event_loop, session, region,
                            config, **kw)
     return client
 
 
-def create_client(client_type, request, loop, session, region, config, **kw):
-    @asyncio.coroutine
-    def f():
+def create_client(client_type, request, event_loop, session, region,
+                  config, **kw):
+    async def f():
         return session.create_client(client_type, region_name=region,
                                      config=config, **kw)
-    client = loop.run_until_complete(f())
+    client = event_loop.run_until_complete(f())
 
     def fin():
-        loop.run_until_complete(client.close())
+        event_loop.run_until_complete(client.close())
     request.addfinalizer(fin)
     return client
 
 
-@asyncio.coroutine
-def recursive_delete(s3_client, bucket_name):
+async def recursive_delete(s3_client, bucket_name):
     # Recursively deletes a bucket and all of its contents.
     pages = s3_client.get_paginator('list_objects').paginate(
         Bucket=bucket_name)
 
     while True:
-        n = yield from pages.next_page()
+        n = await pages.next_page()
         if n is None:
             break
 
@@ -279,31 +224,29 @@ def recursive_delete(s3_client, bucket_name):
             key = obj['Key']
             if key is None:
                 continue
-            yield from s3_client.delete_object(Bucket=bucket_name, Key=key)
+            await s3_client.delete_object(Bucket=bucket_name, Key=key)
 
-    resp = yield from s3_client.delete_bucket(Bucket=bucket_name)
+    resp = await s3_client.delete_bucket(Bucket=bucket_name)
     assert_status_code(resp, 204)
 
 
 @pytest.fixture
-def bucket_name(region, create_bucket, s3_client, loop):
-    name = loop.run_until_complete(create_bucket(region))
+def bucket_name(region, create_bucket, s3_client, event_loop):
+    name = event_loop.run_until_complete(create_bucket(region))
     return name
 
 
 @pytest.fixture
-def table_name(region, create_table, dynamodb_client, loop):
-    name = loop.run_until_complete(create_table())
+def table_name(region, create_table, dynamodb_client, event_loop):
+    name = event_loop.run_until_complete(create_table())
     return name
 
 
 @pytest.fixture
-def create_bucket(request, s3_client, loop):
+def create_bucket(request, s3_client, event_loop):
     _bucket_name = None
 
-    @asyncio.coroutine
-    def _f(region_name, bucket_name=None):
-
+    async def _f(region_name, bucket_name=None):
         nonlocal _bucket_name
         if bucket_name is None:
             bucket_name = random_bucketname()
@@ -313,30 +256,29 @@ def create_bucket(request, s3_client, loop):
             bucket_kwargs['CreateBucketConfiguration'] = {
                 'LocationConstraint': region_name,
             }
-        response = yield from s3_client.create_bucket(**bucket_kwargs)
+        response = await s3_client.create_bucket(**bucket_kwargs)
         assert_status_code(response, 200)
         return bucket_name
 
     def fin():
-        loop.run_until_complete(recursive_delete(s3_client, _bucket_name))
+        event_loop.run_until_complete(recursive_delete(s3_client,
+                                                       _bucket_name))
 
     request.addfinalizer(fin)
     return _f
 
 
 @pytest.fixture
-def create_table(request, dynamodb_client, loop):
+def create_table(request, dynamodb_client, event_loop):
     _table_name = None
 
-    @asyncio.coroutine
-    def _is_table_ready(table_name):
-        response = yield from dynamodb_client.describe_table(
+    async def _is_table_ready(table_name):
+        response = await dynamodb_client.describe_table(
             TableName=table_name
         )
         return response['Table']['TableStatus'] == 'ACTIVE'
 
-    @asyncio.coroutine
-    def _f(table_name=None):
+    async def _f(table_name=None):
 
         nonlocal _table_name
         if table_name is None:
@@ -361,22 +303,22 @@ def create_table(request, dynamodb_client, loop):
                 'WriteCapacityUnits': 1
             },
         }
-        response = yield from dynamodb_client.create_table(**table_kwargs)
-        while not (yield from _is_table_ready(table_name)):
+        response = await dynamodb_client.create_table(**table_kwargs)
+        while not (await _is_table_ready(table_name)):
             pass
         assert_status_code(response, 200)
         return table_name
 
     def fin():
-        loop.run_until_complete(delete_table(dynamodb_client, _table_name))
+        event_loop.run_until_complete(delete_table(dynamodb_client,
+                                                   _table_name))
 
     request.addfinalizer(fin)
     return _f
 
 
-@asyncio.coroutine
-def delete_table(dynamodb_client, table_name):
-    response = yield from dynamodb_client.delete_table(
+async def delete_table(dynamodb_client, table_name):
+    response = await dynamodb_client.delete_table(
         TableName=table_name
     )
     assert_status_code(response, 200)
@@ -394,34 +336,31 @@ def tempdir(request):
 
 @pytest.fixture
 def create_object(s3_client, bucket_name):
-
-    @asyncio.coroutine
-    def _f(key_name, body='foo'):
-        r = yield from s3_client.put_object(Bucket=bucket_name, Key=key_name,
-                                            Body=body)
+    async def _f(key_name, body='foo'):
+        r = await s3_client.put_object(Bucket=bucket_name, Key=key_name,
+                                       Body=body)
         assert_status_code(r, 200)
         return r
     return _f
 
 
 @pytest.fixture
-def create_multipart_upload(request, s3_client, bucket_name, loop):
+def create_multipart_upload(request, s3_client, bucket_name, event_loop):
     _key_name = None
     upload_id = None
 
-    @asyncio.coroutine
-    def _f(key_name):
+    async def _f(key_name):
         nonlocal _key_name
         nonlocal upload_id
         _key_name = key_name
 
-        parsed = yield from s3_client.create_multipart_upload(
+        parsed = await s3_client.create_multipart_upload(
             Bucket=bucket_name, Key=key_name)
         upload_id = parsed['UploadId']
         return upload_id
 
     def fin():
-        loop.run_until_complete(s3_client.abort_multipart_upload(
+        event_loop.run_until_complete(s3_client.abort_multipart_upload(
             UploadId=upload_id, Bucket=bucket_name, Key=_key_name))
 
     request.addfinalizer(fin)
@@ -429,15 +368,14 @@ def create_multipart_upload(request, s3_client, bucket_name, loop):
 
 
 @pytest.yield_fixture
-def aio_session(request, loop):
+def aio_session(request, event_loop):
 
-    @asyncio.coroutine
-    def create_session(loop):
-        return aiohttp.ClientSession(loop=loop)
+    async def create_session(event_loop):
+        return aiohttp.ClientSession(event_loop=event_loop)
 
-    session = loop.run_until_complete(create_session(loop))
+    session = event_loop.run_until_complete(create_session(event_loop))
     yield session
-    loop.run_until_complete(session.close())
+    event_loop.run_until_complete(session.close())
 
 
 def pytest_namespace():
@@ -447,11 +385,10 @@ def pytest_namespace():
 
 
 @pytest.fixture
-def dynamodb_put_item(request, dynamodb_client, table_name, loop):
+def dynamodb_put_item(request, dynamodb_client, table_name):
 
-    @asyncio.coroutine
-    def _f(key_string_value):
-        response = yield from dynamodb_client.put_item(
+    async def _f(key_string_value):
+        response = await dynamodb_client.put_item(
             TableName=table_name,
             Item={
                 'testKey': {
@@ -465,67 +402,63 @@ def dynamodb_put_item(request, dynamodb_client, table_name, loop):
 
 
 @pytest.fixture
-def topic_arn(region, create_topic, sns_client, loop):
-    arn = loop.run_until_complete(create_topic())
+def topic_arn(region, create_topic, sns_client, event_loop):
+    arn = event_loop.run_until_complete(create_topic())
     return arn
 
 
-@asyncio.coroutine
-def delete_topic(sns_client, topic_arn):
-    response = yield from sns_client.delete_topic(
+async def delete_topic(sns_client, topic_arn):
+    response = await sns_client.delete_topic(
         TopicArn=topic_arn
     )
     assert_status_code(response, 200)
 
 
 @pytest.fixture
-def create_topic(request, sns_client, loop):
+def create_topic(request, sns_client, event_loop):
     _topic_arn = None
 
-    @asyncio.coroutine
-    def _f():
+    async def _f():
         nonlocal _topic_arn
-        response = yield from sns_client.create_topic(Name=random_name())
+        response = await sns_client.create_topic(Name=random_name())
         _topic_arn = response['TopicArn']
         assert_status_code(response, 200)
         return _topic_arn
 
     def fin():
-        loop.run_until_complete(delete_topic(sns_client, _topic_arn))
+        event_loop.run_until_complete(delete_topic(sns_client, _topic_arn))
 
     request.addfinalizer(fin)
     return _f
 
 
 @pytest.fixture
-def create_sqs_queue(request, sqs_client, loop):
+def create_sqs_queue(request, sqs_client, event_loop):
     _queue_url = None
 
-    @asyncio.coroutine
-    def _f():
+    async def _f():
         nonlocal _queue_url
 
-        response = yield from sqs_client.create_queue(QueueName=random_name())
+        response = await sqs_client.create_queue(QueueName=random_name())
         _queue_url = response['QueueUrl']
         assert_status_code(response, 200)
         return _queue_url
 
     def fin():
-        loop.run_until_complete(delete_sqs_queue(sqs_client, _queue_url))
+        event_loop.run_until_complete(delete_sqs_queue(sqs_client, _queue_url))
 
     request.addfinalizer(fin)
     return _f
 
 
 @pytest.fixture
-def sqs_queue_url(region, create_sqs_queue, sqs_client, loop):
-    name = loop.run_until_complete(create_sqs_queue())
+def sqs_queue_url(region, create_sqs_queue, sqs_client, event_loop):
+    name = event_loop.run_until_complete(create_sqs_queue())
     return name
 
 
-@asyncio.coroutine
-def delete_sqs_queue(sqs_client, queue_url):
-    response = yield from sqs_client.delete_queue(
+async def delete_sqs_queue(sqs_client, queue_url):
+    response = await sqs_client.delete_queue(
         QueueUrl=queue_url
     )
     assert_status_code(response, 200)
