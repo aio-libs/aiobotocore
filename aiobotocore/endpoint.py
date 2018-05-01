@@ -127,8 +127,8 @@ class ClientResponseProxy(wrapt.ObjectProxy):
 
     @property
     def content(self):
-        # ClientResponse._content is set by the coroutine ClientResponse.read
-        return self._content
+        # ClientResponse._body is set by the coroutine ClientResponse.read
+        return self._body
 
     @property
     def raw(self):
