@@ -1,5 +1,9 @@
 Changes
 -------
+0.6.1a0 (2018-XX-XX)
+^^^^^^^^^^^^^^^^^^
+* bump to aiohttp 3.1.x
+
 0.6.0 (2018-03-04)
 ^^^^^^^^^^^^^^^^^^
 * Upgrade to aiohttp>=3.0.0 #536 (thanks @Gr1N)
