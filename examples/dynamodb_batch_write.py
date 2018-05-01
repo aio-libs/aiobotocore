@@ -42,8 +42,7 @@ def create_batch_write_structure(table_name, start_num, num_items):
     }
 
 
-@asyncio.coroutine
-def go(loop):
+async def go(loop):
     session = aiobotocore.get_session(loop=loop)
     client = session.create_client('dynamodb', region_name='us-west-2')
     table_name = 'test'
@@ -53,7 +52,7 @@ def go(loop):
     while True:
         # Loop adding 25 items to dynamo at a time
         request_items = create_batch_write_structure(table_name, start, 25)
-        response = yield from client.batch_write_item(
+        response = await client.batch_write_item(
             RequestItems=request_items
         )
         if len(response['UnprocessedItems']) == 0:
@@ -61,14 +60,14 @@ def go(loop):
         else:
             # Hit the provisioned write limit
             print('Hit write limit, backing off then retrying')
-            yield from asyncio.sleep(5)
+            await asyncio.sleep(5)
 
             # Items left over that haven't been inserted
             unprocessed_items = response['UnprocessedItems']
             print('Resubmitting items')
             # Loop until unprocessed items are written
             while len(unprocessed_items) > 0:
-                response = yield from client.batch_write_item(
+                response = await client.batch_write_item(
                     RequestItems=unprocessed_items
                 )
                 # If any items are still left over, add them to the
@@ -79,7 +78,7 @@ def go(loop):
                 # sleeping some more
                 if len(unprocessed_items) > 0:
                     print('Backing off for 5 seconds')
-                    yield from asyncio.sleep(5)
+                    await asyncio.sleep(5)
 
             # Inserted all the unprocessed items, exit loop
             print('Unprocessed items successfully inserted')
@@ -91,13 +90,13 @@ def go(loop):
     final_item = 'item' + str(start + 24)
     print('Item "{0}" should exist'.format(final_item))
 
-    response = yield from client.get_item(
+    response = await client.get_item(
         TableName=table_name,
         Key={'pk': {'S': final_item}}
     )
     print('Response: ' + str(response['Item']))
 
-    yield from client.close()
+    await client.close()
 
 
 def main():

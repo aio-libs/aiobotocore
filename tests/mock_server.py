@@ -58,21 +58,19 @@ class AIOServer(threading.Thread):
         finally:
             self._shutdown_evt.set()
 
-    @asyncio.coroutine
-    def ok(self, request):
+    async def ok(self, request):
         return aiohttp.web.Response()
 
-    @asyncio.coroutine
-    def stream_handler(self, request):
+    async def stream_handler(self, request):
         # Without the Content-Type, most (all?) browsers will not render
         # partially downloaded content. Note, the response type is
         # StreamResponse not Response.
         resp = StreamResponse(status=200, reason='OK',
                               headers={'Content-Type': 'text/html'})
 
-        yield from resp.prepare(request)
-        yield from asyncio.sleep(5, loop=self._loop)
-        yield from resp.drain()
+        await resp.prepare(request)
+        await asyncio.sleep(5, loop=self._loop)
+        await resp.drain()
         return resp
 
     def wait_until_up(self):
@@ -94,8 +92,7 @@ class AIOServer(threading.Thread):
         if not connected:
             pytest.fail('unable to start and connect to aiohttp server')
 
-    @asyncio.coroutine
-    def stop(self):
+    async def stop(self):
         if self._loop:
             self._loop.stop()
 
@@ -107,7 +104,9 @@ def start_service(service_name, host, port):
     moto_svr_path = shutil.which("moto_server")
     args = [sys.executable, moto_svr_path, service_name, "-H", host,
             "-p", str(port)]
-    process = sp.Popen(args, stdin=sp.PIPE, stdout=sp.PIPE, stderr=sp.PIPE)
+    # stdout = stderr = None
+    stdout = stderr = sp.PIPE
+    process = sp.Popen(args, stdin=sp.PIPE, stdout=stdout, stderr=stderr)
     url = "http://{host}:{port}".format(host=host, port=port)
 
     for i in range(0, 30):

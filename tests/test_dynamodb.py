@@ -31,11 +31,11 @@ def dynamodb_table_def():
 
 @pytest.mark.moto
 @pytest.mark.parametrize('signature_version', ['v4'])
-@pytest.mark.run_loop
-def test_get_item(dynamodb_client, table_name, dynamodb_put_item):
+@pytest.mark.asyncio
+async def test_get_item(dynamodb_client, table_name, dynamodb_put_item):
     test_value = 'testValue'
-    yield from dynamodb_put_item(test_value)
-    response = yield from dynamodb_client.get_item(
+    await dynamodb_put_item(test_value)
+    response = await dynamodb_client.get_item(
         TableName=table_name,
         Key={
             'testKey': {
@@ -49,18 +49,18 @@ def test_get_item(dynamodb_client, table_name, dynamodb_put_item):
 
 @pytest.mark.moto
 @pytest.mark.parametrize('signature_version', ['v4'])
-@pytest.mark.run_loop
-def test_create_waiter(dynamodb_client, dynamodb_table_def):
+@pytest.mark.asyncio
+async def test_create_waiter(dynamodb_client, dynamodb_table_def):
     table_name = dynamodb_table_def['TableName']
 
-    response = yield from dynamodb_client.create_table(**dynamodb_table_def)
+    response = await dynamodb_client.create_table(**dynamodb_table_def)
 
     pytest.aio.assert_status_code(response, 200)
 
     waiter = dynamodb_client.get_waiter('table_exists')
-    yield from waiter.wait(TableName=table_name)
+    await waiter.wait(TableName=table_name)
 
-    response = yield from dynamodb_client.describe_table(
+    response = await dynamodb_client.describe_table(
         TableName=table_name
     )
     assert response['Table']['TableStatus'] == 'ACTIVE'
@@ -68,9 +68,9 @@ def test_create_waiter(dynamodb_client, dynamodb_table_def):
 
 @pytest.mark.moto
 @pytest.mark.parametrize('signature_version', ['v4'])
-@pytest.mark.run_loop
-def test_batch_write_scan(dynamodb_client, table_name):
-    response = yield from dynamodb_client.batch_write_item(
+@pytest.mark.asyncio
+async def test_batch_write_scan(dynamodb_client, table_name):
+    response = await dynamodb_client.batch_write_item(
         RequestItems={
             table_name: [
                 {
@@ -94,7 +94,7 @@ def test_batch_write_scan(dynamodb_client, table_name):
     )
     pytest.aio.assert_status_code(response, 200)
 
-    response = yield from dynamodb_client.scan(TableName=table_name)
+    response = await dynamodb_client.scan(TableName=table_name)
     test_keys = sorted([item['testKey']['S'] for item in response['Items']])
 
     assert response['Count'] == 2
@@ -103,55 +103,55 @@ def test_batch_write_scan(dynamodb_client, table_name):
 
 @pytest.mark.moto
 @pytest.mark.parametrize('signature_version', ['v4'])
-@pytest.mark.run_loop
-def test_delete_table(dynamodb_client, dynamodb_table_def):
+@pytest.mark.asyncio
+async def test_delete_table(dynamodb_client, dynamodb_table_def):
     table_name = dynamodb_table_def['TableName']
 
-    yield from dynamodb_client.create_table(**dynamodb_table_def)
+    await dynamodb_client.create_table(**dynamodb_table_def)
 
-    response = yield from dynamodb_client.describe_table(
+    response = await dynamodb_client.describe_table(
         TableName=table_name
     )
     assert response['Table']['TableStatus'] == 'ACTIVE'
 
-    response = yield from dynamodb_client.delete_table(
+    response = await dynamodb_client.delete_table(
         TableName=table_name
     )
     pytest.aio.assert_status_code(response, 200)
 
-    response = yield from dynamodb_client.list_tables()
+    response = await dynamodb_client.list_tables()
     assert table_name not in response['TableNames']
 
 
 @pytest.mark.moto
 @pytest.mark.parametrize('signature_version', ['v4'])
-@pytest.mark.run_loop
-def test_waiter_table_exists_failure(dynamodb_client):
+@pytest.mark.asyncio
+async def test_waiter_table_exists_failure(dynamodb_client):
     waiter = dynamodb_client.get_waiter('table_exists')
     with pytest.raises(
             WaiterError,
             match='Waiter TableExists failed: Max attempts exceeded'):
-        yield from waiter.wait(
+        await waiter.wait(
             TableName='unknown',
             WaiterConfig=dict(Delay=1, MaxAttempts=1))
 
 
 @pytest.mark.moto
 @pytest.mark.parametrize('signature_version', ['v4'])
-@pytest.mark.run_loop
-def test_waiter_table_exists(loop, dynamodb_client, dynamodb_table_def):
+@pytest.mark.asyncio
+async def test_waiter_table_exists(event_loop, dynamodb_client,
+                                   dynamodb_table_def):
     table_name = dynamodb_table_def['TableName']
 
-    @asyncio.coroutine
-    def _create_table():
-        yield from asyncio.sleep(2, loop=loop)
-        yield from dynamodb_client.create_table(**dynamodb_table_def)
+    async def _create_table():
+        await asyncio.sleep(2, loop=event_loop)
+        await dynamodb_client.create_table(**dynamodb_table_def)
 
-    task = loop.create_task(_create_table())
+    task = event_loop.create_task(_create_table())
     assert not task.done()
 
     waiter = dynamodb_client.get_waiter('table_exists')
-    yield from waiter.wait(
+    await waiter.wait(
         TableName=table_name,
         WaiterConfig=dict(Delay=1, MaxAttempts=5))
 

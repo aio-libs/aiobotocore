@@ -11,18 +11,17 @@ import botocore.exceptions
 QUEUE_NAME = 'test_queue12'
 
 
-@asyncio.coroutine
-def go(loop):
+async def go(loop):
     # Boto should get credentials from ~/.aws/credentials or the environment
     session = aiobotocore.get_session(loop=loop)
     client = session.create_client('sqs', region_name='us-west-2')
     try:
-        response = yield from client.get_queue_url(QueueName=QUEUE_NAME)
+        response = await client.get_queue_url(QueueName=QUEUE_NAME)
     except botocore.exceptions.ClientError as err:
         if err.response['Error']['Code'] == \
                 'AWS.SimpleQueueService.NonExistentQueue':
             print("Queue {0} does not exist".format(QUEUE_NAME))
-            yield from client.close()
+            await client.close()
             sys.exit(1)
         else:
             raise
@@ -35,7 +34,7 @@ def go(loop):
         try:
             # This loop wont spin really fast as there is
             # essentially a sleep in the receieve_message call
-            response = yield from client.receive_message(
+            response = await client.receive_message(
                 QueueUrl=queue_url,
                 WaitTimeSeconds=2,
             )
@@ -44,7 +43,7 @@ def go(loop):
                 for msg in response['Messages']:
                     print('Got msg "{0}"'.format(msg['Body']))
                     # Need to remove msg from queue or else it'll reappear
-                    yield from client.delete_message(
+                    await client.delete_message(
                         QueueUrl=queue_url,
                         ReceiptHandle=msg['ReceiptHandle']
                     )
@@ -54,7 +53,7 @@ def go(loop):
             break
 
     print('Finished')
-    yield from client.close()
+    await client.close()
 
 
 def main():

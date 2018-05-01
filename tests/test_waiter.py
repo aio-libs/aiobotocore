@@ -2,8 +2,8 @@ import pytest
 
 
 @pytest.mark.moto
-@pytest.mark.run_loop
-def test_sqs(cloudformation_client):
+@pytest.mark.asyncio
+async def test_sqs(cloudformation_client):
     cloudformation_template = """{
       "AWSTemplateFormatVersion": "2010-09-09",
       "Resources": {
@@ -17,11 +17,11 @@ def test_sqs(cloudformation_client):
     }"""
 
     # Create stack
-    resp = yield from cloudformation_client.create_stack(
+    resp = await cloudformation_client.create_stack(
             StackName='my-stack', TemplateBody=cloudformation_template)
 
     assert resp['ResponseMetadata']['HTTPStatusCode'] == 200
 
     # wait for complete
     waiter = cloudformation_client.get_waiter('stack_create_complete')
-    yield from waiter.wait(StackName='my-stack')
+    await waiter.wait(StackName='my-stack')

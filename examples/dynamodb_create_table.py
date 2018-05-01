@@ -5,15 +5,14 @@ import asyncio
 import aiobotocore
 
 
-@asyncio.coroutine
-def go(loop):
+async def go(loop):
     session = aiobotocore.get_session(loop=loop)
     client = session.create_client('dynamodb', region_name='us-west-2')
     # Create random table name
     table_name = 'aiobotocore-' + str(uuid.uuid4())
 
     print('Requesting table creation...')
-    yield from client.create_table(
+    await client.create_table(
         TableName=table_name,
         AttributeDefinitions=[
             {
@@ -35,10 +34,10 @@ def go(loop):
 
     print("Waiting for table to be created...")
     waiter = client.get_waiter('table_exists')
-    yield from waiter.wait(TableName=table_name)
+    await waiter.wait(TableName=table_name)
     print("Table {0} created".format(table_name))
 
-    yield from client.close()
+    await client.close()
 
 
 def main():
