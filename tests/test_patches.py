@@ -31,7 +31,6 @@ _READ_TIMEOUT_DIGESTS = {
     # for our replacement of _factory and _create_connection
     TCPConnector: {
         '42a405b3d0b4aa9a61eb7d72925a5c8e373bec6b',
-        '3d92dd47383d5a6f918b56a946a975314c8359f1'
     },
 
     # for its inheritance to DataQueue
@@ -43,8 +42,8 @@ _READ_TIMEOUT_DIGESTS = {
     # for our patch of _wait
     StreamReader: {'d4ffb6ae823ef4bfd810aade8601ba7b01aa08ec'},
 
-    # for digging into _protocol, and using _body
-    ClientResponse: {'5834c5174937df460b2452b68942e950bbaa5dd7'},
+    # for digging into _protocol, and using _content
+    ClientResponse: {'c2f662e8d641e538ac2a0a0f44c2bf1805167dd1'},
 }
 
 # These are guards to our main patches
