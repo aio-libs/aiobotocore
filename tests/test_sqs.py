@@ -3,29 +3,29 @@ import pytest
 
 
 @pytest.mark.moto
-@pytest.mark.run_loop
-def test_list_queues(sqs_client, sqs_queue_url):
-    response = yield from sqs_client.list_queues()
+@pytest.mark.asyncio
+async def test_list_queues(sqs_client, sqs_queue_url):
+    response = await sqs_client.list_queues()
     pytest.aio.assert_status_code(response, 200)
 
     assert sqs_queue_url in response['QueueUrls']
 
 
 @pytest.mark.moto
-@pytest.mark.run_loop
-def test_get_queue_name(sqs_client, sqs_queue_url):
+@pytest.mark.asyncio
+async def test_get_queue_name(sqs_client, sqs_queue_url):
     queue_name = sqs_queue_url.rsplit('/', 1)[-1]
 
-    response = yield from sqs_client.get_queue_url(QueueName=queue_name)
+    response = await sqs_client.get_queue_url(QueueName=queue_name)
     pytest.aio.assert_status_code(response, 200)
 
     assert sqs_queue_url == response['QueueUrl']
 
 
 @pytest.mark.moto
-@pytest.mark.run_loop
-def test_put_pull_delete_test(sqs_client, sqs_queue_url):
-    response = yield from sqs_client.send_message(
+@pytest.mark.asyncio
+async def test_put_pull_delete_test(sqs_client, sqs_queue_url):
+    response = await sqs_client.send_message(
         QueueUrl=sqs_queue_url,
         MessageBody='test_message_1',
         MessageAttributes={
@@ -34,7 +34,7 @@ def test_put_pull_delete_test(sqs_client, sqs_queue_url):
     )
     pytest.aio.assert_status_code(response, 200)
 
-    response = yield from sqs_client.receive_message(
+    response = await sqs_client.receive_message(
         QueueUrl=sqs_queue_url,
     )
     pytest.aio.assert_status_code(response, 200)
@@ -46,12 +46,12 @@ def test_put_pull_delete_test(sqs_client, sqs_queue_url):
     assert msg['MessageAttributes']['attr1']['StringValue'] == 'value1'
 
     receipt_handle = response['Messages'][0]['ReceiptHandle']
-    response = yield from sqs_client.delete_message(
+    response = await sqs_client.delete_message(
         QueueUrl=sqs_queue_url,
         ReceiptHandle=receipt_handle
     )
     pytest.aio.assert_status_code(response, 200)
-    response = yield from sqs_client.receive_message(
+    response = await sqs_client.receive_message(
         QueueUrl=sqs_queue_url,
     )
     pytest.aio.assert_status_code(response, 200)
@@ -59,10 +59,10 @@ def test_put_pull_delete_test(sqs_client, sqs_queue_url):
 
 
 @pytest.mark.moto
-@pytest.mark.run_loop
-def test_put_pull_wait(sqs_client, sqs_queue_url):
+@pytest.mark.asyncio
+async def test_put_pull_wait(sqs_client, sqs_queue_url):
     start = time.perf_counter()
-    response = yield from sqs_client.receive_message(
+    response = await sqs_client.receive_message(
         QueueUrl=sqs_queue_url,
         WaitTimeSeconds=2
     )

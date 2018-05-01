@@ -6,6 +6,7 @@ Flask==0.12.2
 moto==1.2.0
 pytest-cov==2.5.1
 pytest==3.4.1
+pytest-asyncio==0.8.0
 sphinx==1.7.1
 yarl==1.1.1
 aiohttp==3.0.5
