@@ -63,12 +63,16 @@ async def convert_to_response_dict(http_response, operation_model):
             {k.decode('utf-8').lower(): v.decode('utf-8')
              for k, v in http_response.raw_headers}),
         'status_code': http_response.status_code,
+        'context': {
+            'operation_name': operation_model.name
+        }
     }
 
     if response_dict['status_code'] >= 300:
         body = await http_response.read()
         response_dict['body'] = body
-    elif operation_model.has_streaming_output:
+    elif operation_model.has_streaming_output or \
+            operation_model.has_event_stream_output:
         response_dict['body'] = http_response.raw
     else:
         body = await http_response.read()
