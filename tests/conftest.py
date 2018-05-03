@@ -109,7 +109,7 @@ def signature_version():
 @pytest.fixture
 def config(region, signature_version):
     return AioConfig(region_name=region, signature_version=signature_version,
-                     read_timeout=None, connect_timeout=None)
+                     read_timeout=5, connect_timeout=5)
 
 
 @pytest.fixture
