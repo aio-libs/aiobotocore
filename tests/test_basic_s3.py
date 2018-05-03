@@ -2,6 +2,7 @@ import pytest
 import aiohttp
 import asyncio
 
+
 async def fetch_all(pages):
     responses = []
     while True:

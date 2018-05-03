@@ -212,9 +212,15 @@ async def recursive_delete(s3_client, bucket_name):
     # Recursively deletes a bucket and all of its contents.
     async for n in s3_client.get_paginator('list_object_versions').paginate(
             Bucket=bucket_name, Prefix=''):
-        for obj in chain(n.get('Versions', []), n.get('DeleteMarkers', []), n.get('Contents', []), n.get('CommonPrefixes', [])):
-            resp = await s3_client.delete_object(
-                Bucket=bucket_name, Key=obj['Key'], VersionId=obj['VersionId'])
+        for obj in chain(
+                n.get('Versions', []),
+                n.get('DeleteMarkers', []),
+                n.get('Contents', []),
+                n.get('CommonPrefixes', [])):
+            kwargs = dict(Bucket=bucket_name, Key=obj['Key'])
+            if 'VersionId' in obj:
+                kwargs['VersionId'] = obj['VersionId']
+            resp = await s3_client.delete_object(**kwargs)
             assert_status_code(resp, 204)
 
     resp = await s3_client.delete_bucket(Bucket=bucket_name)
