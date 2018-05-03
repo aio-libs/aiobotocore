@@ -61,6 +61,13 @@ class StreamingBody(wrapt.ObjectProxy):
         self._self_content_length = content_length
         self._self_amount_read = 0
 
+    # https://github.com/GrahamDumpleton/wrapt/issues/73
+    async def __aenter__(self):
+        return await self.__wrapped__.__aenter__()
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        return await self.__wrapped__.__aexit__(exc_type, exc_val, exc_tb)
+
     async def read(self, amt=-1):
         """Read at most amt bytes from the stream.
 
