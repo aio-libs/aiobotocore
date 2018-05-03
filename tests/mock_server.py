@@ -104,16 +104,15 @@ def start_service(service_name, host, port):
     moto_svr_path = shutil.which("moto_server")
     args = [sys.executable, moto_svr_path, service_name, "-H", host,
             "-p", str(port)]
-    # stdout = stderr = None
-    stdout = stderr = sp.PIPE
-    process = sp.Popen(args, stdin=sp.PIPE, stdout=stdout, stderr=stderr)
+
+    # If test fails stdout/stderr will be shown
+    process = sp.Popen(args, stdin=sp.PIPE)
     url = "http://{host}:{port}".format(host=host, port=port)
 
     for i in range(0, 30):
         if process.poll() is not None:
-            stdout, stderr = process.communicate()
-            pytest.fail("service failed starting up: {}  stdout: {} stderr: {}"
-                        "".format(service_name, stdout, stderr))
+            process.communicate()
+            pytest.fail("service failed starting up: {}".format(service_name))
             break
 
         try:

@@ -4,6 +4,7 @@ import time
 import aiohttp
 import aiobotocore
 from aiobotocore.config import AioConfig
+from itertools import chain
 import tempfile
 import shutil
 
@@ -108,7 +109,7 @@ def signature_version():
 @pytest.fixture
 def config(region, signature_version):
     return AioConfig(region_name=region, signature_version=signature_version,
-                     read_timeout=5, connect_timeout=5)
+                     read_timeout=None, connect_timeout=None)
 
 
 @pytest.fixture
@@ -209,22 +210,12 @@ def create_client(client_type, request, event_loop, session, region,
 
 async def recursive_delete(s3_client, bucket_name):
     # Recursively deletes a bucket and all of its contents.
-    pages = s3_client.get_paginator('list_objects').paginate(
-        Bucket=bucket_name)
-
-    while True:
-        n = await pages.next_page()
-        if n is None:
-            break
-
-        if 'Contents' not in n:
-            continue
-
-        for obj in n['Contents']:
-            key = obj['Key']
-            if key is None:
-                continue
-            await s3_client.delete_object(Bucket=bucket_name, Key=key)
+    async for n in s3_client.get_paginator('list_object_versions').paginate(
+            Bucket=bucket_name, Prefix=''):
+        for obj in chain(n.get('Versions', []), n.get('DeleteMarkers', []), n.get('Contents', []), n.get('CommonPrefixes', [])):
+            resp = await s3_client.delete_object(
+                Bucket=bucket_name, Key=obj['Key'], VersionId=obj['VersionId'])
+            assert_status_code(resp, 204)
 
     resp = await s3_client.delete_bucket(Bucket=bucket_name)
     assert_status_code(resp, 204)
@@ -258,6 +249,8 @@ def create_bucket(request, s3_client, event_loop):
             }
         response = await s3_client.create_bucket(**bucket_kwargs)
         assert_status_code(response, 200)
+        await s3_client.put_bucket_versioning(
+            Bucket=bucket_name, VersioningConfiguration={'Status': 'Enabled'})
         return bucket_name
 
     def fin():
@@ -369,11 +362,7 @@ def create_multipart_upload(request, s3_client, bucket_name, event_loop):
 
 @pytest.yield_fixture
 def aio_session(request, event_loop):
-
-    async def create_session(event_loop):
-        return aiohttp.ClientSession(event_loop=event_loop)
-
-    session = event_loop.run_until_complete(create_session(event_loop))
+    session = aiohttp.ClientSession(loop=event_loop)
     yield session
     event_loop.run_until_complete(session.close())
 
