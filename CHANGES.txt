@@ -2,6 +2,8 @@ Changes
 -------
 0.7.1a0 (XXXX-XX-XX)
 ^^^^^^^^^^^^^^^^^^^^
+* Fix pagination #573 (thanks @adamrothman)
+* Enabled several s3 tests via moto
 
 0.7.0 (2018-05-01)
 ^^^^^^^^^^^^^^^^^^
