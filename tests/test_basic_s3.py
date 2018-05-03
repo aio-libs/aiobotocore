@@ -349,13 +349,15 @@ async def test_can_copy_with_dict_form(s3_client, create_object, bucket_name):
 
 @pytest.mark.moto
 @pytest.mark.asyncio
-async def test_can_copy_with_dict_form_with_version(s3_client, create_object, bucket_name):
+async def test_can_copy_with_dict_form_with_version(
+        s3_client, create_object, bucket_name):
     key_name = 'a+b/foo?versionId=abcd'
     response = await create_object(key_name=key_name)
     key_name2 = key_name + 'bar'
     await s3_client.copy_object(
         Bucket=bucket_name, Key=key_name2,
-        CopySource={'Bucket': bucket_name, 'Key': key_name, 'VersionId': response["VersionId"]})
+        CopySource={'Bucket': bucket_name, 'Key': key_name,
+                    'VersionId': response["VersionId"]})
 
     # Now verify we can retrieve the copied object.
     resp = await s3_client.get_object(Bucket=bucket_name, Key=key_name2)
@@ -380,7 +382,8 @@ async def test_copy_with_s3_metadata(s3_client, create_object, bucket_name):
 
 @pytest.mark.parametrize('region', ['us-east-1'])
 @pytest.mark.parametrize('signature_version', ['s3'])
-@pytest.mark.parametrize('mocking_test', [False])  # 'Content-Disposition' not supported by moto yet
+# 'Content-Disposition' not supported by moto yet
+@pytest.mark.parametrize('mocking_test', [False])
 @pytest.mark.asyncio
 async def test_presign_with_existing_query_string_values(
         s3_client, bucket_name, aio_session, create_object):
@@ -403,7 +406,8 @@ async def test_presign_with_existing_query_string_values(
 
 @pytest.mark.parametrize('region', ['us-east-1'])
 @pytest.mark.parametrize('signature_version', ['s3v4'])
-@pytest.mark.parametrize('mocking_test', [False])  # moto host will be localhost
+# moto host will be localhost
+@pytest.mark.parametrize('mocking_test', [False])
 @pytest.mark.asyncio
 async def test_presign_sigv4(s3_client, bucket_name, aio_session,
                              create_object):
