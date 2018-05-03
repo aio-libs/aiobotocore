@@ -11,8 +11,8 @@ from aiohttp.client import URL
 from aiohttp.client_reqrep import ClientResponse
 from botocore.endpoint import EndpointCreator, Endpoint, DEFAULT_TIMEOUT, \
     MAX_POOL_CONNECTIONS, logger
-from botocore.exceptions import EndpointConnectionError, ConnectionClosedError,\
-    IncompleteReadError
+from botocore.exceptions import EndpointConnectionError, \
+    ConnectionClosedError, IncompleteReadError
 from botocore.hooks import first_non_none_response
 from botocore.utils import is_valid_endpoint_url
 from botocore.vendored.requests.structures import CaseInsensitiveDict
