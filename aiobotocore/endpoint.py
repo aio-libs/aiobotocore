@@ -11,7 +11,8 @@ from aiohttp.client import URL
 from aiohttp.client_reqrep import ClientResponse
 from botocore.endpoint import EndpointCreator, Endpoint, DEFAULT_TIMEOUT, \
     MAX_POOL_CONNECTIONS, logger
-from botocore.exceptions import EndpointConnectionError, ConnectionClosedError
+from botocore.exceptions import EndpointConnectionError, \
+    ConnectionClosedError, IncompleteReadError
 from botocore.hooks import first_non_none_response
 from botocore.utils import is_valid_endpoint_url
 from botocore.vendored.requests.structures import CaseInsensitiveDict
@@ -53,6 +54,45 @@ class _IOBaseWrapper(wrapt.ObjectProxy):
         pass
 
 
+# similar to botocore.response.StreamingBody
+class StreamingBody(wrapt.ObjectProxy):
+    def __init__(self, raw_stream, content_length):
+        super().__init__(raw_stream)
+        self._self_content_length = content_length
+        self._self_amount_read = 0
+
+    # https://github.com/GrahamDumpleton/wrapt/issues/73
+    async def __aenter__(self):
+        return await self.__wrapped__.__aenter__()
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        return await self.__wrapped__.__aexit__(exc_type, exc_val, exc_tb)
+
+    async def read(self, amt=-1):
+        """Read at most amt bytes from the stream.
+
+        If the amt argument is omitted, read all data.
+        """
+        chunk = await self.__wrapped__.read(amt)
+        self._self_amount_read += len(chunk)
+        if amt is None or (not chunk and amt > 0):
+            # If the server sends empty contents or
+            # we ask to read all of the contents, then we know
+            # we need to verify the content length.
+            self._verify_content_length()
+        return chunk
+
+    def _verify_content_length(self):
+        # See: https://github.com/kennethreitz/requests/issues/1855
+        # Basically, our http library doesn't do this for us, so we have
+        # to do this ourself.
+        if self._self_content_length is not None and \
+                self._self_amount_read != int(self._self_content_length):
+            raise IncompleteReadError(
+                actual_bytes=self._self_amount_read,
+                expected_bytes=int(self._self_content_length))
+
+
 async def convert_to_response_dict(http_response, operation_model):
     response_dict = {
         # botocore converts keys to str, so make sure that they are in
@@ -63,16 +103,20 @@ async def convert_to_response_dict(http_response, operation_model):
             {k.decode('utf-8').lower(): v.decode('utf-8')
              for k, v in http_response.raw_headers}),
         'status_code': http_response.status_code,
+        'context': {
+            'operation_name': operation_model.name,
+        }
     }
 
     if response_dict['status_code'] >= 300:
-        body = await http_response.read()
-        response_dict['body'] = body
-    elif operation_model.has_streaming_output:
+        response_dict['body'] = await http_response.read()
+    elif operation_model.has_event_stream_output:
         response_dict['body'] = http_response.raw
+    elif operation_model.has_streaming_output:
+        length = response_dict['headers'].get('content-length')
+        response_dict['body'] = StreamingBody(http_response.raw, length)
     else:
-        body = await http_response.read()
-        response_dict['body'] = body
+        response_dict['body'] = await http_response.read()
     return response_dict
 
 
@@ -84,12 +128,13 @@ class ClientResponseContentProxy(wrapt.ObjectProxy):
 
     def __init__(self, response):
         super().__init__(response.__wrapped__.content)
-        self.__response = response
+        self._self_response = response
 
     def set_socket_timeout(self, timeout):
-        """Set the timeout seconds on the socket."""
-        # TODO: see if we can do this w/o grabbing _protocol
-        self.__response._protocol.set_timeout(timeout)
+        """Set the timeout on the socket."""
+        # TODO: see if we can do this w/o grabbing _protocol and if we can
+        #       move this to StreamingBody where it belongs
+        self._self_response._protocol.set_timeout(timeout)
 
     # Note: we don't have a __del__ method as the ClientResponse has a __del__
     # which will warn the user if they didn't close/release the response
@@ -97,14 +142,14 @@ class ClientResponseContentProxy(wrapt.ObjectProxy):
     # (which could be very large), and a close would mean being unable to re-
     # use the connection, so the user MUST chose.  Default is to warn + close
     async def __aenter__(self):
-        await self.__response.__aenter__()
+        await self._self_response.__aenter__()
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        return await self.__response.__aexit__(exc_type, exc_val, exc_tb)
+        return await self._self_response.__aexit__(exc_type, exc_val, exc_tb)
 
     def close(self):
-        self.__response.close()
+        self._self_response.close()
 
 
 class ClientResponseProxy(wrapt.ObjectProxy):
@@ -234,7 +279,7 @@ class AioEndpoint(Endpoint):
             loop=self._loop,
             auto_decompress=False)
 
-    async def _request(self, method, url, headers, data, stream):
+    async def _request(self, method, url, headers, data, verify, stream):
         # Note: When using aiobotocore with dynamodb, requests fail on crc32
         # checksum computation as soon as the response data reaches ~5KB.
         # When AWS response is gzip compressed:
@@ -260,7 +305,7 @@ class AioEndpoint(Endpoint):
         url = URL(url, encoded=True)
         resp = await self._aio_session.request(
             method, url=url, headers=headers_, data=data, proxy=proxy,
-            timeout=None)
+            verify_ssl=verify, timeout=None)
 
         # If we're not streaming, read the content so we can retry any timeout
         #  errors, see:
@@ -336,9 +381,14 @@ class AioEndpoint(Endpoint):
                 'url': request.url,
                 'body': request.body
             })
+            streaming = any([
+                operation_model.has_streaming_output,
+                operation_model.has_event_stream_output
+            ])
             http_response = await self._request(
                 request.method, request.url, request.headers, request.body,
-                operation_model.has_streaming_output)
+                verify=self.verify,
+                stream=streaming)
         except aiohttp.ClientConnectionError as e:
             e.request = request  # botocore expects the request property
 
@@ -373,8 +423,8 @@ class AioEndpoint(Endpoint):
             operation_model.has_streaming_output
         history_recorder.record('HTTP_RESPONSE', http_response_record_dict)
 
-        parser = self._response_parser_factory.create_parser(
-            operation_model.metadata['protocol'])
+        protocol = operation_model.metadata['protocol']
+        parser = self._response_parser_factory.create_parser(protocol)
         parsed_response = parser.parse(
             response_dict, operation_model.output_shape)
         history_recorder.record('PARSED_RESPONSE', parsed_response)

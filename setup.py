@@ -8,7 +8,8 @@ from setuptools import setup, find_packages
 # https://github.com/aio-libs/aiobotocore/pull/248 will continue working
 # If adding requirements make sure to also add to requirements-dev.txt
 install_requires = [
-    'botocore>=1.8.0, <=1.8.21',
+    # pegged to also match items in `extras_require`
+    'botocore>=1.10.12, <1.10.13',
 
     # for now we depend on internals of aiohttp so this range can't be open
     'aiohttp>=3.1.0, <3.2.0',
@@ -28,8 +29,8 @@ def read(f):
 
 
 extras_require = {
-    'awscli': ['awscli>=1.12.0, <=1.14.17'],
-    'boto3': ['boto3==1.5.7'],
+    'awscli': ['awscli>=1.15.12, <1.15.13'],
+    'boto3': ['boto3==1.7.12, <1.7.13'],
 }
 
 

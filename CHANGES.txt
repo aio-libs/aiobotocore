@@ -1,7 +1,10 @@
 Changes
 -------
-0.7.1a0 (XXXX-XX-XX)
+0.8.0a0 (XXXX-XX-XX)
 ^^^^^^^^^^^^^^^^^^^^
+* Fix pagination #573 (thanks @adamrothman)
+* Enabled several s3 tests via moto
+* Bring botocore up to date
 
 0.7.0 (2018-05-01)
 ^^^^^^^^^^^^^^^^^^

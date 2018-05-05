@@ -1,5 +1,6 @@
 import pytest
 import aiohttp
+import asyncio
 
 
 async def fetch_all(pages):
@@ -41,7 +42,7 @@ async def test_succeed_proxy_request(aa_succeed_proxy_config, s3_client):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize('mocking_test', [False])
+@pytest.mark.moto
 async def test_can_get_bucket_location(s3_client, bucket_name):
     result = await s3_client.get_bucket_location(Bucket=bucket_name)
     assert 'LocationConstraint' in result
@@ -72,7 +73,7 @@ async def test_can_delete_urlencoded_object(s3_client, bucket_name,
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize('mocking_test', [False])
+@pytest.mark.moto
 async def test_can_paginate(s3_client, bucket_name, create_object):
     for i in range(5):
         key_name = 'key%s' % i
@@ -88,7 +89,7 @@ async def test_can_paginate(s3_client, bucket_name, create_object):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize('mocking_test', [False])
+@pytest.mark.moto
 async def test_can_paginate_with_page_size(
         s3_client, bucket_name, create_object):
     for i in range(5):
@@ -107,7 +108,7 @@ async def test_can_paginate_with_page_size(
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize('mocking_test', [False])
+@pytest.mark.moto
 async def test_can_paginate_iterator(s3_client, bucket_name, create_object):
     for i in range(5):
         key_name = 'key%s' % i
@@ -117,6 +118,7 @@ async def test_can_paginate_iterator(s3_client, bucket_name, create_object):
     responses = []
     async for page in paginator.paginate(
             PaginationConfig={'PageSize': 1}, Bucket=bucket_name):
+        assert not asyncio.iscoroutine(page)
         responses.append(page)
     assert len(responses) == 5, responses
     data = [r for r in responses]
@@ -171,7 +173,7 @@ async def test_get_object_stream_context(s3_client, create_object,
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize('mocking_test', [False])
+@pytest.mark.moto
 async def test_paginate_max_items(
         s3_client, create_multipart_upload, bucket_name, event_loop):
     await create_multipart_upload('foo/key1')
@@ -186,12 +188,12 @@ async def test_paginate_max_items(
     # Verify when we have MaxItems=None, we get back all 8 uploads.
     await pytest.aio.assert_num_uploads_found(
         s3_client, bucket_name, 'list_multipart_uploads', max_items=None,
-        num_uploads=8, loop=event_loop)
+        num_uploads=8, event_loop=event_loop)
 
     # Verify when we have MaxItems=1, we get back 1 upload.
     await pytest.aio.assert_num_uploads_found(
         s3_client, bucket_name, 'list_multipart_uploads', max_items=1,
-        num_uploads=1, loop=event_loop)
+        num_uploads=1, event_loop=event_loop)
 
     paginator = s3_client.get_paginator('list_multipart_uploads')
     # Works similar with build_full_result()
@@ -348,6 +350,25 @@ async def test_can_copy_with_dict_form(s3_client, create_object, bucket_name):
 
 @pytest.mark.moto
 @pytest.mark.asyncio
+async def test_can_copy_with_dict_form_with_version(
+        s3_client, create_object, bucket_name):
+    key_name = 'a+b/foo?versionId=abcd'
+    response = await create_object(key_name=key_name)
+    key_name2 = key_name + 'bar'
+    await s3_client.copy_object(
+        Bucket=bucket_name, Key=key_name2,
+        CopySource={'Bucket': bucket_name, 'Key': key_name,
+                    'VersionId': response["VersionId"]})
+
+    # Now verify we can retrieve the copied object.
+    resp = await s3_client.get_object(Bucket=bucket_name, Key=key_name2)
+    data = await resp['Body'].read()
+    resp['Body'].close()
+    assert data == b'foo'
+
+
+@pytest.mark.moto
+@pytest.mark.asyncio
 async def test_copy_with_s3_metadata(s3_client, create_object, bucket_name):
     key_name = 'foo.txt'
     await create_object(key_name=key_name)
@@ -361,8 +382,9 @@ async def test_copy_with_s3_metadata(s3_client, create_object, bucket_name):
 
 
 @pytest.mark.parametrize('region', ['us-east-1'])
-@pytest.mark.parametrize('mocking_test', [False])
 @pytest.mark.parametrize('signature_version', ['s3'])
+# 'Content-Disposition' not supported by moto yet
+@pytest.mark.parametrize('mocking_test', [False])
 @pytest.mark.asyncio
 async def test_presign_with_existing_query_string_values(
         s3_client, bucket_name, aio_session, create_object):
@@ -378,14 +400,15 @@ async def test_presign_with_existing_query_string_values(
 
     resp = await aio_session.get(presigned_url)
     data = await resp.read()
-    resp.close()
+    await resp.close()
     assert resp.headers['Content-Disposition'] == content_disposition
     assert data == b'foo'
 
 
 @pytest.mark.parametrize('region', ['us-east-1'])
-@pytest.mark.parametrize('mocking_test', [False])
 @pytest.mark.parametrize('signature_version', ['s3v4'])
+# moto host will be localhost
+@pytest.mark.parametrize('mocking_test', [False])
 @pytest.mark.asyncio
 async def test_presign_sigv4(s3_client, bucket_name, aio_session,
                              create_object):
@@ -440,8 +463,8 @@ async def test_bucket_redirect(
 
 
 @pytest.mark.parametrize('signature_version', ['s3v4'])
-@pytest.mark.parametrize('mocking_test', [False])
 @pytest.mark.asyncio
+@pytest.mark.moto
 async def test_head_object_keys(s3_client, create_object, bucket_name):
     await create_object('foobarbaz')
 
@@ -451,5 +474,5 @@ async def test_head_object_keys(s3_client, create_object, bucket_name):
     # this is to ensure things like:
     # https://github.com/aio-libs/aiobotocore/issues/131 don't happen again
     assert set(resp.keys()) == {
-        'AcceptRanges', 'ETag', 'ContentType', 'Metadata', 'LastModified',
-        'ResponseMetadata', 'ContentLength'}
+        'ETag', 'ContentType', 'Metadata', 'LastModified',
+        'ResponseMetadata', 'ContentLength', 'VersionId'}

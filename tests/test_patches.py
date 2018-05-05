@@ -50,11 +50,11 @@ _READ_TIMEOUT_DIGESTS = {
 # These are guards to our main patches
 _API_DIGESTS = {
     ClientArgsCreator: {'a8d2e4159469622afcf938805b17ca76aefec7e7'},
-    ClientCreator: {'9eef0e5fbd62fc495a5eee2dab118e36ae496dce'},
-    BaseClient: {'23756d283379717b1320315c98399ba284b2d17c'},
+    ClientCreator: {'29a45581cadace0265620f925f76504be97f6fa0'},
+    BaseClient: {'85e3d643193d71e6e7f43192cc1d8c9cf861fa59'},
     Config: {'c9261822caa7509d7b30b7738a9f034674061e35'},
-    convert_to_response_dict: {'ed634b3f0c24f8858aee8ed745051397270b1e46'},
-    Endpoint: {'f1effcb1966ab690953f62a5cd48f510294a0440'},
+    convert_to_response_dict: {'2c73c059fa63552115314b079ae8cbf5c4e78da0'},
+    Endpoint: {'5c5d568e23de1169916de6bcc58c72925f5a1adc'},
     EndpointCreator: {'00cb4303f8e9e775fe76996ad2f8852df7900398'},
     PageIterator: {'5a14db3ee7bc8773974b36cfdb714649b17a6a42'},
     Session: {'87b50bbf6caf0d7ae0ed1498032194ec36ca00f5'},
