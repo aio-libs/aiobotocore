@@ -12,7 +12,6 @@ vtest:
 	python3 -m pytest -s -v $(FLAGS) ./tests/
 
 checkrst:
-	python setup.py check --restructuredtext
 	python setup.py check -rms
 
 cov cover coverage: flake
