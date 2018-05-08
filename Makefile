@@ -13,6 +13,7 @@ vtest:
 
 checkrst:
 	python setup.py check --restructuredtext
+	python setup.py check -rms
 
 cov cover coverage: flake
 	python3 -m pytest -s -v --cov-report term --cov-report html --cov aiobotocore ./tests
