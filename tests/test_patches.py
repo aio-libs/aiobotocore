@@ -5,10 +5,7 @@ from yarl import URL
 
 from aiobotocore.endpoint import ClientResponseProxy
 
-from aiohttp.client_proto import ResponseHandler
-from aiohttp import TCPConnector
 from aiohttp.client import ClientResponse
-from aiohttp.streams import DataQueue, StreamReader
 from botocore.args import ClientArgsCreator
 from botocore.client import ClientCreator, BaseClient, Config
 from botocore.endpoint import convert_to_response_dict, Endpoint, \
@@ -27,24 +24,9 @@ from botocore.waiter import NormalizedOperationMethod
 
 # The follow is for our monkeypatches for read_timeout:
 #    github.com/aio-libs/aiobotocore/pull/248
-_READ_TIMEOUT_DIGESTS = {
-    # for our replacement of _factory and _create_connection
-    TCPConnector: {
-        '42a405b3d0b4aa9a61eb7d72925a5c8e373bec6b',
-        '3d92dd47383d5a6f918b56a946a975314c8359f1'
-    },
-
-    # for its inheritance to DataQueue
-    ResponseHandler: {'96d9eb3f04ff80a2acaf2fc18a103db474a3c965'},
-
-    # for our replacement of read()
-    DataQueue: {'be516f7bcdbf5235218261d8ed1f490d299f611d'},
-
-    # for our patch of _wait
-    StreamReader: {'d4ffb6ae823ef4bfd810aade8601ba7b01aa08ec'},
-
-    # for digging into _protocol, and using _body
-    ClientResponse: {'5834c5174937df460b2452b68942e950bbaa5dd7'},
+_AIOHTTP_DIGESTS = {
+    # for using _body
+    ClientResponse: {'e178726065b609c69a1c02e8bb78f22efce90792'},
 }
 
 # These are guards to our main patches
@@ -66,7 +48,7 @@ _API_DIGESTS = {
 # NOTE: this doesn't require moto but needs to be marked to run with coverage
 @pytest.mark.moto
 def test_patches():
-    for obj, digests in _READ_TIMEOUT_DIGESTS.items():
+    for obj, digests in _AIOHTTP_DIGESTS.items():
         digest = hashlib.sha1(getsource(obj).encode('utf-8')).hexdigest()
         assert digest in digests, \
             "Digest of {} not found in: {}".format(obj.__name__, digests)
@@ -84,7 +66,6 @@ def test_set_status_code(event_loop):
         'GET', URL('http://foo/bar'),
         writer=None, continue100=None, timer=None,
         request_info=None,
-        auto_decompress=None,
         traces=None,
         loop=event_loop,
         session=None)
