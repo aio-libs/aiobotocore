@@ -4,18 +4,14 @@ import sys
 from setuptools import setup, find_packages
 
 
-# aiohttp requirement is pegged as we need to manually ensure that
-# https://github.com/aio-libs/aiobotocore/pull/248 will continue working
 # If adding requirements make sure to also add to requirements-dev.txt
 install_requires = [
     # pegged to also match items in `extras_require`
     'botocore>=1.10.12, <1.10.13',
 
-    # for now we depend on internals of aiohttp so this range can't be open
-    'aiohttp>=3.1.0, <3.2.0',
-    'multidict>=2.1.4',
+    # NOTE: If behavior of ClientResponse._body changes we'll break
+    'aiohttp>=3.3.0',
     'wrapt>=1.10.10',
-    'packaging>=16.8',
 ]
 
 PY_VER = sys.version_info

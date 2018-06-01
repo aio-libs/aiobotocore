@@ -1,12 +1,9 @@
 import aiohttp
 import asyncio
-import functools
 import io
 import wrapt
 import botocore.retryhandler
 import aiohttp.http_exceptions
-from aiohttp.client_proto import ResponseHandler
-from aiohttp.helpers import CeilTimeout
 from aiohttp.client import URL
 from aiohttp.client_reqrep import ClientResponse
 from botocore.endpoint import EndpointCreator, Endpoint, DEFAULT_TIMEOUT, \
@@ -67,6 +64,9 @@ class StreamingBody(wrapt.ObjectProxy):
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         return await self.__wrapped__.__aexit__(exc_type, exc_val, exc_tb)
+
+    # NOTE: set_socket_timeout was only for when requests didn't support
+    #       read timeouts, so not needed
 
     async def read(self, amt=-1):
         """Read at most amt bytes from the stream.
@@ -130,12 +130,6 @@ class ClientResponseContentProxy(wrapt.ObjectProxy):
         super().__init__(response.__wrapped__.content)
         self._self_response = response
 
-    def set_socket_timeout(self, timeout):
-        """Set the timeout on the socket."""
-        # TODO: see if we can do this w/o grabbing _protocol and if we can
-        #       move this to StreamingBody where it belongs
-        self._self_response._protocol.set_timeout(timeout)
-
     # Note: we don't have a __del__ method as the ClientResponse has a __del__
     # which will warn the user if they didn't close/release the response
     # explicitly.  A release here would mean reading all the unread data
@@ -180,50 +174,6 @@ class ClientResponseProxy(wrapt.ObjectProxy):
         return ClientResponseContentProxy(self)
 
 
-class WrappedResponseHandler(ResponseHandler):
-    def __init__(self, *args, **kwargs):
-        self.__wrapped_read_timeout = kwargs.pop('wrapped_read_timeout')
-        super().__init__(*args, **kwargs)
-
-    def set_timeout(self, timeout):
-        self.__wrapped_read_timeout = timeout
-
-    async def _wrapped_wait(self, wrapped, instance, args, kwargs):
-        with CeilTimeout(self.__wrapped_read_timeout, loop=self._loop):
-            result = await wrapped(*args, **kwargs)
-            return result
-
-    async def read(self):
-        with CeilTimeout(self.__wrapped_read_timeout, loop=self._loop):
-            resp_msg, stream_reader = await super().read()
-
-            if hasattr(stream_reader, '_wait'):
-                stream_reader._wait = wrapt.FunctionWrapper(
-                    stream_reader._wait, self._wrapped_wait)
-
-            return resp_msg, stream_reader
-
-
-class WrappedTCPConnector(aiohttp.TCPConnector):
-    """
-    This class exists to correctly implement conn_timeout, remove once:
-    https://github.com/aio-libs/aiohttp/issues/2648 is resolved
-    """
-    def __init__(self, *args, **kwargs):
-        self.__wrapped_conn_timeout = kwargs.pop('wrapped_conn_timeout')
-        super().__init__(*args, **kwargs)
-
-    async def _create_connection(self, req, *args, **kwargs):
-        # connection timeout
-        try:
-            with CeilTimeout(self.__wrapped_conn_timeout, loop=self._loop):
-                return await super()._create_connection(req, *args, **kwargs)
-        except asyncio.TimeoutError as exc:
-            raise aiohttp.ServerTimeoutError(
-                'Connection timeout '
-                'to host {0}'.format(req.url)) from exc
-
-
 class AioEndpoint(Endpoint):
     def __init__(self, host,
                  endpoint_prefix, event_emitter, proxies=None, verify=True,
@@ -250,30 +200,20 @@ class AioEndpoint(Endpoint):
             # aiohttp default timeout is 30s so set something reasonable here
             connector_args = dict(keepalive_timeout=12)
 
-        connector = WrappedTCPConnector(
+        timeout = aiohttp.ClientTimeout(
+            sock_connect=self._conn_timeout,
+            sock_read=self._read_timeout
+        )
+
+        connector = aiohttp.TCPConnector(
             loop=self._loop,
-            wrapped_conn_timeout=self._conn_timeout,
             limit=max_pool_connections,
             verify_ssl=self.verify,
             **connector_args)
 
-        # This begins the journey into our replacement of aiohttp's
-        # `read_timeout`.  Their implementation represents an absolute time
-        # from the initial request, to the last read.  So if the client delays
-        # reading the body for long enough the request would be cancelled.
-        # See https://github.com/aio-libs/aiobotocore/issues/245
-        assert connector._factory.func == ResponseHandler
-
-        connector._factory = functools.partial(
-            WrappedResponseHandler,
-            wrapped_read_timeout=self._read_timeout,
-            *connector._factory.args,
-            **connector._factory.keywords)
-
         self._aio_session = aiohttp.ClientSession(
             connector=connector,
-            read_timeout=None,
-            conn_timeout=None,
+            timeout=timeout,
             skip_auto_headers={'CONTENT-TYPE'},
             response_class=ClientResponseProxy,
             loop=self._loop,

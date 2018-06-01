@@ -154,7 +154,6 @@ async def test_get_object_stream_wrapper(s3_client, create_object,
     await create_object('foobarbaz', body='body contents')
     response = await s3_client.get_object(Bucket=bucket_name, Key='foobarbaz')
     body = response['Body']
-    body.set_socket_timeout(10)
     chunk1 = await body.read(1)
     chunk2 = await body.read()
     assert chunk1 == b'b'
