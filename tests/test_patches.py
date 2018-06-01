@@ -66,7 +66,6 @@ def test_set_status_code(event_loop):
         'GET', URL('http://foo/bar'),
         writer=None, continue100=None, timer=None,
         request_info=None,
-        auto_decompress=None,
         traces=None,
         loop=event_loop,
         session=None)
