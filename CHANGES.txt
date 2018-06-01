@@ -1,11 +1,11 @@
 Changes
 -------
-0.9.0 (2017-06-01)
+0.9.0 (2018-06-01)
 ^^^^^^^^^^^^^^^^^^
 * bump aiohttp to 3.3.x
 * remove unneeded set_socket_timeout
 
-0.8.0 (2017-05-07)
+0.8.0 (2018-05-07)
 ^^^^^^^^^^^^^^^^^^
 * Fix pagination #573 (thanks @adamrothman)
 * Enabled several s3 tests via moto
