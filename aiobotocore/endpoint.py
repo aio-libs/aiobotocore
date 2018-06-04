@@ -245,7 +245,7 @@ class AioEndpoint(Endpoint):
         url = URL(url, encoded=True)
         resp = await self._aio_session.request(
             method, url=url, headers=headers_, data=data, proxy=proxy,
-            verify_ssl=verify, timeout=None)
+            verify_ssl=verify)
 
         # If we're not streaming, read the content so we can retry any timeout
         #  errors, see:

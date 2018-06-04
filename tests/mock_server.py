@@ -1,4 +1,5 @@
 import asyncio
+import aiohttp
 import aiohttp.web
 from aiohttp.web import StreamResponse
 import pytest
@@ -8,16 +9,14 @@ import signal
 import subprocess as sp
 import sys
 import time
-import threading
 import socket
-from unittest import mock
+import multiprocessing
 
 
 _proxy_bypass = {
   "http": None,
   "https": None,
 }
-
 
 host = "localhost"
 
@@ -30,33 +29,46 @@ def get_free_tcp_port():
     return port
 
 
-class AIOServer(threading.Thread):
+# This runs in a subprocess for a variety of reasons
+# 1) early versions of python 3.5 did not correctly set one thread per run loop
+# 2) aiohttp uses get_event_loop instead of using the passed in run loop
+# 3) aiohttp shutdown can be hairy
+class AIOServer(multiprocessing.Process):
+    """
+    This is a mock AWS service which will 5 seconds before returning
+    a response to test socket timeouts.
+    """
     def __init__(self):
         super().__init__(target=self._run)
         self._loop = None
         self._port = get_free_tcp_port()
-        self.start()
         self.endpoint_url = 'http://{}:{}'.format(host, self._port)
-        self._shutdown_evt = threading.Event()
+        self.daemon = True  # die when parent dies
 
     def _run(self):
-        self._loop = asyncio.new_event_loop()
-        app = aiohttp.web.Application(loop=self._loop)
+        asyncio.set_event_loop(asyncio.new_event_loop())
+        app = aiohttp.web.Application()
         app.router.add_route('*', '/ok', self.ok)
         app.router.add_route('*', '/{anything:.*}', self.stream_handler)
 
         try:
-            # We need to mock `.get_event_loop` function and return
-            # `self._loop` explicitly because from `aiohttp>=3.0.0` we can't
-            # pass `loop` as a kwargs into `run_app`.
-            with mock.patch('asyncio.get_event_loop', return_value=self._loop):
-                aiohttp.web.run_app(app, host=host, port=self._port,
-                                    handle_signals=False)
+            aiohttp.web.run_app(app, host=host, port=self._port,
+                                handle_signals=False)
         except BaseException:
             pytest.fail('unable to start and connect to aiohttp server')
             raise
-        finally:
-            self._shutdown_evt.set()
+
+    async def __aenter__(self):
+        self.start()
+        await self._wait_until_up()
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        try:
+            self.terminate()
+        except BaseException:
+            pytest.fail("Unable to shut down server")
+            raise
 
     async def ok(self, request):
         return aiohttp.web.Response()
@@ -73,31 +85,24 @@ class AIOServer(threading.Thread):
         await resp.drain()
         return resp
 
-    def wait_until_up(self):
-        connected = False
-        for i in range(0, 30):
-            try:
-                # we need to bypass the proxies due to monkey patches
-                requests.get(self.endpoint_url + '/ok', timeout=0.5,
-                             proxies=_proxy_bypass)
-                connected = True
-                break
-            except (requests.exceptions.ConnectionError,
-                    requests.exceptions.ReadTimeout):
-                time.sleep(0.5)
-            except BaseException:
-                pytest.fail('unable to start and connect to aiohttp server')
-                raise
+    async def _wait_until_up(self):
+        async with aiohttp.ClientSession() as session:
+            for i in range(0, 30):
+                if self.exitcode is not None:
+                    pytest.fail('unable to start/connect to aiohttp server')
+                    return
 
-        if not connected:
-            pytest.fail('unable to start and connect to aiohttp server')
+                try:
+                    # we need to bypass the proxies due to monkey patches
+                    await session.get(self.endpoint_url + '/ok', timeout=0.5)
+                    return
+                except (aiohttp.ClientConnectionError, asyncio.TimeoutError):
+                    await asyncio.sleep(0.5)
+                except BaseException:
+                    pytest.fail('unable to start/connect to aiohttp server')
+                    raise
 
-    async def stop(self):
-        if self._loop:
-            self._loop.stop()
-
-            if not self._shutdown_evt.wait(20):
-                pytest.fail("Unable to shut down server")
+        pytest.fail('unable to start and connect to aiohttp server')
 
 
 def start_service(service_name, host, port):
