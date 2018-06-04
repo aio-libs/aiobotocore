@@ -80,8 +80,8 @@ async def test_connector_timeout(event_loop):
 # @pytest.mark.asyncio
 # async def test_connector_timeout2(event_loop):
 #     session = AioSession(loop=event_loop)
-#     config = AioConfig(max_pool_connections=1, connect_timeout=1, read_timeout=1,
-#                        retries={'max_attempts': 0})
+#     config = AioConfig(max_pool_connections=1, connect_timeout=1,
+#                        read_timeout=1, retries={'max_attempts': 0})
 #     async with AIOServer() as server, \
 #             session.create_client('s3', config=config,
 #                                   endpoint_url=server.endpoint_url,
@@ -90,9 +90,9 @@ async def test_connector_timeout(event_loop):
 #
 #         with pytest.raises(TimeoutError):
 #             try:
-#                 response = await s3_client.get_object(Bucket='foo', Key='bar')
+#                 resp = await s3_client.get_object(Bucket='foo', Key='bar')
 #                 print()
-#                 await response["Body"].read()
+#                 await resp["Body"].read()
 #                 print()
 #             except BaseException as e:
 #                 raise

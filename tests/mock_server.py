@@ -30,8 +30,8 @@ def get_free_tcp_port():
 
 
 # This runs in a subprocess for a variety of reasons
-# 1) early versions of python 3.5 did not correctly associate one thread per run loop
-# 2) aiohttp has a few places where it uses get_event_loop instead of using the passed in run loop
+# 1) early versions of python 3.5 did not correctly set one thread per run loop
+# 2) aiohttp uses get_event_loop instead of using the passed in run loop
 # 3) aiohttp shutdown can be hairy
 class AIOServer(multiprocessing.Process):
     """
@@ -66,7 +66,7 @@ class AIOServer(multiprocessing.Process):
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         try:
             self.terminate()
-        except:
+        except BaseException:
             pytest.fail("Unable to shut down server")
             raise
 
@@ -89,7 +89,7 @@ class AIOServer(multiprocessing.Process):
         async with aiohttp.ClientSession() as session:
             for i in range(0, 30):
                 if self.exitcode is not None:
-                    pytest.fail('unable to start and connect to aiohttp server')
+                    pytest.fail('unable to start/connect to aiohttp server')
                     return
 
                 try:
@@ -99,7 +99,7 @@ class AIOServer(multiprocessing.Process):
                 except (aiohttp.ClientConnectionError, asyncio.TimeoutError):
                     await asyncio.sleep(0.5)
                 except BaseException:
-                    pytest.fail('unable to start and connect to aiohttp server')
+                    pytest.fail('unable to start/connect to aiohttp server')
                     raise
 
         pytest.fail('unable to start and connect to aiohttp server')
