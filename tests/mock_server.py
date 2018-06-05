@@ -4,7 +4,6 @@ import aiohttp.web
 from aiohttp.web import StreamResponse
 import pytest
 import requests
-import shutil
 import signal
 import subprocess as sp
 import sys
