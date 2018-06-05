@@ -106,9 +106,8 @@ class AIOServer(multiprocessing.Process):
 
 
 def start_service(service_name, host, port):
-    moto_svr_path = shutil.which("moto_server")
-    args = [sys.executable, moto_svr_path, service_name, "-H", host,
-            "-p", str(port)]
+    args = [sys.executable, "-m", "moto.server", "-H", host,
+            "-p", str(port), service_name]
 
     # If test fails stdout/stderr will be shown
     process = sp.Popen(args, stdin=sp.PIPE)

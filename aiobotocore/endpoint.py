@@ -153,6 +153,9 @@ class ClientResponseProxy(wrapt.ObjectProxy):
     def __init__(self, *args, **kwargs):
         super().__init__(ClientResponse(*args, **kwargs))
 
+        # this matches ClientResponse._body
+        self._self_body = None
+
     @property
     def status_code(self):
         return self.status
@@ -166,12 +169,15 @@ class ClientResponseProxy(wrapt.ObjectProxy):
 
     @property
     def content(self):
-        # ClientResponse._body is set by the coroutine ClientResponse.read
-        return self._body
+        return self._self_body
 
     @property
     def raw(self):
         return ClientResponseContentProxy(self)
+
+    async def read(self):
+        self._self_body = await self.__wrapped__.read()
+        return self._self_body
 
 
 class AioEndpoint(Endpoint):

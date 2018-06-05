@@ -8,9 +8,7 @@ from setuptools import setup, find_packages
 install_requires = [
     # pegged to also match items in `extras_require`
     'botocore>=1.10.12, <1.10.13',
-
-    # NOTE: If behavior of ClientResponse._body changes we'll break
-    'aiohttp>=3.3.0',
+    'aiohttp>=3.3.1',
     'wrapt>=1.10.10',
 ]
 

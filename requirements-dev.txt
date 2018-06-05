@@ -13,7 +13,7 @@ pytest==3.4.1
 pytest-asyncio==0.8.0
 sphinx==1.7.1
 yarl==1.1.1
-aiohttp==3.3.0
+aiohttp==3.3.1
 botocore==1.10.12
 boto3==1.7.12
 multidict==4.1.0
