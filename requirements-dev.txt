@@ -12,7 +12,7 @@ pytest-cov==2.5.1
 pytest==3.6.1
 pytest-asyncio==0.8.0
 sphinx==1.7.5
-yarl==1.1.1
+yarl==1.2.6
 aiohttp==3.3.1
 botocore==1.10.12
 boto3==1.7.12
