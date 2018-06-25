@@ -18,4 +18,4 @@ botocore==1.10.45
 boto3==1.7.45
 multidict==4.3.0
 wrapt==1.10.11
-dill==0.2.7.1
+dill==0.2.8.2
