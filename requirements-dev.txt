@@ -3,7 +3,7 @@ coverage==4.5.1
 flake8==3.5.0
 
 # we specify flask directly and don't use moto[server] as we want to fix the flask version
-Flask==0.12.2
+Flask==1.0.2
 
 # until release with https://github.com/spulec/moto/pull/1611 is available
 git+git://github.com/spulec/moto.git@80929292584ee78affc07643d16fae6bb31b4014#egg=moto
