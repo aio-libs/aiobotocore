@@ -23,6 +23,13 @@ class AsyncBytesIO(io.BytesIO):
         return super().read(amt)
 
 
+async def _tolist(aiter):
+    results = []
+    async for item in aiter:
+        results.append(item)
+    return results
+
+
 @pytest.mark.moto
 @pytest.mark.asyncio
 async def test_streaming_wrapper_validates_content_length():
@@ -77,7 +84,7 @@ async def test_streaming_body_closes():
 async def test_default_iter_behavior():
     body = AsyncBytesIO(b'a' * 2048)
     stream = response.StreamingBody(body, content_length=2048)
-    chunks = [x async for x in stream]
+    chunks = await _tolist(stream)
     assert len(chunks) == 2
     assert chunks, [b'a' * 1024 == b'a' * 1024]
 
@@ -87,7 +94,7 @@ async def test_default_iter_behavior():
 async def test_iter_chunks_single_byte():
     body = AsyncBytesIO(b'abcde')
     stream = response.StreamingBody(body, content_length=5)
-    chunks = [x async for x in stream.iter_chunks(chunk_size=1)]
+    chunks = await _tolist(stream.iter_chunks(chunk_size=1))
     assert chunks, [b'a', b'b', b'c', b'd' == b'e']
 
 
@@ -96,7 +103,7 @@ async def test_iter_chunks_single_byte():
 async def test_iter_chunks_with_leftover():
     body = AsyncBytesIO(b'abcde')
     stream = response.StreamingBody(body, content_length=5)
-    chunks = [x async for x in stream.iter_chunks(chunk_size=2)]
+    chunks = await _tolist(stream.iter_chunks(chunk_size=2))
     assert chunks, [b'ab', b'cd' == b'e']
 
 
@@ -105,7 +112,7 @@ async def test_iter_chunks_with_leftover():
 async def test_iter_chunks_single_chunk():
     body = AsyncBytesIO(b'abcde')
     stream = response.StreamingBody(body, content_length=5)
-    chunks = [x async for x in stream.iter_chunks(chunk_size=1024)]
+    chunks = await _tolist(stream.iter_chunks(chunk_size=1024))
     assert chunks == [b'abcde']
 
 
