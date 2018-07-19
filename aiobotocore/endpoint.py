@@ -9,7 +9,7 @@ from aiohttp.client_reqrep import ClientResponse
 from botocore.endpoint import EndpointCreator, Endpoint, DEFAULT_TIMEOUT, \
     MAX_POOL_CONNECTIONS, logger
 from botocore.exceptions import EndpointConnectionError, \
-    ConnectionClosedError, IncompleteReadError
+    ConnectionClosedError
 from botocore.hooks import first_non_none_response
 from botocore.utils import is_valid_endpoint_url
 from botocore.vendored.requests.structures import CaseInsensitiveDict
@@ -17,6 +17,7 @@ from botocore.history import get_global_history_recorder
 from multidict import MultiDict
 from urllib.parse import urlparse
 
+from aiobotocore.response import StreamingBody
 
 MAX_REDIRECTS = 10
 history_recorder = get_global_history_recorder()
@@ -49,48 +50,6 @@ class _IOBaseWrapper(wrapt.ObjectProxy):
     def close(self):
         # this stream should not be closed by aiohttp, like 1.x
         pass
-
-
-# similar to botocore.response.StreamingBody
-class StreamingBody(wrapt.ObjectProxy):
-    def __init__(self, raw_stream, content_length):
-        super().__init__(raw_stream)
-        self._self_content_length = content_length
-        self._self_amount_read = 0
-
-    # https://github.com/GrahamDumpleton/wrapt/issues/73
-    async def __aenter__(self):
-        return await self.__wrapped__.__aenter__()
-
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
-        return await self.__wrapped__.__aexit__(exc_type, exc_val, exc_tb)
-
-    # NOTE: set_socket_timeout was only for when requests didn't support
-    #       read timeouts, so not needed
-
-    async def read(self, amt=-1):
-        """Read at most amt bytes from the stream.
-
-        If the amt argument is omitted, read all data.
-        """
-        chunk = await self.__wrapped__.read(amt)
-        self._self_amount_read += len(chunk)
-        if amt is None or (not chunk and amt > 0):
-            # If the server sends empty contents or
-            # we ask to read all of the contents, then we know
-            # we need to verify the content length.
-            self._verify_content_length()
-        return chunk
-
-    def _verify_content_length(self):
-        # See: https://github.com/kennethreitz/requests/issues/1855
-        # Basically, our http library doesn't do this for us, so we have
-        # to do this ourself.
-        if self._self_content_length is not None and \
-                self._self_amount_read != int(self._self_content_length):
-            raise IncompleteReadError(
-                actual_bytes=self._self_amount_read,
-                expected_bytes=int(self._self_content_length))
 
 
 async def convert_to_response_dict(http_response, operation_model):
