@@ -63,8 +63,8 @@ class AioSession(botocore.session.Session):
                                                  aws_secret_access_key))
         else:
             credentials = self.get_credentials()
-        endpoint_resolver = self.get_component('endpoint_resolver')
-        exceptions_factory = self.get_component('exceptions_factory')
+        endpoint_resolver = self._get_internal_component('endpoint_resolver')
+        exceptions_factory = self._get_internal_component('exceptions_factory')
         client_creator = AioClientCreator(
             loader, endpoint_resolver, self.user_agent(), event_emitter,
             retryhandler, translate, response_parser_factory,
