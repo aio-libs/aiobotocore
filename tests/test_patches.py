@@ -33,13 +33,13 @@ _AIOHTTP_DIGESTS = {
 _API_DIGESTS = {
     ClientArgsCreator: {'a8d2e4159469622afcf938805b17ca76aefec7e7'},
     ClientCreator: {'29a45581cadace0265620f925f76504be97f6fa0'},
-    BaseClient: {'85e3d643193d71e6e7f43192cc1d8c9cf861fa59'},
+    BaseClient: {'ae1eb5158a6044e6616363c525275110fac311da'},
     Config: {'c9261822caa7509d7b30b7738a9f034674061e35'},
     convert_to_response_dict: {'2c73c059fa63552115314b079ae8cbf5c4e78da0'},
     Endpoint: {'5c5d568e23de1169916de6bcc58c72925f5a1adc'},
     EndpointCreator: {'00cb4303f8e9e775fe76996ad2f8852df7900398'},
     PageIterator: {'5a14db3ee7bc8773974b36cfdb714649b17a6a42'},
-    Session: {'87b50bbf6caf0d7ae0ed1498032194ec36ca00f5'},
+    Session: {'a9a06fe8dcacf3954e91e48509882b5aae31344c'},
     get_session: {'c47d588f5da9b8bde81ccc26eaef3aee19ddd901'},
     NormalizedOperationMethod: {'ee88834b123c6c77dfea0b4208308cd507a6ba36'},
 }
