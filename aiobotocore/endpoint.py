@@ -27,6 +27,7 @@ history_recorder = get_global_history_recorder()
 # The only other way to do this would be to have another config file :(
 _aiohttp_retryable_exceptions = [
     aiohttp.ClientConnectionError,
+    aiohttp.ClientPayloadError,
     aiohttp.ServerDisconnectedError,
     aiohttp.http_exceptions.HttpProcessingError,
     asyncio.TimeoutError,
