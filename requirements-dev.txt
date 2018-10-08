@@ -14,7 +14,7 @@ pytest-asyncio==0.9.0
 sphinx==1.8.1
 yarl==1.2.6
 aiohttp==3.4.4
-botocore==1.10.58
+botocore==1.12.18
 boto3==1.7.58
 multidict==4.3.0
 wrapt==1.10.11
