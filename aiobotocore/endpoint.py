@@ -14,6 +14,8 @@ from botocore.hooks import first_non_none_response
 from botocore.utils import is_valid_endpoint_url
 from botocore.vendored.requests.structures import CaseInsensitiveDict
 from botocore.history import get_global_history_recorder
+from botocore.httpsession import URLLib3Session
+
 from multidict import MultiDict
 from urllib.parse import urlparse
 
@@ -141,22 +143,20 @@ class ClientResponseProxy(wrapt.ObjectProxy):
 
 
 class AioEndpoint(Endpoint):
-    def __init__(self, host,
-                 endpoint_prefix, event_emitter, proxies=None, verify=True,
-                 timeout=DEFAULT_TIMEOUT, response_parser_factory=None,
-                 max_pool_connections=MAX_POOL_CONNECTIONS,
-                 loop=None, connector_args=None):
+    def __init__(
+            self,
+            host,
+            endpoint_prefix,
+            event_emitter,
+            response_parser_factory=None,
+            http_session=None,
+            loop=None,
+            connector_args=None
+    ):
 
         super().__init__(host, endpoint_prefix,
-                         event_emitter, proxies=proxies, verify=verify,
-                         timeout=timeout,
-                         response_parser_factory=response_parser_factory,
-                         max_pool_connections=max_pool_connections)
-
-        if isinstance(timeout, (list, tuple)):
-            self._conn_timeout, self._read_timeout = timeout
-        else:
-            self._conn_timeout = self._read_timeout = timeout
+                         event_emitter, response_parser_factory=response_parser_factory,
+                         http_session=http_session)
 
         self._loop = loop or asyncio.get_event_loop()
 
@@ -166,6 +166,9 @@ class AioEndpoint(Endpoint):
             # aiohttp default timeout is 30s so set something reasonable here
             connector_args = dict(keepalive_timeout=12)
 
+        self._conn_timeout = self.http_session._timeout._connect
+        self._read_timeout = self.http_session._timeout._read
+
         timeout = aiohttp.ClientTimeout(
             sock_connect=self._conn_timeout,
             sock_read=self._read_timeout
@@ -173,8 +176,8 @@ class AioEndpoint(Endpoint):
 
         connector = aiohttp.TCPConnector(
             loop=self._loop,
-            limit=max_pool_connections,
-            verify_ssl=self.verify,
+            limit=self.http_session._max_pool_connections,
+            verify_ssl=self.http_session._verify,
             **connector_args)
 
         self._aio_session = aiohttp.ClientSession(
@@ -342,22 +345,42 @@ class AioEndpointCreator(EndpointCreator):
         super().__init__(event_emitter)
         self._loop = loop
 
-    def create_endpoint(self, service_model, region_name=None,
-                        endpoint_url=None, verify=None,
-                        response_parser_factory=None, timeout=DEFAULT_TIMEOUT,
-                        max_pool_connections=MAX_POOL_CONNECTIONS,
-                        proxies=None, connector_args=None):
+    def create_endpoint(
+            self,
+            service_model,
+            region_name=None,
+            endpoint_url=None,
+            verify=None,
+            response_parser_factory=None,
+            timeout=DEFAULT_TIMEOUT,
+            max_pool_connections=MAX_POOL_CONNECTIONS,
+            http_session_cls=URLLib3Session,
+            proxies=None,
+            socket_options=None,
+            client_cert=None
+            , connector_args=None
+    ):
         if not is_valid_endpoint_url(endpoint_url):
             raise ValueError("Invalid endpoint: %s" % endpoint_url)
         if proxies is None:
             proxies = self._get_proxies(endpoint_url)
+
+        endpoint_prefix = service_model.endpoint_prefix
+        logger.debug('Setting %s timeout as %s', endpoint_prefix, timeout)
+
+        http_session = http_session_cls(
+            timeout=timeout,
+            proxies=proxies,
+            verify=self._get_verify_value(verify),
+            max_pool_connections=max_pool_connections,
+            socket_options=socket_options,
+            client_cert=client_cert,
+        )
+
         return AioEndpoint(
             endpoint_url,
             endpoint_prefix=service_model.endpoint_prefix,
             event_emitter=self._event_emitter,
-            proxies=proxies,
-            verify=self._get_verify_value(verify),
-            timeout=timeout,
-            max_pool_connections=max_pool_connections,
             response_parser_factory=response_parser_factory,
+            http_session=http_session,
             loop=self._loop, connector_args=connector_args)
