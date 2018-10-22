@@ -16,6 +16,6 @@ yarl==1.2.6
 aiohttp==3.4.4
 botocore==1.12.28
 boto3==1.9.28
-multidict==4.3.0
+multidict==4.4.2
 wrapt==1.10.11
 dill==0.2.8.2
