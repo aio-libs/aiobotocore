@@ -4,6 +4,11 @@ import aiobotocore
 AWS_ACCESS_KEY_ID = "xxx"
 AWS_SECRET_ACCESS_KEY = "xxx"
 
+S3_CLIENT_CONFIG = dict(
+    region_name='us-west-2',
+    aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
+    aws_access_key_id=AWS_ACCESS_KEY_ID
+)
 
 async def go(loop):
 
@@ -13,9 +18,7 @@ async def go(loop):
     key = '{}/{}'.format(folder, filename)
 
     session = aiobotocore.get_session(loop=loop)
-    async with session.create_client('s3', region_name='us-west-2',
-                                     aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
-                                     aws_access_key_id=AWS_ACCESS_KEY_ID) as client:
+    async with session.create_client('s3', **S3_CLIENT_CONFIG) as client:
         # upload object to amazon s3
         data = b'\x01' * 1024
         resp = await client.put_object(Bucket=bucket,
