@@ -10,6 +10,7 @@ S3_CLIENT_CONFIG = dict(
     aws_access_key_id=AWS_ACCESS_KEY_ID
 )
 
+
 async def go(loop):
 
     bucket = 'dataintake'
