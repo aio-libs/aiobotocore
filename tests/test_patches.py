@@ -39,7 +39,7 @@ _API_DIGESTS = {
     Endpoint: {'29827aaa421d462ab7b9e200d7203ba9e412633c'},
     EndpointCreator: {'633337fe0bda97e57c7f0b9596c5a158a03e8e36'},
     PageIterator: {'5a14db3ee7bc8773974b36cfdb714649b17a6a42'},
-    Session: {'52240fc442b0b50586cad07cc9cff43904e0e744'},
+    Session: {'a8132407e250b652c89db15a9002f41664638a3f'},
     get_session: {'c47d588f5da9b8bde81ccc26eaef3aee19ddd901'},
     NormalizedOperationMethod: {'ee88834b123c6c77dfea0b4208308cd507a6ba36'},
 }
