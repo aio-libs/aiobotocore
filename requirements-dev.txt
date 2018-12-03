@@ -15,7 +15,7 @@ sphinx==1.8.2
 yarl==1.2.6
 aiohttp==3.4.4
 botocore==1.12.57
-boto3==1.7.58
+boto3==1.9.57
 multidict==4.3.0
 wrapt==1.10.11
 dill==0.2.8.2
