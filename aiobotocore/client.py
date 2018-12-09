@@ -46,7 +46,8 @@ class AioClientCreator(botocore.client.ClientCreator):
         py_name_to_operation_name = self._create_name_mapping(service_model)
         class_attributes['_PY_TO_OP_NAME'] = py_name_to_operation_name
         bases = [AioBaseClient]
-        self._event_emitter.emit('creating-client-class.%s' % service_name,
+        service_id = service_model.service_id.hyphenize()
+        self._event_emitter.emit('creating-client-class.%s' % service_id,
                                  class_attributes=class_attributes,
                                  base_classes=bases)
         class_name = get_service_module_name(service_model)
@@ -76,9 +77,10 @@ class AioBaseClient(botocore.client.BaseClient):
         request_dict = self._convert_to_request_dict(
             api_params, operation_model, context=request_context)
 
+        service_id = self._service_model.service_id.hyphenize()
         handler, event_response = self.meta.events.emit_until_response(
-            'before-call.{endpoint_prefix}.{operation_name}'.format(
-                endpoint_prefix=self._service_model.endpoint_prefix,
+            'before-call.{service_id}.{operation_name}'.format(
+                service_id=service_id,
                 operation_name=operation_name),
             model=operation_model, params=request_dict,
             request_signer=self._request_signer, context=request_context)
@@ -90,8 +92,8 @@ class AioBaseClient(botocore.client.BaseClient):
                 operation_model, request_dict)
 
         self.meta.events.emit(
-            'after-call.{endpoint_prefix}.{operation_name}'.format(
-                endpoint_prefix=self._service_model.endpoint_prefix,
+            'after-call.{service_id}.{operation_name}'.format(
+                service_id=service_id,
                 operation_name=operation_name),
             http_response=http, parsed=parsed_response,
             model=operation_model, context=request_context

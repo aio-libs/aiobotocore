@@ -18,8 +18,9 @@ cov cover coverage: flake
 	python3 -m pytest -s -v --cov-report term --cov-report html --cov aiobotocore ./tests
 	@echo "open file://`pwd`/htmlcov/index.html"
 
+# BOTO_CONFIG solves https://github.com/travis-ci/travis-ci/issues/7940
 mototest:
-	python3 -m pytest -v -m moto --cov-report term --cov-report html --cov aiobotocore tests
+	BOTO_CONFIG=/dev/null python3 -m pytest -v -m moto --cov-report term --cov-report html --cov aiobotocore tests
 	@echo "open file://`pwd`/htmlcov/index.html"
 
 

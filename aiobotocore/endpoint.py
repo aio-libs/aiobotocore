@@ -8,8 +8,7 @@ from aiohttp.client import URL
 from aiohttp.client_reqrep import ClientResponse
 from botocore.endpoint import EndpointCreator, Endpoint, DEFAULT_TIMEOUT, \
     MAX_POOL_CONNECTIONS, logger
-from botocore.exceptions import EndpointConnectionError, \
-    ConnectionClosedError
+from botocore.exceptions import ConnectionClosedError
 from botocore.hooks import first_non_none_response
 from botocore.utils import is_valid_endpoint_url
 from botocore.vendored.requests.structures import CaseInsensitiveDict
@@ -148,10 +147,10 @@ class AioEndpoint(Endpoint):
                  loop=None, connector_args=None):
 
         super().__init__(host, endpoint_prefix,
-                         event_emitter, proxies=proxies, verify=verify,
-                         timeout=timeout,
-                         response_parser_factory=response_parser_factory,
-                         max_pool_connections=max_pool_connections)
+                         event_emitter,
+                         response_parser_factory=response_parser_factory)
+
+        self.proxies = proxies
 
         if isinstance(timeout, (list, tuple)):
             self._conn_timeout, self._read_timeout = timeout
@@ -171,10 +170,11 @@ class AioEndpoint(Endpoint):
             sock_read=self._read_timeout
         )
 
+        self.verify_ssl = verify
         connector = aiohttp.TCPConnector(
             loop=self._loop,
             limit=max_pool_connections,
-            verify_ssl=self.verify,
+            verify_ssl=self.verify_ssl,
             **connector_args)
 
         self._aio_session = aiohttp.ClientSession(
@@ -287,14 +287,22 @@ class AioEndpoint(Endpoint):
                 'url': request.url,
                 'body': request.body
             })
-            streaming = any([
-                operation_model.has_streaming_output,
-                operation_model.has_event_stream_output
-            ])
-            http_response = await self._request(
-                request.method, request.url, request.headers, request.body,
-                verify=self.verify,
-                stream=streaming)
+
+            service_id = operation_model.service_model.service_id.hyphenize()
+            event_name = 'before-send.%s.%s' % \
+                         (service_id, operation_model.name)
+            responses = self._event_emitter.emit(event_name, request=request)
+            http_response = first_non_none_response(responses)
+
+            if http_response is None:
+                streaming = any([
+                    operation_model.has_streaming_output,
+                    operation_model.has_event_stream_output
+                ])
+                http_response = await self._request(
+                    request.method, request.url, request.headers, request.body,
+                    verify=self.verify_ssl,
+                    stream=streaming)
         except aiohttp.ClientConnectionError as e:
             e.request = request  # botocore expects the request property
 
@@ -305,12 +313,7 @@ class AioEndpoint(Endpoint):
             logger.debug("ConnectionError received when sending HTTP request.",
                          exc_info=True)
 
-            if self._looks_like_dns_error(e):
-                better_exception = EndpointConnectionError(
-                    endpoint_url=request.url, error=e)
-                return None, better_exception
-            else:
-                return None, e
+            return None, e
         except aiohttp.http_exceptions.BadStatusLine:
             better_exception = ConnectionClosedError(
                 endpoint_url=request.url, request=request)

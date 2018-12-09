@@ -31,15 +31,15 @@ _AIOHTTP_DIGESTS = {
 
 # These are guards to our main patches
 _API_DIGESTS = {
-    ClientArgsCreator: {'a8d2e4159469622afcf938805b17ca76aefec7e7'},
-    ClientCreator: {'29a45581cadace0265620f925f76504be97f6fa0'},
-    BaseClient: {'ae1eb5158a6044e6616363c525275110fac311da'},
-    Config: {'c9261822caa7509d7b30b7738a9f034674061e35'},
+    ClientArgsCreator: {'c316001114ff0b91900004e2fc56b71a07509f16'},
+    ClientCreator: {'f68202aca8c908d14b3d7b2446875d297c46671b'},
+    BaseClient: {'63fc3b6ae4cdb265b5363c093832890074f52e18'},
+    Config: {'b84933bb901b4f18641dffe75cc62d55affd390a'},
     convert_to_response_dict: {'2c73c059fa63552115314b079ae8cbf5c4e78da0'},
-    Endpoint: {'5c5d568e23de1169916de6bcc58c72925f5a1adc'},
-    EndpointCreator: {'00cb4303f8e9e775fe76996ad2f8852df7900398'},
+    Endpoint: {'29827aaa421d462ab7b9e200d7203ba9e412633c'},
+    EndpointCreator: {'633337fe0bda97e57c7f0b9596c5a158a03e8e36'},
     PageIterator: {'5a14db3ee7bc8773974b36cfdb714649b17a6a42'},
-    Session: {'a9a06fe8dcacf3954e91e48509882b5aae31344c'},
+    Session: {'a8132407e250b652c89db15a9002f41664638a3f'},
     get_session: {'c47d588f5da9b8bde81ccc26eaef3aee19ddd901'},
     NormalizedOperationMethod: {'ee88834b123c6c77dfea0b4208308cd507a6ba36'},
 }
