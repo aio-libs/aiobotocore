@@ -1,20 +1,20 @@
 import asyncio
-import aiohttp
-import aiohttp.web
-from aiohttp.web import StreamResponse
-import pytest
-import requests
+import multiprocessing
 import signal
+import socket
 import subprocess as sp
 import sys
 import time
-import socket
-import multiprocessing
 
+import aiohttp
+import aiohttp.web
+import pytest
+import requests
+from aiohttp.web import StreamResponse
 
 _proxy_bypass = {
-  "http": None,
-  "https": None,
+    "http": None,
+    "https": None,
 }
 
 host = "localhost"
@@ -37,6 +37,7 @@ class AIOServer(multiprocessing.Process):
     This is a mock AWS service which will 5 seconds before returning
     a response to test socket timeouts.
     """
+
     def __init__(self):
         super().__init__(target=self._run)
         self._loop = None
@@ -147,7 +148,7 @@ def stop_process(process):
 @pytest.yield_fixture(scope="session")
 def s3_server():
     host = "localhost"
-    port = 5000
+    port = get_free_tcp_port()
     url = "http://{host}:{port}".format(host=host, port=port)
     process = start_service('s3', host, port)
 
@@ -160,7 +161,7 @@ def s3_server():
 @pytest.yield_fixture(scope="session")
 def dynamodb2_server():
     host = "localhost"
-    port = 5001
+    port = get_free_tcp_port()
     url = "http://{host}:{port}".format(host=host, port=port)
     process = start_service('dynamodb2', host, port)
 
@@ -173,7 +174,7 @@ def dynamodb2_server():
 @pytest.yield_fixture(scope="session")
 def cloudformation_server():
     host = "localhost"
-    port = 5002
+    port = get_free_tcp_port()
     url = "http://{host}:{port}".format(host=host, port=port)
     process = start_service('cloudformation', host, port)
 
@@ -186,7 +187,7 @@ def cloudformation_server():
 @pytest.yield_fixture(scope="session")
 def sns_server():
     host = "localhost"
-    port = 5003
+    port = get_free_tcp_port()
     url = "http://{host}:{port}".format(host=host, port=port)
     process = start_service('sns', host, port)
 
@@ -199,9 +200,22 @@ def sns_server():
 @pytest.yield_fixture(scope="session")
 def sqs_server():
     host = "localhost"
-    port = 5004
+    port = get_free_tcp_port()
     url = "http://{host}:{port}".format(host=host, port=port)
     process = start_service('sqs', host, port)
+
+    try:
+        yield url
+    finally:
+        stop_process(process)
+
+
+@pytest.yield_fixture(scope="session")
+def kinesis_server():
+    host = "localhost"
+    port = get_free_tcp_port()
+    url = "http://{host}:{port}".format(host=host, port=port)
+    process = start_service('kinesis', host, port)
 
     try:
         yield url

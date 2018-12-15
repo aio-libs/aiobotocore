@@ -1,6 +1,7 @@
-import pytest
-import aiohttp
 import asyncio
+
+import aiohttp
+import pytest
 
 
 async def fetch_all(pages):
@@ -128,7 +129,7 @@ async def test_can_paginate_iterator(s3_client, bucket_name, create_object):
 
 @pytest.mark.xfail(raises=NotImplementedError)
 @pytest.mark.asyncio
-async def test_result_key_iters(s3_client, bucket_name,):
+async def test_result_key_iters(s3_client, bucket_name, ):
     paginator = s3_client.get_paginator('list_objects')
     pages = paginator.paginate(MaxKeys=2, Prefix='key/', Delimiter='/',
                                Bucket=bucket_name)

@@ -1,14 +1,14 @@
 import asyncio
+
 import botocore.credentials
 import botocore.session
-
 from botocore import retryhandler, translate
 from botocore.exceptions import PartialCredentialsError
+
 from .client import AioClientCreator
 
 
 class AioSession(botocore.session.Session):
-
     def __init__(self, *args, **kwargs):
         self._loop = kwargs.pop('loop', None)
 

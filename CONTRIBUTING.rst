@@ -1,37 +1,214 @@
 Contributing
 ============
 
-Running Tests
--------------
+Instructions for contributors
+-----------------------------
 
-.. _GitHub: https://github.com/aio-libs/aiobotocore
+In order to make a clone of the `GitHub <https://github.com/aio-libs/aiobotocore>`_ repo: open the link and press the
+"Fork" button on the upper-right menu of the web page.
 
-Thanks for your interest in contributing to ``aiobotocore``, there are multiple
-ways and places you can contribute.
+I hope everybody knows how to work with git and gitlab nowadays :)
 
-Fist of all just clone repository::
+Workflow is pretty straightforward:
 
-    $ git clone git@github.com:aio-libs/aiobotocore.git
+  1. Clone the `GitHub <https://github.com/aio-libs/aiobotocore>`_ repo
 
-Create virtualenv with at least python3.5 (older version are not supported).
-For example using *virtualenvwrapper* commands could look like::
+  2. Make a change
+
+  3. Make sure all tests passed
+
+  4. Make sure the coverage doesn't get worse.
+
+  5. Commit changes to own aiobotocore
+
+  6. Correct message for ``commit``. You need read (`Commit message format`_).
+
+  7. Correct name for ``branch``. You need read (`Branch name format`_).
+
+  8. Make pull request from github page for your branch against master branch
+
+  9. Optionally make backport pull Request(s) for landing a bug fix
+     into released aiobotocore versions.
+
+  10. Add changes in file ``CHANGES.txt`` for this read (`Changelog update`_).
+
+
+Preconditions for running aiobotocore test suite
+------------------------------------------------
+
+We expect you to use a python virtual environment to run our tests.
+
+There are several ways to make a virtual environment.
+
+If you like to use *virtualenv* please run:
+
+.. code-block:: shell
 
    $ cd aiobotocore
-   $ mkvirtualenv --python=`which python3.5` aiobotocore
+   $ virtualenv -p /usr/bin/python3 venv-aiobotocore
+   $ . venv-aiobotocore/bin/activate
+
+For standard python *venv-aiobotocore*:
+
+.. code-block:: shell
+
+   $ cd aiobotocore
+   $ python3 -m venv venv-aiobotocore
+   $ . venv-aiobotocore/bin/activate
+
+For *virtualenvwrapper*:
+
+.. code-block:: shell
+
+   $ cd aiobotocore
+   $ mkvirtualenv -p /usr/bin/python3 venv-aiobotocore
+   $ workon venv-aiobotocore
+
+There are other tools like *pyvenv* but you know the rule of thumb
+now: create a python3 virtual environment and activate it.
+
+After that please install libraries required for development:
+
+.. code-block:: shell
+
+   $ pip install -r requirements/dev.txt
+
+Congratulations, you are ready to run the test suite!
+
+Run aiobotocore test suite
+--------------------------
+
+After all the preconditions are met you can run tests typing the next
+command:
+
+.. code-block:: shell
+
+   $ make test
+
+Run aiobotocore flake suite
+---------------------------
+
+We try our best to write code according to pep, it will allow you to check yourself.
+
+.. code-block:: shell
+
+   $ make flake
+
+Run aiobotocore coverage suite
+------------------------------
+
+We are trying hard to have good test coverage; please don't make it worse.
+
+.. code-block:: shell
+
+   $ make cov
+
+.. note::
+
+  If you want to use AWS within the test suite, you need create config ``~/.aws/credentials`` or the ``environment variable``
+
+  Then the test run will look like this:
+  .. code-block:: shell
+
+     $ make aws-cov
+     $ make aws-test
 
 
-After that please install libraries required for development::
+Documentation
+-------------
 
-    $ pip install -r requirements-dev.txt
-    $ pip install -e .
+We encourage documentation improvements.
 
-Congratulations, you are ready to run the test suite::
+Please before making a Pull Request about documentation changes run:
 
-    $ make cov
+.. code-block:: shell
 
-To run individual use following command::
+   $ make doc
 
-    $ py.test -sv tests/test_monitor.py -k test_name
+Once it finishes it will output the index html page
+``open file://`pwd`/docs/_build/html/index.html``.
+
+Go to the link and make sure your doc changes looks good.
+
+Commit message format
+---------------------
+
+   1. Commit prefixes:
+
+      * **ISSUES-NUMBER** - *NUMBER* this number issues in github
+      * **NOTISSUES**
+      * **RELEASE-X.X.X**
+
+   2. After the prefix comes the separator ``:`` and one space
+
+   3. Next should be a brief description of your changes.
+
+
+Examples:
+
+.. code-block:: shell
+
+   $ git commit -m "ISSUES-999: Update botocore till version x.x.x"
+   $ git commit -m "ISSUES-999: Add changes summary in CHANGES.rst"
+   $ git commit -m "NOTISSUES: Add example SNS"
+   $ git commit -m "RELEASE-0.2.0: Removed support python < 3.5 look CHANGES"
+
+
+Branch name format
+------------------
+
+   1. **ISSUES-NUMBER** - *NUMBER* this number issues in github
+
+   2. **NOTISSUES-SUMMARY** - *SUMMARY* - your short name
+
+   3. **RELEASE-X.X.X**
+
+Examples:
+
+.. code-block:: shell
+
+   $ git checkout -b ISSUES-999
+   $ git checkout -b ISSUES-9999
+   $ git checkout -b NOTISSUES-ROLLBACK-3-LAST_COMMIT
+   $ git checkout -b RELEASE-0.0.1
+
+
+Changelog update
+----------------
+
+The ``CHANGES.rst`` contains information on changes.
+
+.. note::
+
+   If you know the release version and want to add a new commit before released out
+
+   Example::
+
+      0.1.0 (2018-09-01)
+      ^^^^^^^^^^^^^^^^^^
+
+      * Release & addition of changes file (Release-1.1.0)
+      * Name commit (`ISSUES-99999 <https://github.com/aio-libs/aiobotocore/issues/99999>`_)
+      * Name commit (NOTISSUES)
+
+   If you set the date and version, it will be the last and will be released
+   Version must be raised in your last committee
+
+.. note::
+
+   If you have a delayed release, just add your commit
+
+   Example::
+
+      X.X.X (YYYY-MM-DD)
+      ^^^^^^^^^^^^^^^^^^
+
+      * Release & addition of changes file (Release-1.1.0)
+      * Name commit (`ISSUES-99999 <https://github.com/aio-libs/aiobotocore/issues/99999>`_)
+      * Name commit (NOTISSUES)
+
+
+   ``X.X.X (YYYY-MM-DD)`` - may be in the master, but should not get in the tag
 
 
 Reporting an Issue

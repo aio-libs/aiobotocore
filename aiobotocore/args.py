@@ -1,8 +1,9 @@
 import asyncio
 import copy
+
 import botocore.args
-import botocore.serialize
 import botocore.parsers
+import botocore.serialize
 from botocore.signers import RequestSigner
 
 from .config import AioConfig
@@ -16,8 +17,8 @@ class AioClientArgsCreator(botocore.args.ClientArgsCreator):
                          response_parser_factory, loader, exceptions_factory)
         self._loop = loop or asyncio.get_event_loop()
 
-    # NOTE: we override this so we can pull out the custom AioConfig params and
-    #       use an AioEndpointCreator
+    # NOTE: We override this so we can pull out the custom
+    #       AioConfig params and use an AioEndpointCreator
     def get_client_args(self, service_model, region_name, is_secure,
                         endpoint_url, verify, credentials, scoped_config,
                         client_config, endpoint_bridge):

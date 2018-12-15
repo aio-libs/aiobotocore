@@ -7,16 +7,14 @@ from botocore.paginate import Paginator
 from botocore.utils import get_service_module_name
 from botocore.waiter import xform_name
 
-from .paginate import AioPageIterator
-from .args import AioClientArgsCreator
 from . import waiter
-
+from .args import AioClientArgsCreator
+from .paginate import AioPageIterator
 
 history_recorder = get_global_history_recorder()
 
 
 class AioClientCreator(botocore.client.ClientCreator):
-
     def __init__(self, loader, endpoint_resolver, user_agent, event_emitter,
                  retry_handler_factory, retry_config_translator,
                  response_parser_factory=None, exceptions_factory=None,
@@ -151,8 +149,8 @@ class AioBaseClient(botocore.client.BaseClient):
             documented_paginator_cls = type(
                 paginator_class_name, (Paginator,), {'paginate': paginate})
 
-            operation_model = self._service_model.\
-                operation_model(actual_operation_name)
+            operation_model = self._service_model.operation_model(
+                actual_operation_name)
             paginator = documented_paginator_cls(
                 getattr(self, operation_name),
                 paginator_config,

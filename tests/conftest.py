@@ -1,12 +1,14 @@
 import asyncio
-import pytest
+import shutil
+import tempfile
 import time
+from itertools import chain
+
 import aiohttp
+import pytest
+
 import aiobotocore
 from aiobotocore.config import AioConfig
-from itertools import chain
-import tempfile
-import shutil
 
 
 @pytest.fixture(scope="session", params=[True, False],
@@ -40,8 +42,15 @@ def assert_status_code(response, status_code):
 
 
 async def assert_num_uploads_found(
-        s3_client, bucket_name, operation, num_uploads, *, max_items=None,
-        num_attempts=5, event_loop):
+        s3_client,
+        bucket_name,
+        operation,
+        num_uploads,
+        *,
+        max_items=None,
+        num_attempts=5,
+        event_loop
+):
     amount_seen = None
     paginator = s3_client.get_paginator(operation)
     for _ in range(num_attempts):
@@ -200,11 +209,26 @@ def create_client(client_type, request, event_loop, session, region,
     async def f():
         return session.create_client(client_type, region_name=region,
                                      config=config, **kw)
+
     client = event_loop.run_until_complete(f())
 
     def fin():
         event_loop.run_until_complete(client.close())
+
     request.addfinalizer(fin)
+    return client
+
+
+@pytest.fixture
+def make_create_client(request, event_loop, session,
+                       region, mocking_test, config):
+    def client(name_client, server):
+        kw = moto_config(server) if mocking_test else {}
+        return create_client(
+            name_client, request, event_loop,
+            session, region, config, **kw
+        )
+
     return client
 
 
@@ -329,6 +353,7 @@ def tempdir(request):
 
     def fin():
         shutil.rmtree(tempdir)
+
     request.addfinalizer(fin)
     return tempdir
 
@@ -340,6 +365,7 @@ def create_object(s3_client, bucket_name):
                                        Body=body)
         assert_status_code(r, 200)
         return r
+
     return _f
 
 
@@ -381,7 +407,6 @@ def pytest_namespace():
 
 @pytest.fixture
 def dynamodb_put_item(request, dynamodb_client, table_name):
-
     async def _f(key_string_value):
         response = await dynamodb_client.put_item(
             TableName=table_name,

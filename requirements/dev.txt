@@ -1,4 +1,6 @@
 -e .
+
+# requirements for developers
 coverage==4.5.1
 flake8==3.5.0
 
@@ -8,14 +10,11 @@ Flask==1.0.2
 # until release with https://github.com/spulec/moto/pull/1611 is available
 git+git://github.com/spulec/moto.git@80929292584ee78affc07643d16fae6bb31b4014#egg=moto
 
-pytest-cov==2.5.1
 pytest==3.6.2
+pytest-cov==2.5.1
 pytest-asyncio==0.8.0
-sphinx==1.7.5
+isort==4.3.4
 yarl==1.2.6
-aiohttp==3.3.2
-botocore==1.12.49
-boto3==1.9.49
 multidict==4.3.0
-wrapt==1.10.11
 dill==0.2.8.2
+sphinx==1.7.5

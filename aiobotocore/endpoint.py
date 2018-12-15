@@ -1,26 +1,32 @@
-import aiohttp
 import asyncio
 import io
-import wrapt
-import botocore.retryhandler
+from itertools import chain
+from urllib.parse import urlparse
+
+import aiohttp
 import aiohttp.http_exceptions
+import botocore.retryhandler
+import wrapt
 from aiohttp.client import URL
 from aiohttp.client_reqrep import ClientResponse
-from botocore.endpoint import EndpointCreator, Endpoint, DEFAULT_TIMEOUT, \
-    MAX_POOL_CONNECTIONS, logger
+from botocore.endpoint import (
+    DEFAULT_TIMEOUT,
+    MAX_POOL_CONNECTIONS,
+    Endpoint,
+    EndpointCreator,
+    logger,
+)
 from botocore.exceptions import ConnectionClosedError
+from botocore.history import get_global_history_recorder
 from botocore.hooks import first_non_none_response
 from botocore.utils import is_valid_endpoint_url
 from botocore.vendored.requests.structures import CaseInsensitiveDict
-from botocore.history import get_global_history_recorder
 from multidict import MultiDict
-from urllib.parse import urlparse
 
 from aiobotocore.response import StreamingBody
 
 MAX_REDIRECTS = 10
 history_recorder = get_global_history_recorder()
-
 
 # Monkey patching: We need to insert the aiohttp exception equivalents
 # The only other way to do this would be to have another config file :(
@@ -199,8 +205,9 @@ class AioEndpoint(Endpoint):
         # aws gzip compression.
         # https://github.com/boto/botocore/issues/1255
         headers['Accept-Encoding'] = 'identity'
-        headers_ = MultiDict(
-            (z[0], text_(z[1], encoding='utf-8')) for z in headers.items())
+
+        gen = ((z[0], text_(z[1], encoding='utf-8')) for z in headers.items())
+        headers_ = MultiDict(gen)
 
         # botocore does this during the request so we do this here as well
         proxy = self.proxies.get(urlparse(url.lower()).scheme)
@@ -223,12 +230,17 @@ class AioEndpoint(Endpoint):
 
     async def _send_request(self, request_dict, operation_model):
         attempts = 1
+        meta_key = 'ResponseMetadata'
+        retry_key = 'RetryAttempts'
+
         request = self.create_request(request_dict, operation_model)
-        success_response, exception = await self._get_response(
-            request, operation_model, attempts)
-        while (await self._needs_retry(attempts, operation_model,
-                                       request_dict, success_response,
-                                       exception)):
+        resp = await self._get_response(request, operation_model, attempts)
+        args = (
+            operation_model,
+            request_dict,
+        )
+
+        while await self._needs_retry(attempts, *chain(args, resp)):
             attempts += 1
             # If there is a stream associated with the request, we need
             # to reset it before attempting to send the request again.
@@ -236,20 +248,20 @@ class AioEndpoint(Endpoint):
             # body.
             request.reset_stream()
             # Create a new request when retried (including a new signature).
-            request = self.create_request(
-                request_dict, operation_model)
-            success_response, exception = await self._get_response(
-                request, operation_model, attempts)
-        if success_response is not None and \
-                'ResponseMetadata' in success_response[1]:
-            # We want to share num retries, not num attempts.
-            total_retries = attempts - 1
-            success_response[1]['ResponseMetadata']['RetryAttempts'] = \
-                total_retries
+            request = self.create_request(request_dict, operation_model)
+            resp = await self._get_response(request, operation_model, attempts)
+
+        success_response, exception = resp
+
         if exception is not None:
             raise exception
-        else:
-            return success_response
+
+        if meta_key in success_response[1]:
+            # We want to share num retries, not num attempts.
+            total_retries = attempts - 1
+            success_response[1][meta_key][retry_key] = total_retries
+
+        return success_response
 
     # NOTE: The only line changed here changing time.sleep to asyncio.sleep
     async def _needs_retry(self, attempts, operation_model, request_dict,
@@ -324,18 +336,21 @@ class AioEndpoint(Endpoint):
             return None, e
 
         # This returns the http_response and the parsed_data.
-        response_dict = await convert_to_response_dict(http_response,
-                                                       operation_model)
+        response_dict = await convert_to_response_dict(
+            http_response,
+            operation_model
+        )
 
-        http_response_record_dict = response_dict.copy()
-        http_response_record_dict['streaming'] = \
-            operation_model.has_streaming_output
-        history_recorder.record('HTTP_RESPONSE', http_response_record_dict)
+        http_resp_dict = response_dict.copy()
+        http_resp_dict['streaming'] = operation_model.has_streaming_output
+        history_recorder.record('HTTP_RESPONSE', http_resp_dict)
 
         protocol = operation_model.metadata['protocol']
         parser = self._response_parser_factory.create_parser(protocol)
         parsed_response = parser.parse(
-            response_dict, operation_model.output_shape)
+            response_dict,
+            operation_model.output_shape
+        )
         history_recorder.record('PARSED_RESPONSE', parsed_response)
         return (http_response, parsed_response), None
 
@@ -345,11 +360,20 @@ class AioEndpointCreator(EndpointCreator):
         super().__init__(event_emitter)
         self._loop = loop
 
-    def create_endpoint(self, service_model, region_name=None,
-                        endpoint_url=None, verify=None,
-                        response_parser_factory=None, timeout=DEFAULT_TIMEOUT,
-                        max_pool_connections=MAX_POOL_CONNECTIONS,
-                        proxies=None, connector_args=None):
+    def create_endpoint(
+            self,
+            service_model,
+            region_name,
+            endpoint_url,
+            verify=None,
+            response_parser_factory=None,
+            timeout=DEFAULT_TIMEOUT,
+            max_pool_connections=MAX_POOL_CONNECTIONS,
+            proxies=None,
+            connector_args=None,
+            *args,
+            **kwargs
+    ):
         if not is_valid_endpoint_url(endpoint_url):
             raise ValueError("Invalid endpoint: %s" % endpoint_url)
         if proxies is None:
@@ -363,4 +387,6 @@ class AioEndpointCreator(EndpointCreator):
             timeout=timeout,
             max_pool_connections=max_pool_connections,
             response_parser_factory=response_parser_factory,
-            loop=self._loop, connector_args=connector_args)
+            connector_args=connector_args,
+            loop=self._loop,
+        )

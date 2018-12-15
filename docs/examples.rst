@@ -24,7 +24,7 @@ Queue Create
 
 This snippet creates a queue, lists the queues, then deletes the queue.
 
-.. literalinclude:: ../examples/sqs_queue_create.py
+.. literalinclude:: ../examples/sqs/create.py
 
 Producer Consumer
 +++++++++++++++++
@@ -32,9 +32,38 @@ Producer Consumer
 Here is a quick and simple producer/consumer example. The producer will put messages on the queue with a delay of up to 4 seconds between each put.
 The consumer will read off any messages on the queue, waiting up to 2 seconds for messages to appear before returning.
 
-.. literalinclude:: ../examples/sqs_queue_producer.py
+.. literalinclude:: ../examples/sqs/producer.py
 
-.. literalinclude:: ../examples/sqs_queue_consumer.py
+.. literalinclude:: ../examples/sqs/consumer.py
+
+
+Kinesis
+-------
+
+Stream Create
++++++++++++++
+
+This snippet creates a stream `look to boto3 <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/kinesis.html#Kinesis.Client.create_stream>`_
+
+.. literalinclude:: ../examples/kinesis/create.py
+
+Producer Consumer
++++++++++++++++++
+
+Here is a quick and simple producer/consumer example. The producer will put messages on the stream.
+The consumer will read off any messages on the stream.
+
+.. literalinclude:: ../examples/kinesis/producer.py
+
+.. literalinclude:: ../examples/kinesis/consumer.py
+
+* send message `boto3[put_record] <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/kinesis.html#Kinesis.Client.put_record>`_
+* summary stream `boto3[describe_stream] <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/kinesis.html#Kinesis.Client.describe_stream>`_
+* get iterator for shard  `boto3[get_shard_iterator] <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/kinesis.html#Kinesis.Client.get_shard_iterator>`_
+* receive message in foreach loop `boto3[get_records] <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/kinesis.html#Kinesis.Client.get_records>`_
+* what is a **partition_key** and how to work with it `AWS Big Data Blog <https://aws.amazon.com/ru/blogs/big-data/snakes-in-the-stream-feeding-and-eating-amazon-kinesis-streams-with-python>`_
+
+
 
 DynamoDB
 --------

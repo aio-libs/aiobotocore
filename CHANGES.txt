@@ -1,6 +1,10 @@
 Changes
 -------
 
+X.X.X (XXXX-XX-XX)
+^^^^^^^^^^^^^^^^^^
+* Add kinesis tests, refactor doc and refactor code style (NOTISSUES)
+
 0.10.0 (2018-12-09)
 ^^^^^^^^^^^^^^^^^^^^
 * Update to botocore 1.12.49 #639 (thanks @terrycain)

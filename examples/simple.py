@@ -1,4 +1,5 @@
 import asyncio
+
 import aiobotocore
 
 AWS_ACCESS_KEY_ID = "xxx"
@@ -6,7 +7,6 @@ AWS_SECRET_ACCESS_KEY = "xxx"
 
 
 async def go(loop):
-
     bucket = 'dataintake'
     filename = 'dummy.bin'
     folder = 'aiobotocore'

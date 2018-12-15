@@ -1,17 +1,7 @@
 import os
-import re
 import sys
+
 from setuptools import setup, find_packages
-
-
-# NOTE: If adding requirements make sure to also add to requirements-dev.txt
-# NOTE: When updating botocore make sure to update awscli/boto3 versions below
-install_requires = [
-    # pegged to also match items in `extras_require`
-    'botocore>=1.12.49,<1.12.50',
-    'aiohttp>=3.3.1',
-    'wrapt>=1.10.10',
-]
 
 PY_VER = sys.version_info
 
@@ -19,28 +9,40 @@ if not PY_VER >= (3, 5, 3):
     raise RuntimeError("aiobotocore doesn't support Python earlier than 3.5.3")
 
 
-def read(f):
-    return open(os.path.join(os.path.dirname(__file__), f)).read().strip()
+def read_gen(file_path):
+    with open(os.path.join(os.getcwd(), file_path)) as f:
+        yield from (x.strip() for x in f)
+
+
+def read(file_path):
+    with open(os.path.join(os.getcwd(), file_path)) as f:
+        return f.read().strip()
+
+
+def parse_req(item):
+    item = item[:item.find('#')]
+    item = item[:item.find(';')]
+    return item.replace(' ', '')
+
+
+def read_requires(file_path, subdir='requirements'):
+    req = read_gen(os.path.join(subdir, file_path))
+    return [parse_req(x) for x in req if x and not x.startswith('#')]
 
 
 extras_require = {
-    'awscli': ['awscli==1.16.59'],
-    'boto3': ['boto3==1.9.49'],
+    'awscli': read_requires('awscli.txt'),
+    'boto3': read_requires('boto3.txt'),
 }
 
 
 def read_version():
-    regexp = re.compile(r"^__version__\W*=\W*'([\d.abrc]+)'")
-    init_py = os.path.join(os.path.dirname(__file__),
-                           'aiobotocore', '__init__.py')
-    with open(init_py) as f:
-        for line in f:
-            match = regexp.match(line)
-            if match is not None:
-                return match.group(1)
-        else:
-            raise RuntimeError('Cannot find version in '
-                               'aiobotocore/__init__.py')
+    resp = read_gen(os.path.join('aiobotocore', '__init__.py'))
+    try:
+        v = next(x for x in resp if x.startswith('__version__'))
+        return v.split('=').pop().strip().replace('"', '').replace("'", '')
+    except StopIteration:
+        raise RuntimeError('Cannot find version in aiobotocore/__init__.py')
 
 
 classifiers = [
@@ -54,7 +56,6 @@ classifiers = [
     'Framework :: AsyncIO',
 ]
 
-
 setup(name='aiobotocore',
       version=read_version(),
       description='Async client for aws services using botocore and aiohttp',
@@ -66,6 +67,6 @@ setup(name='aiobotocore',
       download_url='https://pypi.python.org/pypi/aiobotocore',
       license='Apache 2',
       packages=find_packages(),
-      install_requires=install_requires,
+      install_requires=read_requires('_main.txt'),
       extras_require=extras_require,
       include_package_data=True)

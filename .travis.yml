@@ -14,14 +14,14 @@ matrix:
 install:
     - pip install -U setuptools
     - if [[ -v EXTRA ]]; then pip install pipdeptree; fi
-    - if ! [[ -v EXTRA ]]; then pip install -r requirements-dev.txt; fi
+    - if ! [[ -v EXTRA ]]; then pip install -r requirements/dev.txt; fi
     - pip install codecov
     - pip freeze
 
 script:
     # requests from idna and docker packages conflicts with rest of the system...
     - if [[ -v EXTRA ]]; then pip install -U .[$EXTRA] && pipdeptree; fi
-    - if ! [[ -v EXTRA ]]; then make flake mototest; fi
+    - if ! [[ -v EXTRA ]]; then make test-ci; fi
 after_success:
     codecov
 deploy:
