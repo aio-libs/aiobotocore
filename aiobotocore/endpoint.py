@@ -223,7 +223,7 @@ class AioEndpoint(Endpoint):
 
     async def _send_request(self, request_dict, operation_model):
         attempts = 1
-        request = self.create_request(request_dict, operation_model)
+        request = await self.create_request(request_dict, operation_model)
         success_response, exception = await self._get_response(
             request, operation_model, attempts)
         while (await self._needs_retry(attempts, operation_model,
@@ -236,7 +236,7 @@ class AioEndpoint(Endpoint):
             # body.
             request.reset_stream()
             # Create a new request when retried (including a new signature).
-            request = self.create_request(
+            request = await self.create_request(
                 request_dict, operation_model)
             success_response, exception = await self._get_response(
                 request, operation_model, attempts)
@@ -256,7 +256,7 @@ class AioEndpoint(Endpoint):
                            response=None, caught_exception=None):
         event_name = 'needs-retry.%s.%s' % (self._endpoint_prefix,
                                             operation_model.name)
-        responses = self._event_emitter.emit(
+        responses = await self._event_emitter.emit(
             event_name, response=response, endpoint=self,
             operation=operation_model, attempts=attempts,
             caught_exception=caught_exception, request_dict=request_dict)
@@ -291,7 +291,7 @@ class AioEndpoint(Endpoint):
             service_id = operation_model.service_model.service_id.hyphenize()
             event_name = 'before-send.%s.%s' % \
                          (service_id, operation_model.name)
-            responses = self._event_emitter.emit(event_name, request=request)
+            responses = await self._event_emitter.emit(event_name, request=request)
             http_response = first_non_none_response(responses)
 
             if http_response is None:

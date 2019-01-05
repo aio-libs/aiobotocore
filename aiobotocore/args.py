@@ -7,6 +7,7 @@ from botocore.signers import RequestSigner
 
 from .config import AioConfig
 from .endpoint import AioEndpointCreator
+from .signers import AioRequestSigner
 
 
 class AioClientArgsCreator(botocore.args.ClientArgsCreator):
@@ -41,7 +42,7 @@ class AioClientArgsCreator(botocore.args.ClientArgsCreator):
             config_kwargs['region_name'] = endpoint_region_name
 
         event_emitter = copy.copy(self._event_emitter)
-        signer = RequestSigner(
+        signer = AioRequestSigner(
             service_model.service_id, signing_region,
             endpoint_config['signing_name'],
             endpoint_config['signature_version'],

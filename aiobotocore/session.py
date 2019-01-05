@@ -1,20 +1,54 @@
 import asyncio
 import botocore.credentials
-import botocore.session
+from botocore.session import Session, ComponentLocator, SessionVarDict
 
-from botocore import retryhandler, translate
+from botocore import retryhandler, translate, __version__
 from botocore.exceptions import PartialCredentialsError
 from .client import AioClientCreator
+from .hooks import AioHierarchicalEmitter, AioEventAliaser
+from .patches import patch
 
 
-class AioSession(botocore.session.Session):
+class AioSession(Session):
 
-    def __init__(self, *args, **kwargs):
-        self._loop = kwargs.pop('loop', None)
+    # noinspection PyMissingConstructor
+    def __init__(self, session_vars=None, event_hooks=None,
+                 include_builtin_handlers=True, profile=None, loop=None):
+        self._loop = loop
 
-        super().__init__(*args, **kwargs)
+        patch()
 
-    def create_client(self, service_name, region_name=None, api_version=None,
+        if event_hooks is None:
+            self._original_handler = AioHierarchicalEmitter()
+        else:
+            self._original_handler = event_hooks
+        self._events = AioEventAliaser(self._original_handler)
+        if include_builtin_handlers:
+            self._register_builtin_handlers(self._events)
+        self.user_agent_name = 'Botocore'
+        self.user_agent_version = __version__
+        self.user_agent_extra = ''
+        # The _profile attribute is just used to cache the value
+        # of the current profile to avoid going through the normal
+        # config lookup process each access time.
+        self._profile = None
+        self._config = None
+        self._credentials = None
+        self._profile_map = None
+        # This is a dict that stores per session specific config variable
+        # overrides via set_config_variable().
+        self._session_instance_vars = {}
+        if profile is not None:
+            self._session_instance_vars['profile'] = profile
+        self._client_config = None
+        self._components = ComponentLocator()
+        self._internal_components = ComponentLocator()
+        self._register_components()
+        self.session_var_map = SessionVarDict(self, self.SESSION_VARIABLES)
+        if session_vars is not None:
+            self.session_var_map.update(session_vars)
+
+    async def create_client(self, service_name, region_name=None, api_version=None,
                       use_ssl=True, verify=None, endpoint_url=None,
                       aws_access_key_id=None, aws_secret_access_key=None,
                       aws_session_token=None, config=None):
@@ -69,7 +103,7 @@ class AioSession(botocore.session.Session):
             loader, endpoint_resolver, self.user_agent(), event_emitter,
             retryhandler, translate, response_parser_factory,
             exceptions_factory, loop=self._loop)
-        client = client_creator.create_client(
+        client = await client_creator.create_client(
             service_name=service_name, region_name=region_name,
             is_secure=use_ssl, endpoint_url=endpoint_url, verify=verify,
             credentials=credentials, scoped_config=self.get_scoped_config(),
