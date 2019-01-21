@@ -17,5 +17,5 @@ aiohttp==3.5.4
 botocore==1.12.82
 boto3==1.9.82
 multidict==4.5.2
-wrapt==1.10.11
+wrapt==1.11.1
 dill==0.2.8.2
