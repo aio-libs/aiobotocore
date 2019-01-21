@@ -11,7 +11,7 @@ git+git://github.com/spulec/moto.git@80929292584ee78affc07643d16fae6bb31b4014#eg
 pytest-cov==2.6.1
 pytest==4.1.1
 pytest-asyncio==0.10.0
-sphinx==1.7.5
+sphinx==1.8.3
 yarl==1.2.6
 aiohttp==3.3.2
 botocore==1.12.49
