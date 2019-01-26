@@ -1,6 +1,10 @@
 Changes
 -------
 
+0.10.X (2019-XX-XX)
+^^^^^^^^^^^^^^^^^^^^
+* Make tests pass with pytest 4.1 #669 (thanks @yan12125)
+
 0.10.0 (2018-12-09)
 ^^^^^^^^^^^^^^^^^^^^
 * Update to botocore 1.12.49 #639 (thanks @terrycain)
