@@ -373,10 +373,13 @@ def aio_session(request, event_loop):
     event_loop.run_until_complete(session.close())
 
 
-def pytest_namespace():
-    return {'aio': {'assert_status_code': assert_status_code,
-                    'assert_num_uploads_found': assert_num_uploads_found},
-            }
+def pytest_configure():
+    class AIOUtils:
+        def __init__(self):
+            self.assert_status_code = assert_status_code
+            self.assert_num_uploads_found = assert_num_uploads_found
+
+    pytest.aio = AIOUtils()
 
 
 @pytest.fixture
