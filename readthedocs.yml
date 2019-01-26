@@ -1,0 +1,11 @@
+name: aiobotocore
+type: sphinx
+requirements_file: requirements-dev.txt
+build:
+  image: latest
+python:
+  version: 3.6
+  setup_py_install: true
+formats:
+  - htmlzip
+  - epub
