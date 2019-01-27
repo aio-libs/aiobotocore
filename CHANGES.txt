@@ -5,6 +5,7 @@ Changes
 ^^^^^^^^^^^^^^^^^^^^
 * Make tests pass with pytest 4.1 #669 (thanks @yan12125)
 * Support Python 3.7 #671 (thanks to @yan12125)
+* Update RTD build config #672 (thanks @willingc)
 
 0.10.0 (2018-12-09)
 ^^^^^^^^^^^^^^^^^^^^
