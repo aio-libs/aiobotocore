@@ -1,6 +1,5 @@
 import asyncio
 import io
-from itertools import chain
 from urllib.parse import urlparse
 
 import aiohttp
@@ -230,17 +229,12 @@ class AioEndpoint(Endpoint):
 
     async def _send_request(self, request_dict, operation_model):
         attempts = 1
-        meta_key = 'ResponseMetadata'
-        retry_key = 'RetryAttempts'
-
         request = self.create_request(request_dict, operation_model)
-        resp = await self._get_response(request, operation_model, attempts)
-        args = (
-            operation_model,
-            request_dict,
-        )
-
-        while await self._needs_retry(attempts, *chain(args, resp)):
+        success_response, exception = await self._get_response(
+            request, operation_model, attempts)
+        while (await self._needs_retry(attempts, operation_model,
+                                       request_dict, success_response,
+                                       exception)):
             attempts += 1
             # If there is a stream associated with the request, we need
             # to reset it before attempting to send the request again.
@@ -248,20 +242,20 @@ class AioEndpoint(Endpoint):
             # body.
             request.reset_stream()
             # Create a new request when retried (including a new signature).
-            request = self.create_request(request_dict, operation_model)
-            resp = await self._get_response(request, operation_model, attempts)
-
-        success_response, exception = resp
-
-        if exception is not None:
-            raise exception
-
-        if meta_key in success_response[1]:
+            request = self.create_request(
+                request_dict, operation_model)
+            success_response, exception = await self._get_response(
+                request, operation_model, attempts)
+        if success_response is not None and \
+                'ResponseMetadata' in success_response[1]:
             # We want to share num retries, not num attempts.
             total_retries = attempts - 1
-            success_response[1][meta_key][retry_key] = total_retries
-
-        return success_response
+            success_response[1]['ResponseMetadata']['RetryAttempts'] = \
+                total_retries
+        if exception is not None:
+            raise exception
+        else:
+            return success_response
 
     # NOTE: The only line changed here changing time.sleep to asyncio.sleep
     async def _needs_retry(self, attempts, operation_model, request_dict,
@@ -360,20 +354,11 @@ class AioEndpointCreator(EndpointCreator):
         super().__init__(event_emitter)
         self._loop = loop
 
-    def create_endpoint(
-            self,
-            service_model,
-            region_name,
-            endpoint_url,
-            verify=None,
-            response_parser_factory=None,
-            timeout=DEFAULT_TIMEOUT,
-            max_pool_connections=MAX_POOL_CONNECTIONS,
-            proxies=None,
-            connector_args=None,
-            *args,
-            **kwargs
-    ):
+    def create_endpoint(self, service_model, region_name=None,
+                        endpoint_url=None, verify=None,
+                        response_parser_factory=None, timeout=DEFAULT_TIMEOUT,
+                        max_pool_connections=MAX_POOL_CONNECTIONS,
+                        proxies=None, connector_args=None):
         if not is_valid_endpoint_url(endpoint_url):
             raise ValueError("Invalid endpoint: %s" % endpoint_url)
         if proxies is None:
@@ -387,6 +372,4 @@ class AioEndpointCreator(EndpointCreator):
             timeout=timeout,
             max_pool_connections=max_pool_connections,
             response_parser_factory=response_parser_factory,
-            connector_args=connector_args,
-            loop=self._loop,
-        )
+            loop=self._loop, connector_args=connector_args)
