@@ -3,7 +3,7 @@ Changes
 
 X.X.X (XXXX-XX-XX)
 ^^^^^^^^^^^^^^^^^^
-* Add kinesis tests, refactor doc and refactor code style (NOTISSUES)
+* Add kinesis tests, refactor doc and refactor code style
 
 0.10.0 (2018-12-09)
 ^^^^^^^^^^^^^^^^^^^^

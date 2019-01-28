@@ -138,8 +138,8 @@ The ``CHANGES.rst`` contains information on changes.
       ^^^^^^^^^^^^^^^^^^
 
       * Release & addition of changes file (Release-1.1.0)
-      * Name commit (`ISSUES-99999 <https://github.com/aio-libs/aiobotocore/issues/99999>`_)
-      * Name commit (NOTISSUES)
+      * Name commit
+      * Name commit
 
    If you set the date and version, it will be the last and will be released
    Version must be raised in your last committee
@@ -153,9 +153,8 @@ The ``CHANGES.rst`` contains information on changes.
       X.X.X (YYYY-MM-DD)
       ^^^^^^^^^^^^^^^^^^
 
-      * Release & addition of changes file (Release-1.1.0)
-      * Name commit (`ISSUES-99999 <https://github.com/aio-libs/aiobotocore/issues/99999>`_)
-      * Name commit (NOTISSUES)
+      * Name commit
+      * Name commit
 
 
    ``X.X.X (YYYY-MM-DD)`` - may be in the master, but should not get in the tag
