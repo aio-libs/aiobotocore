@@ -160,7 +160,7 @@ The ``CHANGES.rst`` contains information on changes.
    ``X.X.X (YYYY-MM-DD)`` - may be in the master, but should not get in the tag
 
 
-Reporting and Issue
+Reporting an Issue
 ------------------
 If you have found issue with `aiobotocore` please do
 not hesitate to file an issue on the GitHub_ project. When filing your
