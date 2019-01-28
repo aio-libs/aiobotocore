@@ -1,10 +1,6 @@
 Changes
 -------
 
-X.X.X (XXXX-XX-XX)
-^^^^^^^^^^^^^^^^^^
-* Add kinesis tests, refactor doc and refactor code style
-
 0.10.X (2019-XX-XX)
 ^^^^^^^^^^^^^^^^^^^^
 * Make tests pass with pytest 4.1 #669 (thanks @yan12125)
