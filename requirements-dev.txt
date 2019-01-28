@@ -19,5 +19,5 @@ dill==0.2.9
 aiohttp==3.5.4
 
 botocore==1.12.86
-boto3==1.9.49
+boto3==1.9.86
 awscli==1.16.59
