@@ -27,10 +27,7 @@ Workflow is pretty straightforward:
 
   8. Make pull request from github page for your branch against master branch
 
-  9. Optionally make backport pull Request(s) for landing a bug fix
-     into released aiobotocore versions.
-
-  10. Add changes in file ``CHANGES.txt`` for this read (`Changelog update`_).
+  11. Add changes in file ``CHANGES.txt`` for this read (`Changelog update`_).
 
 
 Preconditions for running aiobotocore test suite
