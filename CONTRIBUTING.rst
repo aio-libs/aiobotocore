@@ -160,7 +160,7 @@ The ``CHANGES.rst`` contains information on changes.
    ``X.X.X (YYYY-MM-DD)`` - may be in the master, but should not get in the tag
 
 
-Reporting an Issue
+Reporting and Issue
 ------------------
 If you have found issue with `aiobotocore` please do
 not hesitate to file an issue on the GitHub_ project. When filing your
@@ -185,6 +185,8 @@ works is by working backwards from `AioEndpoint._request`.  Because of this tigh
 integration aiobotocore is typically version locked to a particular release of
 botocore.
 
+.. _aiobotocore-upgrade-botocore:
+
 How to Upgrade Botocore
 -----------------------
 aiobotocore's file names try to match the botocore files they functionally match.
@@ -205,8 +207,13 @@ versions that are compatible with the above changes.
 
 See next section describing types of changes we must validate and support.
 
+
+.. _aiobotocore-hashes-botocore:
+
 Hashes of Botocore Code (important)
------------------------
+-----------------------------------
+**We do not support all Botocore unit tests and so we decided to do the following.**
+
 Because of the way aiobotocore is implemented (see Background section), it is very tightly coupled with botocore.  The validity of these couplings are enforced in test_patches.py.  We also depend on some private properties in aiohttp, and because of this have entries in test_patches.py for this too.
 
 These patches are important to catch cases where botocore functionality was added/removed and needs to be reflected in our overridden methods.  Changes include:
@@ -231,6 +238,8 @@ One would think we could just write enough unittests to catch all cases, however
 
 Until we can perform ALL unittests from new releases of botocore, we are stuck with the patches.
 
+
+.. _aiobotocore-future:
 
 The Future
 ----------

@@ -20,7 +20,17 @@ only upload/download API for S3, other users report that SQS and Dynamo
 services work also. More tests coming soon.
 
 .. warning::
-    **aiobotocore** - support only version python > 3.5.3
+
+    Important special features in the **aiobotocore**:
+
+
+    * Support only version **python > 3.5.3**
+
+    * Support and update of Botocore is described in chapter :ref:`aiobotocore-upgrade-botocore`.
+
+    * Motivation and reason for the chosen strategy :ref:`aiobotocore-hashes-botocore`.
+
+    * When can we abandon the chosen strategy is described in chapter :ref:`aiobotocore-future`.
 
 
 Library Installation
