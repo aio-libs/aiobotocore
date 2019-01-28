@@ -5,6 +5,12 @@ X.X.X (XXXX-XX-XX)
 ^^^^^^^^^^^^^^^^^^
 * Add kinesis tests, refactor doc and refactor code style
 
+0.10.X (2019-XX-XX)
+^^^^^^^^^^^^^^^^^^^^
+* Make tests pass with pytest 4.1 #669 (thanks @yan12125)
+* Support Python 3.7 #671 (thanks to @yan12125)
+* Update RTD build config #672 (thanks @willingc)
+
 0.10.0 (2018-12-09)
 ^^^^^^^^^^^^^^^^^^^^
 * Update to botocore 1.12.49 #639 (thanks @terrycain)
