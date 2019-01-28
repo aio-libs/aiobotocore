@@ -21,13 +21,9 @@ Workflow is pretty straightforward:
 
   5. Commit changes to own aiobotocore
 
-  6. Correct message for ``commit``. You need read (`Commit message format`_).
+  6. Make pull request from github page for your branch against master branch
 
-  7. Correct name for ``branch``. You need read (`Branch name format`_).
-
-  8. Make pull request from github page for your branch against master branch
-
-  11. Add changes in file ``CHANGES.txt`` for this read (`Changelog update`_).
+  7. Add changes in file ``CHANGES.txt`` for this read (`Changelog update`_).
 
 
 Preconditions for running aiobotocore test suite
@@ -126,49 +122,6 @@ Once it finishes it will output the index html page
 ``open file://`pwd`/docs/_build/html/index.html``.
 
 Go to the link and make sure your doc changes looks good.
-
-Commit message format
----------------------
-
-   1. Commit prefixes:
-
-      * **ISSUES-NUMBER** - *NUMBER* this number issues in github
-      * **NOTISSUES**
-      * **RELEASE-X.X.X**
-
-   2. After the prefix comes the separator ``:`` and one space
-
-   3. Next should be a brief description of your changes.
-
-
-Examples:
-
-.. code-block:: shell
-
-   $ git commit -m "ISSUES-999: Update botocore till version x.x.x"
-   $ git commit -m "ISSUES-999: Add changes summary in CHANGES.rst"
-   $ git commit -m "NOTISSUES: Add example SNS"
-   $ git commit -m "RELEASE-0.2.0: Removed support python < 3.5 look CHANGES"
-
-
-Branch name format
-------------------
-
-   1. **ISSUES-NUMBER** - *NUMBER* this number issues in github
-
-   2. **NOTISSUES-SUMMARY** - *SUMMARY* - your short name
-
-   3. **RELEASE-X.X.X**
-
-Examples:
-
-.. code-block:: shell
-
-   $ git checkout -b ISSUES-999
-   $ git checkout -b ISSUES-9999
-   $ git checkout -b NOTISSUES-ROLLBACK-3-LAST_COMMIT
-   $ git checkout -b RELEASE-0.0.1
-
 
 Changelog update
 ----------------
