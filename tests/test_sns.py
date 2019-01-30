@@ -1,7 +1,7 @@
 import json
-import pytest
-import botocore
 
+import botocore
+import pytest
 from moto.sns.models import DEFAULT_TOPIC_POLICY
 
 

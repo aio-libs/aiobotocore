@@ -1,37 +1,163 @@
 Contributing
 ============
 
-Running Tests
--------------
+Instructions for contributors
+-----------------------------
 
-.. _GitHub: https://github.com/aio-libs/aiobotocore
+In order to make a clone of the `GitHub <https://github.com/aio-libs/aiobotocore>`_ repo: open the link and press the
+"Fork" button on the upper-right menu of the web page.
 
-Thanks for your interest in contributing to ``aiobotocore``, there are multiple
-ways and places you can contribute.
+I hope everybody knows how to work with git and gitlab nowadays :)
 
-Fist of all just clone repository::
+Workflow is pretty straightforward:
 
-    $ git clone git@github.com:aio-libs/aiobotocore.git
+  1. Clone the `GitHub <https://github.com/aio-libs/aiobotocore>`_ repo
 
-Create virtualenv with at least python3.5 (older version are not supported).
-For example using *virtualenvwrapper* commands could look like::
+  2. Make a change
+
+  3. Make sure all tests passed
+
+  4. Make sure the coverage doesn't get worse.
+
+  5. Commit changes to own aiobotocore
+
+  6. Make pull request from github page for your branch against master branch
+
+  7. Add changes in file ``CHANGES.txt`` for this read (`Changelog update`_).
+
+
+Preconditions for running aiobotocore test suite
+------------------------------------------------
+
+We expect you to use a python virtual environment to run our tests.
+
+There are several ways to make a virtual environment.
+
+If you like to use *virtualenv* please run:
+
+.. code-block:: shell
 
    $ cd aiobotocore
-   $ mkvirtualenv --python=`which python3.5` aiobotocore
+   $ virtualenv -p /usr/bin/python3 venv-aiobotocore
+   $ . venv-aiobotocore/bin/activate
+
+For standard python *venv-aiobotocore*:
+
+.. code-block:: shell
+
+   $ cd aiobotocore
+   $ python3 -m venv venv-aiobotocore
+   $ . venv-aiobotocore/bin/activate
+
+For *virtualenvwrapper*:
+
+.. code-block:: shell
+
+   $ cd aiobotocore
+   $ mkvirtualenv -p /usr/bin/python3 venv-aiobotocore
+   $ workon venv-aiobotocore
+
+There are other tools like *pyvenv* but you know the rule of thumb
+now: create a python3 virtual environment and activate it.
+
+After that please install libraries required for development:
+
+.. code-block:: shell
+
+   $ pip install -r requirements/dev.txt
+
+Congratulations, you are ready to run the test suite!
+
+Run aiobotocore test suite
+--------------------------
+
+After all the preconditions are met you can run tests typing the next
+command:
+
+.. code-block:: shell
+
+   $ make test
+
+Run aiobotocore flake suite
+---------------------------
+
+We try our best to write code according to pep, it will allow you to check yourself.
+
+.. code-block:: shell
+
+   $ make flake
+
+Run aiobotocore coverage suite
+------------------------------
+
+We are trying hard to have good test coverage; please don't make it worse.
+
+.. code-block:: shell
+
+   $ make cov
+
+.. note::
+
+  If you want to use AWS within the test suite, you need create config ``~/.aws/credentials`` or the ``environment variable``
+
+  Then the test run will look like this:
+  .. code-block:: shell
+
+     $ make aws-cov
+     $ make aws-test
 
 
-After that please install libraries required for development::
+Documentation
+-------------
 
-    $ pip install -r requirements-dev.txt
-    $ pip install -e .
+We encourage documentation improvements.
 
-Congratulations, you are ready to run the test suite::
+Please before making a Pull Request about documentation changes run:
 
-    $ make cov
+.. code-block:: shell
 
-To run individual use following command::
+   $ make doc
 
-    $ py.test -sv tests/test_monitor.py -k test_name
+Once it finishes it will output the index html page
+``open file://`pwd`/docs/_build/html/index.html``.
+
+Go to the link and make sure your doc changes looks good.
+
+Changelog update
+----------------
+
+The ``CHANGES.rst`` contains information on changes.
+
+.. note::
+
+   If you know the release version and want to add a new commit before released out
+
+   Example::
+
+      0.1.0 (2018-09-01)
+      ^^^^^^^^^^^^^^^^^^
+
+      * Release & addition of changes file (Release-1.1.0)
+      * Name commit
+      * Name commit
+
+   If you set the date and version, it will be the last and will be released
+   Version must be raised in your last committee
+
+.. note::
+
+   If you have a delayed release, just add your commit
+
+   Example::
+
+      X.X.X (YYYY-MM-DD)
+      ^^^^^^^^^^^^^^^^^^
+
+      * Name commit
+      * Name commit
+
+
+   ``X.X.X (YYYY-MM-DD)`` - may be in the master, but should not get in the tag
 
 
 Reporting an Issue
@@ -59,6 +185,8 @@ works is by working backwards from `AioEndpoint._request`.  Because of this tigh
 integration aiobotocore is typically version locked to a particular release of
 botocore.
 
+.. _aiobotocore-upgrade-botocore:
+
 How to Upgrade Botocore
 -----------------------
 aiobotocore's file names try to match the botocore files they functionally match.
@@ -79,8 +207,13 @@ versions that are compatible with the above changes.
 
 See next section describing types of changes we must validate and support.
 
+
+.. _aiobotocore-hashes-botocore:
+
 Hashes of Botocore Code (important)
------------------------
+-----------------------------------
+**We do not support all Botocore unit tests and so we decided to do the following.**
+
 Because of the way aiobotocore is implemented (see Background section), it is very tightly coupled with botocore.  The validity of these couplings are enforced in test_patches.py.  We also depend on some private properties in aiohttp, and because of this have entries in test_patches.py for this too.
 
 These patches are important to catch cases where botocore functionality was added/removed and needs to be reflected in our overridden methods.  Changes include:
@@ -105,6 +238,8 @@ One would think we could just write enough unittests to catch all cases, however
 
 Until we can perform ALL unittests from new releases of botocore, we are stuck with the patches.
 
+
+.. _aiobotocore-future:
 
 The Future
 ----------

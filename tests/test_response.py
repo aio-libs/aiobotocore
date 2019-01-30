@@ -1,8 +1,9 @@
 import io
 
 import pytest
-from aiobotocore import response
 from botocore.exceptions import IncompleteReadError
+
+from aiobotocore import response
 
 
 # https://github.com/boto/botocore/blob/develop/tests/unit/test_response.py

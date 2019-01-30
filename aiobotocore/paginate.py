@@ -1,10 +1,9 @@
 from botocore.exceptions import PaginationError
 from botocore.paginate import PageIterator
-from botocore.utils import set_value_from_jmespath, merge_dicts
+from botocore.utils import merge_dicts, set_value_from_jmespath
 
 
 class AioPageIterator(PageIterator):
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._init_pager()
@@ -56,7 +55,7 @@ class AioPageIterator(PageIterator):
         truncate_amount = 0
         if self._max_items is not None:
             truncate_amount = (self._total_items + num_current_response) \
-                - self._max_items
+                              - self._max_items
 
         if truncate_amount > 0:
             self._truncate_response(parsed, self._primary_result_key,
@@ -70,15 +69,17 @@ class AioPageIterator(PageIterator):
             if all(t is None for t in self._next_token.values()):
                 self._is_stop = True
                 return response
-            if self._max_items is not None and \
-                    self._total_items == self._max_items:
+
+            is_not_none = self._max_items is not None
+            if is_not_none and self._total_items == self._max_items:
                 # We're on a page boundary so we can set the current
                 # next token to be the resume token.
                 self.resume_token = self._next_token
                 self._is_stop = True
                 return response
-            if self._previous_next_token is not None and \
-                    self._previous_next_token == self._next_token:
+
+            is_not_none = self._previous_next_token is not None
+            if is_not_none and self._previous_next_token == self._next_token:
                 message = ("The same next token was received "
                            "twice: %s" % self._next_token)
                 raise PaginationError(message=message)

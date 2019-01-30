@@ -1,11 +1,13 @@
 import asyncio
+from importlib import import_module
+
+from botocore.docs.docstring import WaiterDocstring
+from botocore.exceptions import ClientError
+from botocore.utils import get_service_module_name
+from botocore.waiter import Waiter, WaiterError, logger, xform_name
 
 # WaiterModel is required for client.py import
-from botocore.exceptions import ClientError
-from botocore.waiter import WaiterModel  # noqa: F401
-from botocore.waiter import Waiter, xform_name, logger, WaiterError
-from botocore.docs.docstring import WaiterDocstring
-from botocore.utils import get_service_module_name
+WaiterModel = import_module('botocore.waiter').WaiterModel
 
 
 class NormalizedOperationMethod:

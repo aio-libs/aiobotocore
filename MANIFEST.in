@@ -1,5 +1,6 @@
 include LICENSE
 include CHANGES.txt
 include README.rst
+graft requirements
 graft aiobotocore
 global-exclude *.pyc *.swp

@@ -1,6 +1,6 @@
 # Boto should get credentials from ~/.aws/credentials or the environment
-import uuid
 import asyncio
+import uuid
 
 import aiobotocore
 

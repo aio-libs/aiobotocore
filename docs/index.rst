@@ -19,11 +19,45 @@ should work (may be with minor fixes). For now we have tested
 only upload/download API for S3, other users report that SQS and Dynamo
 services work also. More tests coming soon.
 
+.. warning::
+
+    Important special features in the **aiobotocore**:
+
+
+    * Support only version **python > 3.5.3**
+
+    * Support and update of Botocore is described in chapter :ref:`aiobotocore-upgrade-botocore`.
+
+    * Motivation and reason for the chosen strategy :ref:`aiobotocore-hashes-botocore`.
+
+    * When can we abandon the chosen strategy is described in chapter :ref:`aiobotocore-future`.
+
+
+Library Installation
+====================
+
+.. code-block:: bash
+
+   $ pip install aiobotocore
+
+Install if need awscli
+
+.. code-block:: bash
+
+   $ pip install aiobotocore[awscli]
+
+
+Install if need **not async** boto3
+
+.. code-block:: bash
+
+   $ pip install aiobotocore[boto3]
+
 
 Features
 --------
  * Full async support for AWS services with botocore.
- * Library used in production with S3, SQS and Dynamo services
+ * Library used in production with S3, SQS, kinesis and Dynamo services
 
 
 Basic Example

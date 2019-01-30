@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 """
-aiobotocore SQS Consumer Example
+aiobotocore SQS Producer Example
 """
 import asyncio
+import random
 import sys
 
-import aiobotocore
 import botocore.exceptions
+
+import aiobotocore
 
 QUEUE_NAME = 'test_queue12'
 
@@ -28,27 +30,21 @@ async def go(loop):
 
     queue_url = response['QueueUrl']
 
-    print('Pulling messages off the queue')
+    print('Putting messages on the queue')
 
+    msg_no = 1
     while True:
         try:
-            # This loop wont spin really fast as there is
-            # essentially a sleep in the receieve_message call
-            response = await client.receive_message(
+            msg_body = 'Message #{0}'.format(msg_no)
+            await client.send_message(
                 QueueUrl=queue_url,
-                WaitTimeSeconds=2,
+                MessageBody=msg_body
             )
+            msg_no += 1
 
-            if 'Messages' in response:
-                for msg in response['Messages']:
-                    print('Got msg "{0}"'.format(msg['Body']))
-                    # Need to remove msg from queue or else it'll reappear
-                    await client.delete_message(
-                        QueueUrl=queue_url,
-                        ReceiptHandle=msg['ReceiptHandle']
-                    )
-            else:
-                print('No messages in queue')
+            print('Pushed "{0}" to queue'.format(msg_body))
+
+            await asyncio.sleep(random.randint(1, 4))
         except KeyboardInterrupt:
             break
 

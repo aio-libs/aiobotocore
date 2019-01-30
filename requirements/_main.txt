@@ -1,0 +1,3 @@
+aiohttp==3.3.2
+botocore==1.12.49
+wrapt==1.11.1

@@ -1,21 +1,23 @@
-import pytest
 import hashlib
+
+import aiohttp
+import botocore
+import pytest
+from aiohttp.client import ClientResponse
+from botocore.args import ClientArgsCreator
+from botocore.client import BaseClient, ClientCreator, Config
+from botocore.endpoint import (
+    Endpoint,
+    EndpointCreator,
+    convert_to_response_dict,
+)
+from botocore.paginate import PageIterator
+from botocore.session import Session, get_session
+from botocore.waiter import NormalizedOperationMethod
 from dill.source import getsource
 from yarl import URL
 
 from aiobotocore.endpoint import ClientResponseProxy
-
-import aiohttp
-from aiohttp.client import ClientResponse
-import botocore
-from botocore.args import ClientArgsCreator
-from botocore.client import ClientCreator, BaseClient, Config
-from botocore.endpoint import convert_to_response_dict, Endpoint, \
-    EndpointCreator
-from botocore.paginate import PageIterator
-from botocore.session import Session, get_session
-from botocore.waiter import NormalizedOperationMethod
-
 
 # This file ensures that our private patches will work going forward.  If a
 # method gets updated this will assert and someone will need to validate:
@@ -68,8 +70,11 @@ _API_DIGESTS = {
 # NOTE: this doesn't require moto but needs to be marked to run with coverage
 @pytest.mark.moto
 def test_patches():
-    print("Botocore version: {} aiohttp version: {}".format(
-        botocore.__version__, aiohttp.__version__))
+    print(
+        "Botocore version: {} aiohttp version: {}".format(
+            botocore.__version__, aiohttp.__version__
+        )
+    )
 
     for obj, digests in _AIOHTTP_DIGESTS.items():
         digest = hashlib.sha1(getsource(obj).encode('utf-8')).hexdigest()

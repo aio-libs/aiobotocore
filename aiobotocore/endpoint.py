@@ -1,26 +1,31 @@
-import aiohttp
 import asyncio
 import io
-import wrapt
-import botocore.retryhandler
+from urllib.parse import urlparse
+
+import aiohttp
 import aiohttp.http_exceptions
+import botocore.retryhandler
+import wrapt
 from aiohttp.client import URL
 from aiohttp.client_reqrep import ClientResponse
-from botocore.endpoint import EndpointCreator, Endpoint, DEFAULT_TIMEOUT, \
-    MAX_POOL_CONNECTIONS, logger
+from botocore.endpoint import (
+    DEFAULT_TIMEOUT,
+    MAX_POOL_CONNECTIONS,
+    Endpoint,
+    EndpointCreator,
+    logger,
+)
 from botocore.exceptions import ConnectionClosedError
+from botocore.history import get_global_history_recorder
 from botocore.hooks import first_non_none_response
 from botocore.utils import is_valid_endpoint_url
 from botocore.vendored.requests.structures import CaseInsensitiveDict
-from botocore.history import get_global_history_recorder
 from multidict import MultiDict
-from urllib.parse import urlparse
 
 from aiobotocore.response import StreamingBody
 
 MAX_REDIRECTS = 10
 history_recorder = get_global_history_recorder()
-
 
 # Monkey patching: We need to insert the aiohttp exception equivalents
 # The only other way to do this would be to have another config file :(
@@ -199,8 +204,9 @@ class AioEndpoint(Endpoint):
         # aws gzip compression.
         # https://github.com/boto/botocore/issues/1255
         headers['Accept-Encoding'] = 'identity'
-        headers_ = MultiDict(
-            (z[0], text_(z[1], encoding='utf-8')) for z in headers.items())
+
+        gen = ((z[0], text_(z[1], encoding='utf-8')) for z in headers.items())
+        headers_ = MultiDict(gen)
 
         # botocore does this during the request so we do this here as well
         proxy = self.proxies.get(urlparse(url.lower()).scheme)
@@ -324,18 +330,21 @@ class AioEndpoint(Endpoint):
             return None, e
 
         # This returns the http_response and the parsed_data.
-        response_dict = await convert_to_response_dict(http_response,
-                                                       operation_model)
+        response_dict = await convert_to_response_dict(
+            http_response,
+            operation_model
+        )
 
-        http_response_record_dict = response_dict.copy()
-        http_response_record_dict['streaming'] = \
-            operation_model.has_streaming_output
-        history_recorder.record('HTTP_RESPONSE', http_response_record_dict)
+        http_resp_dict = response_dict.copy()
+        http_resp_dict['streaming'] = operation_model.has_streaming_output
+        history_recorder.record('HTTP_RESPONSE', http_resp_dict)
 
         protocol = operation_model.metadata['protocol']
         parser = self._response_parser_factory.create_parser(protocol)
         parsed_response = parser.parse(
-            response_dict, operation_model.output_shape)
+            response_dict,
+            operation_model.output_shape
+        )
         history_recorder.record('PARSED_RESPONSE', parsed_response)
         return (http_response, parsed_response), None
 

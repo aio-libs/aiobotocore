@@ -1,10 +1,14 @@
 import asyncio
-from mock_server import AIOServer
-from aiobotocore.session import AioSession
-from aiobotocore.config import AioConfig
+from importlib import import_module
+
+import pytest
 from botocore.config import Config
 from botocore.exceptions import ParamValidationError
-import pytest
+
+from aiobotocore.config import AioConfig
+from aiobotocore.session import AioSession
+
+AIOServer = import_module('mock_server').AIOServer
 
 
 # NOTE: this doesn't require moto but needs to be marked to run with coverage
@@ -86,7 +90,6 @@ async def test_connector_timeout2(event_loop):
                                   endpoint_url=server.endpoint_url,
                                   aws_secret_access_key='xxx',
                                   aws_access_key_id='xxx') as s3_client:
-
         with pytest.raises(asyncio.TimeoutError):
             resp = await s3_client.get_object(Bucket='foo', Key='bar')
             await resp["Body"].read()
