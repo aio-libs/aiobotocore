@@ -10,7 +10,9 @@ class AioPageIterator(PageIterator):
         self._init_pager()
 
     def __iter__(self):
-        raise NotImplementedError
+        raise NotImplementedError(
+            "{self} is an AsyncIterable: use `async for`".format(self=self)
+        )
 
     def _init_pager(self):
         self._is_stop = False
