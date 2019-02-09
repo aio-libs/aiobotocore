@@ -7,11 +7,13 @@ from botocore.exceptions import IncompleteReadError
 
 # https://github.com/boto/botocore/blob/develop/tests/unit/test_response.py
 async def assert_lines(line_iterator, expected_lines):
-    lines = []
-    async for line in line_iterator:
-        lines.append(line)
+    for expected_line in expected_lines:
+        line = await line_iterator.__anext__()
+        assert line == expected_line
 
-    assert lines == expected_lines
+    # We should have exhausted the iterator.
+    with pytest.raises(StopAsyncIteration):
+        await line_iterator.__anext__()
 
 
 class AsyncBytesIO(io.BytesIO):
