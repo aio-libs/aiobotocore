@@ -1,14 +1,15 @@
 Changes
 -------
 
-0.10.X (2019-XX-XX)
-^^^^^^^^^^^^^^^^^^^^
+0.10.1 (2019-02-08)
+^^^^^^^^^^^^^^^^^^^
 * Make tests pass with pytest 4.1 #669 (thanks @yan12125)
 * Support Python 3.7 #671 (thanks to @yan12125)
 * Update RTD build config #672 (thanks @willingc)
+* Bump to botocore 1.12.91 #679
 
 0.10.0 (2018-12-09)
-^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^
 * Update to botocore 1.12.49 #639 (thanks @terrycain)
 
 0.9.4 (2018-08-08)

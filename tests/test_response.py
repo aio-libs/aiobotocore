@@ -148,3 +148,36 @@ async def test_streaming_line_iter_chunk_sizes():
             stream.iter_lines(chunk_size),
             [b'1234567890', b'1234567890', b'12345'],
         )
+
+
+@pytest.mark.moto
+@pytest.mark.asyncio
+async def test_streaming_body_is_an_iterator():
+    body = AsyncBytesIO(b'a' * 1024 + b'b' * 1024 + b'c' * 2)
+    stream = response.StreamingBody(body, content_length=2050)
+    assert b'a' * 1024 == await stream.__anext__()
+    assert b'b' * 1024 == await stream.__anext__()
+    assert b'c' * 2 == await stream.__anext__()
+    with pytest.raises(StopAsyncIteration):
+        await stream.__anext__()
+
+
+@pytest.mark.moto
+@pytest.mark.asyncio
+async def test_streaming_line_abstruse_newline_standard():
+    for chunk_size in range(1, 30):
+        body = AsyncBytesIO(b'1234567890\r\n1234567890\r\n12345\r\n')
+        stream = response.StreamingBody(body, content_length=31)
+        await assert_lines(
+            stream.iter_lines(chunk_size),
+            [b'1234567890', b'1234567890', b'12345'],
+        )
+
+
+@pytest.mark.moto
+@pytest.mark.asyncio
+async def test_streaming_line_empty_body():
+    stream = response.StreamingBody(
+        AsyncBytesIO(b''), content_length=0,
+    )
+    await assert_lines(stream.iter_lines(), [])
