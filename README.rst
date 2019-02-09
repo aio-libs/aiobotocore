@@ -4,6 +4,9 @@ aiobotocore
     :target: https://travis-ci.com/aio-libs/aiobotocore
 .. image:: https://codecov.io/gh/aio-libs/aiobotocore/branch/master/graph/badge.svg
     :target: https://codecov.io/gh/aio-libs/aiobotocore
+.. image:: https://readthedocs.org/projects/aiobotocore/badge/?version=latest
+    :target: https://aiobotocore.readthedocs.io/en/latest/?badge=latest
+    :alt: Documentation Status
 .. image:: https://img.shields.io/pypi/v/aiobotocore.svg
     :target: https://pypi.python.org/pypi/aiobotocore
 .. image:: https://badges.gitter.im/Join%20Chat.svg

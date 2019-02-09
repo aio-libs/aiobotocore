@@ -5,7 +5,9 @@ from yarl import URL
 
 from aiobotocore.endpoint import ClientResponseProxy
 
+import aiohttp
 from aiohttp.client import ClientResponse
+import botocore
 from botocore.args import ClientArgsCreator
 from botocore.client import ClientCreator, BaseClient, Config
 from botocore.endpoint import convert_to_response_dict, Endpoint, \
@@ -30,6 +32,24 @@ _AIOHTTP_DIGESTS = {
 }
 
 # These are guards to our main patches
+
+# !!! README: HOW TO UPDATE THESE !!!
+# -----------------------------------
+# (tests break with new version of aiohttp/botocore)
+#
+# 1) Adding support for more versions of aiohttp/botocore
+#    In this scenario you need to ensure that aiobotocore supports the changes
+#    that broke these tests along with the old versions of the libraries
+#    and APPEND to the set of hashes that we support for each object you
+#    validated.
+# 2) Bumping up the base version of aiohttp/botocore that we support
+#    In this scenario ensure aiobotocore supports the new version of the libs
+#    and REPLACE all entries with the current hashes with the new libs.
+
+# REPLACE = backwards incompatible change
+# APPEND = officially supporting more versions of botocore/aiohttp
+
+# If you're changing these, most likely need to update setup.py as well.
 _API_DIGESTS = {
     ClientArgsCreator: {'6af0ae851aac2c7e9ff908e04af998f64345784f'},
     ClientCreator: {'6808f991fc4b67db191110aaadb4de00603c0f57'},
@@ -48,6 +68,9 @@ _API_DIGESTS = {
 # NOTE: this doesn't require moto but needs to be marked to run with coverage
 @pytest.mark.moto
 def test_patches():
+    print("Botocore version: {} aiohttp version: {}".format(
+        botocore.__version__, aiohttp.__version__))
+
     for obj, digests in _AIOHTTP_DIGESTS.items():
         digest = hashlib.sha1(getsource(obj).encode('utf-8')).hexdigest()
         assert digest in digests, \

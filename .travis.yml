@@ -1,14 +1,18 @@
 language: python
 
+# Needed for Python 3.7
+dist: xenial
+
 python:
     - 3.5
     - 3.6
+    - 3.7
 
 matrix:
   include:
-  - python: 3.6
+  - python: 3.7
     env: EXTRA="awscli"
-  - python: 3.6
+  - python: 3.7
     env: EXTRA="boto3"
 
 install:
@@ -34,6 +38,6 @@ deploy:
         tags: true
         repo: aio-libs/aiobotocore
         all_branches: true
-        python: 3.6
+        python: 3.7
 
 cache: pip
