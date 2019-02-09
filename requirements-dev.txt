@@ -18,6 +18,6 @@ dill==0.2.8.2
 # The following are what give the most headaches
 aiohttp==3.3.2
 
-botocore==1.12.49
-boto3==1.9.49
-awscli==1.16.59
+botocore==1.12.91
+boto3==1.9.91
+awscli==1.16.101
