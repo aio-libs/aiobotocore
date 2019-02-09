@@ -20,11 +20,12 @@ class AioClientCreator(botocore.client.ClientCreator):
     def __init__(self, loader, endpoint_resolver, user_agent, event_emitter,
                  retry_handler_factory, retry_config_translator,
                  response_parser_factory=None, exceptions_factory=None,
-                 loop=None):
+                 config_store=None, loop=None):
         super().__init__(loader, endpoint_resolver, user_agent, event_emitter,
                          retry_handler_factory, retry_config_translator,
                          response_parser_factory=response_parser_factory,
-                         exceptions_factory=exceptions_factory)
+                         exceptions_factory=exceptions_factory,
+                         config_store=config_store)
         loop = loop or asyncio.get_event_loop()
         self._loop = loop
 
@@ -88,8 +89,8 @@ class AioBaseClient(botocore.client.BaseClient):
         if event_response is not None:
             http, parsed_response = event_response
         else:
-            http, parsed_response = await self._endpoint.make_request(
-                operation_model, request_dict)
+            http, parsed_response = await self._make_request(
+                operation_model, request_dict, request_context)
 
         self.meta.events.emit(
             'after-call.{service_id}.{operation_name}'.format(
@@ -105,6 +106,20 @@ class AioBaseClient(botocore.client.BaseClient):
             raise error_class(parsed_response, operation_name)
         else:
             return parsed_response
+
+    async def _make_request(self, operation_model, request_dict,
+                            request_context):
+        try:
+            return await self._endpoint.make_request(operation_model,
+                                                     request_dict)
+        except Exception as e:
+            self.meta.events.emit(
+                'after-call-error.{service_id}.{operation_name}'.format(
+                    service_id=self._service_model.service_id.hyphenize(),
+                    operation_name=operation_model.name),
+                exception=e, context=request_context
+            )
+            raise
 
     def get_paginator(self, operation_name):
         """Create a paginator for an operation.

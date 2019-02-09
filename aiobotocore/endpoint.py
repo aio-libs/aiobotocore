@@ -224,8 +224,9 @@ class AioEndpoint(Endpoint):
     async def _send_request(self, request_dict, operation_model):
         attempts = 1
         request = self.create_request(request_dict, operation_model)
+        context = request_dict['context']
         success_response, exception = await self._get_response(
-            request, operation_model, attempts)
+            request, operation_model, context)
         while (await self._needs_retry(attempts, operation_model,
                                        request_dict, success_response,
                                        exception)):
@@ -271,12 +272,33 @@ class AioEndpoint(Endpoint):
             await asyncio.sleep(handler_response, loop=self._loop)
             return True
 
-    async def _get_response(self, request, operation_model, attempts):
+    async def _get_response(self, request, operation_model, context):
         # This will return a tuple of (success_response, exception)
         # and success_response is itself a tuple of
         # (http_response, parsed_dict).
         # If an exception occurs then the success_response is None.
         # If no exception occurs then exception is None.
+        # If no exception occurs then exception is None.
+        success_response, exception = await self._do_get_response(
+            request, operation_model)
+        kwargs_to_emit = {
+            'response_dict': None,
+            'parsed_response': None,
+            'context': context,
+            'exception': exception,
+        }
+        if success_response is not None:
+            http_response, parsed_response = success_response
+            kwargs_to_emit['parsed_response'] = parsed_response
+            kwargs_to_emit['response_dict'] = convert_to_response_dict(
+                http_response, operation_model)
+        service_id = operation_model.service_model.service_id.hyphenize()
+        self._event_emitter.emit(
+            'response-received.%s.%s' % (
+                service_id, operation_model.name), **kwargs_to_emit)
+        return success_response, exception
+
+    async def _do_get_response(self, request, operation_model):
         try:
             # http request substituted too async one
             logger.debug("Sending http request: %s", request)

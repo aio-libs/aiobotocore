@@ -2,6 +2,7 @@ import asyncio
 import botocore.credentials
 import botocore.session
 
+from botocore import UNSIGNED
 from botocore import retryhandler, translate
 from botocore.exceptions import PartialCredentialsError
 from .client import AioClientCreator
@@ -50,7 +51,10 @@ class AioSession(botocore.session.Session):
         event_emitter = self.get_component('event_emitter')
         response_parser_factory = self.get_component(
             'response_parser_factory')
-        if aws_access_key_id is not None and aws_secret_access_key is not None:
+        if config is not None and config.signature_version is UNSIGNED:
+            credentials = None
+        elif aws_access_key_id is not None and \
+                aws_secret_access_key is not None:
             credentials = botocore.credentials.Credentials(
                 access_key=aws_access_key_id,
                 secret_key=aws_secret_access_key,
@@ -65,15 +69,19 @@ class AioSession(botocore.session.Session):
             credentials = self.get_credentials()
         endpoint_resolver = self._get_internal_component('endpoint_resolver')
         exceptions_factory = self._get_internal_component('exceptions_factory')
+        config_store = self.get_component('config_store')
         client_creator = AioClientCreator(
             loader, endpoint_resolver, self.user_agent(), event_emitter,
             retryhandler, translate, response_parser_factory,
-            exceptions_factory, loop=self._loop)
+            exceptions_factory, config_store, loop=self._loop)
         client = client_creator.create_client(
             service_name=service_name, region_name=region_name,
             is_secure=use_ssl, endpoint_url=endpoint_url, verify=verify,
             credentials=credentials, scoped_config=self.get_scoped_config(),
             client_config=config, api_version=api_version)
+        monitor = self._get_internal_component('monitor')
+        if monitor is not None:
+            monitor.register(client.meta.events)
         return client
 
 
