@@ -5,7 +5,7 @@ from aiobotocore.session import AioSession
 
 @pytest.mark.moto
 @pytest.mark.asyncio
-async def test_can_make_request(session: AioSession, s3_client):
+async def test_monitor_response_received(session: AioSession, s3_client):
     # Basic smoke test to ensure we can talk to s3.
     handler_kwargs = {}
 
