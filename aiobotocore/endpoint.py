@@ -290,7 +290,7 @@ class AioEndpoint(Endpoint):
         if success_response is not None:
             http_response, parsed_response = success_response
             kwargs_to_emit['parsed_response'] = parsed_response
-            kwargs_to_emit['response_dict'] = convert_to_response_dict(
+            kwargs_to_emit['response_dict'] = await convert_to_response_dict(
                 http_response, operation_model)
         service_id = operation_model.service_model.service_id.hyphenize()
         self._event_emitter.emit(
