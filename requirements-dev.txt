@@ -16,7 +16,7 @@ wrapt==1.11.1
 dill==0.2.9
 
 # The following are what give the most headaches
-aiohttp==3.3.2
+aiohttp==3.5.4
 
 botocore==1.12.91
 boto3==1.9.91
