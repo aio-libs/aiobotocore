@@ -1,6 +1,6 @@
 -e .
 coverage==4.5.2
-flake8==3.6.0
+flake8==3.7.6
 
 # we specify flask directly and don't use moto[server] as we want to fix the flask version
 Flask==1.0.2
