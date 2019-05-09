@@ -14,6 +14,7 @@ A clear and concise description of what the bug is.
 - [ ] I have reproduced in environment where `pip check` passes without errors
 - [ ] I have provided `pip freeze` results
 - [ ] I have provided sample code or detailed way to reproduce
+- [ ] I have tried the same code in botocore to ensure this is a aiobotocore specific issue
 
 **pip freeze results**
 
