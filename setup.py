@@ -26,6 +26,7 @@ def read(f):
 
 extras_require = {
     'awscli': ['awscli==1.16.199'],
+    'aws-xray-sdk': ['aws-xray-sdk==2.4.2'],
     'boto3': ['boto3==1.9.189'],
 }
 
