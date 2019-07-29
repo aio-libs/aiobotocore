@@ -1,5 +1,5 @@
 -e .
-coverage==4.5.2
+coverage==4.5.3
 flake8==3.6.0
 
 # we specify flask directly and don't use moto[server] as we want to fix the flask version
