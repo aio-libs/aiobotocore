@@ -20,4 +20,4 @@ aiohttp==3.5.4
 
 botocore==1.12.200
 boto3==1.9.200
-awscli==1.16.199
+awscli==1.16.210
