@@ -3,7 +3,7 @@ coverage==4.5.4
 flake8==3.7.8
 
 # we specify flask directly and don't use moto[server] as we want to fix the flask version
-Flask==1.0.2
+Flask==1.1.1
 moto==1.3.7
 
 pytest-cov==2.6.1
