@@ -51,7 +51,7 @@ class AioPageIterator(PageIterator):
         except StopAsyncIteration:
             self._iter = None
             return None
-        except:
+        except:  # noqa: E722
             self._iter = None
             raise
 
