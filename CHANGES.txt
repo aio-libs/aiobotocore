@@ -1,10 +1,10 @@
 Changes
 -------
 
-0.10.4 (2019-10-14)
+0.10.4 (2019-10-17)
 ^^^^^^^^^^^^^^^^^^^
-* Pin aws-xray-sdk to aiobotocore
-* Bump awscli, boto3, botocore
+* Pin aws-xray-sdk to aiobotocore #715 (thanks @oba11)
+* Bump awscli, boto3, botocore #735 (thanks @bbrendon)
 
 0.10.3 (2019-07-17)
 ^^^^^^^^^^^^^^^^^^^
