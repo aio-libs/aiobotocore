@@ -1,4 +1,5 @@
 import asyncio
+import warnings
 
 from botocore.exceptions import PaginationError
 from botocore.paginate import Paginator, PageIterator
@@ -37,6 +38,23 @@ def aio_tee(itr, n: int = 2):
 
 
 class AioPageIterator(PageIterator):
+    async def next_page(self):
+        itr = getattr(self, '_iter', None)
+        if itr is None:
+            warnings.warn("next_page is deprecated, use async for instead",
+                          DeprecationWarning)
+
+            self._iter = self.__anext__()
+
+        try:
+            return await self._iter.__anext__()
+        except StopAsyncIteration:
+            self._iter = None
+            return None
+        except:
+            self._iter = None
+            raise
+
     def __aiter__(self):
         return self.__anext__()
 

@@ -8,8 +8,16 @@ from async_generator import async_generator, yield_
 
 async def fetch_all(pages):
     responses = []
-    async for n in pages:
+    # TODO: replace with below once we remove next_page method
+    # async for n in pages:
+    #     responses.append(n)
+    while True:
+        # testing next_page method
+        n = await pages.next_page()
+        if n is None:
+            break
         responses.append(n)
+
     return responses
 
 
