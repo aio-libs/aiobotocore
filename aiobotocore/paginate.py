@@ -1,16 +1,44 @@
-from itertools import tee
+import asyncio
 
 from botocore.exceptions import PaginationError
-from botocore.paginate import PageIterator
+from botocore.paginate import Paginator, PageIterator
 from botocore.utils import set_value_from_jmespath, merge_dicts
 from botocore.compat import six
 
 from async_generator import async_generator, yield_
 
 
+# switch to aioitertools.tee after we're 3.6+
+def aio_tee(itr, n: int = 2):
+    assert n > 0
+    sentinel = object()
+    queues = [asyncio.Queue() for _ in range(n)]
+
+    @async_generator
+    async def gen(k: int, q: asyncio.Queue):
+        if k == 0:
+            async for value in itr:
+                await asyncio.gather(*[queue.put(value)
+                                       for queue in queues[1:]])
+                await yield_(value)
+
+            await asyncio.gather(*[queue.put(sentinel)
+                                   for queue in queues[1:]])
+            return
+
+        while True:
+            value = await q.get()
+            if value is sentinel:
+                break
+
+            await yield_(value)
+
+    return tuple(gen(k, q) for k, q in enumerate(queues))
+
+
 class AioPageIterator(PageIterator):
     def __aiter__(self):
-        return self
+        return self.__anext__()
 
     @async_generator
     async def __anext__(self):
@@ -83,7 +111,7 @@ class AioPageIterator(PageIterator):
                 previous_next_token = next_token
 
     def result_key_iters(self):
-        teed_results = tee(self, len(self.result_keys))
+        teed_results = aio_tee(self, len(self.result_keys))
         return [ResultKeyIterator(i, result_key) for i, result_key
                 in zip(teed_results, self.result_keys)]
 
@@ -133,6 +161,10 @@ class AioPageIterator(PageIterator):
         return complete_result
 
 
+class AioPaginator(Paginator):
+    PAGE_ITERATOR_CLS = AioPageIterator
+
+
 class ResultKeyIterator:
     """Iterates over the results of paginated responses.
 
@@ -151,13 +183,14 @@ class ResultKeyIterator:
         self._pages_iterator = pages_iterator
         self.result_key = result_key
 
-    async def __aiter__(self):
-        return self
+    def __aiter__(self):
+        return self.__anext__()
 
+    @async_generator
     async def __anext__(self):
         async for page in self._pages_iterator:
             results = self.result_key.search(page)
             if results is None:
                 results = []
             for result in results:
-                yield result
+                await yield_(result)

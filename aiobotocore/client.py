@@ -3,11 +3,10 @@ import asyncio
 import botocore.client
 from botocore.exceptions import OperationNotPageableError
 from botocore.history import get_global_history_recorder
-from botocore.paginate import Paginator
 from botocore.utils import get_service_module_name
 from botocore.waiter import xform_name
 
-from .paginate import AioPageIterator
+from .paginate import AioPaginator
 from .args import AioClientArgsCreator
 from . import waiter
 
@@ -143,16 +142,13 @@ class AioBaseClient(botocore.client.BaseClient):
         if not self.can_paginate(operation_name):
             raise OperationNotPageableError(operation_name=operation_name)
         else:
-            # substitute iterator with async one
-            Paginator.PAGE_ITERATOR_CLS = AioPageIterator
-
             actual_operation_name = self._PY_TO_OP_NAME[operation_name]
 
             # Create a new paginate method that will serve as a proxy to
             # the underlying Paginator.paginate method. This is needed to
             # attach a docstring to the method.
             def paginate(self, **kwargs):
-                return Paginator.paginate(self, **kwargs)
+                return AioPaginator.paginate(self, **kwargs)
 
             paginator_config = self._cache['page_config'][
                 actual_operation_name]
@@ -164,7 +160,7 @@ class AioBaseClient(botocore.client.BaseClient):
 
             # Create the new paginator class
             documented_paginator_cls = type(
-                paginator_class_name, (Paginator,), {'paginate': paginate})
+                paginator_class_name, (AioPaginator,), {'paginate': paginate})
 
             operation_model = self._service_model.\
                 operation_model(actual_operation_name)
