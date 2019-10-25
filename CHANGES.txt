@@ -1,9 +1,12 @@
 Changes
 -------
 
-0.10.4 (2019-XX-XX)
+0.10.4 (2019-10-24)
 ^^^^^^^^^^^^^^^^^^^
-* Pin aws-xray-sdk to aiobotocore
+* Make AioBaseClient.close method async #724 (thanks @bsitruk)
+* Bump awscli, boto3, botocore #735 (thanks @bbrendon)
+* switch paginator to async_generator, add result_key_iters
+  (deprecate next_page method)
 
 0.10.3 (2019-07-17)
 ^^^^^^^^^^^^^^^^^^^

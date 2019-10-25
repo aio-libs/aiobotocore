@@ -12,7 +12,7 @@ vtest:
 	python3 -m pytest -s -v $(FLAGS) ./tests/
 
 checkrst:
-	python setup.py check -rms
+	python3 setup.py check -rms
 
 cov cover coverage: flake
 	python3 -m pytest -s -v --cov-report term --cov-report html --cov aiobotocore ./tests

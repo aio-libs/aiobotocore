@@ -1,15 +1,23 @@
+import asyncio
+from collections import defaultdict
+
 import pytest
 import aiohttp
-import asyncio
+from async_generator import async_generator, yield_
 
 
 async def fetch_all(pages):
     responses = []
+    # TODO: replace with below once we remove next_page method
+    # async for n in pages:
+    #     responses.append(n)
     while True:
+        # testing next_page method
         n = await pages.next_page()
         if n is None:
             break
         responses.append(n)
+
     return responses
 
 
@@ -126,14 +134,60 @@ async def test_can_paginate_iterator(s3_client, bucket_name, create_object):
     assert key_names == ['key0', 'key1', 'key2', 'key3', 'key4']
 
 
-@pytest.mark.xfail(raises=NotImplementedError)
+# before replacing this with aioitertools
+# we need fix to https://github.com/jreese/aioitertools/issues/13 and
+# https://github.com/jreese/aioitertools/issues/11
+@async_generator
+async def _zip_longest(*itrs, fillvalue=None):
+    its = [itr.__aiter__() for itr in itrs]
+    its_running = [True] * len(itrs)
+
+    async def get_fillvalue():
+        return fillvalue
+
+    while True:
+        values = await asyncio.gather(
+            *[it.__anext__() if its_running[idx] else get_fillvalue()
+              for idx, it in enumerate(its)
+              ],
+            return_exceptions=True
+        )
+        for idx, value in enumerate(values):
+            if isinstance(value, (StopIteration, StopAsyncIteration)):
+                its_running[idx] = False
+            elif isinstance(value, BaseException):
+                raise value
+        if not any(its_running):
+            break
+        await yield_(tuple(values))
+
+
 @pytest.mark.asyncio
-async def test_result_key_iters(s3_client, bucket_name,):
+@pytest.mark.moto
+async def test_result_key_iters(s3_client, bucket_name, create_object):
+    for i in range(5):
+        key_name = 'key/%s/%s' % (i, i)
+        await create_object(key_name)
+        key_name2 = 'key/%s' % i
+        await create_object(key_name2)
+
     paginator = s3_client.get_paginator('list_objects')
-    pages = paginator.paginate(MaxKeys=2, Prefix='key/', Delimiter='/',
-                               Bucket=bucket_name)
-    iterators = pages.result_key_iters()
-    assert iterators
+    generator = paginator.paginate(MaxKeys=2,
+                                   Prefix='key/',
+                                   Delimiter='/',
+                                   Bucket=bucket_name)
+    iterators = generator.result_key_iters()
+    response = defaultdict(list)
+    key_names = [i.result_key for i in iterators]
+    async for vals in _zip_longest(*iterators):
+        pass
+
+        for k, val in zip(key_names, vals):
+            response.setdefault(k.expression, [])
+            response[k.expression].append(val)
+
+    assert 'Contents' in response
+    assert 'CommonPrefixes' in response
 
 
 @pytest.mark.moto

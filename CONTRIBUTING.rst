@@ -63,9 +63,7 @@ How to Upgrade Botocore
 -----------------------
 aiobotocore's file names try to match the botocore files they functionally match.
 For the most part botocore classes are sub-classed with the majority of the
-botocore calls eventually called...however certain methods like
-`PageIterator.next_page` had to be re-implemented so watch for changes in those
-types of methods.
+botocore calls eventually called.
 
 The best way I've seen to upgrade botocore support is by downloading the sources
 of the release of botocore you're trying to upgrade to, and the version
