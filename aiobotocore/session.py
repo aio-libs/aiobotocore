@@ -1,13 +1,28 @@
 import asyncio
 import botocore.credentials
 from botocore.session import Session, ComponentLocator, SessionVarDict
+from typing import Optional
 
 from botocore import UNSIGNED
 from botocore import retryhandler, translate, __version__
+from botocore import handlers
 from botocore.exceptions import PartialCredentialsError
-from .client import AioClientCreator
+from .client import AioClientCreator, AioBaseClient
 from .hooks import AioHierarchicalEmitter, AioEventAliaser
-from .patches import patch
+from .patches import get_handler_patch
+
+
+class ClientCreatorContext:
+    def __init__(self, coro):
+        self._coro = coro
+        self._client: Optional[AioBaseClient] = None
+
+    async def __aenter__(self) -> AioBaseClient:
+        self._client = await self._coro
+        return await self._client.__aenter__()
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        await self._client.__aexit__(exc_type, exc_val, exc_tb)
 
 
 class AioSession(Session):
@@ -16,8 +31,6 @@ class AioSession(Session):
     def __init__(self, session_vars=None, event_hooks=None,
                  include_builtin_handlers=True, profile=None, loop=None):
         self._loop = loop
-
-        patch()
 
         if event_hooks is None:
             self._original_handler = AioHierarchicalEmitter()
@@ -49,7 +62,25 @@ class AioSession(Session):
         if session_vars is not None:
             self.session_var_map.update(session_vars)
 
-    async def create_client(self, service_name, region_name=None, api_version=None,
+    def _register_builtin_handlers(self, events):
+        for spec in handlers.BUILTIN_HANDLERS:
+            if len(spec) == 2:
+                event_name, handler = spec
+                handler = get_handler_patch(handler)
+                self.register(event_name, handler)
+            else:
+                event_name, handler, register_type = spec
+                handler = get_handler_patch(handler)
+
+                if register_type is handlers.REGISTER_FIRST:
+                    self._events.register_first(event_name, handler)
+                elif register_type is handlers.REGISTER_LAST:
+                    self._events.register_last(event_name, handler)
+
+    def create_client(self, *args, **kwargs):
+        return ClientCreatorContext(self._create_client(*args,  **kwargs))
+
+    async def _create_client(self, service_name, region_name=None, api_version=None,
                       use_ssl=True, verify=None, endpoint_url=None,
                       aws_access_key_id=None, aws_secret_access_key=None,
                       aws_session_token=None, config=None):
@@ -87,8 +118,7 @@ class AioSession(Session):
             'response_parser_factory')
         if config is not None and config.signature_version is UNSIGNED:
             credentials = None
-        elif aws_access_key_id is not None and \
-                aws_secret_access_key is not None:
+        elif aws_access_key_id is not None and aws_secret_access_key is not None:
             credentials = botocore.credentials.Credentials(
                 access_key=aws_access_key_id,
                 secret_key=aws_secret_access_key,

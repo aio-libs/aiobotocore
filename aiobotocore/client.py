@@ -30,32 +30,6 @@ class AioClientCreator(botocore.client.ClientCreator):
         loop = loop or asyncio.get_event_loop()
         self._loop = loop
 
-    def _get_client_args(self, service_model, region_name, is_secure,
-                         endpoint_url, verify, credentials,
-                         scoped_config, client_config, endpoint_bridge):
-        # This is a near copy of botocore.client.ClientCreator. What's replaced
-        # is ClientArgsCreator->AioClientArgsCreator
-        args_creator = AioClientArgsCreator(
-            self._event_emitter, self._user_agent,
-            self._response_parser_factory, self._loader,
-            self._exceptions_factory, loop=self._loop)
-        return args_creator.get_client_args(
-            service_model, region_name, is_secure, endpoint_url,
-            verify, credentials, scoped_config, client_config, endpoint_bridge)
-
-    async def _create_client_class(self, service_name, service_model):
-        class_attributes = self._create_methods(service_model)
-        py_name_to_operation_name = self._create_name_mapping(service_model)
-        class_attributes['_PY_TO_OP_NAME'] = py_name_to_operation_name
-        bases = [AioBaseClient]
-        service_id = service_model.service_id.hyphenize()
-        await self._event_emitter.emit('creating-client-class.%s' % service_id,
-                                 class_attributes=class_attributes,
-                                 base_classes=bases)
-        class_name = get_service_module_name(service_model)
-        cls = type(str(class_name), tuple(bases), class_attributes)
-        return cls
-
     async def create_client(self, service_name, region_name, is_secure=True,
                       endpoint_url=None, verify=None,
                       credentials=None, scoped_config=None,
@@ -77,7 +51,37 @@ class AioClientCreator(botocore.client.ClientCreator):
         self._register_s3_events(
             service_client, endpoint_bridge, endpoint_url, client_config,
             scoped_config)
+        self._register_endpoint_discovery(
+            service_client, endpoint_url, client_config
+        )
         return service_client
+
+    async def _create_client_class(self, service_name, service_model):
+        class_attributes = self._create_methods(service_model)
+        py_name_to_operation_name = self._create_name_mapping(service_model)
+        class_attributes['_PY_TO_OP_NAME'] = py_name_to_operation_name
+        bases = [AioBaseClient]
+        service_id = service_model.service_id.hyphenize()
+        await self._event_emitter.emit(
+            'creating-client-class.%s' % service_id,
+            class_attributes=class_attributes,
+            base_classes=bases)
+        class_name = get_service_module_name(service_model)
+        cls = type(str(class_name), tuple(bases), class_attributes)
+        return cls
+
+    def _get_client_args(self, service_model, region_name, is_secure,
+                         endpoint_url, verify, credentials,
+                         scoped_config, client_config, endpoint_bridge):
+        # This is a near copy of botocore.client.ClientCreator. What's replaced
+        # is ClientArgsCreator->AioClientArgsCreator
+        args_creator = AioClientArgsCreator(
+            self._event_emitter, self._user_agent,
+            self._response_parser_factory, self._loader,
+            self._exceptions_factory, loop=self._loop)
+        return args_creator.get_client_args(
+            service_model, region_name, is_secure, endpoint_url,
+            verify, credentials, scoped_config, client_config, endpoint_bridge)
 
 
 class AioBaseClient(botocore.client.BaseClient):
@@ -91,8 +95,11 @@ class AioBaseClient(botocore.client.BaseClient):
         history_recorder.record('API_CALL', {
             'service': service_name,
             'operation': operation_name,
-            'params': api_params
+            'params': api_params,
         })
+        if operation_model.deprecated:
+            botocore.client.logger.debug('Warning: %s.%s() is deprecated',
+                         service_name, operation_name)
         request_context = {
             'client_region': self.meta.region_name,
             'client_config': self.meta.config,
@@ -131,13 +138,11 @@ class AioBaseClient(botocore.client.BaseClient):
         else:
             return parsed_response
 
-    async def _make_request(self, operation_model, request_dict,
-                            request_context):
+    async def _make_request(self, operation_model, request_dict, request_context):
         try:
-            return await self._endpoint.make_request(operation_model,
-                                                     request_dict)
+            return await self._endpoint.make_request(operation_model, request_dict)
         except Exception as e:
-            self.meta.events.emit(
+            await self.meta.events.emit(
                 'after-call-error.{service_id}.{operation_name}'.format(
                     service_id=self._service_model.service_id.hyphenize(),
                     operation_name=operation_model.name),
@@ -151,6 +156,8 @@ class AioBaseClient(botocore.client.BaseClient):
             api_params, operation_model, context)
         request_dict = self._serializer.serialize_to_request(
             api_params, operation_model)
+        if not self._client_config.inject_host_prefix:
+            request_dict.pop('host_prefix', None)
         prepare_request_dict(request_dict, endpoint_url=self._endpoint.host,
                              user_agent=self._client_config.user_agent,
                              context=context)
@@ -213,6 +220,14 @@ class AioBaseClient(botocore.client.BaseClient):
 
             paginator_config = self._cache['page_config'][
                 actual_operation_name]
+            # Add the docstring for the paginate method.
+            paginate.__doc__ = botocore.client.PaginatorDocstring(
+                paginator_name=actual_operation_name,
+                event_emitter=self.meta.events,
+                service_model=self.meta.service_model,
+                paginator_config=paginator_config,
+                include_signature=False
+            )
 
             # Rename the paginator class based on the type of paginator.
             paginator_class_name = str('%s.Paginator.%s' % (
@@ -223,8 +238,7 @@ class AioBaseClient(botocore.client.BaseClient):
             documented_paginator_cls = type(
                 paginator_class_name, (AioPaginator,), {'paginate': paginate})
 
-            operation_model = self._service_model.\
-                operation_model(actual_operation_name)
+            operation_model = self._service_model.operation_model(actual_operation_name)
             paginator = documented_paginator_cls(
                 getattr(self, operation_name),
                 paginator_config,
@@ -256,12 +270,12 @@ class AioBaseClient(botocore.client.BaseClient):
             mapping[waiter_name], model, self, loop=self._loop)
 
     async def __aenter__(self):
-        await self._endpoint._aio_session.__aenter__()
+        await self._endpoint.http_session.__aenter__()
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        await self._endpoint._aio_session.__aexit__(exc_type, exc_val, exc_tb)
+        await self._endpoint.http_session.__aexit__(exc_type, exc_val, exc_tb)
 
     async def close(self):
         """Close all http connections."""
-        return await self._endpoint._aio_session.close()
+        return await self._endpoint.http_session.close()

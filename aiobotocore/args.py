@@ -33,6 +33,7 @@ class AioClientArgsCreator(botocore.args.ClientArgsCreator):
         config_kwargs = final_args['config_kwargs']
         s3_config = final_args['s3_config']
         partition = endpoint_config['metadata'].get('partition', None)
+        socket_options = final_args['socket_options']
 
         signing_region = endpoint_config['signing_region']
         endpoint_region_name = endpoint_config['region_name']
@@ -66,6 +67,8 @@ class AioClientArgsCreator(botocore.args.ClientArgsCreator):
             max_pool_connections=new_config.max_pool_connections,
             proxies=new_config.proxies,
             timeout=(new_config.connect_timeout, new_config.read_timeout),
+            socket_options=socket_options,
+            client_cert=new_config.client_cert,
             connector_args=new_config.connector_args)
 
         serializer = botocore.serialize.create_serializer(

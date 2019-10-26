@@ -125,7 +125,7 @@ def moto_config(endpoint_url):
     return kw
 
 
-@pytest.fixture
+@pytest.yield_fixture
 def s3_client(request, session, region, config, s3_server, mocking_test,
               event_loop):
     kw = {}
@@ -133,6 +133,7 @@ def s3_client(request, session, region, config, s3_server, mocking_test,
         kw = moto_config(s3_server)
     client = create_client('s3', request, event_loop, session, region, config,
                            **kw)
+
     return client
 
 
@@ -192,16 +193,16 @@ def sqs_client(request, session, region, config, sqs_server,
     return client
 
 
-def create_client(client_type, request, event_loop, session, region,
-                  config, **kw):
-    async def f():
-        return session.create_client(client_type, region_name=region,
-                                     config=config, **kw)
-    client = event_loop.run_until_complete(f())
+def create_client(client_type, request, event_loop: asyncio.AbstractEventLoop,
+                  session, region, config, **kw):
+    client = session.create_client(client_type, region_name=region,
+                                   config=config, **kw)
 
     def fin():
-        event_loop.run_until_complete(client.close())
+        event_loop.run_until_complete(client.__aexit__(None, None, None))
     request.addfinalizer(fin)
+
+    client = event_loop.run_until_complete(client.__aenter__())
     return client
 
 

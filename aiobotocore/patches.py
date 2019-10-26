@@ -43,40 +43,15 @@ async def _calculate_md5_from_file(fileobj):
     return md5.digest(), body
 
 
-_patches = {
+_handler_patches = {
     botocore.handlers.conditionally_calculate_md5: conditionally_calculate_md5,
     botocore.handlers.calculate_md5: calculate_md5,
     botocore.handlers._calculate_md5_from_file: _calculate_md5_from_file,
 }
 
-_rev_patches = {v: k for k, v in _patches.items()}
+_rev_handler_patches = {v: k for k, v in _handler_patches.items()}
 
 
-def patch():
-    updated = False
-
-    for method, patched_method in _patches.items():
-        if method != patched_method:
-            method.__globals__[method.__name__] = patched_method
-            updated = True
-
-    if updated:
-        for idx, (handler_name, handler_method, *_) in enumerate(botocore.handlers.BUILTIN_HANDLERS):
-            patched_method = _patches.get(handler_method)
-            if patched_method:
-                botocore.handlers.BUILTIN_HANDLERS[idx] = (handler_name, patched_method)
-
-
-def unpatch():
-    updated = False
-
-    for method, patched_method in _patches.items():
-        if method == patched_method:
-            method.__globals__[method.__name__] = method
-            updated = True
-
-    if updated:
-        for idx, (handler_name, handler_method) in enumerate(botocore.handlers.BUILTIN_HANDLERS):
-            method = _rev_patches.get(handler_method)
-            if method:
-                botocore.handlers.BUILTIN_HANDLERS[idx] = (handler_name, method)
+def get_handler_patch(method):
+    patched_method = _handler_patches.get(method, method)
+    return patched_method
