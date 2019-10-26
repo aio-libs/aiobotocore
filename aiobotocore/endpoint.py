@@ -9,7 +9,7 @@ import aiohttp.http_exceptions
 from aiohttp.client import URL
 from aiohttp.client_reqrep import ClientResponse
 from botocore.endpoint import EndpointCreator, Endpoint, DEFAULT_TIMEOUT, \
-    MAX_POOL_CONNECTIONS, logger
+    MAX_POOL_CONNECTIONS, logger, create_request_object
 from botocore.exceptions import ConnectionClosedError
 from botocore.hooks import first_non_none_response
 from botocore.utils import is_valid_endpoint_url
@@ -22,6 +22,33 @@ from aiobotocore.response import StreamingBody
 
 MAX_REDIRECTS = 10
 history_recorder = get_global_history_recorder()
+
+
+async def convert_to_response_dict(http_response, operation_model):
+    response_dict = {
+        # botocore converts keys to str, so make sure that they are in
+        # the expected case. See detailed discussion here:
+        # https://github.com/aio-libs/aiobotocore/pull/116
+        # aiohttp's CIMultiDict camel cases the headers :(
+        'headers': CaseInsensitiveDict(
+            {k.decode('utf-8').lower(): v.decode('utf-8')
+             for k, v in http_response.raw_headers}),
+        'status_code': http_response.status_code,
+        'context': {
+            'operation_name': operation_model.name,
+        }
+    }
+
+    if response_dict['status_code'] >= 300:
+        response_dict['body'] = await http_response.read()
+    elif operation_model.has_event_stream_output:
+        response_dict['body'] = http_response.raw
+    elif operation_model.has_streaming_output:
+        length = response_dict['headers'].get('content-length')
+        response_dict['body'] = StreamingBody(http_response.raw, length)
+    else:
+        response_dict['body'] = await http_response.read()
+    return response_dict
 
 
 # Monkey patching: We need to insert the aiohttp exception equivalents
@@ -52,33 +79,6 @@ class _IOBaseWrapper(wrapt.ObjectProxy):
     def close(self):
         # this stream should not be closed by aiohttp, like 1.x
         pass
-
-
-async def convert_to_response_dict(http_response, operation_model):
-    response_dict = {
-        # botocore converts keys to str, so make sure that they are in
-        # the expected case. See detailed discussion here:
-        # https://github.com/aio-libs/aiobotocore/pull/116
-        # aiohttp's CIMultiDict camel cases the headers :(
-        'headers': CaseInsensitiveDict(
-            {k.decode('utf-8').lower(): v.decode('utf-8')
-             for k, v in http_response.raw_headers}),
-        'status_code': http_response.status_code,
-        'context': {
-            'operation_name': operation_model.name,
-        }
-    }
-
-    if response_dict['status_code'] >= 300:
-        response_dict['body'] = await http_response.read()
-    elif operation_model.has_event_stream_output:
-        response_dict['body'] = http_response.raw
-    elif operation_model.has_streaming_output:
-        length = response_dict['headers'].get('content-length')
-        response_dict['body'] = StreamingBody(http_response.raw, length)
-    else:
-        response_dict['body'] = await http_response.read()
-    return response_dict
 
 
 # This is similar to botocore.response.StreamingBody
@@ -154,14 +154,30 @@ class AioEndpoint(Endpoint):
         self._loop = loop or asyncio.get_event_loop()
         self.proxies = proxies or {}
 
+    async def create_request(self, params, operation_model=None):
+        request = create_request_object(params)
+        if operation_model:
+            request.stream_output = any([
+                operation_model.has_streaming_output,
+                operation_model.has_event_stream_output
+            ])
+            service_id = operation_model.service_model.service_id.hyphenize()
+            event_name = 'request-created.{service_id}.{op_name}'.format(
+                service_id=service_id,
+                op_name=operation_model.name)
+            await self._event_emitter.emit(event_name, request=request,
+                                           operation_name=operation_model.name)
+        prepared_request = self.prepare_request(request)
+        return prepared_request
+
     async def _send_request(self, request_dict, operation_model):
         attempts = 1
-        request = self.create_request(request_dict, operation_model)
+        request = await self.create_request(request_dict, operation_model)
         context = request_dict['context']
         success_response, exception = await self._get_response(
             request, operation_model, context)
         while (await self._needs_retry(attempts, operation_model, request_dict,
-                                success_response, exception)):
+                                       success_response, exception)):
             attempts += 1
             # If there is a stream associated with the request, we need
             # to reset it before attempting to send the request again.
@@ -169,7 +185,7 @@ class AioEndpoint(Endpoint):
             # body.
             request.reset_stream()
             # Create a new request when retried (including a new signature).
-            request = self.create_request(
+            request = await self.create_request(
                 request_dict, operation_model)
             success_response, exception = await self._get_response(
                 request, operation_model, context)
@@ -204,7 +220,7 @@ class AioEndpoint(Endpoint):
             kwargs_to_emit['response_dict'] = await convert_to_response_dict(
                 http_response, operation_model)
         service_id = operation_model.service_model.service_id.hyphenize()
-        self._event_emitter.emit(
+        await self._event_emitter.emit(
             'response-received.%s.%s' % (
                 service_id, operation_model.name), **kwargs_to_emit)
         return success_response, exception
@@ -222,16 +238,14 @@ class AioEndpoint(Endpoint):
             })
 
             service_id = operation_model.service_model.service_id.hyphenize()
-            event_name = 'before-send.%s.%s' % (service_id, operation_model.name)
-            responses = await self._event_emitter.emit(event_name, request=request)
+            event_name = 'before-send.%s.%s' % (
+            service_id, operation_model.name)
+            responses = await self._event_emitter.emit(event_name,
+                                                       request=request)
             http_response = first_non_none_response(responses)
 
             if http_response is None:
-                streaming = any([
-                    operation_model.has_streaming_output,
-                    operation_model.has_event_stream_output
-                ])
-                http_response = await self._send(request, stream=streaming)
+                http_response = await self._send(request)
         except aiohttp.ClientConnectionError as e:
             e.request = request  # botocore expects the request property
 
@@ -253,7 +267,8 @@ class AioEndpoint(Endpoint):
             return None, e
 
         # This returns the http_response and the parsed_data.
-        response_dict = await convert_to_response_dict(http_response, operation_model)
+        response_dict = await convert_to_response_dict(http_response,
+                                                       operation_model)
 
         http_response_record_dict = response_dict.copy()
         http_response_record_dict['streaming'] = \
@@ -289,7 +304,7 @@ class AioEndpoint(Endpoint):
             await asyncio.sleep(handler_response, loop=self._loop)
             return True
 
-    async def _send(self, request, stream):
+    async def _send(self, request):
         # Note: When using aiobotocore with dynamodb, requests fail on crc32
         # checksum computation as soon as the response data reaches ~5KB.
         # When AWS response is gzip compressed:
@@ -324,7 +339,7 @@ class AioEndpoint(Endpoint):
         # If we're not streaming, read the content so we can retry any timeout
         #  errors, see:
         # https://github.com/boto/botocore/blob/develop/botocore/vendored/requests/sessions.py#L604
-        if not stream:
+        if not request.stream_output:
             await resp.read()
 
         return resp
