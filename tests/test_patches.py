@@ -15,7 +15,7 @@ from botocore.endpoint import convert_to_response_dict, Endpoint, \
 from botocore.paginate import PageIterator
 from botocore.session import Session, get_session
 from botocore.waiter import NormalizedOperationMethod
-from botocore.handlers import _calculate_md5_from_file
+
 
 # This file ensures that our private patches will work going forward.  If a
 # method gets updated this will assert and someone will need to validate:

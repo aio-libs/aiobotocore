@@ -1,11 +1,9 @@
 import asyncio
 import botocore.credentials
 from botocore.session import Session, ComponentLocator, SessionVarDict
-from typing import Optional
 
 from botocore import UNSIGNED
 from botocore import retryhandler, translate, __version__
-from botocore import handlers
 from botocore.exceptions import PartialCredentialsError
 from .client import AioClientCreator, AioBaseClient
 from .hooks import AioHierarchicalEmitter, AioEventAliaser
@@ -14,7 +12,7 @@ from .hooks import AioHierarchicalEmitter, AioEventAliaser
 class ClientCreatorContext:
     def __init__(self, coro):
         self._coro = coro
-        self._client: Optional[AioBaseClient] = None
+        self._client = None
 
     async def __aenter__(self) -> AioBaseClient:
         self._client = await self._coro
@@ -62,12 +60,14 @@ class AioSession(Session):
             self.session_var_map.update(session_vars)
 
     def create_client(self, *args, **kwargs):
-        return ClientCreatorContext(self._create_client(*args,  **kwargs))
+        return ClientCreatorContext(self._create_client(*args, **kwargs))
 
-    async def _create_client(self, service_name, region_name=None, api_version=None,
-                      use_ssl=True, verify=None, endpoint_url=None,
-                      aws_access_key_id=None, aws_secret_access_key=None,
-                      aws_session_token=None, config=None):
+    async def _create_client(self, service_name, region_name=None,
+                             api_version=None,
+                             use_ssl=True, verify=None, endpoint_url=None,
+                             aws_access_key_id=None,
+                             aws_secret_access_key=None,
+                             aws_session_token=None, config=None):
 
         default_client_config = self.get_default_client_config()
         # If a config is provided and a default config is set, then

@@ -239,7 +239,7 @@ class AioEndpoint(Endpoint):
 
             service_id = operation_model.service_model.service_id.hyphenize()
             event_name = 'before-send.%s.%s' % (
-            service_id, operation_model.name)
+                service_id, operation_model.name)
             responses = await self._event_emitter.emit(event_name,
                                                        request=request)
             http_response = first_non_none_response(responses)

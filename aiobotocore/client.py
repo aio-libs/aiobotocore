@@ -12,7 +12,6 @@ from .paginate import AioPaginator
 from .args import AioClientArgsCreator
 from . import waiter
 
-
 history_recorder = get_global_history_recorder()
 
 
@@ -31,10 +30,10 @@ class AioClientCreator(botocore.client.ClientCreator):
         self._loop = loop
 
     async def create_client(self, service_name, region_name, is_secure=True,
-                      endpoint_url=None, verify=None,
-                      credentials=None, scoped_config=None,
-                      api_version=None,
-                      client_config=None):
+                            endpoint_url=None, verify=None,
+                            credentials=None, scoped_config=None,
+                            api_version=None,
+                            client_config=None):
         responses = await self._event_emitter.emit(
             'choose-service-name', service_name=service_name)
         service_name = first_non_none_response(responses, default=service_name)
@@ -99,7 +98,7 @@ class AioBaseClient(botocore.client.BaseClient):
         })
         if operation_model.deprecated:
             botocore.client.logger.debug('Warning: %s.%s() is deprecated',
-                         service_name, operation_name)
+                                         service_name, operation_name)
         request_context = {
             'client_region': self.meta.region_name,
             'client_config': self.meta.config,
@@ -138,9 +137,11 @@ class AioBaseClient(botocore.client.BaseClient):
         else:
             return parsed_response
 
-    async def _make_request(self, operation_model, request_dict, request_context):
+    async def _make_request(self, operation_model, request_dict,
+                            request_context):
         try:
-            return await self._endpoint.make_request(operation_model, request_dict)
+            return await self._endpoint.make_request(operation_model,
+                                                     request_dict)
         except Exception as e:
             await self.meta.events.emit(
                 'after-call-error.{service_id}.{operation_name}'.format(
@@ -151,7 +152,7 @@ class AioBaseClient(botocore.client.BaseClient):
             raise
 
     async def _convert_to_request_dict(self, api_params, operation_model,
-                                 context=None):
+                                       context=None):
         api_params = await self._emit_api_params(
             api_params, operation_model, context)
         request_dict = self._serializer.serialize_to_request(
@@ -238,7 +239,8 @@ class AioBaseClient(botocore.client.BaseClient):
             documented_paginator_cls = type(
                 paginator_class_name, (AioPaginator,), {'paginate': paginate})
 
-            operation_model = self._service_model.operation_model(actual_operation_name)
+            operation_model = self._service_model.operation_model(
+                actual_operation_name)
             paginator = documented_paginator_cls(
                 getattr(self, operation_name),
                 paginator_config,

@@ -3,7 +3,6 @@ import copy
 import botocore.args
 import botocore.serialize
 import botocore.parsers
-from botocore.signers import RequestSigner
 
 from .config import AioConfig
 from .endpoint import AioEndpointCreator

@@ -125,7 +125,7 @@ def moto_config(endpoint_url):
     return kw
 
 
-@pytest.yield_fixture
+@pytest.fixture
 def s3_client(request, session, region, config, s3_server, mocking_test,
               event_loop):
     kw = {}
@@ -133,7 +133,6 @@ def s3_client(request, session, region, config, s3_server, mocking_test,
         kw = moto_config(s3_server)
     client = create_client('s3', request, event_loop, session, region, config,
                            **kw)
-
     return client
 
 

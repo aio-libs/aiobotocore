@@ -12,7 +12,8 @@ class AioRequestSigner(RequestSigner):
         return await self.sign(operation_name, request)
 
     async def sign(self, operation_name, request, region_name=None,
-             signing_type='standard', expires_in=None, signing_name=None):
+                   signing_type='standard', expires_in=None,
+                   signing_name=None):
         if region_name is None:
             region_name = self._region_name
 
@@ -81,11 +82,11 @@ class AioRequestSigner(RequestSigner):
         return signature_version
 
     async def generate_presigned_url(self, request_dict, operation_name,
-                               expires_in=3600, region_name=None,
-                               signing_name=None):
+                                     expires_in=3600, region_name=None,
+                                     signing_name=None):
         request = create_request_object(request_dict)
         await self.sign(operation_name, request, region_name,
-                  'presign-url', expires_in, signing_name)
+                        'presign-url', expires_in, signing_name)
 
         request.prepare()
         return request.url
