@@ -64,7 +64,6 @@ _API_DIGESTS = {
     Session: {'ba1ec6c08e41f28490e7cf2f7b7bf03f6c424151'},
     get_session: {'c47d588f5da9b8bde81ccc26eaef3aee19ddd901'},
     NormalizedOperationMethod: {'ee88834b123c6c77dfea0b4208308cd507a6ba36'},
-    _calculate_md5_from_file: {''}
 }
 
 
