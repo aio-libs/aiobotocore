@@ -9,7 +9,6 @@ from botocore import handlers
 from botocore.exceptions import PartialCredentialsError
 from .client import AioClientCreator, AioBaseClient
 from .hooks import AioHierarchicalEmitter, AioEventAliaser
-from .patches import get_handler_patch
 
 
 class ClientCreatorContext:
@@ -61,21 +60,6 @@ class AioSession(Session):
         self.session_var_map = SessionVarDict(self, self.SESSION_VARIABLES)
         if session_vars is not None:
             self.session_var_map.update(session_vars)
-
-    def _register_builtin_handlers(self, events):
-        for spec in handlers.BUILTIN_HANDLERS:
-            if len(spec) == 2:
-                event_name, handler = spec
-                handler = get_handler_patch(handler)
-                self.register(event_name, handler)
-            else:
-                event_name, handler, register_type = spec
-                handler = get_handler_patch(handler)
-
-                if register_type is handlers.REGISTER_FIRST:
-                    self._events.register_first(event_name, handler)
-                elif register_type is handlers.REGISTER_LAST:
-                    self._events.register_last(event_name, handler)
 
     def create_client(self, *args, **kwargs):
         return ClientCreatorContext(self._create_client(*args,  **kwargs))
