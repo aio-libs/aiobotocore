@@ -102,7 +102,8 @@ class AioSession(Session):
             'response_parser_factory')
         if config is not None and config.signature_version is UNSIGNED:
             credentials = None
-        elif aws_access_key_id is not None and aws_secret_access_key is not None:
+        elif aws_access_key_id is not None and \
+                aws_secret_access_key is not None:
             credentials = botocore.credentials.Credentials(
                 access_key=aws_access_key_id,
                 secret_key=aws_secret_access_key,
