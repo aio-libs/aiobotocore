@@ -1,6 +1,9 @@
 import wrapt
 from botocore.exceptions import IncompleteReadError
 
+# can remove if we move to py3.6+
+from async_generator import async_generator, yield_
+
 
 class StreamingBody(wrapt.ObjectProxy):
     """Wrapper class for an http response body.
@@ -54,79 +57,42 @@ class StreamingBody(wrapt.ObjectProxy):
         """
         return self.iter_chunks(self._DEFAULT_CHUNK_SIZE)
 
-    # TODO: when we move to python >=3.6 we can make this like the sync ver
-    def iter_lines(self, chunk_size=1024):
+    async def __anext__(self):
+        """Return the next 1k chunk from the raw stream.
+        """
+        current_chunk = await self.read(self._DEFAULT_CHUNK_SIZE)
+        if current_chunk:
+            return current_chunk
+        raise StopAsyncIteration
+
+    anext = __anext__
+
+    @async_generator
+    async def iter_lines(self, chunk_size=1024):
         """Return an iterator to yield lines from the raw stream.
 
         This is achieved by reading chunk of bytes (of size chunk_size) at a
         time from the raw stream, and then yielding lines from there.
         """
-        parent = self
+        pending = b''
+        async for chunk in self.iter_chunks(chunk_size):
+            lines = (pending + chunk).splitlines(True)
+            for line in lines[:-1]:
+                await yield_(line.splitlines()[0])
+            pending = lines[-1]
+        if pending:
+            await yield_(pending.splitlines()[0])
 
-        class _LineIterator:
-            def __init__(self):
-                self._chunk = None
-                self._pending = None
-                self._lines = None
-                self._finished = False
-
-            def __aiter__(self):
-                return self
-
-            async def _get_chunk(self):
-                self._chunk = await parent.read(chunk_size)
-                if self._chunk == b'':
-                    self._finished = True
-
-                if self._pending is not None:
-                    self._chunk = self._pending + self._chunk
-
-                self._lines = self._chunk.splitlines()
-
-                if self._lines and self._lines[-1] and self._chunk and \
-                        self._lines[-1][-1] == self._chunk[-1]:
-                    # We might be in the 'middle' of a line. Hence we keep
-                    # the last line as pending.
-                    self._pending = self._lines.pop()
-                else:
-                    self._pending = None
-
-            async def __anext__(self):
-                while not self._finished and (
-                        self._chunk is None or not self._lines):
-                    await self._get_chunk()
-
-                if self._lines:
-                    return self._lines.pop(0)
-
-                if self._pending:
-                    line = self._pending
-                    self._pending = None
-                    return line
-
-                raise StopAsyncIteration
-
-        return _LineIterator()
-
-    # TODO: when we move to python >=3.6 we can make this like the sync ver
-    def iter_chunks(self, chunk_size=_DEFAULT_CHUNK_SIZE):
+    @async_generator
+    async def iter_chunks(self, chunk_size=_DEFAULT_CHUNK_SIZE):
         """Return an iterator to yield chunks of chunk_size bytes from the raw
         stream.
         """
-        parent = self
-
-        class _ChunkingIterator:
-            def __aiter__(self):
-                return self
-
-            async def __anext__(self):
-                current_chunk = await parent.read(chunk_size)
-                if current_chunk == b"":
-                    raise StopAsyncIteration
-
-                return current_chunk
-
-        return _ChunkingIterator()
+        while True:
+            current_chunk = await self.read(chunk_size)
+            if current_chunk == b"":
+                break
+            await yield_(current_chunk)
 
     def _verify_content_length(self):
         # See: https://github.com/kennethreitz/requests/issues/1855

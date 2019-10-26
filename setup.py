@@ -8,9 +8,10 @@ from setuptools import setup, find_packages
 # NOTE: When updating botocore make sure to update awscli/boto3 versions below
 install_requires = [
     # pegged to also match items in `extras_require`
-    'botocore>=1.12.49,<1.12.50',
+    'botocore>=1.12.252,<1.12.253',
     'aiohttp>=3.3.1',
     'wrapt>=1.10.10',
+    'async_generator>=1.10',  # can remove if we move to py3.6+
 ]
 
 PY_VER = sys.version_info
@@ -24,8 +25,8 @@ def read(f):
 
 
 extras_require = {
-    'awscli': ['awscli==1.16.59'],
-    'boto3': ['boto3==1.9.49'],
+    'awscli': ['awscli==1.16.262'],
+    'boto3': ['boto3==1.9.252'],
 }
 
 
@@ -47,8 +48,15 @@ classifiers = [
     'Intended Audience :: Developers',
     'Intended Audience :: System Administrators',
     'Programming Language :: Python :: 3',
+
+    # switch tee in paginate.py + zip_longest in test_basic_s3.py to
+    # aioitertools after we're 3.6+
+    # We'll need: https://github.com/jreese/aioitertools/issues/11 and
+    # https://github.com/jreese/aioitertools/issues/13
     'Programming Language :: Python :: 3.5',
     'Programming Language :: Python :: 3.6',
+    'Programming Language :: Python :: 3.7',
+    'Programming Language :: Python :: 3.8',
     'Environment :: Web Environment',
     'Development Status :: 3 - Alpha',
     'Framework :: AsyncIO',

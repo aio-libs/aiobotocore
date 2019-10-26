@@ -4,12 +4,11 @@ import botocore.client
 from botocore.awsrequest import prepare_request_dict
 from botocore.exceptions import OperationNotPageableError
 from botocore.history import get_global_history_recorder
-from botocore.paginate import Paginator
 from botocore.utils import get_service_module_name
 from botocore.waiter import xform_name
 from botocore.hooks import first_non_none_response
 
-from .paginate import AioPageIterator
+from .paginate import AioPaginator
 from .args import AioClientArgsCreator
 from . import waiter
 
@@ -22,11 +21,12 @@ class AioClientCreator(botocore.client.ClientCreator):
     def __init__(self, loader, endpoint_resolver, user_agent, event_emitter,
                  retry_handler_factory, retry_config_translator,
                  response_parser_factory=None, exceptions_factory=None,
-                 loop=None):
+                 config_store=None, loop=None):
         super().__init__(loader, endpoint_resolver, user_agent, event_emitter,
                          retry_handler_factory, retry_config_translator,
                          response_parser_factory=response_parser_factory,
-                         exceptions_factory=exceptions_factory)
+                         exceptions_factory=exceptions_factory,
+                         config_store=config_store)
         loop = loop or asyncio.get_event_loop()
         self._loop = loop
 
@@ -113,8 +113,8 @@ class AioBaseClient(botocore.client.BaseClient):
         if event_response is not None:
             http, parsed_response = event_response
         else:
-            http, parsed_response = await self._endpoint.make_request(
-                operation_model, request_dict)
+            http, parsed_response = await self._make_request(
+                operation_model, request_dict, request_context)
 
         await self.meta.events.emit(
             'after-call.{service_id}.{operation_name}'.format(
@@ -130,6 +130,20 @@ class AioBaseClient(botocore.client.BaseClient):
             raise error_class(parsed_response, operation_name)
         else:
             return parsed_response
+
+    async def _make_request(self, operation_model, request_dict,
+                            request_context):
+        try:
+            return await self._endpoint.make_request(operation_model,
+                                                     request_dict)
+        except Exception as e:
+            self.meta.events.emit(
+                'after-call-error.{service_id}.{operation_name}'.format(
+                    service_id=self._service_model.service_id.hyphenize(),
+                    operation_name=operation_model.name),
+                exception=e, context=request_context
+            )
+            raise
 
     async def _convert_to_request_dict(self, api_params, operation_model,
                                  context=None):
@@ -189,16 +203,13 @@ class AioBaseClient(botocore.client.BaseClient):
         if not self.can_paginate(operation_name):
             raise OperationNotPageableError(operation_name=operation_name)
         else:
-            # substitute iterator with async one
-            Paginator.PAGE_ITERATOR_CLS = AioPageIterator
-
             actual_operation_name = self._PY_TO_OP_NAME[operation_name]
 
             # Create a new paginate method that will serve as a proxy to
             # the underlying Paginator.paginate method. This is needed to
             # attach a docstring to the method.
             def paginate(self, **kwargs):
-                return Paginator.paginate(self, **kwargs)
+                return AioPaginator.paginate(self, **kwargs)
 
             paginator_config = self._cache['page_config'][
                 actual_operation_name]
@@ -210,7 +221,7 @@ class AioBaseClient(botocore.client.BaseClient):
 
             # Create the new paginator class
             documented_paginator_cls = type(
-                paginator_class_name, (Paginator,), {'paginate': paginate})
+                paginator_class_name, (AioPaginator,), {'paginate': paginate})
 
             operation_model = self._service_model.\
                 operation_model(actual_operation_name)
@@ -251,9 +262,6 @@ class AioBaseClient(botocore.client.BaseClient):
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         await self._endpoint._aio_session.__aexit__(exc_type, exc_val, exc_tb)
 
-    def close(self):
-        """Close all http connections. This is coroutine, and should be
-        awaited. Method will be coroutine (instead returning Future) once
-        aiohttp does that.
-        """
-        return self._endpoint._aio_session.close()
+    async def close(self):
+        """Close all http connections."""
+        return await self._endpoint._aio_session.close()

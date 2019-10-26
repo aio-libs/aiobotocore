@@ -48,11 +48,8 @@ async def assert_num_uploads_found(
         pages = paginator.paginate(Bucket=bucket_name,
                                    PaginationConfig={'MaxItems': max_items})
         responses = []
-        while True:
-            resp = await pages.next_page()
-            if resp is None:
-                break
-            responses.append(resp)
+        async for page in pages:
+            responses.append(page)
         # It sometimes takes a while for all the uploads to show up,
         # especially if the upload was just created.  If we don't
         # see the expected amount, we retry up to num_attempts time
@@ -210,7 +207,8 @@ def create_client(client_type, request, event_loop, session, region,
 
 async def recursive_delete(s3_client, bucket_name):
     # Recursively deletes a bucket and all of its contents.
-    async for n in s3_client.get_paginator('list_object_versions').paginate(
+    paginator = s3_client.get_paginator('list_object_versions')
+    async for n in paginator.paginate(
             Bucket=bucket_name, Prefix=''):
         for obj in chain(
                 n.get('Versions', []),
@@ -373,10 +371,13 @@ def aio_session(request, event_loop):
     event_loop.run_until_complete(session.close())
 
 
-def pytest_namespace():
-    return {'aio': {'assert_status_code': assert_status_code,
-                    'assert_num_uploads_found': assert_num_uploads_found},
-            }
+def pytest_configure():
+    class AIOUtils:
+        def __init__(self):
+            self.assert_status_code = assert_status_code
+            self.assert_num_uploads_found = assert_num_uploads_found
+
+    pytest.aio = AIOUtils()
 
 
 @pytest.fixture

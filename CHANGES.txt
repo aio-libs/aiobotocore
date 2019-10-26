@@ -1,8 +1,30 @@
 Changes
 -------
 
+0.10.4 (2019-10-24)
+^^^^^^^^^^^^^^^^^^^
+* Make AioBaseClient.close method async #724 (thanks @bsitruk)
+* Bump awscli, boto3, botocore #735 (thanks @bbrendon)
+* switch paginator to async_generator, add result_key_iters
+  (deprecate next_page method)
+
+0.10.3 (2019-07-17)
+^^^^^^^^^^^^^^^^^^^
+* Bump botocore and extras
+
+0.10.2 (2019-02-11)
+^^^^^^^^^^^^^^^^^^^
+* Fix response-received emitted event #682
+
+0.10.1 (2019-02-08)
+^^^^^^^^^^^^^^^^^^^
+* Make tests pass with pytest 4.1 #669 (thanks @yan12125)
+* Support Python 3.7 #671 (thanks to @yan12125)
+* Update RTD build config #672 (thanks @willingc)
+* Bump to botocore 1.12.91 #679
+
 0.10.0 (2018-12-09)
-^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^
 * Update to botocore 1.12.49 #639 (thanks @terrycain)
 
 0.9.4 (2018-08-08)

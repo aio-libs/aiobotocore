@@ -5,7 +5,9 @@ from yarl import URL
 
 from aiobotocore.endpoint import ClientResponseProxy
 
+import aiohttp
 from aiohttp.client import ClientResponse
+import botocore
 from botocore.args import ClientArgsCreator
 from botocore.client import ClientCreator, BaseClient, Config
 from botocore.endpoint import convert_to_response_dict, Endpoint, \
@@ -30,18 +32,36 @@ _AIOHTTP_DIGESTS = {
 }
 
 # These are guards to our main patches
+
+# !!! README: HOW TO UPDATE THESE !!!
+# -----------------------------------
+# (tests break with new version of aiohttp/botocore)
+#
+# 1) Adding support for more versions of aiohttp/botocore
+#    In this scenario you need to ensure that aiobotocore supports the changes
+#    that broke these tests along with the old versions of the libraries
+#    and APPEND to the set of hashes that we support for each object you
+#    validated.
+# 2) Bumping up the base version of aiohttp/botocore that we support
+#    In this scenario ensure aiobotocore supports the new version of the libs
+#    and REPLACE all entries with the current hashes with the new libs.
+
+# REPLACE = backwards incompatible change
+# APPEND = officially supporting more versions of botocore/aiohttp
+
+# If you're changing these, most likely need to update setup.py as well.
 _API_DIGESTS = {
-    ClientArgsCreator: {'c316001114ff0b91900004e2fc56b71a07509f16'},
-    ClientCreator: {'f68202aca8c908d14b3d7b2446875d297c46671b'},
-    BaseClient: {'63fc3b6ae4cdb265b5363c093832890074f52e18'},
-    Config: {'b84933bb901b4f18641dffe75cc62d55affd390a'},
+    ClientArgsCreator: {'6af0ae851aac2c7e9ff908e04af998f64345784f'},
+    ClientCreator: {'6808f991fc4b67db191110aaadb4de00603c0f57'},
+    BaseClient: {'d2e69f0184ae83df5b82284194ed1b72191f0161'},
+    Config: {'72129553174455492825ec92ea5d6e66307ed74f'},
     convert_to_response_dict: {'2c73c059fa63552115314b079ae8cbf5c4e78da0'},
-    Endpoint: {'29827aaa421d462ab7b9e200d7203ba9e412633c'},
+    Endpoint: {'6839b062c5223d94aaf894dce6ade8606c388b4f'},
     EndpointCreator: {'633337fe0bda97e57c7f0b9596c5a158a03e8e36'},
-    PageIterator: {'5a14db3ee7bc8773974b36cfdb714649b17a6a42'},
+    PageIterator: {'0409f7878b3493566be5761f5799ed93563f3e20'},
 
     # __init__ amongst others
-    Session: {'a8132407e250b652c89db15a9002f41664638a3f'},
+    Session: {'ba1ec6c08e41f28490e7cf2f7b7bf03f6c424151'},
     get_session: {'c47d588f5da9b8bde81ccc26eaef3aee19ddd901'},
     NormalizedOperationMethod: {'ee88834b123c6c77dfea0b4208308cd507a6ba36'},
     _calculate_md5_from_file: {''}
@@ -51,6 +71,9 @@ _API_DIGESTS = {
 # NOTE: this doesn't require moto but needs to be marked to run with coverage
 @pytest.mark.moto
 def test_patches():
+    print("Botocore version: {} aiohttp version: {}".format(
+        botocore.__version__, aiohttp.__version__))
+
     for obj, digests in _AIOHTTP_DIGESTS.items():
         digest = hashlib.sha1(getsource(obj).encode('utf-8')).hexdigest()
         assert digest in digests, \
