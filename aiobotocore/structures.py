@@ -1,7 +1,7 @@
 import collections
 
 
-# This code is originally from requests.structures, 
+# This code is originally from requests.structures,
 # because botocore remove requests from its library
 # ref: https://github.com/boto/botocore/pull/1829
 class CaseInsensitiveDict(collections.MutableMapping):
