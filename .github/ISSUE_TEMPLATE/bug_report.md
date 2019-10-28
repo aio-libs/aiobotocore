@@ -16,7 +16,7 @@ A clear and concise description of what the bug is.
 - [ ] I have provided sample code or detailed way to reproduce
 - [ ] I have tried the same code in botocore to ensure this is an aiobotocore specific issue
 - [ ] I have tried similar code in aiohttp to ensure this is is an aiobotocore specific issue
-- [ ] I have checked the latest and older versions to see if this is a regression / injection
+- [ ] I have checked the latest and older versions of aiobotocore/aiohttp/python to see if this is a regression / injection
 
 **pip freeze results**
 
