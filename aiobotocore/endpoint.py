@@ -11,12 +11,12 @@ from botocore.endpoint import EndpointCreator, Endpoint, DEFAULT_TIMEOUT, \
 from botocore.exceptions import ConnectionClosedError
 from botocore.hooks import first_non_none_response
 from botocore.utils import is_valid_endpoint_url
-from botocore.vendored.requests.structures import CaseInsensitiveDict
 from botocore.history import get_global_history_recorder
 from multidict import MultiDict
 from urllib.parse import urlparse
 
 from aiobotocore.response import StreamingBody
+from aiobotocore.structures import CaseInsensitiveDict
 
 MAX_REDIRECTS = 10
 history_recorder = get_global_history_recorder()
