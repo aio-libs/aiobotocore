@@ -11,9 +11,9 @@ from .endpoint import AioEndpointCreator
 
 class AioClientArgsCreator(botocore.args.ClientArgsCreator):
     def __init__(self, event_emitter, user_agent, response_parser_factory,
-                 loader, exceptions_factory, loop=None):
-        super().__init__(event_emitter, user_agent,
-                         response_parser_factory, loader, exceptions_factory)
+                 loader, exceptions_factory, loop=None, config_store=None):
+        super().__init__(event_emitter, user_agent, response_parser_factory,
+                         loader, exceptions_factory, config_store)
         self._loop = loop or asyncio.get_event_loop()
 
     # NOTE: we override this so we can pull out the custom AioConfig params and

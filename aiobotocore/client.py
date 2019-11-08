@@ -36,7 +36,7 @@ class AioClientCreator(botocore.client.ClientCreator):
         args_creator = AioClientArgsCreator(
             self._event_emitter, self._user_agent,
             self._response_parser_factory, self._loader,
-            self._exceptions_factory, loop=self._loop)
+            self._exceptions_factory, loop=self._loop, config_store=self._config_store)
         return args_creator.get_client_args(
             service_model, region_name, is_secure, endpoint_url,
             verify, credentials, scoped_config, client_config, endpoint_bridge)
