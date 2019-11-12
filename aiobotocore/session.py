@@ -10,8 +10,8 @@ from .client import AioClientCreator
 
 class AioSession(botocore.session.Session):
 
-    def __init__(self, *args, **kwargs):
-        self._loop = kwargs.pop('loop', None)
+    def __init__(self, *args, loop=None, **kwargs):
+        self._loop = loop
 
         super().__init__(*args, **kwargs)
 
@@ -30,13 +30,7 @@ class AioSession(botocore.session.Session):
         elif default_client_config is not None:
             config = default_client_config
 
-        # Figure out the user-provided region based on the various
-        # configuration options.
-        if region_name is None:
-            if config and config.region_name is not None:
-                region_name = config.region_name
-            else:
-                region_name = self.get_config_variable('region')
+        region_name = self._resolve_region_name(region_name, config)
 
         # Figure out the verify value base on the various
         # configuration options.
@@ -90,4 +84,4 @@ def get_session(*, env_vars=None, loop=None):
     Return a new session object.
     """
     loop = loop or asyncio.get_event_loop()
-    return AioSession(session_vars=env_vars, loop=loop)
+    return AioSession(env_vars, loop=loop)

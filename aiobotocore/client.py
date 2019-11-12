@@ -1,6 +1,6 @@
 import asyncio
 
-import botocore.client
+from botocore.client import logger, PaginatorDocstring, ClientCreator, BaseClient
 from botocore.exceptions import OperationNotPageableError
 from botocore.history import get_global_history_recorder
 from botocore.utils import get_service_module_name
@@ -14,32 +14,11 @@ from . import waiter
 history_recorder = get_global_history_recorder()
 
 
-class AioClientCreator(botocore.client.ClientCreator):
+class AioClientCreator(ClientCreator):
 
-    def __init__(self, loader, endpoint_resolver, user_agent, event_emitter,
-                 retry_handler_factory, retry_config_translator,
-                 response_parser_factory=None, exceptions_factory=None,
-                 config_store=None, loop=None):
-        super().__init__(loader, endpoint_resolver, user_agent, event_emitter,
-                         retry_handler_factory, retry_config_translator,
-                         response_parser_factory=response_parser_factory,
-                         exceptions_factory=exceptions_factory,
-                         config_store=config_store)
-        loop = loop or asyncio.get_event_loop()
-        self._loop = loop
-
-    def _get_client_args(self, service_model, region_name, is_secure,
-                         endpoint_url, verify, credentials,
-                         scoped_config, client_config, endpoint_bridge):
-        # This is a near copy of botocore.client.ClientCreator. What's replaced
-        # is ClientArgsCreator->AioClientArgsCreator
-        args_creator = AioClientArgsCreator(
-            self._event_emitter, self._user_agent,
-            self._response_parser_factory, self._loader,
-            self._exceptions_factory, loop=self._loop)
-        return args_creator.get_client_args(
-            service_model, region_name, is_secure, endpoint_url,
-            verify, credentials, scoped_config, client_config, endpoint_bridge)
+    def __init__(self, *args, loop=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._loop = loop or asyncio.get_event_loop()
 
     def _create_client_class(self, service_name, service_model):
         class_attributes = self._create_methods(service_model)
@@ -47,15 +26,30 @@ class AioClientCreator(botocore.client.ClientCreator):
         class_attributes['_PY_TO_OP_NAME'] = py_name_to_operation_name
         bases = [AioBaseClient]
         service_id = service_model.service_id.hyphenize()
-        self._event_emitter.emit('creating-client-class.%s' % service_id,
-                                 class_attributes=class_attributes,
-                                 base_classes=bases)
+        self._event_emitter.emit(
+            'creating-client-class.%s' % service_id,
+            class_attributes=class_attributes,
+            base_classes=bases)
         class_name = get_service_module_name(service_model)
         cls = type(str(class_name), tuple(bases), class_attributes)
         return cls
 
+    def _get_client_args(self, service_model, region_name, is_secure,
+                         endpoint_url, verify, credentials,
+                         scoped_config, client_config, endpoint_bridge):
+        # This is a near copy of ClientCreator. What's replaced
+        # is ClientArgsCreator->AioClientArgsCreator
+        args_creator = AioClientArgsCreator(
+            self._event_emitter, self._user_agent,
+            self._response_parser_factory, self._loader,
+            self._exceptions_factory, loop=self._loop,
+            config_store=self._config_store)
+        return args_creator.get_client_args(
+            service_model, region_name, is_secure, endpoint_url,
+            verify, credentials, scoped_config, client_config, endpoint_bridge)
 
-class AioBaseClient(botocore.client.BaseClient):
+
+class AioBaseClient(BaseClient):
     def __init__(self, *args, **kwargs):
         self._loop = kwargs.pop('loop', None) or asyncio.get_event_loop()
         super().__init__(*args, **kwargs)
@@ -66,8 +60,11 @@ class AioBaseClient(botocore.client.BaseClient):
         history_recorder.record('API_CALL', {
             'service': service_name,
             'operation': operation_name,
-            'params': api_params
+            'params': api_params,
         })
+        if operation_model.deprecated:
+            logger.debug('Warning: %s.%s() is deprecated',
+                         service_name, operation_name)
         request_context = {
             'client_region': self.meta.region_name,
             'client_config': self.meta.config,
@@ -152,6 +149,14 @@ class AioBaseClient(botocore.client.BaseClient):
 
             paginator_config = self._cache['page_config'][
                 actual_operation_name]
+            # Add the docstring for the paginate method.
+            paginate.__doc__ = PaginatorDocstring(
+                paginator_name=actual_operation_name,
+                event_emitter=self.meta.events,
+                service_model=self.meta.service_model,
+                paginator_config=paginator_config,
+                include_signature=False
+            )
 
             # Rename the paginator class based on the type of paginator.
             paginator_class_name = str('%s.Paginator.%s' % (
@@ -162,13 +167,12 @@ class AioBaseClient(botocore.client.BaseClient):
             documented_paginator_cls = type(
                 paginator_class_name, (AioPaginator,), {'paginate': paginate})
 
-            operation_model = self._service_model.\
-                operation_model(actual_operation_name)
+            operation_model = self._service_model.operation_model(
+                actual_operation_name)
             paginator = documented_paginator_cls(
                 getattr(self, operation_name),
                 paginator_config,
                 operation_model)
-
             return paginator
 
     def get_waiter(self, waiter_name):
@@ -195,12 +199,12 @@ class AioBaseClient(botocore.client.BaseClient):
             mapping[waiter_name], model, self, loop=self._loop)
 
     async def __aenter__(self):
-        await self._endpoint._aio_session.__aenter__()
+        await self._endpoint.http_session.__aenter__()
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        await self._endpoint._aio_session.__aexit__(exc_type, exc_val, exc_tb)
+        await self._endpoint.http_session.__aexit__(exc_type, exc_val, exc_tb)
 
     async def close(self):
         """Close all http connections."""
-        return await self._endpoint._aio_session.close()
+        return await self._endpoint.http_session.close()

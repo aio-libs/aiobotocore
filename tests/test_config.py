@@ -3,7 +3,7 @@ from mock_server import AIOServer
 from aiobotocore.session import AioSession
 from aiobotocore.config import AioConfig
 from botocore.config import Config
-from botocore.exceptions import ParamValidationError
+from botocore.exceptions import ParamValidationError, ReadTimeoutError
 import pytest
 
 
@@ -87,6 +87,6 @@ async def test_connector_timeout2(event_loop):
                                   aws_secret_access_key='xxx',
                                   aws_access_key_id='xxx') as s3_client:
 
-        with pytest.raises(asyncio.TimeoutError):
+        with pytest.raises(ReadTimeoutError):
             resp = await s3_client.get_object(Bucket='foo', Key='bar')
             await resp["Body"].read()
