@@ -200,12 +200,12 @@ class AioBaseClient(botocore.client.BaseClient):
             mapping[waiter_name], model, self, loop=self._loop)
 
     async def __aenter__(self):
-        await self._endpoint._aio_session.__aenter__()
+        await self._endpoint.http_session.__aenter__()
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        await self._endpoint._aio_session.__aexit__(exc_type, exc_val, exc_tb)
+        await self._endpoint.http_session.__aexit__(exc_type, exc_val, exc_tb)
 
     async def close(self):
         """Close all http connections."""
-        return await self._endpoint._aio_session.close()
+        return await self._endpoint.http_session.close()

@@ -7,6 +7,10 @@ from botocore.exceptions import IncompleteReadError, ReadTimeoutError
 from async_generator import async_generator, yield_
 
 
+class AioReadTimeoutError(ReadTimeoutError, asyncio.TimeoutError):
+    pass
+
+
 class StreamingBody(wrapt.ObjectProxy):
     """Wrapper class for an http response body.
 
@@ -45,7 +49,8 @@ class StreamingBody(wrapt.ObjectProxy):
         try:
             chunk = await self.__wrapped__.read(amt if amt is not None else -1)
         except asyncio.TimeoutError as e:
-            raise ReadTimeoutError(endpoint_url=self._raw_stream.url, error=e)
+            raise AioReadTimeoutError(endpoint_url=self.__wrapped__.url,
+                                      error=e)
 
         self._self_amount_read += len(chunk)
         if amt is None or (not chunk and amt > 0):

@@ -1,0 +1,3 @@
+[flake8]
+# Bump by 6 to account for "await " as compared to botocore
+max-line-length = 86

@@ -55,7 +55,7 @@ class AioClientArgsCreator(botocore.args.ClientArgsCreator):
             connector_args = None
 
         new_config = AioConfig(connector_args, **config_kwargs)
-        endpoint_creator = AioEndpointCreator(event_emitter, self._loop)
+        endpoint_creator = AioEndpointCreator(event_emitter, loop=self._loop)
 
         endpoint = endpoint_creator.create_endpoint(
             service_model, region_name=endpoint_region_name,
