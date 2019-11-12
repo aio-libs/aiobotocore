@@ -1,5 +1,7 @@
+import asyncio
+
 import wrapt
-from botocore.exceptions import IncompleteReadError
+from botocore.exceptions import IncompleteReadError, ReadTimeoutError
 
 # can remove if we move to py3.6+
 from async_generator import async_generator, yield_
@@ -40,7 +42,11 @@ class StreamingBody(wrapt.ObjectProxy):
         If the amt argument is omitted, read all data.
         """
         # botocore to aiohttp mapping
-        chunk = await self.__wrapped__.read(amt if amt is not None else -1)
+        try:
+            chunk = await self.__wrapped__.read(amt if amt is not None else -1)
+        except asyncio.TimeoutError as e:
+            raise ReadTimeoutError(endpoint_url=self._raw_stream.url, error=e)
+
         self._self_amount_read += len(chunk)
         if amt is None or (not chunk and amt > 0):
             # If the server sends empty contents or

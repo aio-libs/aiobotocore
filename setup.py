@@ -12,7 +12,6 @@ install_requires = [
     'aiohttp>=3.3.1',
     'wrapt>=1.10.10',
     'async_generator>=1.10',  # can remove if we move to py3.6+
-    'requests>=2.22.0',
 ]
 
 PY_VER = sys.version_info
