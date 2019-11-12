@@ -1,7 +1,6 @@
 import asyncio
 
-import botocore.client
-from botocore.client import logger, PaginatorDocstring
+from botocore.client import logger, PaginatorDocstring, ClientCreator, BaseClient
 from botocore.exceptions import OperationNotPageableError
 from botocore.history import get_global_history_recorder
 from botocore.utils import get_service_module_name
@@ -15,7 +14,7 @@ from . import waiter
 history_recorder = get_global_history_recorder()
 
 
-class AioClientCreator(botocore.client.ClientCreator):
+class AioClientCreator(ClientCreator):
 
     def __init__(self, *args, loop=None, **kwargs):
         super().__init__(*args, **kwargs)
@@ -38,7 +37,7 @@ class AioClientCreator(botocore.client.ClientCreator):
     def _get_client_args(self, service_model, region_name, is_secure,
                          endpoint_url, verify, credentials,
                          scoped_config, client_config, endpoint_bridge):
-        # This is a near copy of botocore.client.ClientCreator. What's replaced
+        # This is a near copy of ClientCreator. What's replaced
         # is ClientArgsCreator->AioClientArgsCreator
         args_creator = AioClientArgsCreator(
             self._event_emitter, self._user_agent,
@@ -50,7 +49,7 @@ class AioClientCreator(botocore.client.ClientCreator):
             verify, credentials, scoped_config, client_config, endpoint_bridge)
 
 
-class AioBaseClient(botocore.client.BaseClient):
+class AioBaseClient(BaseClient):
     def __init__(self, *args, **kwargs):
         self._loop = kwargs.pop('loop', None) or asyncio.get_event_loop()
         super().__init__(*args, **kwargs)
