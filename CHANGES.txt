@@ -1,9 +1,10 @@
 Changes
 -------
 
-0.10.5 (2019-11-12)
+0.11.0 (2019-11-12)
 ^^^^^^^^^^^^^^^^^^^
 * replace CaseInsensitiveDict with urllib3 equivalent #744 (thanks to inspiration from @craigmccarter and @kevchentw)
+* bump botocore to 1.13.14
 * fix for mismatched botocore method replacements
 
 0.10.4 (2019-10-24)
