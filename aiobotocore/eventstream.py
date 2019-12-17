@@ -52,7 +52,3 @@ class AioEventStream(EventStream):
             pass
 
         return None
-
-    async def close(self):
-        """Closes the underlying streaming body. """
-        await self._raw_stream.close()

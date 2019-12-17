@@ -74,3 +74,26 @@ async def test_eventstream_chunking(s3_client):
     assert 'Records' in event1
     assert 'Stats' in event2
     assert 'End' in event3
+
+
+@pytest.mark.moto
+@pytest.mark.asyncio
+async def test_eventstream_no_iter(s3_client):
+    # These are the options passed to the EventStream class
+    # during a normal run with botocore.
+    operation_name = 'SelectObjectContent'
+    outputshape = (s3_client._service_model.operation_model(operation_name)
+                   .output_shape.members['Payload'])
+    parser = botocore.parsers.EventStreamXMLParser()
+    sr = FakeStreamReader(TEST_STREAM_DATA)
+
+    event_stream = AioEventStream(
+        sr,
+        outputshape,
+        parser,
+        operation_name
+    )
+
+    with pytest.raises(NotImplementedError):
+        for _ in event_stream:
+            print('fail')
