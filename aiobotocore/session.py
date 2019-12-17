@@ -6,6 +6,7 @@ from botocore import UNSIGNED
 from botocore import retryhandler, translate
 from botocore.exceptions import PartialCredentialsError
 from .client import AioClientCreator
+from .parsers import AioResponseParserFactory
 
 
 class AioSession(botocore.session.Session):
@@ -14,6 +15,9 @@ class AioSession(botocore.session.Session):
         self._loop = loop
 
         super().__init__(*args, **kwargs)
+
+        # Register the AioResponseParserFactory so event streams will be async'd
+        self.register_component('response_parser_factory', AioResponseParserFactory())
 
     def create_client(self, service_name, region_name=None, api_version=None,
                       use_ssl=True, verify=None, endpoint_url=None,

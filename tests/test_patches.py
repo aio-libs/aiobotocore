@@ -15,6 +15,9 @@ from botocore.endpoint import convert_to_response_dict, Endpoint, \
 from botocore.paginate import PageIterator
 from botocore.session import Session, get_session
 from botocore.waiter import NormalizedOperationMethod
+from botocore.eventstream import EventStream
+from botocore.parsers import ResponseParserFactory, PROTOCOL_PARSERS, \
+    ResponseParser
 
 
 # This file ensures that our private patches will work going forward.  If a
@@ -62,7 +65,20 @@ _API_DIGESTS = {
     Session: {'16b4a08b3b5792d5d9c639b7a07d01902205b238'},
     get_session: {'c47d588f5da9b8bde81ccc26eaef3aee19ddd901'},
     NormalizedOperationMethod: {'ee88834b123c6c77dfea0b4208308cd507a6ba36'},
+    EventStream: {'0e68633755a7dd4ff79c6d7ca778800a7bc86d3b'},
+    ResponseParserFactory: {'db484fd7e743611b9657c8f1acc84e76597e96b7'},
+    ResponseParser: {'d16826f7e815a62d7a5ca0d2ca5d936c64e0da88'},
+
 }
+
+_PROTOCOL_PARSER_CONTENT = {'ec2', 'query', 'json', 'rest-json', 'rest-xml'}
+
+
+@pytest.mark.moto
+def test_protocol_parsers():
+    # Check that no new parsers have been added
+    current_parsers = set(PROTOCOL_PARSERS.keys())
+    assert current_parsers == _PROTOCOL_PARSER_CONTENT
 
 
 # NOTE: this doesn't require moto but needs to be marked to run with coverage
