@@ -4,7 +4,7 @@ Changes
 
 0.11.1 (2019-11-13)
 ^^^^^^^^^^^^^^^^^^^
-* bump botocore to 1.13.16, awscli to 1.16.280 and boto3 to 1.10.16
+* bump botocore to 1.13.41, awscli to 1.16.305 and boto3 to 1.10.41
 
 
 0.11.0 (2019-11-12)
