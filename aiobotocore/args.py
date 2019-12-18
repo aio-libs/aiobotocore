@@ -10,10 +10,8 @@ from .signers import AioRequestSigner
 
 
 class AioClientArgsCreator(botocore.args.ClientArgsCreator):
-    def __init__(self, event_emitter, user_agent, response_parser_factory,
-                 loader, exceptions_factory, loop=None):
-        super().__init__(event_emitter, user_agent,
-                         response_parser_factory, loader, exceptions_factory)
+    def __init__(self, *args, loop=None, **kwargs):
+        super().__init__(*args, **kwargs)
         self._loop = loop or asyncio.get_event_loop()
 
     # NOTE: we override this so we can pull out the custom AioConfig params and
@@ -57,7 +55,7 @@ class AioClientArgsCreator(botocore.args.ClientArgsCreator):
             connector_args = None
 
         new_config = AioConfig(connector_args, **config_kwargs)
-        endpoint_creator = AioEndpointCreator(event_emitter, self._loop)
+        endpoint_creator = AioEndpointCreator(event_emitter, loop=self._loop)
 
         endpoint = endpoint_creator.create_endpoint(
             service_model, region_name=endpoint_region_name,

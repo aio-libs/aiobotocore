@@ -52,6 +52,7 @@ class AioSession(Session):
         if profile is not None:
             self._session_instance_vars['profile'] = profile
         self._client_config = None
+        self._last_client_region_used = None
         self._components = ComponentLocator()
         self._internal_components = ComponentLocator()
         self._register_components()
@@ -79,13 +80,7 @@ class AioSession(Session):
         elif default_client_config is not None:
             config = default_client_config
 
-        # Figure out the user-provided region based on the various
-        # configuration options.
-        if region_name is None:
-            if config and config.region_name is not None:
-                region_name = config.region_name
-            else:
-                region_name = self.get_config_variable('region')
+        region_name = self._resolve_region_name(region_name, config)
 
         # Figure out the verify value base on the various
         # configuration options.
@@ -139,4 +134,4 @@ def get_session(*, env_vars=None, loop=None):
     Return a new session object.
     """
     loop = loop or asyncio.get_event_loop()
-    return AioSession(session_vars=env_vars, loop=loop)
+    return AioSession(env_vars, loop=loop)

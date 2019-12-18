@@ -1,36 +1,44 @@
 import aiohttp
 import asyncio
 import io
-import wrapt
 import ssl
-
-import botocore.retryhandler
 import aiohttp.http_exceptions
 from aiohttp.client import URL
-from aiohttp.client_reqrep import ClientResponse
 from botocore.endpoint import EndpointCreator, Endpoint, DEFAULT_TIMEOUT, \
-    MAX_POOL_CONNECTIONS, logger, create_request_object
+    MAX_POOL_CONNECTIONS, logger, history_recorder, create_request_object
 from botocore.exceptions import ConnectionClosedError
 from botocore.hooks import first_non_none_response
 from botocore.utils import is_valid_endpoint_url
-from botocore.vendored.requests.structures import CaseInsensitiveDict
-from botocore.history import get_global_history_recorder
 from multidict import MultiDict
 from urllib.parse import urlparse
-
+from urllib3.response import HTTPHeaderDict
 from aiobotocore.response import StreamingBody
-
-MAX_REDIRECTS = 10
-history_recorder = get_global_history_recorder()
+from aiobotocore._endpoint_helpers import _text, _IOBaseWrapper, \
+    ClientResponseProxy
 
 
 async def convert_to_response_dict(http_response, operation_model):
+    """Convert an HTTP response object to a request dict.
+
+    This converts the requests library's HTTP response object to
+    a dictionary.
+
+    :type http_response: botocore.vendored.requests.model.Response
+    :param http_response: The HTTP response from an AWS service request.
+
+    :rtype: dict
+    :return: A response dictionary which will contain the following keys:
+        * headers (dict)
+        * status_code (int)
+        * body (string or file-like object)
+
+    """
     response_dict = {
         # botocore converts keys to str, so make sure that they are in
         # the expected case. See detailed discussion here:
         # https://github.com/aio-libs/aiobotocore/pull/116
         # aiohttp's CIMultiDict camel cases the headers :(
-        'headers': CaseInsensitiveDict(
+        'headers': HTTPHeaderDict(
             {k.decode('utf-8').lower(): v.decode('utf-8')
              for k, v in http_response.raw_headers}),
         'status_code': http_response.status_code,
@@ -38,7 +46,6 @@ async def convert_to_response_dict(http_response, operation_model):
             'operation_name': operation_model.name,
         }
     }
-
     if response_dict['status_code'] >= 300:
         response_dict['body'] = await http_response.read()
     elif operation_model.has_event_stream_output:
@@ -51,105 +58,9 @@ async def convert_to_response_dict(http_response, operation_model):
     return response_dict
 
 
-# Monkey patching: We need to insert the aiohttp exception equivalents
-# The only other way to do this would be to have another config file :(
-_aiohttp_retryable_exceptions = [
-    aiohttp.ClientConnectionError,
-    aiohttp.ClientPayloadError,
-    aiohttp.ServerDisconnectedError,
-    aiohttp.http_exceptions.HttpProcessingError,
-    asyncio.TimeoutError,
-]
-
-botocore.retryhandler.EXCEPTION_MAP['GENERAL_CONNECTION_ERROR'].extend(
-    _aiohttp_retryable_exceptions
-)
-
-
-def text_(s, encoding='utf-8', errors='strict'):
-    if isinstance(s, bytes):
-        return s.decode(encoding, errors)
-    return s  # pragma: no cover
-
-
-# Unfortunately aiohttp changed the behavior of streams:
-#   github.com/aio-libs/aiohttp/issues/1907
-# We need this wrapper until we have a final resolution
-class _IOBaseWrapper(wrapt.ObjectProxy):
-    def close(self):
-        # this stream should not be closed by aiohttp, like 1.x
-        pass
-
-
-# This is similar to botocore.response.StreamingBody
-class ClientResponseContentProxy(wrapt.ObjectProxy):
-    """Proxy object for content stream of http response.  This is here in case
-    you want to pass around the "Body" of the response without closing the
-    response itself."""
-
-    def __init__(self, response):
-        super().__init__(response.__wrapped__.content)
-        self._self_response = response
-
-    # Note: we don't have a __del__ method as the ClientResponse has a __del__
-    # which will warn the user if they didn't close/release the response
-    # explicitly.  A release here would mean reading all the unread data
-    # (which could be very large), and a close would mean being unable to re-
-    # use the connection, so the user MUST chose.  Default is to warn + close
-    async def __aenter__(self):
-        await self._self_response.__aenter__()
-        return self
-
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
-        return await self._self_response.__aexit__(exc_type, exc_val, exc_tb)
-
-    def close(self):
-        self._self_response.close()
-
-
-class ClientResponseProxy(wrapt.ObjectProxy):
-    """Proxy object for http response useful for porting from
-    botocore underlying http library."""
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(ClientResponse(*args, **kwargs))
-
-        # this matches ClientResponse._body
-        self._self_body = None
-
-    @property
-    def status_code(self):
-        return self.status
-
-    @status_code.setter
-    def status_code(self, value):
-        # botocore tries to set this, see:
-        # https://github.com/aio-libs/aiobotocore/issues/190
-        # Luckily status is an attribute we can set
-        self.status = value
-
-    @property
-    def content(self):
-        return self._self_body
-
-    @property
-    def raw(self):
-        return ClientResponseContentProxy(self)
-
-    async def read(self):
-        self._self_body = await self.__wrapped__.read()
-        return self._self_body
-
-
 class AioEndpoint(Endpoint):
-    def __init__(self, host, endpoint_prefix, event_emitter,
-                 response_parser_factory=None, http_session=None,
-                 loop=None, proxies=None):
-
-        assert http_session
-
-        super().__init__(host, endpoint_prefix,
-                         event_emitter, response_parser_factory, http_session)
+    def __init__(self, *args, loop=None, proxies=None, **kwargs):
+        super().__init__(*args, **kwargs)
 
         self._loop = loop or asyncio.get_event_loop()
         self.proxies = proxies or {}
@@ -176,8 +87,9 @@ class AioEndpoint(Endpoint):
         context = request_dict['context']
         success_response, exception = await self._get_response(
             request, operation_model, context)
-        while (await self._needs_retry(attempts, operation_model, request_dict,
-                                       success_response, exception)):
+        while await self._needs_retry(attempts, operation_model,
+                                      request_dict, success_response,
+                                      exception):
             attempts += 1
             # If there is a stream associated with the request, we need
             # to reset it before attempting to send the request again.
@@ -227,7 +139,6 @@ class AioEndpoint(Endpoint):
 
     async def _do_get_response(self, request, operation_model):
         try:
-            # http request substituted too async one
             logger.debug("Sending http request: %s", request)
             history_recorder.record('HTTP_REQUEST', {
                 'method': request.method,
@@ -236,26 +147,16 @@ class AioEndpoint(Endpoint):
                 'url': request.url,
                 'body': request.body
             })
-
             service_id = operation_model.service_model.service_id.hyphenize()
             event_name = 'before-send.%s.%s' % (
                 service_id, operation_model.name)
             responses = await self._event_emitter.emit(event_name,
                                                        request=request)
             http_response = first_non_none_response(responses)
-
             if http_response is None:
                 http_response = await self._send(request)
         except aiohttp.ClientConnectionError as e:
             e.request = request  # botocore expects the request property
-
-            # For a connection error, if it looks like it's a DNS
-            # lookup issue, 99% of the time this is due to a misconfigured
-            # region/endpoint so we'll raise a more specific error message
-            # to help users.
-            logger.debug("ConnectionError received when sending HTTP request.",
-                         exc_info=True)
-
             return None, e
         except aiohttp.http_exceptions.BadStatusLine:
             better_exception = ConnectionClosedError(
@@ -323,7 +224,7 @@ class AioEndpoint(Endpoint):
 
         headers['Accept-Encoding'] = 'identity'
         headers_ = MultiDict(
-            (z[0], text_(z[1], encoding='utf-8')) for z in headers.items())
+            (z[0], _text(z[1], encoding='utf-8')) for z in headers.items())
 
         # botocore does this during the request so we do this here as well
         # TODO: this should be part of the ClientSession, perhaps make wrapper
@@ -346,11 +247,11 @@ class AioEndpoint(Endpoint):
 
 
 class AioEndpointCreator(EndpointCreator):
-    def __init__(self, event_emitter, loop):
-        super().__init__(event_emitter)
+    def __init__(self, *args, loop=None, **kwargs):
+        super().__init__(*args, **kwargs)
         self._loop = loop
 
-    # TODO: should we merge connector_args -> socket_options?
+    # TODO: handle socket_options
     def create_endpoint(self, service_model, region_name, endpoint_url,
                         verify=None, response_parser_factory=None,
                         timeout=DEFAULT_TIMEOUT,
@@ -361,6 +262,7 @@ class AioEndpointCreator(EndpointCreator):
                         client_cert=None,
                         connector_args=None):
         if not is_valid_endpoint_url(endpoint_url):
+
             raise ValueError("Invalid endpoint: %s" % endpoint_url)
         if proxies is None:
             proxies = self._get_proxies(endpoint_url)
@@ -418,5 +320,4 @@ class AioEndpointCreator(EndpointCreator):
             event_emitter=self._event_emitter,
             response_parser_factory=response_parser_factory,
             http_session=aio_session,
-            proxies=proxies
-        )
+            loop=self._loop, proxies=proxies)
