@@ -1,8 +1,8 @@
 Changes
 -------
 
-0.11.1 (TBD)
-^^^^^^^^^^^^
+0.11.1 (2020-01-03)
+^^^^^^^^^^^^^^^^^^^
 * Fixed event streaming API calls like S3 Select.
 
 0.11.0 (2019-11-12)
