@@ -3,7 +3,7 @@
 FLAGS=
 
 flake: checkrst
-	flake8 aiobotocore tests examples setup.py
+	python3 -m flake8
 
 test: flake
 	python3 -m pytest -s $(FLAGS) ./tests/
