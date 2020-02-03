@@ -13,7 +13,7 @@ pytest-cov==2.8.1
 pytest-asyncio==0.10.0
 sphinx==2.3.1
 yarl==1.4.2
-multidict==4.5.2
+multidict==4.7.4
 wrapt==1.11.2
 dill==0.3.1.1
 
