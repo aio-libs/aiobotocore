@@ -12,7 +12,7 @@ from .parsers import AioResponseParserFactory
 class AioSession(botocore.session.Session):
 
     def __init__(self, *args, loop=None, **kwargs):
-        self._loop = loop
+        self._loop = loop or asyncio.get_event_loop()
 
         super().__init__(*args, **kwargs)
 
@@ -87,5 +87,4 @@ def get_session(*, env_vars=None, loop=None):
     """
     Return a new session object.
     """
-    loop = loop or asyncio.get_event_loop()
     return AioSession(env_vars, loop=loop)
