@@ -9,6 +9,7 @@ from botocore.endpoint import EndpointCreator, Endpoint, DEFAULT_TIMEOUT, \
 from botocore.exceptions import ConnectionClosedError
 from botocore.hooks import first_non_none_response
 from botocore.utils import is_valid_endpoint_url
+from botocore.utils import lowercase_dict
 from multidict import MultiDict
 from urllib.parse import urlparse
 from urllib3.response import HTTPHeaderDict
@@ -23,7 +24,7 @@ async def convert_to_response_dict(http_response, operation_model):
     This converts the requests library's HTTP response object to
     a dictionary.
 
-    :type http_response: botocore.vendored.requests.model.Response
+    :type http_response: botocore.awsrequest.AWSResponse
     :param http_response: The HTTP response from an AWS service request.
 
     :rtype: dict
@@ -34,27 +35,21 @@ async def convert_to_response_dict(http_response, operation_model):
 
     """
     response_dict = {
-        # botocore converts keys to str, so make sure that they are in
-        # the expected case. See detailed discussion here:
-        # https://github.com/aio-libs/aiobotocore/pull/116
-        # aiohttp's CIMultiDict camel cases the headers :(
-        'headers': HTTPHeaderDict(
-            {k.decode('utf-8').lower(): v.decode('utf-8')
-             for k, v in http_response.raw_headers}),
+        'headers': HTTPHeaderDict(lowercase_dict(http_response.headers)),
         'status_code': http_response.status_code,
         'context': {
             'operation_name': operation_model.name,
         }
     }
     if response_dict['status_code'] >= 300:
-        response_dict['body'] = await http_response.read()
+        response_dict['body'] = http_response.content
     elif operation_model.has_event_stream_output:
         response_dict['body'] = http_response.raw
     elif operation_model.has_streaming_output:
         length = response_dict['headers'].get('content-length')
         response_dict['body'] = StreamingBody(http_response.raw, length)
     else:
-        response_dict['body'] = await http_response.read()
+        response_dict['body'] = http_response.content
     return response_dict
 
 
