@@ -6,6 +6,7 @@ import aiohttp
 import aiohttp.web
 from aiohttp.web import StreamResponse
 import pytest
+from async_generator import async_generator, yield_
 
 # aiobotocore
 from tests.moto_server import host, MotoService, get_free_tcp_port
@@ -95,30 +96,35 @@ class AIOServer(multiprocessing.Process):
 
 
 @pytest.yield_fixture
+@async_generator
 async def s3_server():
     async with MotoService('s3') as svc:
-        yield svc.endpoint_url
+        await yield_(svc.endpoint_url)
 
 
 @pytest.yield_fixture
+@async_generator
 async def dynamodb2_server():
     async with MotoService('dynamodb2') as svc:
-        yield svc.endpoint_url
+        await yield_(svc.endpoint_url)
 
 
 @pytest.yield_fixture
+@async_generator
 async def cloudformation_server():
     async with MotoService('cloudformation') as svc:
-        yield svc.endpoint_url
+        await yield_(svc.endpoint_url)
 
 
 @pytest.yield_fixture
+@async_generator
 async def sns_server():
     async with MotoService('sns') as svc:
-        yield svc.endpoint_url
+        await yield_(svc.endpoint_url)
 
 
 @pytest.yield_fixture
+@async_generator
 async def sqs_server():
     async with MotoService('sqs') as svc:
-        yield svc.endpoint_url
+        await yield_(svc.endpoint_url)
