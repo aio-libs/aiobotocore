@@ -4,10 +4,11 @@ language: python
 dist: xenial
 
 python:
-    - 3.5.9
     - 3.6.10
     - 3.7.6
     - 3.8.1
+# moto is incompatible with 3.5 because it relies on the key order of its regex rules
+#    - 3.5.9
 
 matrix:
   include:

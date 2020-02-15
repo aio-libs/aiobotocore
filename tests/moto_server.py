@@ -3,6 +3,8 @@ import functools
 import logging
 import socket
 import threading
+import time
+import os
 
 # Third Party
 import aiohttp
@@ -10,7 +12,10 @@ import moto.server
 import werkzeug.serving
 
 
-host = 'localhost'
+host = '127.0.0.1'
+
+_PYCHARM_HOSTED = os.environ.get('PYCHARM_HOSTED') == '1'
+_CONNECT_TIMEOUT = 90 if _PYCHARM_HOSTED else 10
 
 
 def get_free_tcp_port(release_socket: bool = False):
@@ -103,14 +108,16 @@ class MotoService:
         self._thread.start()
 
         async with aiohttp.ClientSession() as session:
-            for i in range(0, 10):
+            start = time.time()
+
+            while time.time() - start < 10:
                 if not self._thread.is_alive():
                     break
 
                 try:
                     # we need to bypass the proxies due to monkeypatches
-                    async with session.get(self.endpoint_url + '/static/',
-                                           timeout=0.5):
+                    async with session.get(self.endpoint_url + '/static',
+                                           timeout=_CONNECT_TIMEOUT):
                         pass
                     break
                 except (asyncio.TimeoutError, aiohttp.ClientConnectionError):
