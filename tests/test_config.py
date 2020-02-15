@@ -90,3 +90,9 @@ async def test_connector_timeout2(event_loop):
         with pytest.raises(ReadTimeoutError):
             resp = await s3_client.get_object(Bucket='foo', Key='bar')
             await resp["Body"].read()
+
+
+@pytest.mark.moto
+def test_default_event_loop():
+    session = AioSession()
+    assert session._loop == asyncio.get_event_loop()
