@@ -3,7 +3,7 @@
 FLAGS=
 
 flake: checkrst
-	python3 -m flake8
+	python3 -m flake8 --format=abspath
 
 test: flake
 	python3 -m pytest -s $(FLAGS) ./tests/
@@ -20,7 +20,7 @@ cov cover coverage: flake
 
 # BOTO_CONFIG solves https://github.com/travis-ci/travis-ci/issues/7940
 mototest:
-	BOTO_CONFIG=/dev/null python3 -m pytest -v -m moto --cov-report term --cov-report html --cov aiobotocore tests
+	BOTO_CONFIG=/dev/null python3 -m pytest -v -m moto -n auto --cov-report term --cov-report html --cov aiobotocore tests
 	@echo "open file://`pwd`/htmlcov/index.html"
 
 
