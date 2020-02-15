@@ -48,7 +48,7 @@ class MotoService:
 
     @property
     def endpoint_url(self):
-        return f'http://{self._ip_address}:{self._port}'
+        return 'http://{}:{}'.format(self._ip_address, self._port)
 
     def __call__(self, func):
         async def wrapper(*args, **kwargs):
