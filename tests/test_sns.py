@@ -2,7 +2,32 @@ import json
 import pytest
 import botocore
 
-from moto.sns.models import DEFAULT_TOPIC_POLICY
+
+def _get_topic_policy(topic_arn: str):
+    return {
+        "Version": "2008-10-17",
+        "Id": "__default_policy_ID",
+        "Statement": [{
+            "Effect": "Allow",
+            "Sid": "__default_statement_ID",
+            "Principal": {
+                "AWS": "*"
+            },
+            "Action": [
+                "SNS:GetTopicAttributes",
+                "SNS:SetTopicAttributes",
+                "SNS:AddPermission",
+                "SNS:RemovePermission",
+                "SNS:DeleteTopic",
+                "SNS:Subscribe",
+                "SNS:ListSubscriptionsByTopic",
+                "SNS:Publish",
+                "SNS:Receive",
+            ],
+            'Resource': topic_arn,
+            'Condition': {'StringEquals': {'AWS:SourceOwner': '123456789012'}},
+        }]
+    }
 
 
 @pytest.mark.moto
@@ -17,7 +42,7 @@ async def test_topic_attributes(sns_client, topic_arn):
     attributes = topic_properties['Attributes']
 
     assert arn1 == topic_arn
-    assert json.loads(attributes['Policy']) == DEFAULT_TOPIC_POLICY
+    assert json.loads(attributes['Policy']) == _get_topic_policy(topic_arn)
     assert attributes['DisplayName'] == ''
 
     display_name = 'My display name'
