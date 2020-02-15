@@ -3,7 +3,7 @@ import functools
 import logging
 import socket
 import threading
-from typing import Dict, Any, Optional
+from typing import Optional
 
 # Third Party
 import aiohttp
@@ -30,7 +30,7 @@ class MotoService:
     Service is ref-counted so there will only be one per process. Real Service will
     be returned by `__aenter__`."""
 
-    _services: Dict[str, Any] = dict()  # {name: instance}
+    _services = dict()  # {name: instance}
 
     def __init__(self, service_name: str, port: int = None):
         self._service_name = service_name
