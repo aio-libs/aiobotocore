@@ -3,7 +3,6 @@ import functools
 import logging
 import socket
 import threading
-from typing import Optional
 
 # Third Party
 import aiohttp
@@ -45,7 +44,7 @@ class MotoService:
         self._logger = logging.getLogger('MotoService')
         self._refcount = None
         self._ip_address = host
-        self._server: Optional[werkzeug.serving.ThreadedWSGIServer] = None
+        self._server = None
 
     @property
     def endpoint_url(self):
