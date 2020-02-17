@@ -95,35 +95,35 @@ class AIOServer(multiprocessing.Process):
         pytest.fail('unable to start and connect to aiohttp server')
 
 
-@pytest.yield_fixture
+@pytest.fixture
 @async_generator
 async def s3_server():
     async with MotoService('s3') as svc:
         await yield_(svc.endpoint_url)
 
 
-@pytest.yield_fixture
+@pytest.fixture
 @async_generator
 async def dynamodb2_server():
     async with MotoService('dynamodb2') as svc:
         await yield_(svc.endpoint_url)
 
 
-@pytest.yield_fixture
+@pytest.fixture
 @async_generator
 async def cloudformation_server():
     async with MotoService('cloudformation') as svc:
         await yield_(svc.endpoint_url)
 
 
-@pytest.yield_fixture
+@pytest.fixture
 @async_generator
 async def sns_server():
     async with MotoService('sns') as svc:
         await yield_(svc.endpoint_url)
 
 
-@pytest.yield_fixture
+@pytest.fixture
 @async_generator
 async def sqs_server():
     async with MotoService('sqs') as svc:

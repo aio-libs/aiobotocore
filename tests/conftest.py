@@ -236,21 +236,21 @@ async def recursive_delete(s3_client, bucket_name):
     assert_status_code(resp, 204)
 
 
-@pytest.yield_fixture
+@pytest.fixture
 @async_generator
 async def bucket_name(region, create_bucket):
     name = await create_bucket(region)
     await yield_(name)
 
 
-@pytest.yield_fixture
+@pytest.fixture
 @async_generator
 async def table_name(create_table):
     name = await create_table()
     await yield_(name)
 
 
-@pytest.yield_fixture
+@pytest.fixture
 @async_generator
 async def create_bucket(s3_client):
     _bucket_name = None
@@ -277,7 +277,7 @@ async def create_bucket(s3_client):
         await recursive_delete(s3_client, _bucket_name)
 
 
-@pytest.yield_fixture
+@pytest.fixture
 @async_generator
 async def create_table(dynamodb_client):
     _table_name = None
@@ -374,7 +374,7 @@ def create_multipart_upload(request, s3_client, bucket_name, event_loop):
     return _f
 
 
-@pytest.yield_fixture
+@pytest.fixture
 @async_generator
 async def aio_session(event_loop):
     async with aiohttp.ClientSession(loop=event_loop) as session:
