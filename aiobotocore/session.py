@@ -61,8 +61,6 @@ class AioSession(Session):
         if session_vars is not None:
             self.session_var_map.update(session_vars)
 
-
-        # TODO Do better
         # Register our own handlers
         self.register('creating-client-class', add_generate_presigned_url)
 
