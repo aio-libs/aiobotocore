@@ -7,6 +7,7 @@ from botocore import retryhandler, translate, __version__
 from botocore.exceptions import PartialCredentialsError
 from .client import AioClientCreator, AioBaseClient
 from .hooks import AioHierarchicalEmitter, AioEventAliaser
+from .signers import add_generate_presigned_url
 
 
 class ClientCreatorContext:
@@ -59,6 +60,11 @@ class AioSession(Session):
         self.session_var_map = SessionVarDict(self, self.SESSION_VARIABLES)
         if session_vars is not None:
             self.session_var_map.update(session_vars)
+
+
+        # TODO Do better
+        # Register our own handlers
+        self.register('creating-client-class', add_generate_presigned_url)
 
     def create_client(self, *args, **kwargs):
         return ClientCreatorContext(self._create_client(*args, **kwargs))
