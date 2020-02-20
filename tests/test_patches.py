@@ -55,7 +55,8 @@ _AIOHTTP_DIGESTS = {
 # If you're changing these, most likely need to update setup.py as well.
 _API_DIGESTS = {
     ClientArgsCreator: {'917d7f5a85d2497c0ee0d7f368a4e6a723bb534a'},
-    ClientCreator: {'e1d65c617a674e376e177e0b8f4039fda13b2fcd'},
+    ClientCreator._create_client_class: {'5e493d069eedbf314e40e12a7886bbdbcf194335'},
+    ClientCreator._get_client_args: {'555e1e41f93df7558c8305a60466681e3a267ef3'},
     BaseClient: {'d2e69f0184ae83df5b82284194ed1b72191f0161'},
     Config: {'2dcc44190a3dc2a4b26ab0ed9410daefcd7c93c1'},
     convert_to_response_dict: {'2c73c059fa63552115314b079ae8cbf5c4e78da0'},

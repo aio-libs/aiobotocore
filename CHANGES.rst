@@ -1,6 +1,11 @@
 Changes
 -------
 
+0.12.0 (TBD)
+^^^^^^^^^^^^
+
+* Bump botocore and extras
+
 0.11.1 (2020-01-03)
 ^^^^^^^^^^^^^^^^^^^
 * Fixed event streaming API calls like S3 Select.
