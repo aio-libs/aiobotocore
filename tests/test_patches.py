@@ -54,15 +54,15 @@ _AIOHTTP_DIGESTS = {
 
 # If you're changing these, most likely need to update setup.py as well.
 _API_DIGESTS = {
-    ClientArgsCreator: {'a23c040b65096dd26abdaa321ba58612fbbfb4fe'},
-    ClientCreator: {'c4abf80fa41d9f4713b9c83d504c759ed905992e'},
+    ClientArgsCreator: {'917d7f5a85d2497c0ee0d7f368a4e6a723bb534a'},
+    ClientCreator: {'e1d65c617a674e376e177e0b8f4039fda13b2fcd'},
     BaseClient: {'d2e69f0184ae83df5b82284194ed1b72191f0161'},
-    Config: {'72129553174455492825ec92ea5d6e66307ed74f'},
+    Config: {'2dcc44190a3dc2a4b26ab0ed9410daefcd7c93c1'},
     convert_to_response_dict: {'2c73c059fa63552115314b079ae8cbf5c4e78da0'},
     Endpoint: {'6839b062c5223d94aaf894dce6ade8606c388b4f'},
     EndpointCreator: {'633337fe0bda97e57c7f0b9596c5a158a03e8e36'},
     PageIterator: {'0409f7878b3493566be5761f5799ed93563f3e20'},
-    Session: {'16b4a08b3b5792d5d9c639b7a07d01902205b238'},
+    Session: {'36b41d75c22bc86afc889a56de92f1f95f836e20'},
     get_session: {'c47d588f5da9b8bde81ccc26eaef3aee19ddd901'},
     NormalizedOperationMethod: {'ee88834b123c6c77dfea0b4208308cd507a6ba36'},
     EventStream: {'0e68633755a7dd4ff79c6d7ca778800a7bc86d3b'},

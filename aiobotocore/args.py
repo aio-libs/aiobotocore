@@ -34,6 +34,7 @@ class AioClientArgsCreator(botocore.args.ClientArgsCreator):
 
         signing_region = endpoint_config['signing_region']
         endpoint_region_name = endpoint_config['region_name']
+
         if signing_region is None and endpoint_region_name is None:
             signing_region, endpoint_region_name = \
                 self._get_default_s3_region(service_name, endpoint_bridge)
