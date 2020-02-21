@@ -19,15 +19,23 @@ matrix:
 
 install:
     - pip install -U setuptools pip
-    - if [[ -v EXTRA ]]; then pip install pipdeptree; fi
-    - if ! [[ -v EXTRA ]]; then pip install -Ur requirements-dev.txt; fi
+    - if ! [[ -v EXTRA ]]; then
+        pip install pipenv;
+        pipenv install --dev;
+        pipenv check;
+        pipenv graph;
+      fi
     - pip install codecov
     - pip check
     - pip freeze
 
 script:
-    - if [[ -v EXTRA ]]; then pip install -U .[$EXTRA] && pipdeptree; fi
-    - if ! [[ -v EXTRA ]]; then make flake mototest; fi
+    - if [[ -v EXTRA ]];
+        then pip install -U pipdeptree .[$EXTRA];
+        pipdeptree;
+      else
+        make flake mototest;
+      fi
 after_success:
     codecov
 deploy:

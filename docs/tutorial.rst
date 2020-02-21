@@ -1,7 +1,7 @@
 Getting Started With aiobotocore
 ================================
 
-Following tutorial based on `botocore tutorial <http://botocore.readthedocs.io/en/latest/tutorial/>`_.
+Following tutorial based on `botocore tutorial <http://botocore.readthedocs.io/en/latest/tutorial/index.html>`_.
 
 The ``aiobotocore`` package provides a low-level interface to Amazon
 services.  It is responsible for:

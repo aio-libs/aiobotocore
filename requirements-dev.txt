@@ -11,7 +11,6 @@ pytest==5.3.5
 pytest-cov==2.8.1
 pytest-asyncio==0.10.0
 pytest-xdist==1.31.0
-sphinx==2.4.1
 yarl==1.4.2
 multidict==4.7.4
 wrapt==1.12.0

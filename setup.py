@@ -4,7 +4,7 @@ import sys
 from setuptools import setup, find_packages
 
 
-# NOTE: If adding requirements make sure to also add to requirements-dev.txt
+# NOTE: If adding requirements make sure to also add to Pipfile
 # NOTE: When updating botocore make sure to update awscli/boto3 versions below
 install_requires = [
     # pegged to also match items in `extras_require`

@@ -2,3 +2,8 @@
 label_prs: deps-update
 
 schedule: every week
+
+requirements:
+  - Pipfile
+  - Pipfile.lock
+  - docs/requirements.txt

@@ -96,7 +96,6 @@ Contents
 
    tutorial
    examples
-   api
    contributing
 
 
