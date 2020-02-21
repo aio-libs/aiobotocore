@@ -20,7 +20,7 @@ matrix:
 install:
     - pip install -U setuptools pip
     - if [[ -v EXTRA ]]; then pip install pipdeptree; fi
-    - if ! [[ -v EXTRA ]]; then pip install -rU requirements-dev.txt; fi
+    - if ! [[ -v EXTRA ]]; then pip install -Ur requirements-dev.txt; fi
     - pip install codecov
     - pip check
     - pip freeze
