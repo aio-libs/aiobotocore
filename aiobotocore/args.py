@@ -1,6 +1,6 @@
-import asyncio
 import copy
-import botocore.args
+
+from botocore.args import ClientArgsCreator
 import botocore.serialize
 import botocore.parsers
 from botocore.signers import RequestSigner
@@ -9,11 +9,7 @@ from .config import AioConfig
 from .endpoint import AioEndpointCreator
 
 
-class AioClientArgsCreator(botocore.args.ClientArgsCreator):
-    def __init__(self, *args, loop=None, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._loop = loop or asyncio.get_event_loop()
-
+class AioClientArgsCreator(ClientArgsCreator):
     # NOTE: we override this so we can pull out the custom AioConfig params and
     #       use an AioEndpointCreator
     def get_client_args(self, service_model, region_name, is_secure,
@@ -45,13 +41,14 @@ class AioClientArgsCreator(botocore.args.ClientArgsCreator):
 
         config_kwargs['s3'] = s3_config
 
+        # aiobotocore addition
         if isinstance(client_config, AioConfig):
             connector_args = client_config.connector_args
         else:
             connector_args = None
 
         new_config = AioConfig(connector_args, **config_kwargs)
-        endpoint_creator = AioEndpointCreator(event_emitter, loop=self._loop)
+        endpoint_creator = AioEndpointCreator(event_emitter)
 
         endpoint = endpoint_creator.create_endpoint(
             service_model, region_name=endpoint_region_name,
@@ -77,6 +74,5 @@ class AioClientArgsCreator(botocore.args.ClientArgsCreator):
             'loader': self._loader,
             'client_config': new_config,
             'partition': partition,
-            'exceptions_factory': self._exceptions_factory,
-            'loop': self._loop
+            'exceptions_factory': self._exceptions_factory
         }

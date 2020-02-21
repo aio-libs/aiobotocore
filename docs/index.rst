@@ -38,13 +38,13 @@ Basic Example
     AWS_SECRET_ACCESS_KEY = "xxx"
 
 
-    async def go(loop):
+    async def go():
         bucket = 'dataintake'
         filename = 'dummy.bin'
         folder = 'aiobotocore'
         key = '{}/{}'.format(folder, filename)
 
-        session = aiobotocore.get_session(loop=loop)
+        session = aiobotocore.get_session()
         async with session.create_client('s3', region_name='us-west-2',
                                        aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
                                        aws_access_key_id=AWS_ACCESS_KEY_ID) as client:
@@ -76,7 +76,7 @@ Basic Example
             print(resp)
 
     loop = asyncio.get_event_loop()
-    loop.run_until_complete(go(loop))
+    loop.run_until_complete(go())
 
 
 awscli

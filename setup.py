@@ -11,13 +11,13 @@ install_requires = [
     'botocore>=1.15.3,<1.15.16',
     'aiohttp>=3.3.1',
     'wrapt>=1.10.10',
-    'async_generator>=1.10',  # can remove if we move to py3.6+
+    'aioitertools>=0.5.1',
 ]
 
 PY_VER = sys.version_info
 
-if not PY_VER >= (3, 5, 3):
-    raise RuntimeError("aiobotocore doesn't support Python earlier than 3.5.3")
+if not PY_VER >= (3, 6, 0):
+    raise RuntimeError("aiobotocore doesn't support Python earlier than 3.6.0")
 
 
 def read(f):
@@ -53,7 +53,6 @@ classifiers = [
     # aioitertools after we're 3.6+
     # We'll need: https://github.com/jreese/aioitertools/issues/11 and
     # https://github.com/jreese/aioitertools/issues/13
-    'Programming Language :: Python :: 3.5',
     'Programming Language :: Python :: 3.6',
     'Programming Language :: Python :: 3.7',
     'Programming Language :: Python :: 3.8',

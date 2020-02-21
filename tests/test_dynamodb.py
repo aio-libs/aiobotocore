@@ -144,7 +144,7 @@ async def test_waiter_table_exists(event_loop, dynamodb_client,
     table_name = dynamodb_table_def['TableName']
 
     async def _create_table():
-        await asyncio.sleep(2, loop=event_loop)
+        await asyncio.sleep(2)
         await dynamodb_client.create_table(**dynamodb_table_def)
 
     task = event_loop.create_task(_create_table())

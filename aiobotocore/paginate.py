@@ -1,64 +1,15 @@
-import asyncio
-import warnings
-
 from botocore.exceptions import PaginationError
 from botocore.paginate import Paginator, PageIterator
 from botocore.utils import set_value_from_jmespath, merge_dicts
 from botocore.compat import six
 
-from async_generator import async_generator, yield_
-
-
-# switch to aioitertools.tee after we're 3.6+
-def aio_tee(itr, n: int = 2):
-    assert n > 0
-    sentinel = object()
-    queues = [asyncio.Queue() for _ in range(n)]
-
-    @async_generator
-    async def gen(k: int, q: asyncio.Queue):
-        if k == 0:
-            async for value in itr:
-                await asyncio.gather(*[queue.put(value)
-                                       for queue in queues[1:]])
-                await yield_(value)
-
-            await asyncio.gather(*[queue.put(sentinel)
-                                   for queue in queues[1:]])
-            return
-
-        while True:
-            value = await q.get()
-            if value is sentinel:
-                break
-
-            await yield_(value)
-
-    return tuple(gen(k, q) for k, q in enumerate(queues))
+import aioitertools
 
 
 class AioPageIterator(PageIterator):
-    async def next_page(self):
-        itr = getattr(self, '_iter', None)
-        if itr is None:
-            warnings.warn("next_page is deprecated, use async for instead",
-                          DeprecationWarning)
-
-            self._iter = self.__anext__()
-
-        try:
-            return await self._iter.__anext__()
-        except StopAsyncIteration:
-            self._iter = None
-            return None
-        except:  # noqa: E722
-            self._iter = None
-            raise
-
     def __aiter__(self):
         return self.__anext__()
 
-    @async_generator
     async def __anext__(self):
         current_kwargs = self._op_kwargs
         previous_next_token = None
@@ -106,10 +57,10 @@ class AioPageIterator(PageIterator):
                 self._truncate_response(parsed, primary_result_key,
                                         truncate_amount, starting_truncation,
                                         next_token)
-                await yield_(response)
+                yield response
                 break
             else:
-                await yield_(response)
+                yield response
                 total_items += num_current_response
                 next_token = self._get_next_token(parsed)
                 if all(t is None for t in next_token.values()):
@@ -129,7 +80,7 @@ class AioPageIterator(PageIterator):
                 previous_next_token = next_token
 
     def result_key_iters(self):
-        teed_results = aio_tee(self, len(self.result_keys))
+        teed_results = aioitertools.tee(self, len(self.result_keys))
         return [ResultKeyIterator(i, result_key) for i, result_key
                 in zip(teed_results, self.result_keys)]
 
@@ -204,11 +155,10 @@ class ResultKeyIterator:
     def __aiter__(self):
         return self.__anext__()
 
-    @async_generator
     async def __anext__(self):
         async for page in self._pages_iterator:
             results = self.result_key.search(page)
             if results is None:
                 results = []
             for result in results:
-                await yield_(result)
+                yield result

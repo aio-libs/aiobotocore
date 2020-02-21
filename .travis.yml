@@ -7,7 +7,7 @@ python:
     - 3.6.10
     - 3.7.6
     - 3.8.1
-# moto is incompatible with 3.5 because it relies on the key order of its regex rules
+# moto is incompatible with 3.5 because it relies on the key order of its url path regex rules
 #    - 3.5.9
 
 matrix:
@@ -18,14 +18,14 @@ matrix:
     env: EXTRA="boto3"
 
 install:
-    - pip install -U setuptools
+    - pip install -U setuptools pip
     - if [[ -v EXTRA ]]; then pip install pipdeptree; fi
-    - if ! [[ -v EXTRA ]]; then pip install -r requirements-dev.txt; fi
+    - if ! [[ -v EXTRA ]]; then pip install -rU requirements-dev.txt; fi
     - pip install codecov
+    - pip check
     - pip freeze
 
 script:
-    # requests from idna and docker packages conflicts with rest of the system...
     - if [[ -v EXTRA ]]; then pip install -U .[$EXTRA] && pipdeptree; fi
     - if ! [[ -v EXTRA ]]; then make flake mototest; fi
 after_success:

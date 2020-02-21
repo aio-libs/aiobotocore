@@ -1,4 +1,3 @@
-import asyncio
 import botocore.credentials
 import botocore.session
 
@@ -11,9 +10,7 @@ from .parsers import AioResponseParserFactory
 
 class AioSession(botocore.session.Session):
 
-    def __init__(self, *args, loop=None, **kwargs):
-        self._loop = loop or asyncio.get_event_loop()
-
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         # Register the AioResponseParserFactory so event streams will be async'd
@@ -71,7 +68,7 @@ class AioSession(botocore.session.Session):
         client_creator = AioClientCreator(
             loader, endpoint_resolver, self.user_agent(), event_emitter,
             retryhandler, translate, response_parser_factory,
-            exceptions_factory, config_store, loop=self._loop)
+            exceptions_factory, config_store)
         client = client_creator.create_client(
             service_name=service_name, region_name=region_name,
             is_secure=use_ssl, endpoint_url=endpoint_url, verify=verify,
@@ -83,8 +80,8 @@ class AioSession(botocore.session.Session):
         return client
 
 
-def get_session(*, env_vars=None, loop=None):
+def get_session(env_vars=None):
     """
     Return a new session object.
     """
-    return AioSession(env_vars, loop=loop)
+    return AioSession(env_vars)

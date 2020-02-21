@@ -3,8 +3,10 @@ Changes
 
 0.12.0 (TBD)
 ^^^^^^^^^^^^
-
 * Bump botocore and extras
+* Drop support for 3.5 given we are unable to test it with moto
+  and it will soon be unsupported
+* Remove loop parameters for Python 3.8 compliance
 
 0.11.1 (2020-01-03)
 ^^^^^^^^^^^^^^^^^^^

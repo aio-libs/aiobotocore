@@ -78,7 +78,7 @@ versions that are compatible with the above changes.
 See next section describing types of changes we must validate and support.
 
 Hashes of Botocore Code (important)
------------------------
+-----------------------------------
 Because of the way aiobotocore is implemented (see Background section), it is very tightly coupled with botocore.  The validity of these couplings are enforced in test_patches.py.  We also depend on some private properties in aiohttp, and because of this have entries in test_patches.py for this too.
 
 These patches are important to catch cases where botocore functionality was added/removed and needs to be reflected in our overridden methods.  Changes include:
