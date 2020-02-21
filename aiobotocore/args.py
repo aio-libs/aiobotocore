@@ -23,7 +23,7 @@ class AioClientArgsCreator(botocore.args.ClientArgsCreator):
             service_model, client_config, endpoint_bridge, region_name,
             endpoint_url, is_secure, scoped_config)
 
-        service_name = final_args['service_name']
+        # service_name = final_args['service_name']
         parameter_validation = final_args['parameter_validation']
         endpoint_config = final_args['endpoint_config']
         protocol = final_args['protocol']
@@ -34,10 +34,6 @@ class AioClientArgsCreator(botocore.args.ClientArgsCreator):
 
         signing_region = endpoint_config['signing_region']
         endpoint_region_name = endpoint_config['region_name']
-        if signing_region is None and endpoint_region_name is None:
-            signing_region, endpoint_region_name = \
-                self._get_default_s3_region(service_name, endpoint_bridge)
-            config_kwargs['region_name'] = endpoint_region_name
 
         event_emitter = copy.copy(self._event_emitter)
         signer = RequestSigner(
