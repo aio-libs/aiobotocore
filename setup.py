@@ -48,11 +48,6 @@ classifiers = [
     'Intended Audience :: Developers',
     'Intended Audience :: System Administrators',
     'Programming Language :: Python :: 3',
-
-    # switch tee in paginate.py + zip_longest in test_basic_s3.py to
-    # aioitertools after we're 3.6+
-    # We'll need: https://github.com/jreese/aioitertools/issues/11 and
-    # https://github.com/jreese/aioitertools/issues/13
     'Programming Language :: Python :: 3.6',
     'Programming Language :: Python :: 3.7',
     'Programming Language :: Python :: 3.8',
