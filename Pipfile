@@ -14,4 +14,4 @@ pytest-asyncio = "==0.10.0"
 pytest-xdist = "==1.31.0"
 
 [packages]
-aiobotocore = {editable = true,file = "aiobotocore", extras = ["awscli", "boto3"]}
+aiobotocore = {editable = true, path = ".", extras = ["awscli", "boto3"]}

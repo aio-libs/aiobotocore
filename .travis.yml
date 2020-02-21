@@ -20,10 +20,10 @@ matrix:
 install:
     - pip install -U setuptools pip
     - if ! [[ -v EXTRA ]]; then
-        pip install pipenv;
-        pipenv lock --dev -v;
-        pipenv install --dev;
-        pipenv check;
+        pip install -U pipenv &&
+        pipenv lock &&
+        pipenv install --dev -e . &&
+        pipenv check &&
         pipenv graph;
       fi
     - pip install codecov
@@ -31,8 +31,8 @@ install:
     - pip freeze
 
 script:
-    - if [[ -v EXTRA ]];
-        then pip install -U pipdeptree .[$EXTRA];
+    - if [[ -v EXTRA ]]; then
+        pip install -U pipdeptree .[$EXTRA] &&
         pipdeptree;
       else
         make flake mototest;
