@@ -21,6 +21,7 @@ install:
     - pip install -U setuptools pip
     - if ! [[ -v EXTRA ]]; then
         pip install pipenv;
+        pipenv lock --dev -v;
         pipenv install --dev;
         pipenv check;
         pipenv graph;

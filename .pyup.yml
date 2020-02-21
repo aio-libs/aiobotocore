@@ -5,5 +5,4 @@ schedule: every week
 
 requirements:
   - Pipfile
-  - Pipfile.lock
   - docs/requirements.txt
