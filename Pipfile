@@ -13,6 +13,7 @@ pytest = "==5.3.5"
 pytest-cov = "==2.8.1"
 pytest-asyncio = "==0.10.0"
 pytest-xdist = "==1.31.0"
+dill = "==0.3.1.1"
 
 # for some reason this is needed when running setup.py check -rms on travis on 3.6.10
 Pygments = "*"
