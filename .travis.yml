@@ -22,13 +22,14 @@ install:
     - if ! [[ -v EXTRA ]]; then
         pip install -U pipenv &&
         pipenv lock &&
-        pipenv install --dev -e . &&
+        pipenv sync --dev &&
         pipenv check &&
         pipenv graph;
+      else
+        pip install codecov &&
+        pip check &&
+        pip freeze
       fi
-    - pip install codecov
-    - pip check
-    - pip freeze
 
 script:
     - if [[ -v EXTRA ]]; then
