@@ -93,6 +93,6 @@ async def test_connector_timeout2():
 
 @pytest.mark.moto
 @pytest.mark.asyncio
-def test_get_session():
+async def test_get_session():
     session = get_session()
     assert isinstance(session, AioSession)
