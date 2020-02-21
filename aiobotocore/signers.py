@@ -1,4 +1,5 @@
 import botocore
+import botocore.auth
 from botocore.signers import RequestSigner, UnknownSignatureVersionError, \
     UnsupportedSignatureVersionError, create_request_object, prepare_request_dict, \
     _should_use_global_endpoint
@@ -45,7 +46,7 @@ class AioRequestSigner(RequestSigner):
                 kwargs['expires'] = expires_in
 
             try:
-                auth = self.get_auth_instance(**kwargs)
+                auth = await self.get_auth_instance(**kwargs)
             except UnknownSignatureVersionError as e:
                 if signing_type != 'standard':
                     raise UnsupportedSignatureVersionError(
@@ -54,6 +55,31 @@ class AioRequestSigner(RequestSigner):
                     raise e
 
             auth.add_auth(request)
+
+    async def get_auth_instance(self, signing_name, region_name,
+                          signature_version=None, **kwargs):
+        if signature_version is None:
+            signature_version = self._signature_version
+
+        cls = botocore.auth.AUTH_TYPE_MAPS.get(signature_version)
+        if cls is None:
+            raise UnknownSignatureVersionError(
+                signature_version=signature_version)
+
+        frozen_credentials = None
+        if self._credentials is not None:
+            frozen_credentials = await self._credentials.get_frozen_credentials()
+        kwargs['credentials'] = frozen_credentials
+        if cls.REQUIRES_REGION:
+            if self._region_name is None:
+                raise botocore.exceptions.NoRegionError()
+            kwargs['region_name'] = region_name
+            kwargs['service_name'] = signing_name
+        auth = cls(**kwargs)
+        return auth
+
+    # Alias get_auth for backwards compatibility.
+    get_auth = get_auth_instance
 
     async def _choose_signer(self, operation_name, signing_type, context):
         signing_type_suffix_map = {
@@ -92,6 +118,9 @@ class AioRequestSigner(RequestSigner):
 
         request.prepare()
         return request.url
+
+    # TODO override def get_auth_instance
+    # get_auth_instance calls self._credentials.get_frozen_credentials()
 
 
 def add_generate_presigned_url(class_attributes, **kwargs):
