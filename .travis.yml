@@ -28,7 +28,7 @@ install:
       else
         pip install codecov &&
         pip check &&
-        pip freeze
+        pip freeze;
       fi
 
 script:
