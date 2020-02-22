@@ -1,6 +1,5 @@
 import os
 import re
-import sys
 from setuptools import setup, find_packages
 
 
@@ -13,11 +12,6 @@ install_requires = [
     'wrapt>=1.10.10',
     'aioitertools>=0.5.1',
 ]
-
-PY_VER = sys.version_info
-
-if not PY_VER >= (3, 6, 0):
-    raise RuntimeError("aiobotocore doesn't support Python earlier than 3.6.0")
 
 
 def read(f):
@@ -57,17 +51,20 @@ classifiers = [
 ]
 
 
-setup(name='aiobotocore',
-      version=read_version(),
-      description='Async client for aws services using botocore and aiohttp',
-      long_description='\n\n'.join((read('README.rst'), read('CHANGES.rst'))),
-      classifiers=classifiers,
-      author="Nikolay Novik",
-      author_email="nickolainovik@gmail.com",
-      url='https://github.com/aio-libs/aiobotocore',
-      download_url='https://pypi.python.org/pypi/aiobotocore',
-      license='Apache 2',
-      packages=find_packages(),
-      install_requires=install_requires,
-      extras_require=extras_require,
-      include_package_data=True)
+setup(
+    name='aiobotocore',
+    version=read_version(),
+    description='Async client for aws services using botocore and aiohttp',
+    long_description='\n\n'.join((read('README.rst'), read('CHANGES.rst'))),
+    classifiers=classifiers,
+    author="Nikolay Novik",
+    author_email="nickolainovik@gmail.com",
+    url='https://github.com/aio-libs/aiobotocore',
+    download_url='https://pypi.python.org/pypi/aiobotocore',
+    license='Apache 2',
+    packages=find_packages(),
+    python_requires='>=3.6',
+    install_requires=install_requires,
+    extras_require=extras_require,
+    include_package_data=True
+)
