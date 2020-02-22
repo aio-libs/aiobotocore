@@ -7,6 +7,8 @@ from botocore.exceptions import PartialCredentialsError
 from .client import AioClientCreator, AioBaseClient
 from .hooks import AioHierarchicalEmitter, AioEventAliaser
 from .parsers import AioResponseParserFactory
+from .signers import add_generate_presigned_url
+from .credentials import create_credential_resolver, AioCredentials
 
 
 class ClientCreatorContext:
@@ -58,6 +60,9 @@ class AioSession(Session):
         if session_vars is not None:
             self.session_var_map.update(session_vars)
 
+        # Register our own handlers
+        self.register('creating-client-class', add_generate_presigned_url)
+
     def _register_response_parser_factory(self):
         self._components.register_component('response_parser_factory',
                                             AioResponseParserFactory())
@@ -100,7 +105,7 @@ class AioSession(Session):
             credentials = None
         elif aws_access_key_id is not None and \
                 aws_secret_access_key is not None:
-            credentials = botocore.credentials.Credentials(
+            credentials = AioCredentials(
                 access_key=aws_access_key_id,
                 secret_key=aws_secret_access_key,
                 token=aws_session_token)
@@ -111,7 +116,7 @@ class AioSession(Session):
                 cred_var=self._missing_cred_vars(aws_access_key_id,
                                                  aws_secret_access_key))
         else:
-            credentials = self.get_credentials()
+            credentials = await self.get_credentials()
         endpoint_resolver = self._get_internal_component('endpoint_resolver')
         exceptions_factory = self._get_internal_component('exceptions_factory')
         config_store = self.get_component('config_store')
@@ -128,6 +133,16 @@ class AioSession(Session):
         if monitor is not None:
             monitor.register(client.meta.events)
         return client
+
+    def _create_credential_resolver(self):
+        return create_credential_resolver(
+            self, region_name=self._last_client_region_used)
+
+    async def get_credentials(self):
+        if self._credentials is None:
+            self._credentials = await (self._components.get_component(
+                'credential_provider').load_credentials())
+        return self._credentials
 
 
 def get_session(env_vars=None):

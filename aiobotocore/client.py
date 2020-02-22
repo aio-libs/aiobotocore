@@ -1,5 +1,6 @@
 from botocore.awsrequest import prepare_request_dict
-from botocore.client import logger, PaginatorDocstring, ClientCreator, BaseClient, ClientEndpointBridge
+from botocore.client import logger, PaginatorDocstring, ClientCreator, \
+    BaseClient, ClientEndpointBridge
 from botocore.exceptions import OperationNotPageableError
 from botocore.history import get_global_history_recorder
 from botocore.utils import get_service_module_name

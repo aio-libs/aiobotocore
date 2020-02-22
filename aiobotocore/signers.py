@@ -1,6 +1,9 @@
 import botocore
+import botocore.auth
 from botocore.signers import RequestSigner, UnknownSignatureVersionError, \
-    UnsupportedSignatureVersionError, create_request_object
+    UnsupportedSignatureVersionError, create_request_object, prepare_request_dict, \
+    _should_use_global_endpoint
+from botocore.exceptions import UnknownClientMethodError
 
 
 class AioRequestSigner(RequestSigner):
@@ -43,7 +46,7 @@ class AioRequestSigner(RequestSigner):
                 kwargs['expires'] = expires_in
 
             try:
-                auth = self.get_auth_instance(**kwargs)
+                auth = await self.get_auth_instance(**kwargs)
             except UnknownSignatureVersionError as e:
                 if signing_type != 'standard':
                     raise UnsupportedSignatureVersionError(
@@ -52,6 +55,31 @@ class AioRequestSigner(RequestSigner):
                     raise e
 
             auth.add_auth(request)
+
+    async def get_auth_instance(self, signing_name, region_name,
+                          signature_version=None, **kwargs):
+        if signature_version is None:
+            signature_version = self._signature_version
+
+        cls = botocore.auth.AUTH_TYPE_MAPS.get(signature_version)
+        if cls is None:
+            raise UnknownSignatureVersionError(
+                signature_version=signature_version)
+
+        frozen_credentials = None
+        if self._credentials is not None:
+            frozen_credentials = await self._credentials.get_frozen_credentials()
+        kwargs['credentials'] = frozen_credentials
+        if cls.REQUIRES_REGION:
+            if self._region_name is None:
+                raise botocore.exceptions.NoRegionError()
+            kwargs['region_name'] = region_name
+            kwargs['service_name'] = signing_name
+        auth = cls(**kwargs)
+        return auth
+
+    # Alias get_auth for backwards compatibility.
+    get_auth = get_auth_instance
 
     async def _choose_signer(self, operation_name, signing_type, context):
         signing_type_suffix_map = {
@@ -90,3 +118,73 @@ class AioRequestSigner(RequestSigner):
 
         request.prepare()
         return request.url
+
+    # TODO override def get_auth_instance
+    # get_auth_instance calls self._credentials.get_frozen_credentials()
+
+
+def add_generate_presigned_url(class_attributes, **kwargs):
+    class_attributes['generate_presigned_url'] = generate_presigned_url
+
+
+async def generate_presigned_url(self, ClientMethod, Params=None, ExpiresIn=3600,
+                                 HttpMethod=None):
+    """Generate a presigned url given a client, its method, and arguments
+
+    :type ClientMethod: string
+    :param ClientMethod: The client method to presign for
+
+    :type Params: dict
+    :param Params: The parameters normally passed to
+        ``ClientMethod``.
+
+    :type ExpiresIn: int
+    :param ExpiresIn: The number of seconds the presigned url is valid
+        for. By default it expires in an hour (3600 seconds)
+
+    :type HttpMethod: string
+    :param HttpMethod: The http method to use on the generated url. By
+        default, the http method is whatever is used in the method's model.
+
+    :returns: The presigned url
+    """
+    client_method = ClientMethod
+    params = Params
+    if params is None:
+        params = {}
+    expires_in = ExpiresIn
+    http_method = HttpMethod
+    context = {
+        'is_presign_request': True,
+        'use_global_endpoint': _should_use_global_endpoint(self),
+    }
+
+    request_signer = self._request_signer
+    serializer = self._serializer
+
+    try:
+        operation_name = self._PY_TO_OP_NAME[client_method]
+    except KeyError:
+        raise UnknownClientMethodError(method_name=client_method)
+
+    operation_model = self.meta.service_model.operation_model(
+        operation_name)
+
+    params = await self._emit_api_params(params, operation_model, context)
+
+    # Create a request dict based on the params to serialize.
+    request_dict = serializer.serialize_to_request(
+        params, operation_model)
+
+    # Switch out the http method if user specified it.
+    if http_method is not None:
+        request_dict['method'] = http_method
+
+    # Prepare the request dict by including the client's endpoint url.
+    prepare_request_dict(
+        request_dict, endpoint_url=self.meta.endpoint_url, context=context)
+
+    # Generate the presigned url.
+    return await request_signer.generate_presigned_url(
+        request_dict=request_dict, expires_in=expires_in,
+        operation_name=operation_name)
