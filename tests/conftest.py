@@ -11,7 +11,6 @@ import os
 # Third Party
 import pytest
 import aiohttp
-from async_generator import async_generator, yield_
 
 
 host = '127.0.0.1'
@@ -49,8 +48,7 @@ def assert_status_code(response, status_code):
 
 async def assert_num_uploads_found(
         s3_client, bucket_name, operation, num_uploads, *, max_items=None,
-        num_attempts=5, event_loop):
-    amount_seen = None
+        num_attempts=5):
     paginator = s3_client.get_paginator(operation)
     for _ in range(num_attempts):
         pages = paginator.paginate(Bucket=bucket_name,
@@ -68,7 +66,7 @@ async def assert_num_uploads_found(
             return
         else:
             # Sleep and try again.
-            await asyncio.sleep(2, loop=event_loop)
+            await asyncio.sleep(2)
         pytest.fail("Expected to see %s uploads, instead saw: %s" % (
             num_uploads, amount_seen))
 
@@ -91,8 +89,8 @@ def aa_succeed_proxy_config(monkeypatch):
 
 
 @pytest.fixture
-def session(event_loop):
-    session = aiobotocore.session.AioSession(loop=event_loop)
+def session():
+    session = aiobotocore.session.AioSession()
     return session
 
 
@@ -237,21 +235,18 @@ async def recursive_delete(s3_client, bucket_name):
 
 
 @pytest.fixture
-@async_generator
 async def bucket_name(region, create_bucket):
     name = await create_bucket(region)
-    await yield_(name)
+    yield name
 
 
 @pytest.fixture
-@async_generator
 async def table_name(create_table):
     name = await create_table()
-    await yield_(name)
+    yield name
 
 
 @pytest.fixture
-@async_generator
 async def create_bucket(s3_client):
     _bucket_name = None
 
@@ -272,13 +267,12 @@ async def create_bucket(s3_client):
         return bucket_name
 
     try:
-        await yield_(_f)
+        yield _f
     finally:
         await recursive_delete(s3_client, _bucket_name)
 
 
 @pytest.fixture
-@async_generator
 async def create_table(dynamodb_client):
     _table_name = None
 
@@ -319,7 +313,7 @@ async def create_table(dynamodb_client):
         return table_name
 
     try:
-        await yield_(_f)
+        yield _f
     finally:
         await delete_table(dynamodb_client, _table_name)
 
@@ -375,10 +369,9 @@ def create_multipart_upload(request, s3_client, bucket_name, event_loop):
 
 
 @pytest.fixture
-@async_generator
-async def aio_session(event_loop):
-    async with aiohttp.ClientSession(loop=event_loop) as session:
-        await yield_(session)
+async def aio_session():
+    async with aiohttp.ClientSession() as session:
+        yield session
 
 
 def pytest_configure():
@@ -391,7 +384,7 @@ def pytest_configure():
 
 
 @pytest.fixture
-def dynamodb_put_item(request, dynamodb_client, table_name):
+def dynamodb_put_item(dynamodb_client, table_name):
 
     async def _f(key_string_value):
         response = await dynamodb_client.put_item(

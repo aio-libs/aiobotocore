@@ -3,21 +3,13 @@ from collections import defaultdict
 
 import pytest
 import aiohttp
-from async_generator import async_generator, yield_
+import aioitertools
 
 
 async def fetch_all(pages):
     responses = []
-    # TODO: replace with below once we remove next_page method
-    # async for n in pages:
-    #     responses.append(n)
-    while True:
-        # testing next_page method
-        n = await pages.next_page()
-        if n is None:
-            break
+    async for n in pages:
         responses.append(n)
-
     return responses
 
 
@@ -134,34 +126,6 @@ async def test_can_paginate_iterator(s3_client, bucket_name, create_object):
     assert key_names == ['key0', 'key1', 'key2', 'key3', 'key4']
 
 
-# before replacing this with aioitertools
-# we need fix to https://github.com/jreese/aioitertools/issues/13 and
-# https://github.com/jreese/aioitertools/issues/11
-@async_generator
-async def _zip_longest(*itrs, fillvalue=None):
-    its = [itr.__aiter__() for itr in itrs]
-    its_running = [True] * len(itrs)
-
-    async def get_fillvalue():
-        return fillvalue
-
-    while True:
-        values = await asyncio.gather(
-            *[it.__anext__() if its_running[idx] else get_fillvalue()
-              for idx, it in enumerate(its)
-              ],
-            return_exceptions=True
-        )
-        for idx, value in enumerate(values):
-            if isinstance(value, (StopIteration, StopAsyncIteration)):
-                its_running[idx] = False
-            elif isinstance(value, BaseException):
-                raise value
-        if not any(its_running):
-            break
-        await yield_(tuple(values))
-
-
 @pytest.mark.asyncio
 @pytest.mark.moto
 async def test_result_key_iters(s3_client, bucket_name, create_object):
@@ -179,7 +143,11 @@ async def test_result_key_iters(s3_client, bucket_name, create_object):
     iterators = generator.result_key_iters()
     response = defaultdict(list)
     key_names = [i.result_key for i in iterators]
-    async for vals in _zip_longest(*iterators):
+
+    # adapt to aioitertools ideas
+    iterators = [itr.__aiter__() for itr in iterators]
+
+    async for vals in aioitertools.zip_longest(*iterators):
         pass
 
         for k, val in zip(key_names, vals):
@@ -228,7 +196,7 @@ async def test_get_object_stream_context(s3_client, create_object,
 @pytest.mark.asyncio
 @pytest.mark.moto
 async def test_paginate_max_items(
-        s3_client, create_multipart_upload, bucket_name, event_loop):
+        s3_client, create_multipart_upload, bucket_name):
     await create_multipart_upload('foo/key1')
     await create_multipart_upload('foo/key1')
     await create_multipart_upload('foo/key1')
@@ -241,12 +209,12 @@ async def test_paginate_max_items(
     # Verify when we have MaxItems=None, we get back all 8 uploads.
     await pytest.aio.assert_num_uploads_found(
         s3_client, bucket_name, 'list_multipart_uploads', max_items=None,
-        num_uploads=8, event_loop=event_loop)
+        num_uploads=8)
 
     # Verify when we have MaxItems=1, we get back 1 upload.
     await pytest.aio.assert_num_uploads_found(
         s3_client, bucket_name, 'list_multipart_uploads', max_items=1,
-        num_uploads=1, event_loop=event_loop)
+        num_uploads=1)
 
     paginator = s3_client.get_paginator('list_multipart_uploads')
     # Works similar with build_full_result()
