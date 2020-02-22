@@ -26,9 +26,7 @@ class AioSession(Session):
 
     # noinspection PyMissingConstructor
     def __init__(self, session_vars=None, event_hooks=None,
-                 include_builtin_handlers=True, profile=None, loop=None):
-        self._loop = loop
-
+                 include_builtin_handlers=True, profile=None):
         if event_hooks is None:
             self._original_handler = AioHierarchicalEmitter()
         else:
@@ -36,10 +34,6 @@ class AioSession(Session):
         self._events = AioEventAliaser(self._original_handler)
         if include_builtin_handlers:
             self._register_builtin_handlers(self._events)
-            # aiobotocore
-            # Register the AioResponseParserFactory so event streams will be async'd
-            self.register_component('response_parser_factory', AioResponseParserFactory())
-
         self.user_agent_name = 'Botocore'
         self.user_agent_version = __version__
         self.user_agent_extra = ''
@@ -63,6 +57,10 @@ class AioSession(Session):
         self.session_var_map = SessionVarDict(self, self.SESSION_VARIABLES)
         if session_vars is not None:
             self.session_var_map.update(session_vars)
+
+    def _register_response_parser_factory(self):
+        self._components.register_component('response_parser_factory',
+                                            AioResponseParserFactory())
 
     def create_client(self, *args, **kwargs):
         return ClientCreatorContext(self._create_client(*args, **kwargs))
