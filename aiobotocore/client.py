@@ -1,5 +1,3 @@
-import asyncio
-
 from botocore.awsrequest import prepare_request_dict
 from botocore.client import logger, PaginatorDocstring, ClientCreator, BaseClient, ClientEndpointBridge
 from botocore.exceptions import OperationNotPageableError
@@ -16,11 +14,6 @@ history_recorder = get_global_history_recorder()
 
 
 class AioClientCreator(ClientCreator):
-
-    def __init__(self, *args, loop=None, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._loop = loop or asyncio.get_event_loop()
-
     async def create_client(self, service_name, region_name, is_secure=True,
                             endpoint_url=None, verify=None,
                             credentials=None, scoped_config=None,
@@ -69,18 +62,13 @@ class AioClientCreator(ClientCreator):
         args_creator = AioClientArgsCreator(
             self._event_emitter, self._user_agent,
             self._response_parser_factory, self._loader,
-            self._exceptions_factory, loop=self._loop,
-            config_store=self._config_store)
+            self._exceptions_factory, config_store=self._config_store)
         return args_creator.get_client_args(
             service_model, region_name, is_secure, endpoint_url,
             verify, credentials, scoped_config, client_config, endpoint_bridge)
 
 
 class AioBaseClient(BaseClient):
-    def __init__(self, *args, **kwargs):
-        self._loop = kwargs.pop('loop', None) or asyncio.get_event_loop()
-        super().__init__(*args, **kwargs)
-
     async def _make_api_call(self, operation_name, api_params):
         operation_model = self._service_model.operation_model(operation_name)
         service_name = self._service_model.service_name
@@ -130,11 +118,9 @@ class AioBaseClient(BaseClient):
         else:
             return parsed_response
 
-    async def _make_request(self, operation_model, request_dict,
-                            request_context):
+    async def _make_request(self, operation_model, request_dict, request_context):
         try:
-            return await self._endpoint.make_request(operation_model,
-                                                     request_dict)
+            return await self._endpoint.make_request(operation_model, request_dict)
         except Exception as e:
             await self.meta.events.emit(
                 'after-call-error.{service_id}.{operation_name}'.format(
@@ -232,14 +218,15 @@ class AioBaseClient(BaseClient):
             documented_paginator_cls = type(
                 paginator_class_name, (AioPaginator,), {'paginate': paginate})
 
-            operation_model = self._service_model.operation_model(
-                actual_operation_name)
+            operation_model = self._service_model.operation_model(actual_operation_name)
             paginator = documented_paginator_cls(
                 getattr(self, operation_name),
                 paginator_config,
                 operation_model)
             return paginator
 
+    # NOTE: this method does not differ from botocore, however it's important to keep
+    #   as the "waiter" value points to our own asyncio waiter module
     def get_waiter(self, waiter_name):
         """Returns an object that can wait for some condition.
 
@@ -261,7 +248,7 @@ class AioBaseClient(BaseClient):
             raise ValueError("Waiter does not exist: %s" % waiter_name)
 
         return waiter.create_waiter_with_client(
-            mapping[waiter_name], model, self, loop=self._loop)
+            mapping[waiter_name], model, self)
 
     async def __aenter__(self):
         await self._endpoint.http_session.__aenter__()

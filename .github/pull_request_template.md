@@ -5,7 +5,7 @@
 *Replace this text with any assumptions made (if any)*
 
 ### Checklist for All Submissions
-* [ ] I have added change info to [CHANGES.txt](https://github.com/aio-libs/aiobotocore/blob/master/CHANGES.txt)
+* [ ] I have added change info to [CHANGES.rst](https://github.com/aio-libs/aiobotocore/blob/master/CHANGES.rst)
 * [ ] If this is resolving an issue (needed so future developers can determine if change is still necessary and under what conditions) (can be provided via link to issue with these details):
   * [ ] Detailed description of issue
   * [ ] Alternative methods considered (if any)

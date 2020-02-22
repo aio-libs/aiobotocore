@@ -1,6 +1,6 @@
 import asyncio
 from mock_server import AIOServer
-from aiobotocore.session import AioSession
+from aiobotocore.session import AioSession, get_session
 from aiobotocore.config import AioConfig
 from botocore.config import Config
 from botocore.exceptions import ParamValidationError, ReadTimeoutError
@@ -46,8 +46,8 @@ def test_connector_args():
 
 @pytest.mark.moto
 @pytest.mark.asyncio
-async def test_connector_timeout(event_loop):
-    session = AioSession(loop=event_loop)
+async def test_connector_timeout():
+    session = AioSession()
     config = AioConfig(max_pool_connections=1, connect_timeout=1,
                        retries={'max_attempts': 0})
     async with AIOServer() as server, \
@@ -60,12 +60,11 @@ async def test_connector_timeout(event_loop):
             await s3_client.get_object(Bucket='foo', Key='bar')
             await asyncio.sleep(100)
 
-        task1 = asyncio.Task(get_and_wait(), loop=event_loop)
-        task2 = asyncio.Task(get_and_wait(), loop=event_loop)
+        task1 = asyncio.Task(get_and_wait())
+        task2 = asyncio.Task(get_and_wait())
 
         try:
-            done, pending = await asyncio.wait([task1, task2],
-                                               timeout=3, loop=event_loop)
+            done, pending = await asyncio.wait([task1, task2], timeout=3)
 
             # second request should not timeout just because there isn't a
             # connector available
@@ -77,8 +76,8 @@ async def test_connector_timeout(event_loop):
 
 @pytest.mark.moto
 @pytest.mark.asyncio
-async def test_connector_timeout2(event_loop):
-    session = AioSession(loop=event_loop)
+async def test_connector_timeout2():
+    session = AioSession()
     config = AioConfig(max_pool_connections=1, connect_timeout=1,
                        read_timeout=1, retries={'max_attempts': 0})
     async with AIOServer() as server, \
@@ -90,3 +89,10 @@ async def test_connector_timeout2(event_loop):
         with pytest.raises(ReadTimeoutError):
             resp = await s3_client.get_object(Bucket='foo', Key='bar')
             await resp["Body"].read()
+
+
+@pytest.mark.moto
+@pytest.mark.asyncio
+async def test_get_session():
+    session = get_session()
+    assert isinstance(session, AioSession)

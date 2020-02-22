@@ -59,10 +59,8 @@ async def convert_to_response_dict(http_response, operation_model):
 
 
 class AioEndpoint(Endpoint):
-    def __init__(self, *args, loop=None, proxies=None, **kwargs):
+    def __init__(self, *args, proxies=None, **kwargs):
         super().__init__(*args, **kwargs)
-
-        self._loop = loop or asyncio.get_event_loop()
         self.proxies = proxies or {}
 
     async def create_request(self, params, operation_model=None):
@@ -202,7 +200,7 @@ class AioEndpoint(Endpoint):
             # for the specified number of times.
             logger.debug("Response received to retry, sleeping for "
                          "%s seconds", handler_response)
-            await asyncio.sleep(handler_response, loop=self._loop)
+            await asyncio.sleep(handler_response)
             return True
 
     async def _send(self, request):
@@ -247,10 +245,6 @@ class AioEndpoint(Endpoint):
 
 
 class AioEndpointCreator(EndpointCreator):
-    def __init__(self, *args, loop=None, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._loop = loop
-
     # TODO: handle socket_options
     def create_endpoint(self, service_model, region_name, endpoint_url,
                         verify=None, response_parser_factory=None,
@@ -300,7 +294,6 @@ class AioEndpointCreator(EndpointCreator):
             ssl_context.load_cert_chain(cert_file, key_file)
 
         connector = aiohttp.TCPConnector(
-            loop=self._loop,
             limit=max_pool_connections,
             verify_ssl=self._get_verify_value(verify),
             ssl_context=ssl_context,
@@ -311,7 +304,6 @@ class AioEndpointCreator(EndpointCreator):
             timeout=timeout,
             skip_auto_headers={'CONTENT-TYPE'},
             response_class=ClientResponseProxy,
-            loop=self._loop,
             auto_decompress=False)
 
         return AioEndpoint(
@@ -320,4 +312,4 @@ class AioEndpointCreator(EndpointCreator):
             event_emitter=self._event_emitter,
             response_parser_factory=response_parser_factory,
             http_session=aio_session,
-            loop=self._loop, proxies=proxies)
+            proxies=proxies)

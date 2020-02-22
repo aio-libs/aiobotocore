@@ -11,9 +11,9 @@ import botocore.exceptions
 QUEUE_NAME = 'test_queue12'
 
 
-async def go(loop):
+async def go():
     # Boto should get credentials from ~/.aws/credentials or the environment
-    session = aiobotocore.get_session(loop=loop)
+    session = aiobotocore.get_session()
     client = session.create_client('sqs', region_name='us-west-2')
     try:
         response = await client.get_queue_url(QueueName=QUEUE_NAME)
@@ -59,7 +59,7 @@ async def go(loop):
 def main():
     try:
         loop = asyncio.get_event_loop()
-        loop.run_until_complete(go(loop))
+        loop.run_until_complete(go())
     except KeyboardInterrupt:
         pass
 

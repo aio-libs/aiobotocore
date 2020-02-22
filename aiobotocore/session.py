@@ -1,4 +1,3 @@
-import asyncio
 import botocore.credentials
 from botocore.session import Session, ComponentLocator, SessionVarDict
 
@@ -7,6 +6,7 @@ from botocore import retryhandler, translate, __version__
 from botocore.exceptions import PartialCredentialsError
 from .client import AioClientCreator, AioBaseClient
 from .hooks import AioHierarchicalEmitter, AioEventAliaser
+from .parsers import AioResponseParserFactory
 
 
 class ClientCreatorContext:
@@ -36,6 +36,10 @@ class AioSession(Session):
         self._events = AioEventAliaser(self._original_handler)
         if include_builtin_handlers:
             self._register_builtin_handlers(self._events)
+            # aiobotocore
+            # Register the AioResponseParserFactory so event streams will be async'd
+            self.register_component('response_parser_factory', AioResponseParserFactory())
+
         self.user_agent_name = 'Botocore'
         self.user_agent_version = __version__
         self.user_agent_extra = ''
@@ -66,8 +70,7 @@ class AioSession(Session):
     async def _create_client(self, service_name, region_name=None,
                              api_version=None,
                              use_ssl=True, verify=None, endpoint_url=None,
-                             aws_access_key_id=None,
-                             aws_secret_access_key=None,
+                             aws_access_key_id=None, aws_secret_access_key=None,
                              aws_session_token=None, config=None):
 
         default_client_config = self.get_default_client_config()
@@ -117,7 +120,7 @@ class AioSession(Session):
         client_creator = AioClientCreator(
             loader, endpoint_resolver, self.user_agent(), event_emitter,
             retryhandler, translate, response_parser_factory,
-            exceptions_factory, config_store, loop=self._loop)
+            exceptions_factory, config_store)
         client = await client_creator.create_client(
             service_name=service_name, region_name=region_name,
             is_secure=use_ssl, endpoint_url=endpoint_url, verify=verify,
@@ -129,9 +132,8 @@ class AioSession(Session):
         return client
 
 
-def get_session(*, env_vars=None, loop=None):
+def get_session(env_vars=None):
     """
     Return a new session object.
     """
-    loop = loop or asyncio.get_event_loop()
-    return AioSession(env_vars, loop=loop)
+    return AioSession(env_vars)

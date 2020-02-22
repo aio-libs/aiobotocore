@@ -1,12 +1,21 @@
 import asyncio
-import pytest
-import time
-import aiohttp
+import random
+import string
 import aiobotocore
 from aiobotocore.config import AioConfig
 from itertools import chain
 import tempfile
 import shutil
+import os
+
+# Third Party
+import pytest
+import aiohttp
+
+
+host = '127.0.0.1'
+
+_PYCHARM_HOSTED = os.environ.get('PYCHARM_HOSTED') == '1'
 
 
 @pytest.fixture(scope="session", params=[True, False],
@@ -28,11 +37,9 @@ def random_name():
     """Return a string with presumably unique contents
 
     The string contains only symbols allowed for s3 buckets
-    (alpfanumeric, dot and hyphen).
+    (alphanumeric, dot and hyphen).
     """
-    table_name = 'aiobotocoretest-{}'
-    t = time.time()
-    return table_name.format(int(t))
+    return ''.join(random.sample(string.ascii_letters, k=40))
 
 
 def assert_status_code(response, status_code):
@@ -41,8 +48,7 @@ def assert_status_code(response, status_code):
 
 async def assert_num_uploads_found(
         s3_client, bucket_name, operation, num_uploads, *, max_items=None,
-        num_attempts=5, event_loop):
-    amount_seen = None
+        num_attempts=5):
     paginator = s3_client.get_paginator(operation)
     for _ in range(num_attempts):
         pages = paginator.paginate(Bucket=bucket_name,
@@ -60,7 +66,7 @@ async def assert_num_uploads_found(
             return
         else:
             # Sleep and try again.
-            await asyncio.sleep(2, loop=event_loop)
+            await asyncio.sleep(2)
         pytest.fail("Expected to see %s uploads, instead saw: %s" % (
             num_uploads, amount_seen))
 
@@ -68,23 +74,23 @@ async def assert_num_uploads_found(
 @pytest.fixture
 def aa_fail_proxy_config(monkeypatch):
     # NOTE: name of this fixture must be alphabetically first to run first
-    monkeypatch.setenv('HTTP_PROXY', 'http://localhost:54321')
-    monkeypatch.setenv('HTTPS_PROXY', 'http://localhost:54321')
+    monkeypatch.setenv('HTTP_PROXY', 'http://{}:54321'.format(host))
+    monkeypatch.setenv('HTTPS_PROXY', 'http://{}:54321'.format(host))
 
 
 @pytest.fixture
 def aa_succeed_proxy_config(monkeypatch):
     # NOTE: name of this fixture must be alphabetically first to run first
-    monkeypatch.setenv('HTTP_PROXY', 'http://localhost:54321')
-    monkeypatch.setenv('HTTPS_PROXY', 'http://localhost:54321')
+    monkeypatch.setenv('HTTP_PROXY', 'http://{}:54321'.format(host))
+    monkeypatch.setenv('HTTPS_PROXY', 'http://{}:54321'.format(host))
 
     # this will cause us to skip proxying
     monkeypatch.setenv('NO_PROXY', 'amazonaws.com')
 
 
 @pytest.fixture
-def session(event_loop):
-    session = aiobotocore.get_session(loop=event_loop)
+def session():
+    session = aiobotocore.session.AioSession()
     return session
 
 
@@ -105,8 +111,12 @@ def signature_version():
 
 @pytest.fixture
 def config(region, signature_version):
+    connect_timeout = read_timout = 5
+    if _PYCHARM_HOSTED:
+        connect_timeout = read_timout = 180
+
     return AioConfig(region_name=region, signature_version=signature_version,
-                     read_timeout=5, connect_timeout=5)
+                     read_timeout=read_timout, connect_timeout=connect_timeout)
 
 
 @pytest.fixture
@@ -117,11 +127,10 @@ def mocking_test():
 
 
 def moto_config(endpoint_url):
-    AWS_ACCESS_KEY_ID = "xxx"
-    AWS_SECRET_ACCESS_KEY = "xxx"
     kw = dict(endpoint_url=endpoint_url,
-              aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
-              aws_access_key_id=AWS_ACCESS_KEY_ID)
+              aws_secret_access_key="xxx",
+              aws_access_key_id="xxx")
+
     return kw
 
 
@@ -226,19 +235,19 @@ async def recursive_delete(s3_client, bucket_name):
 
 
 @pytest.fixture
-def bucket_name(region, create_bucket, s3_client, event_loop):
-    name = event_loop.run_until_complete(create_bucket(region))
-    return name
+async def bucket_name(region, create_bucket):
+    name = await create_bucket(region)
+    yield name
 
 
 @pytest.fixture
-def table_name(region, create_table, dynamodb_client, event_loop):
-    name = event_loop.run_until_complete(create_table())
-    return name
+async def table_name(create_table):
+    name = await create_table()
+    yield name
 
 
 @pytest.fixture
-def create_bucket(request, s3_client, event_loop):
+async def create_bucket(s3_client):
     _bucket_name = None
 
     async def _f(region_name, bucket_name=None):
@@ -257,16 +266,14 @@ def create_bucket(request, s3_client, event_loop):
             Bucket=bucket_name, VersioningConfiguration={'Status': 'Enabled'})
         return bucket_name
 
-    def fin():
-        event_loop.run_until_complete(recursive_delete(s3_client,
-                                                       _bucket_name))
-
-    request.addfinalizer(fin)
-    return _f
+    try:
+        yield _f
+    finally:
+        await recursive_delete(s3_client, _bucket_name)
 
 
 @pytest.fixture
-def create_table(request, dynamodb_client, event_loop):
+async def create_table(dynamodb_client):
     _table_name = None
 
     async def _is_table_ready(table_name):
@@ -276,7 +283,6 @@ def create_table(request, dynamodb_client, event_loop):
         return response['Table']['TableStatus'] == 'ACTIVE'
 
     async def _f(table_name=None):
-
         nonlocal _table_name
         if table_name is None:
             table_name = random_tablename()
@@ -306,12 +312,10 @@ def create_table(request, dynamodb_client, event_loop):
         assert_status_code(response, 200)
         return table_name
 
-    def fin():
-        event_loop.run_until_complete(delete_table(dynamodb_client,
-                                                   _table_name))
-
-    request.addfinalizer(fin)
-    return _f
+    try:
+        yield _f
+    finally:
+        await delete_table(dynamodb_client, _table_name)
 
 
 async def delete_table(dynamodb_client, table_name):
@@ -364,11 +368,10 @@ def create_multipart_upload(request, s3_client, bucket_name, event_loop):
     return _f
 
 
-@pytest.yield_fixture
-def aio_session(request, event_loop):
-    session = aiohttp.ClientSession(loop=event_loop)
-    yield session
-    event_loop.run_until_complete(session.close())
+@pytest.fixture
+async def aio_session():
+    async with aiohttp.ClientSession() as session:
+        yield session
 
 
 def pytest_configure():
@@ -381,7 +384,7 @@ def pytest_configure():
 
 
 @pytest.fixture
-def dynamodb_put_item(request, dynamodb_client, table_name):
+def dynamodb_put_item(dynamodb_client, table_name):
 
     async def _f(key_string_value):
         response = await dynamodb_client.put_item(

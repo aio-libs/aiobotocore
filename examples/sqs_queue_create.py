@@ -4,8 +4,8 @@ import asyncio
 import aiobotocore
 
 
-async def go(loop):
-    session = aiobotocore.get_session(loop=loop)
+async def go():
+    session = aiobotocore.get_session()
     client = session.create_client('sqs', region_name='us-west-2')
 
     print('Creating test_queue1')
@@ -28,7 +28,7 @@ async def go(loop):
 def main():
     try:
         loop = asyncio.get_event_loop()
-        loop.run_until_complete(go(loop))
+        loop.run_until_complete(go())
     except KeyboardInterrupt:
         pass
 

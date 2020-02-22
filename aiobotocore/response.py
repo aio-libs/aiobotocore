@@ -3,9 +3,6 @@ import asyncio
 import wrapt
 from botocore.exceptions import IncompleteReadError, ReadTimeoutError
 
-# can remove if we move to py3.6+
-from async_generator import async_generator, yield_
-
 
 class AioReadTimeoutError(ReadTimeoutError, asyncio.TimeoutError):
     pass
@@ -78,7 +75,6 @@ class StreamingBody(wrapt.ObjectProxy):
 
     anext = __anext__
 
-    @async_generator
     async def iter_lines(self, chunk_size=1024):
         """Return an iterator to yield lines from the raw stream.
 
@@ -89,12 +85,11 @@ class StreamingBody(wrapt.ObjectProxy):
         async for chunk in self.iter_chunks(chunk_size):
             lines = (pending + chunk).splitlines(True)
             for line in lines[:-1]:
-                await yield_(line.splitlines()[0])
+                yield line.splitlines()[0]
             pending = lines[-1]
         if pending:
-            await yield_(pending.splitlines()[0])
+            yield pending.splitlines()[0]
 
-    @async_generator
     async def iter_chunks(self, chunk_size=_DEFAULT_CHUNK_SIZE):
         """Return an iterator to yield chunks of chunk_size bytes from the raw
         stream.
@@ -103,7 +98,7 @@ class StreamingBody(wrapt.ObjectProxy):
             current_chunk = await self.read(chunk_size)
             if current_chunk == b"":
                 break
-            await yield_(current_chunk)
+            yield current_chunk
 
     def _verify_content_length(self):
         # See: https://github.com/kennethreitz/requests/issues/1855
