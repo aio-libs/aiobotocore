@@ -138,12 +138,12 @@ https://groups.google.com/forum/#!forum/aio-libs
 
 Requirements
 ------------
-* Python_ 3.5+
+* Python_ 3.6+
 * aiohttp_
 * botocore_
 
 .. _Python: https://www.python.org
-.. _asyncio: http://docs.python.org/3.5/library/asyncio.html
+.. _asyncio: https://docs.python.org/3/library/asyncio.html
 .. _botocore: https://github.com/boto/botocore
 .. _aiohttp: https://github.com/KeepSafe/aiohttp
 
