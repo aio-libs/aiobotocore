@@ -21,6 +21,7 @@ def read(f):
 extras_require = {
     'awscli': ['awscli==1.18.3'],
     'boto3': ['boto3==1.12.3'],
+    'aiomoto': ['moto==1.3.14'],
 }
 
 
@@ -66,5 +67,6 @@ setup(
     python_requires='>=3.6',
     install_requires=install_requires,
     extras_require=extras_require,
-    include_package_data=True
+    include_package_data=True,
+    entry_points={'pytest11': ['aiomoto = aiobotocore.aiomoto']},
 )

@@ -463,4 +463,8 @@ async def delete_sqs_queue(sqs_client, queue_url):
     assert_status_code(response, 200)
 
 
-pytest_plugins = ['mock_server']
+pytest_plugins = [
+    "tests.mock_server",
+    "aiobotocore.aiomoto.aws_fixtures",
+    "aiobotocore.aiomoto.aiomoto_fixtures",
+]
