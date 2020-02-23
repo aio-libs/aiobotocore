@@ -201,6 +201,15 @@ def sqs_client(request, session, region, config, sqs_server,
     return client
 
 
+@pytest.fixture
+def batch_client(request, session, region, config, batch_server,
+                 mocking_test, event_loop):
+    kw = moto_config(batch_server) if mocking_test else {}
+    client = create_client('batch', request, event_loop, session, region,
+                           config, **kw)
+    return client
+
+
 def create_client(client_type, request, event_loop, session, region,
                   config, **kw):
     async def f():

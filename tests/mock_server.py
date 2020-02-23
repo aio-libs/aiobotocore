@@ -122,3 +122,9 @@ async def sns_server():
 async def sqs_server():
     async with MotoService('sqs') as svc:
         yield svc.endpoint_url
+
+
+@pytest.fixture
+async def batch_server():
+    async with MotoService('batch') as svc:
+        yield svc.endpoint_url
