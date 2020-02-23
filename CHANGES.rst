@@ -1,8 +1,8 @@
 Changes
 -------
 
-0.12.0 (TBD)
-^^^^^^^^^^^^
+0.12.0 (2020-02-23)
+^^^^^^^^^^^^^^^^^^^
 * Bump botocore and extras
 * Drop support for 3.5 given we are unable to test it with moto
   and it will soon be unsupported
