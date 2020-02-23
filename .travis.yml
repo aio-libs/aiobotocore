@@ -53,3 +53,7 @@ deploy:
         python: 3.7
 
 cache: pip
+
+branches:
+  only:
+  - master
