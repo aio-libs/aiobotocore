@@ -3,15 +3,17 @@ import logging
 from copy import deepcopy
 
 from botocore import UNSIGNED
-from botocore.credentials import EnvProvider, Credentials, RefreshableCredentials, ReadOnlyCredentials, ContainerProvider, \
-    ContainerMetadataFetcher, _parse_if_needed, InstanceMetadataProvider, _get_client_creator, \
-    ProfileProviderBuilder, ConfigProvider, SharedCredentialProvider, ProcessProvider, \
-    AssumeRoleWithWebIdentityProvider, _local_now, CachedCredentialFetcher, \
-    _serialize_if_needed, BaseAssumeRoleCredentialFetcher, AssumeRoleProvider, \
-    AssumeRoleCredentialFetcher, CredentialResolver, CanonicalNameCredentialSourcer, BotoProvider, \
-    OriginalEC2Provider
-from botocore.exceptions import MetadataRetrievalError, CredentialRetrievalError, InvalidConfigError, \
-    PartialCredentialsError, RefreshWithMFAUnsupportedError, UnknownCredentialError
+from botocore.credentials import EnvProvider, Credentials, RefreshableCredentials, \
+    ReadOnlyCredentials, ContainerProvider, ContainerMetadataFetcher, \
+    _parse_if_needed, InstanceMetadataProvider, _get_client_creator, \
+    ProfileProviderBuilder, ConfigProvider, SharedCredentialProvider, \
+    ProcessProvider, AssumeRoleWithWebIdentityProvider, _local_now, \
+    CachedCredentialFetcher, _serialize_if_needed, BaseAssumeRoleCredentialFetcher, \
+    AssumeRoleProvider, AssumeRoleCredentialFetcher, CredentialResolver, \
+    CanonicalNameCredentialSourcer, BotoProvider, OriginalEC2Provider
+from botocore.exceptions import MetadataRetrievalError, CredentialRetrievalError, \
+    InvalidConfigError, PartialCredentialsError, RefreshWithMFAUnsupportedError, \
+    UnknownCredentialError
 
 from aiobotocore.utils import AioContainerMetadataFetcher, AioInstanceMetadataFetcher
 from aiobotocore.config import AioConfig
@@ -34,7 +36,6 @@ def create_aio_mfa_serial_refresher(actual_refresh):
                 raise RefreshWithMFAUnsupportedError()
             self._has_been_called = True
             return await self._refresh()
-
 
     return _Refresher(actual_refresh).call
 
@@ -75,17 +76,30 @@ class AioRefreshableCredentials(RefreshableCredentials):
             obj._time_fetcher
         )
 
+    # Redeclaring the properties so it doesnt call refresh
     @property
     def access_key(self):
         return self._access_key
+
+    @access_key.setter
+    def access_key(self, value):
+        self._access_key = value
 
     @property
     def secret_key(self):
         return self._secret_key
 
+    @secret_key.setter
+    def secret_key(self, value):
+        self._secret_key = value
+
     @property
     def token(self):
         return self._token
+
+    @token.setter
+    def token(self, value):
+        self._token = value
 
     async def _refresh(self):
         if not self.refresh_needed(self._advisory_refresh_timeout):
@@ -101,7 +115,8 @@ class AioRefreshableCredentials(RefreshableCredentials):
                 await self._protected_refresh(is_mandatory=is_mandatory_refresh)
                 return
         elif self.refresh_needed(self._mandatory_refresh_timeout):
-            # If we're here, we absolutely need a refresh and the lock is held so wait for it
+            # If we're here, we absolutely need a refresh and the
+            # lock is held so wait for it
             async with self._refresh_lock:
                 # Might have refreshed by now
                 if not self.refresh_needed(self._mandatory_refresh_timeout):
@@ -114,7 +129,7 @@ class AioRefreshableCredentials(RefreshableCredentials):
     async def _protected_refresh(self, is_mandatory):
         try:
             metadata = await self._refresh_using()
-        except Exception as e:
+        except Exception:
             period_name = 'mandatory' if is_mandatory else 'advisory'
             logger.warning("Refreshing temporary credentials failed "
                            "during %s refresh period.",
@@ -192,16 +207,30 @@ class AioCachedCredentialFetcher(CachedCredentialFetcher):
         }
 
 
-class AioBaseAssumeRoleCredentialFetcher(BaseAssumeRoleCredentialFetcher, AioCachedCredentialFetcher):
+class AioBaseAssumeRoleCredentialFetcher(BaseAssumeRoleCredentialFetcher,
+                                         AioCachedCredentialFetcher):
     pass
 
 
-class AioAssumeRoleCredentialFetcher(AssumeRoleCredentialFetcher, AioBaseAssumeRoleCredentialFetcher):
+class AioAssumeRoleCredentialFetcher(AssumeRoleCredentialFetcher,
+                                     AioBaseAssumeRoleCredentialFetcher):
     async def _get_credentials(self):
         """Get credentials by calling assume role."""
         kwargs = self._assume_role_kwargs()
-        async with self._create_client() as sts:
+
+        client = await self._create_client()
+        async with client as sts:
             return await sts.assume_role(**kwargs)
+
+    async def _create_client(self):
+        """Create an STS client using the source credentials."""
+        frozen_credentials = await self._source_credentials.get_frozen_credentials()
+        return self._client_creator(
+            'sts',
+            aws_access_key_id=frozen_credentials.access_key,
+            aws_secret_access_key=frozen_credentials.secret_key,
+            aws_session_token=frozen_credentials.token,
+        )
 
 
 class AioAssumeRoleWithWebIdentityCredentialFetcher(
@@ -237,7 +266,8 @@ class AioAssumeRoleWithWebIdentityCredentialFetcher(
 
 class AioEnvProvider(EnvProvider):
     async def load(self):
-        # It gets credentials from an env var, so just convert the response to Aio variants
+        # It gets credentials from an env var,
+        # so just convert the response to Aio variants
         result = super(AioEnvProvider, self).load()
         if isinstance(result, RefreshableCredentials):
             raise AioRefreshableCredentials.\
@@ -250,10 +280,9 @@ class AioContainerProvider(ContainerProvider):
     def __init__(self, *args, **kwargs):
         super(AioContainerProvider, self).__init__(*args, **kwargs)
 
-        if not isinstance(self._fetcher, ContainerMetadataFetcher):
-            raise RuntimeError('Unknown credential fetcher: {0}'.format(self._fetcher.__class__.__name__))
-
-        self._fetcher = AioContainerMetadataFetcher()
+        # This will always run if no fetcher arg is provided
+        if isinstance(self._fetcher, ContainerMetadataFetcher):
+            self._fetcher = AioContainerMetadataFetcher()
 
     async def load(self):
         if self.ENV_VAR in self._environ or self.ENV_VAR_FULL in self._environ:
@@ -361,7 +390,8 @@ class AioSharedCredentialProvider(SharedCredentialProvider):
 
 class AioProcessProvider(ProcessProvider):
     async def load(self):
-        # FIXME, this essentially calls subprocess.Popen so need to swap it out for the async equiv
+        # FIXME, this essentially calls subprocess.Popen so need to
+        #  swap it out for the async equiv
         result = super(AioProcessProvider, self).load()
         if isinstance(result, Credentials):
             result = AioCredentials.from_credentials(result)

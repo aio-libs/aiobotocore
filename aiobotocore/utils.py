@@ -4,7 +4,8 @@ import json
 
 import aiohttp
 import aiohttp.client_exceptions
-from botocore.utils import ContainerMetadataFetcher, InstanceMetadataFetcher, IMDSFetcher, get_environ_proxies
+from botocore.utils import ContainerMetadataFetcher, InstanceMetadataFetcher, \
+    IMDSFetcher, get_environ_proxies
 from botocore.exceptions import MetadataRetrievalError
 
 
@@ -59,13 +60,15 @@ class AioContainerMetadataFetcher(ContainerMetadataFetcher):
 
     async def _get_response(self, full_url, headers, timeout):
         try:
-            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=self.TIMEOUT_SECONDS)) as session:
+            timeout = aiohttp.ClientTimeout(total=self.TIMEOUT_SECONDS)
+            async with aiohttp.ClientSession(timeout=timeout) as session:
                 async with session.get(full_url, headers=headers) as resp:
                     if resp.status != 200:
                         text = await resp.text()
                         raise MetadataRetrievalError(
                             error_msg=(
-                                          "Received non 200 response (%s) from ECS metadata: %s"
+                                          "Received non 200 response (%s) "
+                                          "from ECS metadata: %s"
                                       ) % (resp.status, text))
                     try:
                         return await resp.json()
@@ -105,7 +108,9 @@ class AioIMDSFetcher(IMDSFetcher):
         if self._user_agent is not None:
             headers['User-Agent'] = self._user_agent
 
-        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=self._timeout), trust_env=self._trust_env) as session:
+        timeout = aiohttp.ClientTimeout(total=self._timeout)
+        async with aiohttp.ClientSession(timeout=timeout,
+                                         trust_env=self._trust_env) as session:
             for i in range(self._num_attempts):
                 try:
                     async with session.get(url, headers=headers) as resp:

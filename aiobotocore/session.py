@@ -1,4 +1,3 @@
-import botocore.credentials
 from botocore.session import Session, ComponentLocator, SessionVarDict
 
 from botocore import UNSIGNED

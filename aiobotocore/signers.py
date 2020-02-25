@@ -57,7 +57,7 @@ class AioRequestSigner(RequestSigner):
             auth.add_auth(request)
 
     async def get_auth_instance(self, signing_name, region_name,
-                          signature_version=None, **kwargs):
+                                signature_version=None, **kwargs):
         if signature_version is None:
             signature_version = self._signature_version
 
