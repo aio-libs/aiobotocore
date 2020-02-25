@@ -14,6 +14,7 @@ from aiobotocore import credentials
 
 
 # From class TestCredentials(BaseEnvVar):
+@pytest.mark.moto
 @pytest.mark.parametrize("access,secret", [
     ('foo\xe2\x80\x99', 'bar\xe2\x80\x99'), (u'foo', u'bar')])
 def test_credentials_normalization(access, secret):
@@ -48,6 +49,7 @@ def refreshable_creds():
     return _f
 
 
+@pytest.mark.moto
 @pytest.mark.asyncio
 async def test_refreshablecredentials_get_credentials_set(refreshable_creds):
     creds = refreshable_creds(
@@ -64,6 +66,7 @@ async def test_refreshablecredentials_get_credentials_set(refreshable_creds):
     assert credentials_set.token == 'ORIGINAL-TOKEN'
 
 
+@pytest.mark.moto
 @pytest.mark.asyncio
 async def test_refreshablecredentials_refresh_returns_empty_dict(refreshable_creds):
     creds = refreshable_creds(
@@ -77,6 +80,7 @@ async def test_refreshablecredentials_refresh_returns_empty_dict(refreshable_cre
         await creds.get_frozen_credentials()
 
 
+@pytest.mark.moto
 @pytest.mark.asyncio
 async def test_refreshablecredentials_refresh_returns_none(refreshable_creds):
     creds = refreshable_creds(
@@ -90,6 +94,7 @@ async def test_refreshablecredentials_refresh_returns_none(refreshable_creds):
         await creds.get_frozen_credentials()
 
 
+@pytest.mark.moto
 @pytest.mark.asyncio
 async def test_refreshablecredentials_refresh_returns_partial(refreshable_creds):
     creds = refreshable_creds(
@@ -128,6 +133,7 @@ def deferrable_creds():
     return _f
 
 
+@pytest.mark.moto
 @pytest.mark.asyncio
 async def test_deferrablecredentials_get_credentials_set(deferrable_creds):
     creds = deferrable_creds()
@@ -138,6 +144,7 @@ async def test_deferrablecredentials_get_credentials_set(deferrable_creds):
     assert creds._refresh_using.call_count == 1
 
 
+@pytest.mark.moto
 @pytest.mark.asyncio
 async def test_deferrablecredentials_refresh_only_called_once(deferrable_creds):
     creds = deferrable_creds()
@@ -193,6 +200,7 @@ def get_expected_creds_from_response(response):
     }
 
 
+@pytest.mark.moto
 @pytest.mark.asyncio
 async def test_assumerolefetcher_no_cache():
     response = {
@@ -215,6 +223,7 @@ async def test_assumerolefetcher_no_cache():
     assert response == expected_response
 
 
+@pytest.mark.moto
 @pytest.mark.asyncio
 async def test_assumerolefetcher_cache_key_with_role_session_name():
     response = {
@@ -246,6 +255,7 @@ async def test_assumerolefetcher_cache_key_with_role_session_name():
     assert cache[cache_key] == response
 
 
+@pytest.mark.moto
 @pytest.mark.asyncio
 async def test_assumerolefetcher_cache_in_cache_but_expired():
     response = {
@@ -306,6 +316,7 @@ def assume_role_web_identity_client_creator(with_response):
     return mock.Mock(return_value=_Client(with_response))
 
 
+@pytest.mark.moto
 @pytest.mark.asyncio
 async def test_webidentfetcher_no_cache():
     response = {
@@ -329,6 +340,7 @@ async def test_webidentfetcher_no_cache():
 
 
 # From class TestInstanceMetadataProvider(BaseEnvVar):
+@pytest.mark.moto
 @pytest.mark.asyncio
 async def test_instancemetadata_load():
     timeobj = datetime.datetime.now(tzlocal())
@@ -368,6 +380,7 @@ def credential_provider():
     return _f
 
 
+@pytest.mark.moto
 @pytest.mark.asyncio
 async def test_credresolver_load_credentials_single_provider(credential_provider):
     provider1 = credential_provider('provider1', 'CustomProvider1',
@@ -381,6 +394,7 @@ async def test_credresolver_load_credentials_single_provider(credential_provider
 
 
 # From class TestCanonicalNameSourceProvider(BaseEnvVar):
+@pytest.mark.moto
 @pytest.mark.asyncio
 async def test_canonicalsourceprovider_source_creds(credential_provider):
     creds = credentials.AioCredentials('a', 'b', 'c')
@@ -393,6 +407,7 @@ async def test_canonicalsourceprovider_source_creds(credential_provider):
     assert result is creds
 
 
+@pytest.mark.moto
 @pytest.mark.asyncio
 async def test_canonicalsourceprovider_source_creds_case_insensitive(
         credential_provider):
@@ -436,6 +451,7 @@ def assumerolecredprovider_config_loader():
     return _f
 
 
+@pytest.mark.moto
 @pytest.mark.asyncio
 async def test_assumerolecredprovider_assume_role_no_cache(
         credential_provider,
@@ -478,6 +494,7 @@ def full_url(url):
     return 'http://%s%s' % (credentials.AioContainerMetadataFetcher.IP_ADDRESS, url)
 
 
+@pytest.mark.moto
 @pytest.mark.asyncio
 async def test_containerprovider_assume_role_no_cache():
     environ = {
