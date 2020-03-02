@@ -22,7 +22,6 @@ logger = logging.getLogger(__name__)
 
 
 def create_aio_mfa_serial_refresher(actual_refresh):
-
     class _Refresher(object):
         def __init__(self, refresh):
             self._refresh = refresh
@@ -270,10 +269,12 @@ class AioEnvProvider(EnvProvider):
         # so just convert the response to Aio variants
         result = super(AioEnvProvider, self).load()
         if isinstance(result, RefreshableCredentials):
-            raise AioRefreshableCredentials.\
+            return AioRefreshableCredentials.\
                 from_refreshable_credentials(result)
-        else:
+        elif isinstance(result, Credentials):
             return AioCredentials.from_credentials(result)
+
+        return None
 
 
 class AioContainerProvider(ContainerProvider):
@@ -587,7 +588,7 @@ class AioCanonicalNameCredentialSourcer(CanonicalNameCredentialSourcer):
         :rtype: Credentials
         """
         source = self._get_provider(source_name)
-        if isinstance(source, CredentialResolver):
+        if isinstance(source, AioCredentialResolver):
             return await source.load_credentials()
         return await source.load()
 
