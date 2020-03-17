@@ -21,9 +21,10 @@ class AioContainerMetadataFetcher(ContainerMetadataFetcher):
     IP_ADDRESS = '169.254.170.2'
     _ALLOWED_HOSTS = [IP_ADDRESS, 'localhost', '127.0.0.1']
 
-    def __init__(self, *args, **kwargs):
-        super(AioContainerMetadataFetcher, self).__init__(*args, **kwargs)
-        self._sleep = asyncio.sleep
+    def __init__(self, session=None, sleep=asyncio.sleep):
+        if session is None:
+            session = aiohttp.ClientSession
+        super(AioContainerMetadataFetcher, self).__init__(session, sleep)
 
     async def retrieve_full_uri(self, full_url, headers=None):
         self._validate_allowed_url(full_url)
@@ -61,13 +62,13 @@ class AioContainerMetadataFetcher(ContainerMetadataFetcher):
     async def _get_response(self, full_url, headers, timeout):
         try:
             timeout = aiohttp.ClientTimeout(total=self.TIMEOUT_SECONDS)
-            async with aiohttp.ClientSession(timeout=timeout) as session:
+            async with self._session(timeout=timeout) as session:
                 async with session.get(full_url, headers=headers) as resp:
                     if resp.status != 200:
                         text = await resp.text()
                         raise MetadataRetrievalError(
                             error_msg=(
-                                          "Received non 200 response (%s) "
+                                          "Received non 200 response (%d) "
                                           "from ECS metadata: %s"
                                       ) % (resp.status, text))
                     try:
@@ -92,9 +93,12 @@ class AioIMDSFetcher(IMDSFetcher):
             self.text = text
             self.content = text
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, session=None, **kwargs):
         super(AioIMDSFetcher, self).__init__(*args, **kwargs)
-        self._trust_env = get_environ_proxies(self._base_url)
+        self._trust_env = bool(get_environ_proxies(self._base_url))
+
+        if session is None:
+            self._session = aiohttp.ClientSession
 
     async def _get_request(self, url_path, retry_func):
         if self._disabled:
@@ -109,8 +113,8 @@ class AioIMDSFetcher(IMDSFetcher):
             headers['User-Agent'] = self._user_agent
 
         timeout = aiohttp.ClientTimeout(total=self._timeout)
-        async with aiohttp.ClientSession(timeout=timeout,
-                                         trust_env=self._trust_env) as session:
+        async with self._session(timeout=timeout,
+                                 trust_env=self._trust_env) as session:
             for i in range(self._num_attempts):
                 try:
                     async with session.get(url, headers=headers) as resp:

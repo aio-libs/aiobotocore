@@ -1,8 +1,11 @@
 import asyncio
 import logging
+import subprocess
 from copy import deepcopy
+from typing import Optional
 
 from botocore import UNSIGNED
+import botocore.compat
 from botocore.credentials import EnvProvider, Credentials, RefreshableCredentials, \
     ReadOnlyCredentials, ContainerProvider, ContainerMetadataFetcher, \
     _parse_if_needed, InstanceMetadataProvider, _get_client_creator, \
@@ -14,6 +17,7 @@ from botocore.credentials import EnvProvider, Credentials, RefreshableCredential
 from botocore.exceptions import MetadataRetrievalError, CredentialRetrievalError, \
     InvalidConfigError, PartialCredentialsError, RefreshWithMFAUnsupportedError, \
     UnknownCredentialError
+from botocore.compat import compat_shell_split
 
 from aiobotocore.utils import AioContainerMetadataFetcher, AioInstanceMetadataFetcher
 from aiobotocore.config import AioConfig
@@ -46,7 +50,7 @@ class AioCredentials(Credentials):
                                    self.token)
 
     @classmethod
-    def from_credentials(cls, obj: Credentials):
+    def from_credentials(cls, obj: Optional[Credentials]):
         if obj is None:
             return None
         return cls(
@@ -65,7 +69,7 @@ class AioRefreshableCredentials(RefreshableCredentials):
         # self._refresh_using should be a coroutine
 
     @classmethod
-    def from_refreshable_credentials(cls, obj: RefreshableCredentials):
+    def from_refreshable_credentials(cls, obj: Optional[RefreshableCredentials]):
         if obj is None:
             return None
         return cls(  # Using interval values here to skip property calling .refresh()
@@ -390,13 +394,59 @@ class AioSharedCredentialProvider(SharedCredentialProvider):
 
 
 class AioProcessProvider(ProcessProvider):
+    def __init__(self, *args, popen=asyncio.create_subprocess_exec, **kwargs):
+        super(AioProcessProvider, self).__init__(*args, **kwargs, popen=popen)
+
     async def load(self):
-        # FIXME, this essentially calls subprocess.Popen so need to
-        #  swap it out for the async equiv
-        result = super(AioProcessProvider, self).load()
-        if isinstance(result, Credentials):
-            result = AioCredentials.from_credentials(result)
-        return result
+        credential_process = self._credential_process
+        if credential_process is None:
+            return
+
+        creds_dict = await self._retrieve_credentials_using(credential_process)
+        if creds_dict.get('expiry_time') is not None:
+            return AioRefreshableCredentials.create_from_metadata(
+                creds_dict,
+                lambda: self._retrieve_credentials_using(credential_process),
+                self.METHOD
+            )
+
+        return AioCredentials(
+            access_key=creds_dict['access_key'],
+            secret_key=creds_dict['secret_key'],
+            token=creds_dict.get('token'),
+            method=self.METHOD
+        )
+
+    async def _retrieve_credentials_using(self, credential_process):
+        # We're not using shell=True, so we need to pass the
+        # command and all arguments as a list.
+        process_list = compat_shell_split(credential_process)
+        p = await self._popen(process_list,
+                              stdout=subprocess.PIPE,
+                              stderr=subprocess.PIPE)
+        stdout, stderr = await p.communicate()
+        if p.returncode != 0:
+            raise CredentialRetrievalError(
+                provider=self.METHOD, error_msg=stderr.decode('utf-8'))
+        parsed = botocore.compat.json.loads(stdout.decode('utf-8'))
+        version = parsed.get('Version', '<Version key not provided>')
+        if version != 1:
+            raise CredentialRetrievalError(
+                provider=self.METHOD,
+                error_msg=("Unsupported version '%s' for credential process "
+                           "provider, supported versions: 1" % version))
+        try:
+            return {
+                'access_key': parsed['AccessKeyId'],
+                'secret_key': parsed['SecretAccessKey'],
+                'token': parsed.get('SessionToken'),
+                'expiry_time': parsed.get('Expiration'),
+            }
+        except KeyError as e:
+            raise CredentialRetrievalError(
+                provider=self.METHOD,
+                error_msg="Missing required key in response: %s" % e
+            )
 
 
 class AioCredentialResolver(CredentialResolver):

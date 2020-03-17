@@ -3,7 +3,11 @@ These tests have been taken from
 https://github.com/boto/botocore/blob/develop/tests/unit/test_credentials.py
 and adapted to work with asyncio and pytest
 """
+import asyncio
 import datetime
+import json
+import subprocess
+
 import mock
 from typing import Optional
 
@@ -14,6 +18,7 @@ from dateutil.tz import tzlocal
 from aiobotocore.session import AioSession
 from aiobotocore import credentials
 from botocore.configprovider import ConfigValueStore
+from botocore.utils import FileWebIdentityTokenLoader
 
 
 # From class TestCredentials(BaseEnvVar):
@@ -590,7 +595,6 @@ async def test_assumerolecredprovider_mfa(
     assert call_kwargs['SerialNumber'] == 'mfa'
     assert call_kwargs['RoleArn'] == 'myrole'
     assert call_kwargs['TokenCode'] == 'token-code'
-    print()
 
 
 @pytest.mark.moto
@@ -644,6 +648,54 @@ async def test_assumerolecredprovider_mfa_cannot_refresh_credentials(
         local_now.return_value = expiration_time
         with pytest.raises(credentials.RefreshWithMFAUnsupportedError):
             await creds.get_frozen_credentials()
+
+
+# From class TestAssumeRoleWithWebIdentityCredentialProvider
+@pytest.mark.moto
+@pytest.mark.asyncio
+async def test_assumerolewebidentprovider_no_cache():
+    future = datetime.datetime.now(tzlocal()) + datetime.timedelta(hours=24)
+
+    response = {
+        'Credentials': {
+            'AccessKeyId': 'foo',
+            'SecretAccessKey': 'bar',
+            'SessionToken': 'baz',
+            'Expiration': future.isoformat()
+        },
+    }
+
+    # client
+    client_creator = assume_role_web_identity_client_creator(response)
+
+    mock_loader = mock.Mock(spec=FileWebIdentityTokenLoader)
+    mock_loader.return_value = 'totally.a.token'
+    mock_loader_cls = mock.Mock(return_value=mock_loader)
+
+    config = {
+        'profiles': {
+            'some-profile': {
+                'role_arn': 'arn:aws:iam::123:role/role-name',
+                'web_identity_token_file': '/some/path/token.jwt'
+            }
+        }
+    }
+
+    provider = credentials.AioAssumeRoleWithWebIdentityProvider(
+        load_config=lambda: config,
+        client_creator=client_creator,
+        cache={},
+        profile_name='some-profile',
+        token_loader_cls=mock_loader_cls
+    )
+
+    creds = await provider.load()
+    creds = await creds.get_frozen_credentials()
+    assert creds.access_key == 'foo'
+    assert creds.secret_key == 'bar'
+    assert creds.token == 'baz'
+
+    mock_loader_cls.assert_called_with('/some/path/token.jwt')
 
 
 # From class TestContainerProvider(BaseEnvVar):
@@ -859,6 +911,47 @@ async def test_originalec2provider_file_missing():
     assert creds is None
 
 
+# From class TestProcessProvider
+@pytest.fixture()
+def process_provider():
+    def _f(profile_name='default', loaded_config=None, invoked_process=None):
+        load_config = mock.Mock(return_value=loaded_config)
+        popen_mock = mock.Mock(return_value=invoked_process or mock.Mock(),
+                               spec=asyncio.create_subprocess_exec)
+        return popen_mock, credentials.AioProcessProvider(profile_name,
+                                                          load_config,
+                                                          popen=popen_mock)
+    return _f
+
+
+@pytest.mark.moto
+@pytest.mark.asyncio
+async def test_processprovider_retrieve_creds(process_provider):
+    config = {'profiles': {'default': {'credential_process': 'my-process'}}}
+    invoked_process = mock.AsyncMock()
+    stdout = json.dumps({
+        'Version': 1,
+        'AccessKeyId': 'foo',
+        'SecretAccessKey': 'bar',
+        'SessionToken': 'baz',
+        'Expiration': '2999-01-01T00:00:00Z',
+    })
+    invoked_process.communicate.return_value = \
+        (stdout.encode('utf-8'), ''.encode('utf-8'))
+    invoked_process.returncode = 0
+
+    popen_mock, provider = process_provider(
+        loaded_config=config, invoked_process=invoked_process)
+    creds = await provider.load()
+    assert creds is not None
+    assert creds.access_key == 'foo'
+    assert creds.secret_key == 'bar'
+    assert creds.token == 'baz'
+    assert creds.method == 'custom-process'
+    popen_mock.assert_called_with(['my-process'],
+                                  stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+
 # From class TestCreateCredentialResolver
 @pytest.fixture
 def mock_session():
@@ -914,4 +1007,13 @@ async def test_get_credentials(mock_session):
 
     creds = await credentials.get_credentials(session)
 
+    assert creds is None
+
+
+@pytest.mark.moto
+@pytest.mark.asyncio
+async def test_from_aiocredentials_is_none():
+    creds = credentials.AioCredentials.from_credentials(None)
+    assert creds is None
+    creds = credentials.AioRefreshableCredentials.from_refreshable_credentials(None)
     assert creds is None
