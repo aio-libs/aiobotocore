@@ -2,7 +2,7 @@ import asyncio
 
 # WaiterModel is required for client.py import
 from botocore.exceptions import ClientError
-from botocore.waiter import WaiterModel  # lgtm[py/unused-import], noqa: F401
+from botocore.waiter import WaiterModel  # noqa: F401, lgtm[py/unused-import]
 from botocore.waiter import Waiter, xform_name, logger, WaiterError, \
     NormalizedOperationMethod as _NormalizedOperationMethod
 from botocore.docs.docstring import WaiterDocstring

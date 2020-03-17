@@ -119,9 +119,6 @@ class AioRequestSigner(RequestSigner):
         request.prepare()
         return request.url
 
-    # TODO override def get_auth_instance
-    # get_auth_instance calls self._credentials.get_frozen_credentials()
-
 
 def add_generate_presigned_url(class_attributes, **kwargs):
     class_attributes['generate_presigned_url'] = generate_presigned_url
