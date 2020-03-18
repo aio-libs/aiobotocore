@@ -142,7 +142,7 @@ async def test_instancemetadatafetcher_partial_response():
         mock_obj.side_effect = [
             utils.AioIMDSFetcher.Response(200, 'some-role',
                                           'someurl'),
-            utils.AioIMDSFetcher.Response(200, '{"AccessKeyId": "foo"}',
+            utils.AioIMDSFetcher.Response(200, '{"Code": "foo", "Message": "test"}',
                                           'someurl'),
         ]
 

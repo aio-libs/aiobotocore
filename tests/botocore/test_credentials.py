@@ -926,7 +926,7 @@ def process_provider():
 
 @pytest.mark.moto
 @pytest.mark.asyncio
-async def test_processprovider_retrieve_creds(process_provider):
+async def test_processprovider_retrieve_refereshable_creds(process_provider):
     config = {'profiles': {'default': {'credential_process': 'my-process'}}}
     invoked_process = mock.AsyncMock()
     stdout = json.dumps({
@@ -943,6 +943,7 @@ async def test_processprovider_retrieve_creds(process_provider):
     popen_mock, provider = process_provider(
         loaded_config=config, invoked_process=invoked_process)
     creds = await provider.load()
+    assert isinstance(creds, credentials.AioRefreshableCredentials)
     assert creds is not None
     assert creds.access_key == 'foo'
     assert creds.secret_key == 'bar'
@@ -950,6 +951,32 @@ async def test_processprovider_retrieve_creds(process_provider):
     assert creds.method == 'custom-process'
     popen_mock.assert_called_with(['my-process'],
                                   stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+
+@pytest.mark.moto
+@pytest.mark.asyncio
+async def test_processprovider_retrieve_creds(process_provider):
+    config = {'profiles': {'default': {'credential_process': 'my-process'}}}
+    invoked_process = mock.AsyncMock()
+    stdout = json.dumps({
+        'Version': 1,
+        'AccessKeyId': 'foo',
+        'SecretAccessKey': 'bar',
+        'SessionToken': 'baz'
+    })
+    invoked_process.communicate.return_value = \
+        (stdout.encode('utf-8'), ''.encode('utf-8'))
+    invoked_process.returncode = 0
+
+    popen_mock, provider = process_provider(
+        loaded_config=config, invoked_process=invoked_process)
+    creds = await provider.load()
+    assert isinstance(creds, credentials.AioCredentials)
+    assert creds is not None
+    assert creds.access_key == 'foo'
+    assert creds.secret_key == 'bar'
+    assert creds.token == 'baz'
+    assert creds.method == 'custom-process'
 
 
 @pytest.mark.moto
@@ -967,6 +994,43 @@ async def test_processprovider_bad_version(process_provider):
     invoked_process.communicate.return_value = \
         (stdout.encode('utf-8'), ''.encode('utf-8'))
     invoked_process.returncode = 0
+
+    popen_mock, provider = process_provider(
+        loaded_config=config, invoked_process=invoked_process)
+    with pytest.raises(botocore.exceptions.CredentialRetrievalError):
+        await provider.load()
+
+
+@pytest.mark.moto
+@pytest.mark.asyncio
+async def test_processprovider_missing_field(process_provider):
+    config = {'profiles': {'default': {'credential_process': 'my-process'}}}
+    invoked_process = mock.AsyncMock()
+    stdout = json.dumps({
+        'Version': 1,
+        'SecretAccessKey': 'bar',
+        'SessionToken': 'baz',
+        'Expiration': '2999-01-01T00:00:00Z',
+    })
+    invoked_process.communicate.return_value = \
+        (stdout.encode('utf-8'), ''.encode('utf-8'))
+    invoked_process.returncode = 0
+
+    popen_mock, provider = process_provider(
+        loaded_config=config, invoked_process=invoked_process)
+    with pytest.raises(botocore.exceptions.CredentialRetrievalError):
+        await provider.load()
+
+
+@pytest.mark.moto
+@pytest.mark.asyncio
+async def test_processprovider_bad_exitcode(process_provider):
+    config = {'profiles': {'default': {'credential_process': 'my-process'}}}
+    invoked_process = mock.AsyncMock()
+    stdout = 'lah'
+    invoked_process.communicate.return_value = \
+        (stdout.encode('utf-8'), ''.encode('utf-8'))
+    invoked_process.returncode = 1
 
     popen_mock, provider = process_provider(
         loaded_config=config, invoked_process=invoked_process)
@@ -1061,3 +1125,15 @@ async def test_from_aiocredentials_is_none():
     assert creds is None
     creds = credentials.AioRefreshableCredentials.from_refreshable_credentials(None)
     assert creds is None
+
+
+@pytest.mark.moto
+@pytest.mark.asyncio
+async def test_session_credentials():
+    with mock.patch('aiobotocore.credentials.AioCredential'
+                    'Resolver.load_credentials') as mock_obj:
+        mock_obj.return_value = 'somecreds'
+
+        session = AioSession()
+        creds = await session.get_credentials()
+        assert creds == 'somecreds'

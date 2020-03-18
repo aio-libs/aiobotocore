@@ -17,6 +17,7 @@ class AioRequestSigner(RequestSigner):
     async def sign(self, operation_name, request, region_name=None,
                    signing_type='standard', expires_in=None,
                    signing_name=None):
+        explicit_region_name = region_name
         if region_name is None:
             region_name = self._region_name
 
@@ -44,7 +45,9 @@ class AioRequestSigner(RequestSigner):
             }
             if expires_in is not None:
                 kwargs['expires'] = expires_in
-
+            if not explicit_region_name and request.context.get(
+                    'signing', {}).get('region'):
+                kwargs['region_name'] = request.context['signing']['region']
             try:
                 auth = await self.get_auth_instance(**kwargs)
             except UnknownSignatureVersionError as e:
