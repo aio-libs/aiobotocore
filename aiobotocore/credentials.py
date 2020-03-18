@@ -124,10 +124,7 @@ class AioRefreshableCredentials(RefreshableCredentials):
                 # Might have refreshed by now
                 if not self.refresh_needed(self._mandatory_refresh_timeout):
                     return
-                is_mandatory_refresh = self.refresh_needed(
-                    self._mandatory_refresh_timeout)
                 await self._protected_refresh(is_mandatory=True)
-                return
 
     async def _protected_refresh(self, is_mandatory):
         try:
