@@ -952,6 +952,50 @@ async def test_processprovider_retrieve_creds(process_provider):
                                   stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
 
+@pytest.mark.moto
+@pytest.mark.asyncio
+async def test_processprovider_bad_version(process_provider):
+    config = {'profiles': {'default': {'credential_process': 'my-process'}}}
+    invoked_process = mock.AsyncMock()
+    stdout = json.dumps({
+        'Version': 2,
+        'AccessKeyId': 'foo',
+        'SecretAccessKey': 'bar',
+        'SessionToken': 'baz',
+        'Expiration': '2999-01-01T00:00:00Z',
+    })
+    invoked_process.communicate.return_value = \
+        (stdout.encode('utf-8'), ''.encode('utf-8'))
+    invoked_process.returncode = 0
+
+    popen_mock, provider = process_provider(
+        loaded_config=config, invoked_process=invoked_process)
+    with pytest.raises(botocore.exceptions.CredentialRetrievalError):
+        await provider.load()
+
+
+@pytest.mark.moto
+@pytest.mark.asyncio
+async def test_processprovider_bad_config(process_provider):
+    config = {'profiles': {'default': {'credential_process': None}}}
+    invoked_process = mock.AsyncMock()
+    stdout = json.dumps({
+        'Version': 2,
+        'AccessKeyId': 'foo',
+        'SecretAccessKey': 'bar',
+        'SessionToken': 'baz',
+        'Expiration': '2999-01-01T00:00:00Z',
+    })
+    invoked_process.communicate.return_value = \
+        (stdout.encode('utf-8'), ''.encode('utf-8'))
+    invoked_process.returncode = 0
+
+    popen_mock, provider = process_provider(
+        loaded_config=config, invoked_process=invoked_process)
+    creds = await provider.load()
+    assert creds is None
+
+
 # From class TestCreateCredentialResolver
 @pytest.fixture
 def mock_session():

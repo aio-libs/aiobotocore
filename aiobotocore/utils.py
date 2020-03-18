@@ -88,17 +88,16 @@ class AioContainerMetadataFetcher(ContainerMetadataFetcher):
 
 class AioIMDSFetcher(IMDSFetcher):
     class Response(object):
-        def __init__(self, status_code, text):
-            self.status_code = status_code,
+        def __init__(self, status_code, text, url):
+            self.status_code = status_code
+            self.url = url
             self.text = text
             self.content = text
 
     def __init__(self, *args, session=None, **kwargs):
         super(AioIMDSFetcher, self).__init__(*args, **kwargs)
         self._trust_env = bool(get_environ_proxies(self._base_url))
-
-        if session is None:
-            self._session = aiohttp.ClientSession
+        self._session = session or aiohttp.ClientSession
 
     async def _get_request(self, url_path, retry_func):
         if self._disabled:
@@ -119,7 +118,7 @@ class AioIMDSFetcher(IMDSFetcher):
                 try:
                     async with session.get(url, headers=headers) as resp:
                         text = await resp.text()
-                        response = self.Response(resp.status, text)
+                        response = self.Response(resp.status, text, resp.url)
 
                     if not retry_func(response):
                         return response
