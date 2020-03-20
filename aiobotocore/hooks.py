@@ -21,10 +21,13 @@ class AioHierarchicalEmitter(HierarchicalEmitter):
         responses = []
         for handler in handlers_to_call:
             logger.debug('Event %s: calling handler %s', event_name, handler)
+
+            # Await the handler if its a coroutine.
             if asyncio.iscoroutinefunction(handler):
                 response = await handler(**kwargs)
             else:
                 response = handler(**kwargs)
+
             responses.append((handler, response))
             if stop_on_response and response is not None:
                 return responses

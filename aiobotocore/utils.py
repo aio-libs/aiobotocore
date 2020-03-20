@@ -5,7 +5,7 @@ import json
 import aiohttp
 import aiohttp.client_exceptions
 from botocore.utils import ContainerMetadataFetcher, InstanceMetadataFetcher, \
-    IMDSFetcher, get_environ_proxies
+    IMDSFetcher, get_environ_proxies, BadIMDSRequestError
 from botocore.exceptions import MetadataRetrievalError
 
 
@@ -14,13 +14,6 @@ RETRYABLE_HTTP_ERRORS = (aiohttp.client_exceptions.ClientError, asyncio.TimeoutE
 
 
 class AioContainerMetadataFetcher(ContainerMetadataFetcher):
-
-    TIMEOUT_SECONDS = 2
-    RETRY_ATTEMPTS = 3
-    SLEEP_TIME = 1
-    IP_ADDRESS = '169.254.170.2'
-    _ALLOWED_HOSTS = [IP_ADDRESS, 'localhost', '127.0.0.1']
-
     def __init__(self, session=None, sleep=asyncio.sleep):
         if session is None:
             session = aiohttp.ClientSession
@@ -99,17 +92,15 @@ class AioIMDSFetcher(IMDSFetcher):
         self._trust_env = bool(get_environ_proxies(self._base_url))
         self._session = session or aiohttp.ClientSession
 
-    async def _get_request(self, url_path, retry_func):
-        if self._disabled:
-            logger.debug("Access to EC2 metadata has been disabled.")
-            raise self._RETRIES_EXCEEDED_ERROR_CLS()
+    async def _get_request(self, url_path, retry_func, token=None):
+        self._assert_enabled()
         if retry_func is None:
             retry_func = self._default_retry
-
         url = self._base_url + url_path
         headers = {}
-        if self._user_agent is not None:
-            headers['User-Agent'] = self._user_agent
+        if token is not None:
+            headers['x-aws-ec2-metadata-token'] = token
+        self._add_user_agent(headers)
 
         timeout = aiohttp.ClientTimeout(total=self._timeout)
         async with self._session(timeout=timeout,
@@ -132,8 +123,9 @@ class AioIMDSFetcher(IMDSFetcher):
 class AioInstanceMetadataFetcher(AioIMDSFetcher, InstanceMetadataFetcher):
     async def retrieve_iam_role_credentials(self):
         try:
-            role_name = await self._get_iam_role()
-            credentials = await self._get_credentials(role_name)
+            # TODO self._fetch_metadata_token() ====================================================================================
+            role_name = await self._get_iam_role(token)
+            credentials = await self._get_credentials(role_name, token)
             if self._contains_all_credential_fields(credentials):
                 return {
                     'role_name': role_name,
@@ -151,18 +143,22 @@ class AioInstanceMetadataFetcher(AioIMDSFetcher, InstanceMetadataFetcher):
             logger.debug("Max number of attempts exceeded (%s) when "
                          "attempting to retrieve data from metadata service.",
                          self._num_attempts)
+        except BadIMDSRequestError as e:
+            logger.debug("Bad IMDS request: %s", e.request)
         return {}
 
-    async def _get_iam_role(self):
+    async def _get_iam_role(self, token=None):
         r = await self._get_request(
             url_path=self._URL_PATH,
-            retry_func=self._needs_retry_for_role_name
+            retry_func=self._needs_retry_for_role_name,
+            token=token
         )
         return r.text
 
-    async def _get_credentials(self, role_name):
+    async def _get_credentials(self, role_name, token=None):
         r = await self._get_request(
             url_path=self._URL_PATH + role_name,
-            retry_func=self._needs_retry_for_credentials
+            retry_func=self._needs_retry_for_credentials,
+            token=token
         )
         return json.loads(r.text)

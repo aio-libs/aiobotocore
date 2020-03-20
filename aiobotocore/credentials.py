@@ -59,9 +59,6 @@ class AioCredentials(Credentials):
 
 
 class AioRefreshableCredentials(RefreshableCredentials):
-    _advisory_refresh_timeout = 15 * 60
-    _mandatory_refresh_timeout = 10 * 60
-
     def __init__(self, *args, **kwargs):
         super(AioRefreshableCredentials, self).__init__(*args, **kwargs)
         self._refresh_lock = asyncio.Lock()
@@ -80,6 +77,7 @@ class AioRefreshableCredentials(RefreshableCredentials):
         )
 
     # Redeclaring the properties so it doesnt call refresh
+    # Have to redeclare setter as we're overriding the getter
     @property
     def access_key(self):
         return self._access_key
@@ -217,7 +215,6 @@ class AioAssumeRoleCredentialFetcher(AssumeRoleCredentialFetcher,
     async def _get_credentials(self):
         """Get credentials by calling assume role."""
         kwargs = self._assume_role_kwargs()
-
         client = await self._create_client()
         async with client as sts:
             return await sts.assume_role(**kwargs)
@@ -252,8 +249,8 @@ class AioAssumeRoleWithWebIdentityCredentialFetcher(
         # Assume role with web identity does not require credentials other than
         # the token, explicitly configure the client to not sign requests.
         config = AioConfig(signature_version=UNSIGNED)
-        async with self._client_creator('sts', config=config) as sts:
-            return await sts.assume_role_with_web_identity(**kwargs)
+        async with self._client_creator('sts', config=config) as client:
+            return await client.assume_role_with_web_identity(**kwargs)
 
     def _assume_role_kwargs(self):
         """Get the arguments for assume role based on current configuration."""
@@ -329,17 +326,19 @@ class AioContainerProvider(ContainerProvider):
 
 class AioInstanceMetadataProvider(InstanceMetadataProvider):
     async def load(self):
-        metadata = await self._role_fetcher.retrieve_iam_role_credentials()
+        fetcher = self._role_fetcher
+        metadata = await fetcher.retrieve_iam_role_credentials()
         if not metadata:
             return None
         logger.debug('Found credentials from IAM Role: %s',
                      metadata['role_name'])
 
-        return AioRefreshableCredentials.create_from_metadata(
+        creds = AioRefreshableCredentials.create_from_metadata(
             metadata,
             method=self.METHOD,
-            refresh_using=self._role_fetcher.retrieve_iam_role_credentials,
+            refresh_using=fetcher.retrieve_iam_role_credentials,
         )
+        return creds
 
 
 class AioProfileProviderBuilder(ProfileProviderBuilder):
