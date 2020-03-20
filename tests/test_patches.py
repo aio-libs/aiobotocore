@@ -29,10 +29,9 @@ from botocore.hooks import EventAliaser, HierarchicalEmitter
 from botocore.utils import ContainerMetadataFetcher, IMDSFetcher, \
     InstanceMetadataFetcher
 from botocore.credentials import Credentials, RefreshableCredentials, \
-    CachedCredentialFetcher, BaseAssumeRoleCredentialFetcher, \
-    AssumeRoleCredentialFetcher, EnvProvider, ContainerProvider, \
-    InstanceMetadataProvider, ProfileProviderBuilder, ConfigProvider, \
-    SharedCredentialProvider, ProcessProvider, CredentialResolver, \
+    CachedCredentialFetcher, AssumeRoleCredentialFetcher, EnvProvider, \
+    ContainerProvider, InstanceMetadataProvider, ProfileProviderBuilder, \
+    ConfigProvider, SharedCredentialProvider, ProcessProvider, CredentialResolver, \
     AssumeRoleWithWebIdentityProvider, AssumeRoleProvider, \
     CanonicalNameCredentialSourcer, BotoProvider, OriginalEC2Provider, \
     create_credential_resolver, get_credentials, create_mfa_serial_refresher, \
@@ -91,53 +90,86 @@ _API_DIGESTS = {
     Credentials.get_frozen_credentials: {'08af57df08ee9953e440aa7aca58137ed936cdb6'},
     RefreshableCredentials.__init__: {'c685fd2c62eb60096fdf8bb885fb642df1819f7f'},
     # We've overridden some properties
-    RefreshableCredentials.__dict__['access_key'].fset: {'edc4a25baef877a9662f68cd9ccefcd33a81bab7'},
-    RefreshableCredentials.__dict__['access_key'].fget: {'f6c823210099db99dd343d9e1fae6d4eb5aa5fce'},
-    RefreshableCredentials.__dict__['secret_key'].fset: {'b19fe41d66822c72bd6ae2e60de5c5d27367868a'},
-    RefreshableCredentials.__dict__['secret_key'].fget: {'3e27331a037549104b8669e225bbbb2c465a16d4'},
-    RefreshableCredentials.__dict__['token'].fset: {'1f8a308d4bf21e666f8054a0546e91541661da7b'},
-    RefreshableCredentials.__dict__['token'].fget: {'005c1b44b616f37739ce9276352e4e83644d8220'},
+    RefreshableCredentials.__dict__['access_key'].fset:
+        {'edc4a25baef877a9662f68cd9ccefcd33a81bab7'},
+    RefreshableCredentials.__dict__['access_key'].fget:
+        {'f6c823210099db99dd343d9e1fae6d4eb5aa5fce'},
+    RefreshableCredentials.__dict__['secret_key'].fset:
+        {'b19fe41d66822c72bd6ae2e60de5c5d27367868a'},
+    RefreshableCredentials.__dict__['secret_key'].fget:
+        {'3e27331a037549104b8669e225bbbb2c465a16d4'},
+    RefreshableCredentials.__dict__['token'].fset:
+        {'1f8a308d4bf21e666f8054a0546e91541661da7b'},
+    RefreshableCredentials.__dict__['token'].fget:
+        {'005c1b44b616f37739ce9276352e4e83644d8220'},
     RefreshableCredentials._refresh: {'f4759b7ef0d1f0d8af07855dcd9ca49ef12c2e7b'},
-    RefreshableCredentials._protected_refresh: {'432409f81601dbeea9ec187d433d190ab7c5ab2f'},
-    RefreshableCredentials.get_frozen_credentials: {'f661c84a8b759786e011f0b1e8a468a0c6294e36'},
+    RefreshableCredentials._protected_refresh:
+        {'432409f81601dbeea9ec187d433d190ab7c5ab2f'},
+    RefreshableCredentials.get_frozen_credentials:
+        {'f661c84a8b759786e011f0b1e8a468a0c6294e36'},
 
-    CachedCredentialFetcher._get_credentials: {'02a7d13599d972e3f258d2b53f87eeda4cc3e3a4'},
-    CachedCredentialFetcher.fetch_credentials: {'0dd2986a4cbb38764ec747075306a33117e86c3d'},
-    CachedCredentialFetcher._get_cached_credentials: {'a9f8c348d226e62122972da9ccc025365b6803d6'},
-    AssumeRoleCredentialFetcher._get_credentials: {'5c575634bc0a713c10e5668f28fbfa8779d5a1da'},
-    AssumeRoleCredentialFetcher._create_client: {'=========='},
+    CachedCredentialFetcher._get_credentials:
+        {'02a7d13599d972e3f258d2b53f87eeda4cc3e3a4'},
+    CachedCredentialFetcher.fetch_credentials:
+        {'0dd2986a4cbb38764ec747075306a33117e86c3d'},
+    CachedCredentialFetcher._get_cached_credentials:
+        {'a9f8c348d226e62122972da9ccc025365b6803d6'},
+    AssumeRoleCredentialFetcher._get_credentials:
+        {'5c575634bc0a713c10e5668f28fbfa8779d5a1da'},
+    AssumeRoleCredentialFetcher._create_client:
+        {'27c76f07bd43e665899ca8d21b6ba2038b276fbb'},
     # Referenced by AioAssumeRoleWithWebIdentityCredentialFetcher
-    AssumeRoleWithWebIdentityCredentialFetcher.__init__: {'85c022a7237a3500ca973b2f7f91bffe894e4577'},
-    AssumeRoleWithWebIdentityCredentialFetcher._get_credentials: {'02eba9d4e846474910cb076710070348e395a819'},
-    AssumeRoleWithWebIdentityCredentialFetcher._assume_role_kwargs: {'8fb4fefe8664b7d82a67e0fd6d6812c1c8d92285'},
+    AssumeRoleWithWebIdentityCredentialFetcher.__init__:
+        {'85c022a7237a3500ca973b2f7f91bffe894e4577'},
+    AssumeRoleWithWebIdentityCredentialFetcher._get_credentials:
+        {'02eba9d4e846474910cb076710070348e395a819'},
+    AssumeRoleWithWebIdentityCredentialFetcher._assume_role_kwargs:
+        {'8fb4fefe8664b7d82a67e0fd6d6812c1c8d92285'},
     # Ensure that the load method doesn't do anything we should asyncify
     EnvProvider.load: {'07cff5032b39b568505779774a1ca66efc513abb'},
 
     ContainerProvider.__init__: {'ea6aafb2e12730066af930fb5a27f7659c1736a1'},
     ContainerProvider.load: {'57c35569050b45c1e9e33fcdb3b49da9e342fdcf'},
-    ContainerProvider._retrieve_or_fail: {'7c14f1cdee07217f847a71068866bdd10c3fa0fa'},
-    ContainerProvider._create_fetcher: {'09a3ffded0fc20a574f3b34fa432a1569d5e729f'},
+    ContainerProvider._retrieve_or_fail:
+        {'7c14f1cdee07217f847a71068866bdd10c3fa0fa'},
+    ContainerProvider._create_fetcher:
+        {'09a3ffded0fc20a574f3b34fa432a1569d5e729f'},
     InstanceMetadataProvider.load: {'4a27eb94fe220fba2b46c97bdd9e16de199ce004'},
-    ProfileProviderBuilder._create_process_provider: {'c5eea47bcfc449a6d73a9892bd0e1897f6be0c20'},
-    ProfileProviderBuilder._create_shared_credential_provider: {'33f99c6a0ef71a92b0c52ccc59c8ca7e33fa0890'},
-    ProfileProviderBuilder._create_config_provider: {'f9a40d4211f6e663ba2ae9682fba5306152178c5'},
-    ProfileProviderBuilder._create_web_identity_provider: {'0907c1ad5573bc5c0fc87efb601a6c4c3fcf34ae'},
+    ProfileProviderBuilder._create_process_provider:
+        {'c5eea47bcfc449a6d73a9892bd0e1897f6be0c20'},
+    ProfileProviderBuilder._create_shared_credential_provider:
+        {'33f99c6a0ef71a92b0c52ccc59c8ca7e33fa0890'},
+    ProfileProviderBuilder._create_config_provider:
+        {'f9a40d4211f6e663ba2ae9682fba5306152178c5'},
+    ProfileProviderBuilder._create_web_identity_provider:
+        {'0907c1ad5573bc5c0fc87efb601a6c4c3fcf34ae'},
     ConfigProvider.load: {'8fb32140086dce65fa28be8edd3ac0d22698c3ae'},
     SharedCredentialProvider.load: {'c0be1fe376d25952461ca18d9bef4b4340203441'},
     ProcessProvider.__init__: {'2e870ec0c6b0bc8483fa9b1159ef68bbd7a12c56'},
     ProcessProvider.load: {'aac90e2c8823939f09936b9c883e67503128e438'},
-    ProcessProvider._retrieve_credentials_using: {'ffc27c7cba0e37cf6db3a3eacfd54be8bd99d3a9'},
-    CredentialResolver.load_credentials: {'ef31ba8817f84c1f61f36259da1cc6e597b8625a'},
-    AssumeRoleWithWebIdentityProvider.load: {'8f48f6cadf08a09cf5a22b1cc668e60bc4ea389d'},
-    AssumeRoleWithWebIdentityProvider._assume_role_with_web_identity: {'32c9d720ab5f12054583758b5cd5d287f652ccd3'},
+    ProcessProvider._retrieve_credentials_using:
+        {'ffc27c7cba0e37cf6db3a3eacfd54be8bd99d3a9'},
+    CredentialResolver.load_credentials:
+        {'ef31ba8817f84c1f61f36259da1cc6e597b8625a'},
+    AssumeRoleWithWebIdentityProvider.load:
+        {'8f48f6cadf08a09cf5a22b1cc668e60bc4ea389d'},
+    AssumeRoleWithWebIdentityProvider._assume_role_with_web_identity:
+        {'32c9d720ab5f12054583758b5cd5d287f652ccd3'},
     AssumeRoleProvider.load: {'ee9ddb43e25eb1105185253c0963a2f5add49a95'},
-    AssumeRoleProvider._load_creds_via_assume_role: {'9fdba45a8dd16b885dea7c1fafc7d02609870fa7'},
-    AssumeRoleProvider._resolve_source_credentials: {'=========='},
-    AssumeRoleProvider._resolve_credentials_from_profile: {'=========='},
-    AssumeRoleProvider._resolve_static_credentials_from_profile: {'=========='},
-    AssumeRoleProvider._resolve_credentials_from_source: {'=========='},
-    CanonicalNameCredentialSourcer.source_credentials: {'602930a78e0e64e3b313a046aab5edc3bcf5c2d9'},
-    CanonicalNameCredentialSourcer._get_provider: {'c028b9776383cc566be10999745b6082f458d902'},
+    AssumeRoleProvider._load_creds_via_assume_role:
+        {'9fdba45a8dd16b885dea7c1fafc7d02609870fa7'},
+    AssumeRoleProvider._resolve_source_credentials:
+        {'105c0c011e23d76a3b8bd3d9b91b6d945c8307a1'},
+    AssumeRoleProvider._resolve_credentials_from_profile:
+        {'402a1a6b3e0a29c234b7883e5b855110eb655830'},
+    AssumeRoleProvider._resolve_static_credentials_from_profile:
+        {'58f04986bb1027d548212b7769034e5dae5cc30f'},
+    AssumeRoleProvider._resolve_credentials_from_source:
+        {'6f76ae62f477279a2297565f80a5cfbe5ea30eaf'},
+    CanonicalNameCredentialSourcer.source_credentials:
+        {'602930a78e0e64e3b313a046aab5edc3bcf5c2d9'},
+    CanonicalNameCredentialSourcer._get_provider:
+        {'c028b9776383cc566be10999745b6082f458d902'},
     BotoProvider.load: {'9351b8565c2c969937963fc1d3fbc8b3b6d8ccc1'},
     OriginalEC2Provider.load: {'bde9af019f01acf3848a6eda125338b2c588c1ab'},
     create_credential_resolver: {'5ff7fe49d7636b795a50202ff5c089611f4e27c1'},
@@ -162,7 +194,8 @@ _API_DIGESTS = {
 
     # hooks.py
     HierarchicalEmitter._emit: {'5d9a6b1aea1323667a9310e707a9f0a006f8f6e8'},
-    HierarchicalEmitter.emit_until_response: {'23670e04e0b09a9575c7533442bca1b2972ade82'},
+    HierarchicalEmitter.emit_until_response:
+        {'23670e04e0b09a9575c7533442bca1b2972ade82'},
     EventAliaser.emit_until_response: {'0d635bf7ae5022b1fdde891cd9a91cd4c449fd49'},
 
     # paginate.py
@@ -184,7 +217,8 @@ _API_DIGESTS = {
 
     # session.py
     Session.__init__: {'ccf156a76beda3425fb54363f3b2718dc0445f6d'},
-    Session._register_response_parser_factory: {'d6cd5a8b1b473b0ec3b71db5f621acfb12cc412c'},
+    Session._register_response_parser_factory:
+        {'d6cd5a8b1b473b0ec3b71db5f621acfb12cc412c'},
     Session.create_client: {'36f4e718fc4bada66808c2f98fa71835c09076f7'},
     Session._create_credential_resolver: {'87e98d201c72d06f7fbdb4ebee2dce1c09de0fb2'},
     Session.get_credentials: {'c0de970743b6b9dd91b5a71031db8a495fde53e4'},
@@ -201,18 +235,26 @@ _API_DIGESTS = {
     generate_presigned_url: {'9c471f957210c0a71a11f5c73be9fed844ecb5bb'},
 
     # utils.py
-    ContainerMetadataFetcher.__init__: {'46d90a7249ba8389feb487779b0a02e6faa98e57'},
-    ContainerMetadataFetcher.retrieve_full_uri: {'2c7080f7d6ee5a3dacc1b690945c045dba1b1d21'},
-    ContainerMetadataFetcher.retrieve_uri: {'4ee8aa704cf0a378d68ef9a7b375a1aa8840b000'},
-    ContainerMetadataFetcher._retrieve_credentials: {'f5294f9f811cb3cc370e4824ca106269ea1f44f9'},
-    ContainerMetadataFetcher._get_response: {'7e5acdd2cf0167a047e3d5ee1439565a2f79f6a6'},
+    ContainerMetadataFetcher.__init__:
+        {'46d90a7249ba8389feb487779b0a02e6faa98e57'},
+    ContainerMetadataFetcher.retrieve_full_uri:
+        {'2c7080f7d6ee5a3dacc1b690945c045dba1b1d21'},
+    ContainerMetadataFetcher.retrieve_uri:
+        {'4ee8aa704cf0a378d68ef9a7b375a1aa8840b000'},
+    ContainerMetadataFetcher._retrieve_credentials:
+        {'f5294f9f811cb3cc370e4824ca106269ea1f44f9'},
+    ContainerMetadataFetcher._get_response:
+        {'7e5acdd2cf0167a047e3d5ee1439565a2f79f6a6'},
     # Overrided session and dealing with proxy support
     IMDSFetcher.__init__: {'690e37140ccdcd67c7a85ce5d36331491a79954e'},
     IMDSFetcher._get_request: {'96a0e580cab5a21deb4d2cd7e904aa17d5e1e504'},
+    IMDSFetcher._fetch_metadata_token: {'4fdad673b4997b1268c6d9dff09a4b99c1cb5e0d'},
 
-    InstanceMetadataFetcher.retrieve_iam_role_credentials: {'=========='},
+    InstanceMetadataFetcher.retrieve_iam_role_credentials:
+        {'76737f6add82a1b9a0dc590cf10bfac0c7026a2e'},
     InstanceMetadataFetcher._get_iam_role: {'80073d7adc9fb604bc6235af87241f5efc296ad7'},
-    InstanceMetadataFetcher._get_credentials: {'1a64f59a3ca70b83700bd14deeac25af14100d58'},
+    InstanceMetadataFetcher._get_credentials:
+        {'1a64f59a3ca70b83700bd14deeac25af14100d58'},
 
     # waiter.py
     NormalizedOperationMethod.__call__: {'79723632d023739aa19c8a899bc2b814b8ab12ff'},

@@ -7,6 +7,7 @@ import aiohttp.client_exceptions
 from botocore.utils import ContainerMetadataFetcher, InstanceMetadataFetcher, \
     IMDSFetcher, get_environ_proxies, BadIMDSRequestError
 from botocore.exceptions import MetadataRetrievalError
+import botocore.awsrequest
 
 
 logger = logging.getLogger(__name__)
@@ -92,6 +93,39 @@ class AioIMDSFetcher(IMDSFetcher):
         self._trust_env = bool(get_environ_proxies(self._base_url))
         self._session = session or aiohttp.ClientSession
 
+    async def _fetch_metadata_token(self):
+        self._assert_enabled()
+        url = self._base_url + self._TOKEN_PATH
+        headers = {
+            'x-aws-ec2-metadata-token-ttl-seconds': self._TOKEN_TTL,
+        }
+        self._add_user_agent(headers)
+
+        request = botocore.awsrequest.AWSRequest(
+            method='PUT', url=url, headers=headers)
+
+        timeout = aiohttp.ClientTimeout(total=self._timeout)
+        async with self._session(timeout=timeout,
+                                 trust_env=self._trust_env) as session:
+            for i in range(self._num_attempts):
+                try:
+                    async with session.put(url, headers=headers) as resp:
+                        text = await resp.text()
+                        if resp.status == 200:
+                            return text
+                        elif resp.status in (404, 403, 405):
+                            return None
+                        elif resp.status in (400,):
+                            raise BadIMDSRequestError(request)
+                except asyncio.TimeoutError:
+                    return None
+                except RETRYABLE_HTTP_ERRORS as e:
+                    logger.debug(
+                        "Caught retryable HTTP exception while making metadata "
+                        "service request to %s: %s", url, e, exc_info=True)
+
+        return None
+
     async def _get_request(self, url_path, retry_func, token=None):
         self._assert_enabled()
         if retry_func is None:
@@ -123,7 +157,7 @@ class AioIMDSFetcher(IMDSFetcher):
 class AioInstanceMetadataFetcher(AioIMDSFetcher, InstanceMetadataFetcher):
     async def retrieve_iam_role_credentials(self):
         try:
-            # TODO self._fetch_metadata_token() ====================================================================================
+            token = await self._fetch_metadata_token()
             role_name = await self._get_iam_role(token)
             credentials = await self._get_credentials(role_name, token)
             if self._contains_all_credential_fields(credentials):
