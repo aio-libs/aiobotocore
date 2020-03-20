@@ -109,6 +109,6 @@ Indices and tables
 
 .. _PEP492: https://www.python.org/dev/peps/pep-0492/
 .. _Python: https://www.python.org
-.. _asyncio: http://docs.python.org/3.5/library/asyncio.html
+.. _asyncio: https://docs.python.org/3/library/asyncio.html
 .. _botocore: https://github.com/boto/botocore
 .. _aiohttp: https://github.com/KeepSafe/aiohttp

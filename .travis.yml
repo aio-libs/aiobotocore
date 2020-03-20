@@ -42,8 +42,8 @@ after_success:
     codecov
 deploy:
     provider: pypi
-    user: aio-libs-bot
     distributions: "sdist bdist_wheel"
+    user: aio-libs-bot
     password:
         secure: sO1h+qa0JL3G5sImVzDfsX6W1Ilgz+I+EFXSfJ+O3vzqa4/M8qjVFuNrJafq59AkCG0LVdOC5gx1WSnsKmG+/Y92nQxzS43MhirgVEYKiBHQCNzlaH+Tha+JxP+reuDk6kB1oINnjuEldSfTMmNxYb+qL52Xvvjgk+Ho0XKzzMc/gBOshMNAZEPS9PUXg/CAyGYYsD/1VBjxCak4b9m8eegY0uRdKq9Cm2wUF2E9rWnYMlWRy0+wZHVaVysDeENF53rHtEVkQG9iuXM+uWhRu/288MpoVSKYzAcpQ16tr627NeW4VjWlC4LjLISRBC8sguapN1X7C6VIn/skoATe9yalxTuDmtqVgiYNW5kQWU07+g30+uvdWOCko7oJ4UoVoeHbnXe32z8rHAckXWu2hordC4exwTfAwd5iUSiAR95GfzFpbx0sCM8ahiEk62XzaiSP1RtSsGjtVxBjOA03EqzLCMGULbk5r7imFXw6+YaV5AYerk6fV0UNpMc5t8gfFFu6IxMc05eEMHypIEGgsKfp412+g5I33AjcpW4uyYf37RPPG/vMq4qlf9aVI8lNCFuDNqcnjeY3LxU/wbpOSmI0chdzSHS11M7F1NgeaVTGcQx4GvqBslSqRmNv0q1bdteMC2rVNkU0BGaBHKMIs97tUr2B6uFiswNdEsGorhY=
     on:
@@ -51,5 +51,13 @@ deploy:
         repo: aio-libs/aiobotocore
         all_branches: true
         python: 3.7
+        skip_existing: true
 
 cache: pip
+
+# tags are considered branches, so we need a regex to allow for them
+# https://docs.travis-ci.com/user/customizing-the-build#safelisting-or-blocklisting-branches
+branches:
+  only:
+  - master
+  - /^\d+\.\d+\.\d+$/
