@@ -14,72 +14,6 @@ logger = logging.getLogger(__name__)
 RETRYABLE_HTTP_ERRORS = (aiohttp.client_exceptions.ClientError, asyncio.TimeoutError)
 
 
-class AioContainerMetadataFetcher(ContainerMetadataFetcher):
-    def __init__(self, session=None, sleep=asyncio.sleep):
-        if session is None:
-            session = aiohttp.ClientSession
-        super(AioContainerMetadataFetcher, self).__init__(session, sleep)
-
-    async def retrieve_full_uri(self, full_url, headers=None):
-        self._validate_allowed_url(full_url)
-        return await self._retrieve_credentials(full_url, headers)
-
-    async def retrieve_uri(self, relative_uri):
-        """Retrieve JSON metadata from ECS metadata.
-
-        :type relative_uri: str
-        :param relative_uri: A relative URI, e.g "/foo/bar?id=123"
-
-        :return: The parsed JSON response.
-
-        """
-        full_url = self.full_url(relative_uri)
-        return await self._retrieve_credentials(full_url)
-
-    async def _retrieve_credentials(self, full_url, extra_headers=None):
-        headers = {'Accept': 'application/json'}
-        if extra_headers is not None:
-            headers.update(extra_headers)
-        attempts = 0
-        while True:
-            try:
-                return await self._get_response(
-                    full_url, headers, self.TIMEOUT_SECONDS)
-            except MetadataRetrievalError as e:
-                logger.debug("Received error when attempting to retrieve "
-                             "container metadata: %s", e, exc_info=True)
-                await self._sleep(self.SLEEP_TIME)
-                attempts += 1
-                if attempts >= self.RETRY_ATTEMPTS:
-                    raise
-
-    async def _get_response(self, full_url, headers, timeout):
-        try:
-            timeout = aiohttp.ClientTimeout(total=self.TIMEOUT_SECONDS)
-            async with self._session(timeout=timeout) as session:
-                async with session.get(full_url, headers=headers) as resp:
-                    if resp.status != 200:
-                        text = await resp.text()
-                        raise MetadataRetrievalError(
-                            error_msg=(
-                                          "Received non 200 response (%d) "
-                                          "from ECS metadata: %s"
-                                      ) % (resp.status, text))
-                    try:
-                        return await resp.json()
-                    except ValueError:
-                        text = await resp.text()
-                        error_msg = (
-                            "Unable to parse JSON returned from ECS metadata services"
-                        )
-                        logger.debug('%s:%s', error_msg, text)
-                        raise MetadataRetrievalError(error_msg=error_msg)
-        except RETRYABLE_HTTP_ERRORS as e:
-            error_msg = ("Received error when attempting to retrieve "
-                         "ECS metadata: %s" % e)
-            raise MetadataRetrievalError(error_msg=error_msg)
-
-
 class AioIMDSFetcher(IMDSFetcher):
     class Response(object):
         def __init__(self, status_code, text, url):
@@ -196,3 +130,69 @@ class AioInstanceMetadataFetcher(AioIMDSFetcher, InstanceMetadataFetcher):
             token=token
         )
         return json.loads(r.text)
+
+
+class AioContainerMetadataFetcher(ContainerMetadataFetcher):
+    def __init__(self, session=None, sleep=asyncio.sleep):
+        if session is None:
+            session = aiohttp.ClientSession
+        super(AioContainerMetadataFetcher, self).__init__(session, sleep)
+
+    async def retrieve_full_uri(self, full_url, headers=None):
+        self._validate_allowed_url(full_url)
+        return await self._retrieve_credentials(full_url, headers)
+
+    async def retrieve_uri(self, relative_uri):
+        """Retrieve JSON metadata from ECS metadata.
+
+        :type relative_uri: str
+        :param relative_uri: A relative URI, e.g "/foo/bar?id=123"
+
+        :return: The parsed JSON response.
+
+        """
+        full_url = self.full_url(relative_uri)
+        return await self._retrieve_credentials(full_url)
+
+    async def _retrieve_credentials(self, full_url, extra_headers=None):
+        headers = {'Accept': 'application/json'}
+        if extra_headers is not None:
+            headers.update(extra_headers)
+        attempts = 0
+        while True:
+            try:
+                return await self._get_response(
+                    full_url, headers, self.TIMEOUT_SECONDS)
+            except MetadataRetrievalError as e:
+                logger.debug("Received error when attempting to retrieve "
+                             "container metadata: %s", e, exc_info=True)
+                await self._sleep(self.SLEEP_TIME)
+                attempts += 1
+                if attempts >= self.RETRY_ATTEMPTS:
+                    raise
+
+    async def _get_response(self, full_url, headers, timeout):
+        try:
+            timeout = aiohttp.ClientTimeout(total=self.TIMEOUT_SECONDS)
+            async with self._session(timeout=timeout) as session:
+                async with session.get(full_url, headers=headers) as resp:
+                    if resp.status != 200:
+                        text = await resp.text()
+                        raise MetadataRetrievalError(
+                            error_msg=(
+                                          "Received non 200 response (%d) "
+                                          "from ECS metadata: %s"
+                                      ) % (resp.status, text))
+                    try:
+                        return await resp.json()
+                    except ValueError:
+                        text = await resp.text()
+                        error_msg = (
+                            "Unable to parse JSON returned from ECS metadata services"
+                        )
+                        logger.debug('%s:%s', error_msg, text)
+                        raise MetadataRetrievalError(error_msg=error_msg)
+        except RETRYABLE_HTTP_ERRORS as e:
+            error_msg = ("Received error when attempting to retrieve "
+                         "ECS metadata: %s" % e)
+            raise MetadataRetrievalError(error_msg=error_msg)
