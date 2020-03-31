@@ -3,7 +3,7 @@ Changes
 1.0.0 (2020-03-31)
 ^^^^^^^^^^^^^^^^^^
 * API breaking: The result of create_client is now a required async context class
-* Credential refresh should not work
+* Credential refresh should now work
 * generate_presigned_url is now an async call along with other credential methods
 * Credentials.[access_key/secret_key/token] now raise NotImplementedError because
   they won't call refresh like botocore. Instead should use get_frozen_credentials
