@@ -1,7 +1,7 @@
 Changes
 -------
-1.0.0 (2020-03-31
-^^^^^^^^^^^^^^^^^
+1.0.0 (2020-03-31)
+^^^^^^^^^^^^^^^^^^
 * API breaking: The result of create_client is now a required async context class
 * Credential refresh should not work
 * generate_presigned_url is now an async call along with other credential methods
