@@ -1,6 +1,6 @@
 import asyncio
 
-from botocore.hooks import HierarchicalEmitter, EventAliaser, logger
+from botocore.hooks import HierarchicalEmitter, logger
 
 
 class AioHierarchicalEmitter(HierarchicalEmitter):
@@ -39,10 +39,3 @@ class AioHierarchicalEmitter(HierarchicalEmitter):
             return responses[-1]
         else:
             return None, None
-
-
-class AioEventAliaser(EventAliaser):
-    async def emit_until_response(self, event_name, **kwargs):
-        aliased_event_name = self._alias_event_name(event_name)
-        return await self._emitter.emit_until_response(aliased_event_name,
-                                                       **kwargs)
