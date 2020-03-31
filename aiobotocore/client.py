@@ -1,25 +1,53 @@
-from botocore.client import logger, PaginatorDocstring, ClientCreator, BaseClient
+from botocore.awsrequest import prepare_request_dict
+from botocore.client import logger, PaginatorDocstring, ClientCreator, \
+    BaseClient, ClientEndpointBridge
 from botocore.exceptions import OperationNotPageableError
 from botocore.history import get_global_history_recorder
 from botocore.utils import get_service_module_name
 from botocore.waiter import xform_name
+from botocore.hooks import first_non_none_response
 
 from .paginate import AioPaginator
 from .args import AioClientArgsCreator
 from . import waiter
 
-
 history_recorder = get_global_history_recorder()
 
 
 class AioClientCreator(ClientCreator):
-    def _create_client_class(self, service_name, service_model):
+    async def create_client(self, service_name, region_name, is_secure=True,
+                            endpoint_url=None, verify=None,
+                            credentials=None, scoped_config=None,
+                            api_version=None,
+                            client_config=None):
+        responses = await self._event_emitter.emit(
+            'choose-service-name', service_name=service_name)
+        service_name = first_non_none_response(responses, default=service_name)
+        service_model = self._load_service_model(service_name, api_version)
+        cls = await self._create_client_class(service_name, service_model)
+        endpoint_bridge = ClientEndpointBridge(
+            self._endpoint_resolver, scoped_config, client_config,
+            service_signing_name=service_model.metadata.get('signingName'))
+        client_args = self._get_client_args(
+            service_model, region_name, is_secure, endpoint_url,
+            verify, credentials, scoped_config, client_config, endpoint_bridge)
+        service_client = cls(**client_args)
+        self._register_retries(service_client)
+        self._register_s3_events(
+            service_client, endpoint_bridge, endpoint_url, client_config,
+            scoped_config)
+        self._register_endpoint_discovery(
+            service_client, endpoint_url, client_config
+        )
+        return service_client
+
+    async def _create_client_class(self, service_name, service_model):
         class_attributes = self._create_methods(service_model)
         py_name_to_operation_name = self._create_name_mapping(service_model)
         class_attributes['_PY_TO_OP_NAME'] = py_name_to_operation_name
         bases = [AioBaseClient]
         service_id = service_model.service_id.hyphenize()
-        self._event_emitter.emit(
+        await self._event_emitter.emit(
             'creating-client-class.%s' % service_id,
             class_attributes=class_attributes,
             base_classes=bases)
@@ -59,11 +87,11 @@ class AioBaseClient(BaseClient):
             'has_streaming_input': operation_model.has_streaming_input,
             'auth_type': operation_model.auth_type,
         }
-        request_dict = self._convert_to_request_dict(
+        request_dict = await self._convert_to_request_dict(
             api_params, operation_model, context=request_context)
 
         service_id = self._service_model.service_id.hyphenize()
-        handler, event_response = self.meta.events.emit_until_response(
+        handler, event_response = await self.meta.events.emit_until_response(
             'before-call.{service_id}.{operation_name}'.format(
                 service_id=service_id,
                 operation_name=operation_name),
@@ -76,7 +104,7 @@ class AioBaseClient(BaseClient):
             http, parsed_response = await self._make_request(
                 operation_model, request_dict, request_context)
 
-        self.meta.events.emit(
+        await self.meta.events.emit(
             'after-call.{service_id}.{operation_name}'.format(
                 service_id=service_id,
                 operation_name=operation_name),
@@ -95,13 +123,51 @@ class AioBaseClient(BaseClient):
         try:
             return await self._endpoint.make_request(operation_model, request_dict)
         except Exception as e:
-            self.meta.events.emit(
+            await self.meta.events.emit(
                 'after-call-error.{service_id}.{operation_name}'.format(
                     service_id=self._service_model.service_id.hyphenize(),
                     operation_name=operation_model.name),
                 exception=e, context=request_context
             )
             raise
+
+    async def _convert_to_request_dict(self, api_params, operation_model,
+                                       context=None):
+        api_params = await self._emit_api_params(
+            api_params, operation_model, context)
+        request_dict = self._serializer.serialize_to_request(
+            api_params, operation_model)
+        if not self._client_config.inject_host_prefix:
+            request_dict.pop('host_prefix', None)
+        prepare_request_dict(request_dict, endpoint_url=self._endpoint.host,
+                             user_agent=self._client_config.user_agent,
+                             context=context)
+        return request_dict
+
+    async def _emit_api_params(self, api_params, operation_model, context):
+        # Given the API params provided by the user and the operation_model
+        # we can serialize the request to a request_dict.
+        operation_name = operation_model.name
+
+        # Emit an event that allows users to modify the parameters at the
+        # beginning of the method. It allows handlers to modify existing
+        # parameters or return a new set of parameters to use.
+        service_id = self._service_model.service_id.hyphenize()
+        responses = await self.meta.events.emit(
+            'provide-client-params.{service_id}.{operation_name}'.format(
+                service_id=service_id,
+                operation_name=operation_name),
+            params=api_params, model=operation_model, context=context)
+        api_params = first_non_none_response(responses, default=api_params)
+
+        event_name = (
+            'before-parameter-build.{service_id}.{operation_name}')
+        await self.meta.events.emit(
+            event_name.format(
+                service_id=service_id,
+                operation_name=operation_name),
+            params=api_params, model=operation_model, context=context)
+        return api_params
 
     def get_paginator(self, operation_name):
         """Create a paginator for an operation.

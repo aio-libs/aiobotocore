@@ -96,3 +96,13 @@ async def test_connector_timeout2():
 async def test_get_session():
     session = get_session()
     assert isinstance(session, AioSession)
+
+
+@pytest.mark.moto
+def test_merge():
+    config = AioConfig()
+    other_config = AioConfig()
+    new_config = config.merge(other_config)
+    assert isinstance(new_config, AioConfig)
+    assert new_config is not config
+    assert new_config is not other_config
