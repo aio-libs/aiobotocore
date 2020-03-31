@@ -207,8 +207,9 @@ class AioRefreshableCredentials(RefreshableCredentials):
     # Have to redeclare setter as we're overriding the getter
     @property
     def access_key(self):
-        # TODO: this needs to be fixed
-        raise NotImplementedError("missing call to self._refresh")
+        # TODO: this needs to be resolved
+        raise NotImplementedError("missing call to self._refresh. "
+                                  "Use get_frozen_credentials instead")
         return self._access_key
 
     @access_key.setter
@@ -217,8 +218,9 @@ class AioRefreshableCredentials(RefreshableCredentials):
 
     @property
     def secret_key(self):
-        # TODO: this needs to be fixed
-        raise Exception("missing call to self._refresh")
+        # TODO: this needs to be resolved
+        raise NotImplementedError("missing call to self._refresh. "
+                                  "Use get_frozen_credentials instead")
         return self._secret_key
 
     @secret_key.setter
@@ -227,8 +229,9 @@ class AioRefreshableCredentials(RefreshableCredentials):
 
     @property
     def token(self):
-        # TODO: this needs to be fixed
-        raise Exception("missing call to self._refresh")
+        # TODO: this needs to be resolved
+        raise NotImplementedError("missing call to self._refresh. "
+                                  "Use get_frozen_credentials instead")
         return self._token
 
     @token.setter
