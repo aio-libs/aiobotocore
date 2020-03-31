@@ -1,4 +1,4 @@
-from botocore.session import Session
+from botocore.session import Session, EVENT_ALIASES, ServiceModel, UnknownServiceError
 
 from botocore import UNSIGNED
 from botocore import retryhandler, translate
@@ -112,6 +112,40 @@ class AioSession(Session):
             self._credentials = await (self._components.get_component(
                 'credential_provider').load_credentials())
         return self._credentials
+
+    async def get_service_model(self, service_name, api_version=None):
+        service_description = await self.get_service_data(service_name, api_version)
+        return ServiceModel(service_description, service_name=service_name)
+
+    async def get_service_data(self, service_name, api_version=None):
+        """
+        Retrieve the fully merged data associated with a service.
+        """
+        data_path = service_name
+        service_data = self.get_component('data_loader').load_service_model(
+            data_path,
+            type_name='service-2',
+            api_version=api_version
+        )
+        service_id = EVENT_ALIASES.get(service_name, service_name)
+        self._events.emit('service-data-loaded.%s' % service_id,
+                          service_data=service_data,
+                          service_name=service_name, session=self)
+        return service_data
+
+    async def get_available_regions(self, service_name, partition_name='aws',
+                                    allow_non_regional=False):
+        resolver = self._get_internal_component('endpoint_resolver')
+        results = []
+        try:
+            service_data = await self.get_service_data(service_name)
+            endpoint_prefix = service_data['metadata'].get(
+                'endpointPrefix', service_name)
+            results = resolver.get_available_endpoints(
+                endpoint_prefix, partition_name, allow_non_regional)
+        except UnknownServiceError:
+            pass
+        return results
 
 
 def get_session(env_vars=None):
