@@ -400,10 +400,12 @@ async def test_instancemetadata_load():
     )
     creds = await provider.load()
     assert creds is not None
+    assert creds.method == 'iam-role'
+
+    creds = await creds.get_frozen_credentials()
     assert creds.access_key == 'a'
     assert creds.secret_key == 'b'
     assert creds.token == 'c'
-    assert creds.method == 'iam-role'
 
 
 # From class CredentialResolverTest(BaseEnvVar):
@@ -727,10 +729,12 @@ async def test_containerprovider_assume_role_no_cache():
     url = full_url('/latest/credentials?id=foo')
     fetcher.retrieve_full_uri.assert_called_with(url, headers=None)
 
+    assert creds.method == 'container-role'
+
+    creds = await creds.get_frozen_credentials()
     assert creds.access_key == 'access_key'
     assert creds.secret_key == 'secret_key'
     assert creds.token == 'token'
-    assert creds.method == 'container-role'
 
 
 # From class TestEnvVar(BaseEnvVar):
@@ -945,10 +949,12 @@ async def test_processprovider_retrieve_refereshable_creds(process_provider):
     creds = await provider.load()
     assert isinstance(creds, credentials.AioRefreshableCredentials)
     assert creds is not None
+    assert creds.method == 'custom-process'
+
+    creds = await creds.get_frozen_credentials()
     assert creds.access_key == 'foo'
     assert creds.secret_key == 'bar'
     assert creds.token == 'baz'
-    assert creds.method == 'custom-process'
     popen_mock.assert_called_with(['my-process'],
                                   stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 

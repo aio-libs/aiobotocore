@@ -228,9 +228,9 @@ _API_DIGESTS = {
     Session._create_credential_resolver: {'87e98d201c72d06f7fbdb4ebee2dce1c09de0fb2'},
     Session.get_credentials: {'c0de970743b6b9dd91b5a71031db8a495fde53e4'},
     get_session: {'c47d588f5da9b8bde81ccc26eaef3aee19ddd901'},
-    Session.get_service_data: {''},
-    Session.get_service_model: {''},
-    Session.get_available_regions: {''},
+    Session.get_service_data: {'e28f2de9ebaf13214f1606d33349dfa8e2555923'},
+    Session.get_service_model: {'1c8f93e6fb9913e859e43aea9bc2546edbea8365'},
+    Session.get_available_regions: {'bc455d24d98fbc112ff22325ebfd12a6773cb7d4'},
 
     # signers.py
     RequestSigner.handler: {'371909df136a0964ef7469a63d25149176c2b442'},

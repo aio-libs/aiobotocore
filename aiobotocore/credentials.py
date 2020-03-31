@@ -208,17 +208,17 @@ class AioRefreshableCredentials(RefreshableCredentials):
     @property
     def access_key(self):
         # TODO: this needs to be fixed
-        raise Exception("This will not work correctly as it's missing a call to refresh")
+        raise NotImplementedError("missing call to self._refresh")
         return self._access_key
 
     @access_key.setter
     def access_key(self, value):
-        # TODO: this needs to be fixed
-        raise Exception("This will not work correctly as it's missing a call to refresh")
         self._access_key = value
 
     @property
     def secret_key(self):
+        # TODO: this needs to be fixed
+        raise Exception("missing call to self._refresh")
         return self._secret_key
 
     @secret_key.setter
@@ -228,7 +228,7 @@ class AioRefreshableCredentials(RefreshableCredentials):
     @property
     def token(self):
         # TODO: this needs to be fixed
-        raise Exception("This will not work correctly as it's missing a call to refresh")
+        raise Exception("missing call to self._refresh")
         return self._token
 
     @token.setter
