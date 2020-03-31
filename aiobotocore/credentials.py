@@ -25,6 +25,135 @@ from aiobotocore.config import AioConfig
 logger = logging.getLogger(__name__)
 
 
+def create_credential_resolver(session, cache=None, region_name=None):
+    """Create a default credential resolver.
+        This creates a pre-configured credential resolver
+        that includes the default lookup chain for
+        credentials.
+        """
+    profile_name = session.get_config_variable('profile') or 'default'
+    metadata_timeout = session.get_config_variable('metadata_service_timeout')
+    num_attempts = session.get_config_variable('metadata_service_num_attempts')
+    disable_env_vars = session.instance_variables().get('profile') is not None
+
+    if cache is None:
+        cache = {}
+
+    env_provider = AioEnvProvider()
+    container_provider = AioContainerProvider()
+    instance_metadata_provider = AioInstanceMetadataProvider(
+        iam_role_fetcher=AioInstanceMetadataFetcher(
+            timeout=metadata_timeout,
+            num_attempts=num_attempts,
+            user_agent=session.user_agent())
+    )
+
+    profile_provider_builder = AioProfileProviderBuilder(
+        session, cache=cache, region_name=region_name)
+    assume_role_provider = AioAssumeRoleProvider(
+        load_config=lambda: session.full_config,
+        client_creator=_get_client_creator(session, region_name),
+        cache=cache,
+        profile_name=profile_name,
+        credential_sourcer=AioCanonicalNameCredentialSourcer([
+            env_provider, container_provider, instance_metadata_provider
+        ]),
+        profile_provider_builder=profile_provider_builder,
+    )
+
+    pre_profile = [
+        env_provider,
+        assume_role_provider,
+    ]
+    profile_providers = profile_provider_builder.providers(
+        profile_name=profile_name,
+        disable_env_vars=disable_env_vars,
+    )
+    post_profile = [
+        AioOriginalEC2Provider(),
+        AioBotoProvider(),
+        container_provider,
+        instance_metadata_provider,
+    ]
+    providers = pre_profile + profile_providers + post_profile
+
+    if disable_env_vars:
+        # An explicitly provided profile will negate an EnvProvider.
+        # We will defer to providers that understand the "profile"
+        # concept to retrieve credentials.
+        # The one edge case if is all three values are provided via
+        # env vars:
+        # export AWS_ACCESS_KEY_ID=foo
+        # export AWS_SECRET_ACCESS_KEY=bar
+        # export AWS_PROFILE=baz
+        # Then, just like our client() calls, the explicit credentials
+        # will take precedence.
+        #
+        # This precedence is enforced by leaving the EnvProvider in the chain.
+        # This means that the only way a "profile" would win is if the
+        # EnvProvider does not return credentials, which is what we want
+        # in this scenario.
+        providers.remove(env_provider)
+        logger.debug('Skipping environment variable credential check'
+                     ' because profile name was explicitly set.')
+
+    resolver = AioCredentialResolver(providers=providers)
+    return resolver
+
+
+class AioProfileProviderBuilder(ProfileProviderBuilder):
+    def _create_process_provider(self, profile_name):
+        return AioProcessProvider(
+            profile_name=profile_name,
+            load_config=lambda: self._session.full_config,
+        )
+
+    def _create_shared_credential_provider(self, profile_name):
+        credential_file = self._session.get_config_variable('credentials_file')
+        return AioSharedCredentialProvider(
+            profile_name=profile_name,
+            creds_filename=credential_file,
+        )
+
+    def _create_config_provider(self, profile_name):
+        config_file = self._session.get_config_variable('config_file')
+        return AioConfigProvider(
+            profile_name=profile_name,
+            config_filename=config_file,
+        )
+
+    def _create_web_identity_provider(self, profile_name, disable_env_vars):
+        return AioAssumeRoleWithWebIdentityProvider(
+            load_config=lambda: self._session.full_config,
+            client_creator=_get_client_creator(
+                self._session, self._region_name),
+            cache=self._cache,
+            profile_name=profile_name,
+            disable_env_vars=disable_env_vars,
+        )
+
+
+async def get_credentials(session):
+    resolver = create_credential_resolver(session)
+    return await resolver.load_credentials()
+
+
+def create_assume_role_refresher(client, params):
+    async def refresh():
+        async with client as sts:
+            response = await sts.assume_role(**params)
+        credentials = response['Credentials']
+        # We need to normalize the credential names to
+        # the values expected by the refresh creds.
+        return {
+            'access_key': credentials['AccessKeyId'],
+            'secret_key': credentials['SecretAccessKey'],
+            'token': credentials['SessionToken'],
+            'expiry_time': _serialize_if_needed(credentials['Expiration']),
+        }
+    return refresh
+
+
 def create_aio_mfa_serial_refresher(actual_refresh):
     class _Refresher(object):
         def __init__(self, refresh):
@@ -63,8 +192,6 @@ class AioRefreshableCredentials(RefreshableCredentials):
         super(AioRefreshableCredentials, self).__init__(*args, **kwargs)
         self._refresh_lock = asyncio.Lock()
 
-        # self._refresh_using should be a coroutine
-
     @classmethod
     def from_refreshable_credentials(cls, obj: Optional[RefreshableCredentials]):
         if obj is None:
@@ -80,10 +207,14 @@ class AioRefreshableCredentials(RefreshableCredentials):
     # Have to redeclare setter as we're overriding the getter
     @property
     def access_key(self):
+        # TODO: this needs to be fixed
+        raise Exception("This will not work correctly as it's missing a call to refresh")
         return self._access_key
 
     @access_key.setter
     def access_key(self, value):
+        # TODO: this needs to be fixed
+        raise Exception("This will not work correctly as it's missing a call to refresh")
         self._access_key = value
 
     @property
@@ -96,6 +227,8 @@ class AioRefreshableCredentials(RefreshableCredentials):
 
     @property
     def token(self):
+        # TODO: this needs to be fixed
+        raise Exception("This will not work correctly as it's missing a call to refresh")
         return self._token
 
     @token.setter
@@ -261,134 +394,6 @@ class AioAssumeRoleWithWebIdentityCredentialFetcher(
         return assume_role_kwargs
 
 
-class AioEnvProvider(EnvProvider):
-    async def load(self):
-        # It gets credentials from an env var,
-        # so just convert the response to Aio variants
-        result = super(AioEnvProvider, self).load()
-        if isinstance(result, RefreshableCredentials):
-            return AioRefreshableCredentials.\
-                from_refreshable_credentials(result)
-        elif isinstance(result, Credentials):
-            return AioCredentials.from_credentials(result)
-
-        return None
-
-
-class AioContainerProvider(ContainerProvider):
-    def __init__(self, *args, **kwargs):
-        super(AioContainerProvider, self).__init__(*args, **kwargs)
-
-        # This will always run if no fetcher arg is provided
-        if isinstance(self._fetcher, ContainerMetadataFetcher):
-            self._fetcher = AioContainerMetadataFetcher()
-
-    async def load(self):
-        if self.ENV_VAR in self._environ or self.ENV_VAR_FULL in self._environ:
-            return await self._retrieve_or_fail()
-
-    async def _retrieve_or_fail(self):
-        if self._provided_relative_uri():
-            full_uri = self._fetcher.full_url(self._environ[self.ENV_VAR])
-        else:
-            full_uri = self._environ[self.ENV_VAR_FULL]
-        headers = self._build_headers()
-        fetcher = self._create_fetcher(full_uri, headers)
-        creds = await fetcher()
-        return AioRefreshableCredentials(
-            access_key=creds['access_key'],
-            secret_key=creds['secret_key'],
-            token=creds['token'],
-            method=self.METHOD,
-            expiry_time=_parse_if_needed(creds['expiry_time']),
-            refresh_using=fetcher,
-        )
-
-    def _create_fetcher(self, full_uri, headers):
-        async def fetch_creds():
-            try:
-                response = await self._fetcher.retrieve_full_uri(
-                    full_uri, headers=headers)
-            except MetadataRetrievalError as e:
-                logger.debug("Error retrieving container metadata: %s", e,
-                             exc_info=True)
-                raise CredentialRetrievalError(provider=self.METHOD,
-                                               error_msg=str(e))
-            return {
-                'access_key': response['AccessKeyId'],
-                'secret_key': response['SecretAccessKey'],
-                'token': response['Token'],
-                'expiry_time': response['Expiration'],
-            }
-
-        return fetch_creds
-
-
-class AioInstanceMetadataProvider(InstanceMetadataProvider):
-    async def load(self):
-        fetcher = self._role_fetcher
-        metadata = await fetcher.retrieve_iam_role_credentials()
-        if not metadata:
-            return None
-        logger.debug('Found credentials from IAM Role: %s',
-                     metadata['role_name'])
-
-        creds = AioRefreshableCredentials.create_from_metadata(
-            metadata,
-            method=self.METHOD,
-            refresh_using=fetcher.retrieve_iam_role_credentials,
-        )
-        return creds
-
-
-class AioProfileProviderBuilder(ProfileProviderBuilder):
-    def _create_process_provider(self, profile_name):
-        return AioProcessProvider(
-            profile_name=profile_name,
-            load_config=lambda: self._session.full_config,
-        )
-
-    def _create_shared_credential_provider(self, profile_name):
-        credential_file = self._session.get_config_variable('credentials_file')
-        return AioSharedCredentialProvider(
-            profile_name=profile_name,
-            creds_filename=credential_file,
-        )
-
-    def _create_config_provider(self, profile_name):
-        config_file = self._session.get_config_variable('config_file')
-        return AioConfigProvider(
-            profile_name=profile_name,
-            config_filename=config_file,
-        )
-
-    def _create_web_identity_provider(self, profile_name, disable_env_vars):
-        return AioAssumeRoleWithWebIdentityProvider(
-            load_config=lambda: self._session.full_config,
-            client_creator=_get_client_creator(
-                self._session, self._region_name),
-            cache=self._cache,
-            profile_name=profile_name,
-            disable_env_vars=disable_env_vars,
-        )
-
-
-class AioConfigProvider(ConfigProvider):
-    async def load(self):
-        result = super(AioConfigProvider, self).load()
-        if isinstance(result, Credentials):
-            result = AioCredentials.from_credentials(result)
-        return result
-
-
-class AioSharedCredentialProvider(SharedCredentialProvider):
-    async def load(self):
-        result = super(AioSharedCredentialProvider, self).load()
-        if isinstance(result, Credentials):
-            result = AioCredentials.from_credentials(result)
-        return result
-
-
 class AioProcessProvider(ProcessProvider):
     def __init__(self, *args, popen=asyncio.create_subprocess_exec, **kwargs):
         super(AioProcessProvider, self).__init__(*args, **kwargs, popen=popen)
@@ -445,67 +450,67 @@ class AioProcessProvider(ProcessProvider):
             )
 
 
-class AioCredentialResolver(CredentialResolver):
-    async def load_credentials(self):
-        """
-        Goes through the credentials chain, returning the first ``Credentials``
-        that could be loaded.
-        """
-        # First provider to return a non-None response wins.
-        for provider in self.providers:
-            logger.debug("Looking for credentials via: %s", provider.METHOD)
-            creds = await provider.load()
-            if creds is not None:
-                return creds
+class AioInstanceMetadataProvider(InstanceMetadataProvider):
+    async def load(self):
+        fetcher = self._role_fetcher
+        metadata = await fetcher.retrieve_iam_role_credentials()
+        if not metadata:
+            return None
+        logger.debug('Found credentials from IAM Role: %s',
+                     metadata['role_name'])
 
-        # If we got here, no credentials could be found.
-        # This feels like it should be an exception, but historically, ``None``
-        # is returned.
-        #
-        # +1
-        # -js
+        creds = AioRefreshableCredentials.create_from_metadata(
+            metadata,
+            method=self.METHOD,
+            refresh_using=fetcher.retrieve_iam_role_credentials,
+        )
+        return creds
+
+
+class AioEnvProvider(EnvProvider):
+    async def load(self):
+        # It gets credentials from an env var,
+        # so just convert the response to Aio variants
+        result = super().load()
+        if isinstance(result, RefreshableCredentials):
+            return AioRefreshableCredentials.\
+                from_refreshable_credentials(result)
+        elif isinstance(result, Credentials):
+            return AioCredentials.from_credentials(result)
+
         return None
 
 
-class AioAssumeRoleWithWebIdentityProvider(AssumeRoleWithWebIdentityProvider):
+class AioOriginalEC2Provider(OriginalEC2Provider):
     async def load(self):
-        return await self._assume_role_with_web_identity()
+        result = super(AioOriginalEC2Provider, self).load()
+        if isinstance(result, Credentials):
+            result = AioCredentials.from_credentials(result)
+        return result
 
-    async def _assume_role_with_web_identity(self):
-        token_path = self._get_config('web_identity_token_file')
-        if not token_path:
-            return None
-        token_loader = self._token_loader_cls(token_path)
 
-        role_arn = self._get_config('role_arn')
-        if not role_arn:
-            error_msg = (
-                'The provided profile or the current environment is '
-                'configured to assume role with web identity but has no '
-                'role ARN configured. Ensure that the profile has the role_arn'
-                'configuration set or the AWS_ROLE_ARN env var is set.'
-            )
-            raise InvalidConfigError(error_msg=error_msg)
+class AioSharedCredentialProvider(SharedCredentialProvider):
+    async def load(self):
+        result = super(AioSharedCredentialProvider, self).load()
+        if isinstance(result, Credentials):
+            result = AioCredentials.from_credentials(result)
+        return result
 
-        extra_args = {}
-        role_session_name = self._get_config('role_session_name')
-        if role_session_name is not None:
-            extra_args['RoleSessionName'] = role_session_name
 
-        fetcher = AioAssumeRoleWithWebIdentityCredentialFetcher(
-            client_creator=self._client_creator,
-            web_identity_token_loader=token_loader,
-            role_arn=role_arn,
-            extra_args=extra_args,
-            cache=self.cache,
-        )
-        # The initial credentials are empty and the expiration time is set
-        # to now so that we can delay the call to assume role until it is
-        # strictly needed.
-        return AioDeferredRefreshableCredentials(
-            method=self.METHOD,
-            refresh_using=fetcher.fetch_credentials,
-        )
+class AioConfigProvider(ConfigProvider):
+    async def load(self):
+        result = super(AioConfigProvider, self).load()
+        if isinstance(result, Credentials):
+            result = AioCredentials.from_credentials(result)
+        return result
+
+
+class AioBotoProvider(BotoProvider):
+    async def load(self):
+        result = super(AioBotoProvider, self).load()
+        if isinstance(result, Credentials):
+            result = AioCredentials.from_credentials(result)
+        return result
 
 
 class AioAssumeRoleProvider(AssumeRoleProvider):
@@ -623,6 +628,47 @@ class AioAssumeRoleProvider(AssumeRoleProvider):
         return credentials
 
 
+class AioAssumeRoleWithWebIdentityProvider(AssumeRoleWithWebIdentityProvider):
+    async def load(self):
+        return await self._assume_role_with_web_identity()
+
+    async def _assume_role_with_web_identity(self):
+        token_path = self._get_config('web_identity_token_file')
+        if not token_path:
+            return None
+        token_loader = self._token_loader_cls(token_path)
+
+        role_arn = self._get_config('role_arn')
+        if not role_arn:
+            error_msg = (
+                'The provided profile or the current environment is '
+                'configured to assume role with web identity but has no '
+                'role ARN configured. Ensure that the profile has the role_arn'
+                'configuration set or the AWS_ROLE_ARN env var is set.'
+            )
+            raise InvalidConfigError(error_msg=error_msg)
+
+        extra_args = {}
+        role_session_name = self._get_config('role_session_name')
+        if role_session_name is not None:
+            extra_args['RoleSessionName'] = role_session_name
+
+        fetcher = AioAssumeRoleWithWebIdentityCredentialFetcher(
+            client_creator=self._client_creator,
+            web_identity_token_loader=token_loader,
+            role_arn=role_arn,
+            extra_args=extra_args,
+            cache=self.cache,
+        )
+        # The initial credentials are empty and the expiration time is set
+        # to now so that we can delay the call to assume role until it is
+        # strictly needed.
+        return AioDeferredRefreshableCredentials(
+            method=self.METHOD,
+            refresh_using=fetcher.fetch_credentials,
+        )
+
+
 class AioCanonicalNameCredentialSourcer(CanonicalNameCredentialSourcer):
     async def source_credentials(self, source_name):
         """Loads source credentials based on the provided configuration.
@@ -677,98 +723,72 @@ class AioCanonicalNameCredentialSourcer(CanonicalNameCredentialSourcer):
         return provider
 
 
-class AioBotoProvider(BotoProvider):
+class AioContainerProvider(ContainerProvider):
+    def __init__(self, *args, **kwargs):
+        super(AioContainerProvider, self).__init__(*args, **kwargs)
+
+        # This will always run if no fetcher arg is provided
+        if isinstance(self._fetcher, ContainerMetadataFetcher):
+            self._fetcher = AioContainerMetadataFetcher()
+
     async def load(self):
-        result = super(AioBotoProvider, self).load()
-        if isinstance(result, Credentials):
-            result = AioCredentials.from_credentials(result)
-        return result
+        if self.ENV_VAR in self._environ or self.ENV_VAR_FULL in self._environ:
+            return await self._retrieve_or_fail()
+
+    async def _retrieve_or_fail(self):
+        if self._provided_relative_uri():
+            full_uri = self._fetcher.full_url(self._environ[self.ENV_VAR])
+        else:
+            full_uri = self._environ[self.ENV_VAR_FULL]
+        headers = self._build_headers()
+        fetcher = self._create_fetcher(full_uri, headers)
+        creds = await fetcher()
+        return AioRefreshableCredentials(
+            access_key=creds['access_key'],
+            secret_key=creds['secret_key'],
+            token=creds['token'],
+            method=self.METHOD,
+            expiry_time=_parse_if_needed(creds['expiry_time']),
+            refresh_using=fetcher,
+        )
+
+    def _create_fetcher(self, full_uri, headers):
+        async def fetch_creds():
+            try:
+                response = await self._fetcher.retrieve_full_uri(
+                    full_uri, headers=headers)
+            except MetadataRetrievalError as e:
+                logger.debug("Error retrieving container metadata: %s", e,
+                             exc_info=True)
+                raise CredentialRetrievalError(provider=self.METHOD,
+                                               error_msg=str(e))
+            return {
+                'access_key': response['AccessKeyId'],
+                'secret_key': response['SecretAccessKey'],
+                'token': response['Token'],
+                'expiry_time': response['Expiration'],
+            }
+
+        return fetch_creds
 
 
-class AioOriginalEC2Provider(OriginalEC2Provider):
-    async def load(self):
-        result = super(AioOriginalEC2Provider, self).load()
-        if isinstance(result, Credentials):
-            result = AioCredentials.from_credentials(result)
-        return result
-
-
-def create_credential_resolver(session, cache=None, region_name=None):
-    """Create a default credential resolver.
-        This creates a pre-configured credential resolver
-        that includes the default lookup chain for
-        credentials.
+class AioCredentialResolver(CredentialResolver):
+    async def load_credentials(self):
         """
-    profile_name = session.get_config_variable('profile') or 'default'
-    metadata_timeout = session.get_config_variable('metadata_service_timeout')
-    num_attempts = session.get_config_variable('metadata_service_num_attempts')
-    disable_env_vars = session.instance_variables().get('profile') is not None
+        Goes through the credentials chain, returning the first ``Credentials``
+        that could be loaded.
+        """
+        # First provider to return a non-None response wins.
+        for provider in self.providers:
+            logger.debug("Looking for credentials via: %s", provider.METHOD)
+            creds = await provider.load()
+            if creds is not None:
+                return creds
 
-    if cache is None:
-        cache = {}
-
-    env_provider = AioEnvProvider()
-    container_provider = AioContainerProvider()
-    instance_metadata_provider = AioInstanceMetadataProvider(
-        iam_role_fetcher=AioInstanceMetadataFetcher(
-            timeout=metadata_timeout,
-            num_attempts=num_attempts,
-            user_agent=session.user_agent())
-    )
-
-    profile_provider_builder = AioProfileProviderBuilder(
-        session, cache=cache, region_name=region_name)
-    assume_role_provider = AioAssumeRoleProvider(
-        load_config=lambda: session.full_config,
-        client_creator=_get_client_creator(session, region_name),
-        cache=cache,
-        profile_name=profile_name,
-        credential_sourcer=AioCanonicalNameCredentialSourcer([
-            env_provider, container_provider, instance_metadata_provider
-        ]),
-        profile_provider_builder=profile_provider_builder,
-    )
-
-    pre_profile = [
-        env_provider,
-        assume_role_provider,
-    ]
-    profile_providers = profile_provider_builder.providers(
-        profile_name=profile_name,
-        disable_env_vars=disable_env_vars,
-    )
-    post_profile = [
-        AioOriginalEC2Provider(),
-        AioBotoProvider(),
-        container_provider,
-        instance_metadata_provider,
-    ]
-    providers = pre_profile + profile_providers + post_profile
-
-    if disable_env_vars:
-        # An explicitly provided profile will negate an EnvProvider.
-        # We will defer to providers that understand the "profile"
-        # concept to retrieve credentials.
-        # The one edge case if is all three values are provided via
-        # env vars:
-        # export AWS_ACCESS_KEY_ID=foo
-        # export AWS_SECRET_ACCESS_KEY=bar
-        # export AWS_PROFILE=baz
-        # Then, just like our client() calls, the explicit credentials
-        # will take precedence.
+        # If we got here, no credentials could be found.
+        # This feels like it should be an exception, but historically, ``None``
+        # is returned.
         #
-        # This precedence is enforced by leaving the EnvProvider in the chain.
-        # This means that the only way a "profile" would win is if the
-        # EnvProvider does not return credentials, which is what we want
-        # in this scenario.
-        providers.remove(env_provider)
-        logger.debug('Skipping environment variable credential check'
-                     ' because profile name was explicitly set.')
-
-    resolver = AioCredentialResolver(providers=providers)
-    return resolver
-
-
-async def get_credentials(session):
-    resolver = create_credential_resolver(session)
-    return await resolver.load_credentials()
+        # +1
+        # -js
+        return None

@@ -65,6 +65,11 @@ _AIOHTTP_DIGESTS = {
 # 2) Bumping up the base version of aiohttp/botocore that we support
 #    In this scenario ensure aiobotocore supports the new version of the libs
 #    and REPLACE all entries with the current hashes with the new libs.
+
+# REPLACE = backwards incompatible change
+# APPEND = officially supporting more versions of botocore/aiohttp
+
+# If you're changing these, most likely need to update setup.py as well.
 _API_DIGESTS = {
     # args.py
     ClientArgsCreator.get_client_args: {'e3a44e6f50159e8e31c3d76f5e8a1110dda495fa'},
@@ -262,10 +267,6 @@ _API_DIGESTS = {
     create_waiter_with_client: {'c3d12c9a4293105cc8c2ecfc7e69a2152ad564de'},
 }
 
-# REPLACE = backwards incompatible change
-# APPEND = officially supporting more versions of botocore/aiohttp
-
-# If you're changing these, most likely need to update setup.py as well.
 
 _PROTOCOL_PARSER_CONTENT = {'ec2', 'query', 'json', 'rest-json', 'rest-xml'}
 
