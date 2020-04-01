@@ -1,5 +1,10 @@
 Changes
 -------
+
+1.0.1 (2020-04-01)
+^^^^^^^^^^^^^^^^^^
+* Fixed signing requests with explict credentials
+
 1.0.0 (2020-03-31)
 ^^^^^^^^^^^^^^^^^^
 * API breaking: The result of create_client is now a required async context class
