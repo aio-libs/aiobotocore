@@ -3,7 +3,7 @@ Changes
 
 1.0.1 (2020-04-01)
 ^^^^^^^^^^^^^^^^^^
-* Fixed signing requests with explict credentials
+* Fixed signing requests with explicit credentials
 
 1.0.0 (2020-03-31)
 ^^^^^^^^^^^^^^^^^^
