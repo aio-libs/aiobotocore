@@ -117,6 +117,9 @@ class AioSession(Session):
                 'credential_provider').load_credentials())
         return self._credentials
 
+    def set_credentials(self, access_key, secret_key, token=None):
+        self._credentials = AioCredentials(access_key, secret_key, token)
+
     async def get_service_model(self, service_name, api_version=None):
         service_description = await self.get_service_data(service_name, api_version)
         return ServiceModel(service_description, service_name=service_name)
