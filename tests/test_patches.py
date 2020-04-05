@@ -85,6 +85,7 @@ _API_DIGESTS = {
     BaseClient._emit_api_params: {'2bfadaaa70671b63c50b1beed6d6c66e85813e9b'},
     BaseClient.get_paginator: {'c69885f5f73fae048c0b93b43bbfcd1f9c6168b8'},
     BaseClient.get_waiter: {'23d57598555bfbc4c6e7ec93406d05771f108d9e'},
+    BaseClient.__getattr__: {'63f8ad095789d47880867f18537a277195845111'},
 
     # config.py
     Config.merge: {'c3dd8c3ffe0da86953ceba4a35267dfb79c6a2c8'},

@@ -70,6 +70,13 @@ class AioClientCreator(ClientCreator):
 
 
 class AioBaseClient(BaseClient):
+    def __getattr__(self, item):
+        # TODO: this is not supported yet as emit_until_response is an async function
+        raise AttributeError(
+            "'%s' object has no attribute '%s'" % (
+                self.__class__.__name__, item)
+        )
+
     async def _make_api_call(self, operation_name, api_params):
         operation_model = self._service_model.operation_model(operation_name)
         service_name = self._service_model.service_name
