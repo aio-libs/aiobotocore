@@ -6,23 +6,22 @@ import aiobotocore
 
 async def go():
     session = aiobotocore.get_session()
-    client = session.create_client('sqs', region_name='us-west-2')
+    async with session.create_client('sqs', region_name='us-west-2') as client:
 
-    print('Creating test_queue1')
-    response = await client.create_queue(QueueName='test_queue1')
-    queue_url = response['QueueUrl']
+        print('Creating test_queue1')
+        response = await client.create_queue(QueueName='test_queue1')
+        queue_url = response['QueueUrl']
 
-    response = await client.list_queues()
+        response = await client.list_queues()
 
-    print('Queue URLs:')
-    for queue_name in response.get('QueueUrls', []):
-        print(' ' + queue_name)
+        print('Queue URLs:')
+        for queue_name in response.get('QueueUrls', []):
+            print(f' {queue_name}')
 
-    print('Deleting queue {0}'.format(queue_url))
-    await client.delete_queue(QueueUrl=queue_url)
+        print(f'Deleting queue {queue_url}')
+        await client.delete_queue(QueueUrl=queue_url)
 
-    print('Done')
-    await client.close()
+        print('Done')
 
 
 def main():
