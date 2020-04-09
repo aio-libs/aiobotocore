@@ -22,13 +22,22 @@ AWS_PORT = "5000"
 
 
 @pytest.fixture
+def free_tcp_port():
+    tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    tcp.bind(('', 0))
+    addr, port = tcp.getsockname()
+    tcp.close()
+    return port
+
+
+@pytest.fixture
 def aws_host():
     return os.getenv("AWS_HOST", AWS_HOST)
 
 
 @pytest.fixture
-def aws_port():
-    return os.getenv("AWS_PORT", AWS_PORT)
+def aws_port(free_tcp_port):
+    return free_tcp_port
 
 
 @pytest.fixture
