@@ -425,7 +425,7 @@ class AioProcessProvider(ProcessProvider):
         # We're not using shell=True, so we need to pass the
         # command and all arguments as a list.
         process_list = compat_shell_split(credential_process)
-        p = await self._popen(process_list,
+        p = await self._popen(*process_list,
                               stdout=subprocess.PIPE,
                               stderr=subprocess.PIPE)
         stdout, stderr = await p.communicate()

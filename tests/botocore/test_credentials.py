@@ -931,7 +931,7 @@ def process_provider():
 @pytest.mark.moto
 @pytest.mark.asyncio
 async def test_processprovider_retrieve_refereshable_creds(process_provider):
-    config = {'profiles': {'default': {'credential_process': 'my-process'}}}
+    config = {'profiles': {'default': {'credential_process': 'my-process /somefile'}}}
     invoked_process = mock.AsyncMock()
     stdout = json.dumps({
         'Version': 1,
@@ -955,7 +955,7 @@ async def test_processprovider_retrieve_refereshable_creds(process_provider):
     assert creds.access_key == 'foo'
     assert creds.secret_key == 'bar'
     assert creds.token == 'baz'
-    popen_mock.assert_called_with(['my-process'],
+    popen_mock.assert_called_with('my-process', '/somefile',
                                   stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
 
