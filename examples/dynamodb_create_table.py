@@ -7,37 +7,35 @@ import aiobotocore
 
 async def go():
     session = aiobotocore.get_session()
-    client = session.create_client('dynamodb', region_name='us-west-2')
-    # Create random table name
-    table_name = 'aiobotocore-' + str(uuid.uuid4())
+    async with session.create_client('dynamodb', region_name='us-west-2') as client:
+        # Create random table name
+        table_name = f'aiobotocore-{uuid.uuid4()}'
 
-    print('Requesting table creation...')
-    await client.create_table(
-        TableName=table_name,
-        AttributeDefinitions=[
-            {
-                'AttributeName': 'testKey',
-                'AttributeType': 'S'
-            },
-        ],
-        KeySchema=[
-            {
-                'AttributeName': 'testKey',
-                'KeyType': 'HASH'
-            },
-        ],
-        ProvisionedThroughput={
-            'ReadCapacityUnits': 10,
-            'WriteCapacityUnits': 10
-        }
-    )
+        print('Requesting table creation...')
+        await client.create_table(
+            TableName=table_name,
+            AttributeDefinitions=[
+                {
+                    'AttributeName': 'testKey',
+                    'AttributeType': 'S'
+                },
+            ],
+            KeySchema=[
+                {
+                    'AttributeName': 'testKey',
+                    'KeyType': 'HASH'
+                },
+            ],
+            ProvisionedThroughput={
+                'ReadCapacityUnits': 10,
+                'WriteCapacityUnits': 10
+            }
+        )
 
-    print("Waiting for table to be created...")
-    waiter = client.get_waiter('table_exists')
-    await waiter.wait(TableName=table_name)
-    print("Table {0} created".format(table_name))
-
-    await client.close()
+        print("Waiting for table to be created...")
+        waiter = client.get_waiter('table_exists')
+        await waiter.wait(TableName=table_name)
+        print(f"Table {table_name} created")
 
 
 def main():

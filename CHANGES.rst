@@ -1,6 +1,28 @@
 Changes
 -------
 
+1.0.3 (2020-04-09)
+^^^^^^^^^^^^^^^^^^
+* Fixes typo when using credential process
+
+1.0.2 (2020-04-05)
+^^^^^^^^^^^^^^^^^^
+* Disable Client.__getattr__ emit for now #789
+
+1.0.1 (2020-04-01)
+^^^^^^^^^^^^^^^^^^
+* Fixed signing requests with explicit credentials
+
+1.0.0 (2020-03-31)
+^^^^^^^^^^^^^^^^^^
+* API breaking: The result of create_client is now a required async context class
+* Credential refresh should now work
+* generate_presigned_url is now an async call along with other credential methods
+* Credentials.[access_key/secret_key/token] now raise NotImplementedError because
+  they won't call refresh like botocore. Instead should use get_frozen_credentials
+  async method
+* Bump botocore and extras
+
 0.12.0 (2020-02-23)
 ^^^^^^^^^^^^^^^^^^^
 * Bump botocore and extras

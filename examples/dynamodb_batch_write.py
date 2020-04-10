@@ -44,59 +44,57 @@ def create_batch_write_structure(table_name, start_num, num_items):
 
 async def go():
     session = aiobotocore.get_session()
-    client = session.create_client('dynamodb', region_name='us-west-2')
-    table_name = 'test'
+    async with session.create_client('dynamodb', region_name='us-west-2') as client:
+        table_name = 'test'
 
-    print('Writing to dynamo')
-    start = 0
-    while True:
-        # Loop adding 25 items to dynamo at a time
-        request_items = create_batch_write_structure(table_name, start, 25)
-        response = await client.batch_write_item(
-            RequestItems=request_items
-        )
-        if len(response['UnprocessedItems']) == 0:
-            print('Writted 25 items to dynamo')
-        else:
-            # Hit the provisioned write limit
-            print('Hit write limit, backing off then retrying')
-            await asyncio.sleep(5)
+        print('Writing to dynamo')
+        start = 0
+        while True:
+            # Loop adding 25 items to dynamo at a time
+            request_items = create_batch_write_structure(table_name, start, 25)
+            response = await client.batch_write_item(
+                RequestItems=request_items
+            )
+            if len(response['UnprocessedItems']) == 0:
+                print('Wrote 25 items to dynamo')
+            else:
+                # Hit the provisioned write limit
+                print('Hit write limit, backing off then retrying')
+                await asyncio.sleep(5)
 
-            # Items left over that haven't been inserted
-            unprocessed_items = response['UnprocessedItems']
-            print('Resubmitting items')
-            # Loop until unprocessed items are written
-            while len(unprocessed_items) > 0:
-                response = await client.batch_write_item(
-                    RequestItems=unprocessed_items
-                )
-                # If any items are still left over, add them to the
-                # list to be written
+                # Items left over that haven't been inserted
                 unprocessed_items = response['UnprocessedItems']
+                print('Resubmitting items')
+                # Loop until unprocessed items are written
+                while len(unprocessed_items) > 0:
+                    response = await client.batch_write_item(
+                        RequestItems=unprocessed_items
+                    )
+                    # If any items are still left over, add them to the
+                    # list to be written
+                    unprocessed_items = response['UnprocessedItems']
 
-                # If there are items left over, we could do with
-                # sleeping some more
-                if len(unprocessed_items) > 0:
-                    print('Backing off for 5 seconds')
-                    await asyncio.sleep(5)
+                    # If there are items left over, we could do with
+                    # sleeping some more
+                    if len(unprocessed_items) > 0:
+                        print('Backing off for 5 seconds')
+                        await asyncio.sleep(5)
 
-            # Inserted all the unprocessed items, exit loop
-            print('Unprocessed items successfully inserted')
-            break
+                # Inserted all the unprocessed items, exit loop
+                print('Unprocessed items successfully inserted')
+                break
 
-        start += 25
+            start += 25
 
-    # See if DynamoDB has the last item we inserted
-    final_item = 'item' + str(start + 24)
-    print('Item "{0}" should exist'.format(final_item))
+        # See if DynamoDB has the last item we inserted
+        final_item = 'item' + str(start + 24)
+        print(f'Item "{final_item}" should exist')
 
-    response = await client.get_item(
-        TableName=table_name,
-        Key={'pk': {'S': final_item}}
-    )
-    print('Response: ' + str(response['Item']))
-
-    await client.close()
+        response = await client.get_item(
+            TableName=table_name,
+            Key={'pk': {'S': final_item}}
+        )
+        print(f'Response: {response["Item"]}')
 
 
 def main():

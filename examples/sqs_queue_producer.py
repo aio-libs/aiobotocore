@@ -15,40 +15,38 @@ QUEUE_NAME = 'test_queue12'
 async def go():
     # Boto should get credentials from ~/.aws/credentials or the environment
     session = aiobotocore.get_session()
-    client = session.create_client('sqs', region_name='us-west-2')
-    try:
-        response = await client.get_queue_url(QueueName=QUEUE_NAME)
-    except botocore.exceptions.ClientError as err:
-        if err.response['Error']['Code'] == \
-                'AWS.SimpleQueueService.NonExistentQueue':
-            print("Queue {0} does not exist".format(QUEUE_NAME))
-            await client.close()
-            sys.exit(1)
-        else:
-            raise
-
-    queue_url = response['QueueUrl']
-
-    print('Putting messages on the queue')
-
-    msg_no = 1
-    while True:
+    async with session.create_client('sqs', region_name='us-west-2') as client:
         try:
-            msg_body = 'Message #{0}'.format(msg_no)
-            await client.send_message(
-                QueueUrl=queue_url,
-                MessageBody=msg_body
-            )
-            msg_no += 1
+            response = await client.get_queue_url(QueueName=QUEUE_NAME)
+        except botocore.exceptions.ClientError as err:
+            if err.response['Error']['Code'] == \
+                    'AWS.SimpleQueueService.NonExistentQueue':
+                print(f"Queue {QUEUE_NAME} does not exist")
+                sys.exit(1)
+            else:
+                raise
 
-            print('Pushed "{0}" to queue'.format(msg_body))
+        queue_url = response['QueueUrl']
 
-            await asyncio.sleep(random.randint(1, 4))
-        except KeyboardInterrupt:
-            break
+        print('Putting messages on the queue')
 
-    print('Finished')
-    await client.close()
+        msg_no = 1
+        while True:
+            try:
+                msg_body = f'Message #{msg_no}'
+                await client.send_message(
+                    QueueUrl=queue_url,
+                    MessageBody=msg_body
+                )
+                msg_no += 1
+
+                print(f'Pushed "{msg_body}" to queue')
+
+                await asyncio.sleep(random.randint(1, 4))
+            except KeyboardInterrupt:
+                break
+
+        print('Finished')
 
 
 def main():

@@ -10,7 +10,7 @@ async def go():
     bucket = 'dataintake'
     filename = 'dummy.bin'
     folder = 'aiobotocore'
-    key = '{}/{}'.format(folder, filename)
+    key = f'{folder}/{filename}'
 
     session = aiobotocore.get_session()
     async with session.create_client(

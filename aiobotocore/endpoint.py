@@ -5,7 +5,7 @@ import ssl
 import aiohttp.http_exceptions
 from aiohttp.client import URL
 from botocore.endpoint import EndpointCreator, Endpoint, DEFAULT_TIMEOUT, \
-    MAX_POOL_CONNECTIONS, logger, history_recorder
+    MAX_POOL_CONNECTIONS, logger, history_recorder, create_request_object
 from botocore.exceptions import ConnectionClosedError
 from botocore.hooks import first_non_none_response
 from botocore.utils import is_valid_endpoint_url
@@ -63,9 +63,25 @@ class AioEndpoint(Endpoint):
         super().__init__(*args, **kwargs)
         self.proxies = proxies or {}
 
+    async def create_request(self, params, operation_model=None):
+        request = create_request_object(params)
+        if operation_model:
+            request.stream_output = any([
+                operation_model.has_streaming_output,
+                operation_model.has_event_stream_output
+            ])
+            service_id = operation_model.service_model.service_id.hyphenize()
+            event_name = 'request-created.{service_id}.{op_name}'.format(
+                service_id=service_id,
+                op_name=operation_model.name)
+            await self._event_emitter.emit(event_name, request=request,
+                                           operation_name=operation_model.name)
+        prepared_request = self.prepare_request(request)
+        return prepared_request
+
     async def _send_request(self, request_dict, operation_model):
         attempts = 1
-        request = self.create_request(request_dict, operation_model)
+        request = await self.create_request(request_dict, operation_model)
         context = request_dict['context']
         success_response, exception = await self._get_response(
             request, operation_model, context)
@@ -79,7 +95,7 @@ class AioEndpoint(Endpoint):
             # body.
             request.reset_stream()
             # Create a new request when retried (including a new signature).
-            request = self.create_request(
+            request = await self.create_request(
                 request_dict, operation_model)
             success_response, exception = await self._get_response(
                 request, operation_model, context)
@@ -114,7 +130,7 @@ class AioEndpoint(Endpoint):
             kwargs_to_emit['response_dict'] = await convert_to_response_dict(
                 http_response, operation_model)
         service_id = operation_model.service_model.service_id.hyphenize()
-        self._event_emitter.emit(
+        await self._event_emitter.emit(
             'response-received.%s.%s' % (
                 service_id, operation_model.name), **kwargs_to_emit)
         return success_response, exception
@@ -130,8 +146,10 @@ class AioEndpoint(Endpoint):
                 'body': request.body
             })
             service_id = operation_model.service_model.service_id.hyphenize()
-            event_name = 'before-send.%s.%s' % (service_id, operation_model.name)
-            responses = self._event_emitter.emit(event_name, request=request)
+            event_name = 'before-send.%s.%s' % (
+                service_id, operation_model.name)
+            responses = await self._event_emitter.emit(event_name,
+                                                       request=request)
             http_response = first_non_none_response(responses)
             if http_response is None:
                 http_response = await self._send(request)
@@ -170,7 +188,7 @@ class AioEndpoint(Endpoint):
         event_name = 'needs-retry.%s.%s' % (
             service_id,
             operation_model.name)
-        responses = self._event_emitter.emit(
+        responses = await self._event_emitter.emit(
             event_name, response=response, endpoint=self,
             operation=operation_model, attempts=attempts,
             caught_exception=caught_exception, request_dict=request_dict)

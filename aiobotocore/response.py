@@ -37,6 +37,9 @@ class StreamingBody(wrapt.ObjectProxy):
     # NOTE: set_socket_timeout was only for when requests didn't support
     #       read timeouts, so not needed
 
+    def tell(self):
+        return self._self_amount_read
+
     async def read(self, amt=None):
         """Read at most amt bytes from the stream.
 

@@ -415,15 +415,14 @@ async def test_presign_with_existing_query_string_values(
     params = {'Bucket': bucket_name,
               'Key': key_name,
               'ResponseContentDisposition': content_disposition}
-    presigned_url = s3_client.generate_presigned_url(
+    presigned_url = await s3_client.generate_presigned_url(
         'get_object', Params=params)
     # Try to retrieve the object using the presigned url.
 
-    resp = await aio_session.get(presigned_url)
-    data = await resp.read()
-    await resp.close()
-    assert resp.headers['Content-Disposition'] == content_disposition
-    assert data == b'foo'
+    async with aio_session.get(presigned_url) as resp:
+        data = await resp.read()
+        assert resp.headers['Content-Disposition'] == content_disposition
+        assert data == b'foo'
 
 
 @pytest.mark.parametrize('region', ['us-east-1'])
@@ -435,7 +434,7 @@ async def test_presign_sigv4(s3_client, bucket_name, aio_session,
                              create_object):
     key = 'myobject'
     await create_object(key_name=key)
-    presigned_url = s3_client.generate_presigned_url(
+    presigned_url = await s3_client.generate_presigned_url(
         'get_object', Params={'Bucket': bucket_name, 'Key': key})
     msg = "Host was suppose to be the us-east-1 endpoint, " \
           "instead got: %s" % presigned_url
@@ -443,9 +442,9 @@ async def test_presign_sigv4(s3_client, bucket_name, aio_session,
                                     % (bucket_name, key)), msg
 
     # Try to retrieve the object using the presigned url.
-    resp = await aio_session.get(presigned_url)
-    data = await resp.read()
-    assert data == b'foo'
+    async with aio_session.get(presigned_url) as resp:
+        data = await resp.read()
+        assert data == b'foo'
 
 
 @pytest.mark.parametrize('signature_version', ['s3v4'])
