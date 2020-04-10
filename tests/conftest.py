@@ -5,7 +5,6 @@ import aiobotocore
 from aiobotocore.config import AioConfig
 from itertools import chain
 import tempfile
-import shutil
 import os
 
 # Third Party
@@ -56,6 +55,7 @@ async def assert_num_uploads_found(
         responses = []
         async for page in pages:
             responses.append(page)
+
         # It sometimes takes a while for all the uploads to show up,
         # especially if the upload was just created.  If we don't
         # see the expected amount, we retry up to num_attempts time
@@ -67,6 +67,7 @@ async def assert_num_uploads_found(
         else:
             # Sleep and try again.
             await asyncio.sleep(2)
+
         pytest.fail("Expected to see %s uploads, instead saw: %s" % (
             num_uploads, amount_seen))
 
@@ -135,83 +136,68 @@ def moto_config(endpoint_url):
 
 
 @pytest.fixture
-def s3_client(request, session, region, config, s3_server, mocking_test,
-              event_loop):
-    kw = {}
-    if mocking_test:
-        kw = moto_config(s3_server)
-    client = create_client('s3', request, event_loop, session, region, config,
-                           **kw)
-    return client
+async def s3_client(session, region, config, s3_server, mocking_test):
+    kw = moto_config(s3_server) if mocking_test else {}
+
+    async with session.create_client('s3', region_name=region,
+                                     config=config, **kw) as client:
+        yield client
 
 
 @pytest.fixture
-def alternative_s3_client(request, session, alternative_region,
-                          signature_version, s3_server,
-                          mocking_test, event_loop):
-    kw = {}
-    if mocking_test:
-        kw = moto_config(s3_server)
+async def alternative_s3_client(session, alternative_region, signature_version,
+                                s3_server, mocking_test):
+    kw = moto_config(s3_server) if mocking_test else {}
 
     config = AioConfig(
         region_name=alternative_region, signature_version=signature_version,
         read_timeout=5, connect_timeout=5)
-    client = create_client(
-        's3', request, event_loop, session, alternative_region, config, **kw)
-    return client
+
+    async with session.create_client('s3', region_name=alternative_region,
+                                     config=config, **kw) as client:
+        yield client
 
 
 @pytest.fixture
-def dynamodb_client(request, session, region, config, dynamodb2_server,
-                    mocking_test, event_loop):
-    kw = {}
-    if mocking_test:
-        kw = moto_config(dynamodb2_server)
-    client = create_client('dynamodb', request, event_loop, session, region,
-                           config, **kw)
-    return client
+async def dynamodb_client(session, region, config, dynamodb2_server,
+                          mocking_test):
+    kw = moto_config(dynamodb2_server) if mocking_test else {}
+    async with session.create_client('dynamodb', region_name=region,
+                                     config=config, **kw) as client:
+        yield client
 
 
 @pytest.fixture
-def cloudformation_client(request, session, region, config,
-                          cloudformation_server, mocking_test, event_loop):
-    kw = {}
-    if mocking_test:
-        kw = moto_config(cloudformation_server)
-    client = create_client('cloudformation', request, event_loop, session,
-                           region, config, **kw)
-    return client
+async def cloudformation_client(session, region, config, cloudformation_server,
+                                mocking_test):
+    kw = moto_config(cloudformation_server) if mocking_test else {}
+    async with session.create_client('cloudformation', region_name=region,
+                                     config=config, **kw) as client:
+        yield client
 
 
 @pytest.fixture
-def sns_client(request, session, region, config, sns_server,
-               mocking_test, event_loop):
+async def sns_client(session, region, config, sns_server, mocking_test):
     kw = moto_config(sns_server) if mocking_test else {}
-    client = create_client('sns', request, event_loop, session, region,
-                           config, **kw)
-    return client
+    async with session.create_client('sns', region_name=region,
+                                     config=config, **kw) as client:
+        yield client
 
 
 @pytest.fixture
-def sqs_client(request, session, region, config, sqs_server,
-               mocking_test, event_loop):
+async def sqs_client(session, region, config, sqs_server, mocking_test):
     kw = moto_config(sqs_server) if mocking_test else {}
-    client = create_client('sqs', request, event_loop, session, region,
-                           config, **kw)
-    return client
+    async with session.create_client('sqs', region_name=region,
+                                     config=config, **kw) as client:
+        yield client
 
 
-def create_client(client_type, request, event_loop: asyncio.AbstractEventLoop,
-                  session, region, config, **kw):
-    client = session.create_client(client_type, region_name=region,
-                                   config=config, **kw)
-
-    def fin():
-        event_loop.run_until_complete(client.__aexit__(None, None, None))
-    request.addfinalizer(fin)
-
-    client = event_loop.run_until_complete(client.__aenter__())
-    return client
+@pytest.fixture
+async def batch_client(session, region, config, batch_server, mocking_test):
+    kw = moto_config(batch_server) if mocking_test else {}
+    async with session.create_client('batch', region_name=region,
+                                     config=config, **kw) as client:
+        yield client
 
 
 async def recursive_delete(s3_client, bucket_name):
@@ -306,9 +292,11 @@ async def create_table(dynamodb_client):
                 'WriteCapacityUnits': 1
             },
         }
+
         response = await dynamodb_client.create_table(**table_kwargs)
         while not (await _is_table_ready(table_name)):
             pass
+
         assert_status_code(response, 200)
         return table_name
 
@@ -326,13 +314,9 @@ async def delete_table(dynamodb_client, table_name):
 
 
 @pytest.fixture
-def tempdir(request):
-    tempdir = tempfile.mkdtemp()
-
-    def fin():
-        shutil.rmtree(tempdir)
-    request.addfinalizer(fin)
-    return tempdir
+def tempdir():
+    with tempfile.TemporaryDirectory() as td:
+        yield td
 
 
 @pytest.fixture
@@ -432,28 +416,15 @@ def create_topic(request, sns_client, event_loop):
 
 
 @pytest.fixture
-def create_sqs_queue(request, sqs_client, event_loop):
-    _queue_url = None
+async def sqs_queue_url(sqs_client):
+    response = await sqs_client.create_queue(QueueName=random_name())
+    queue_url = response['QueueUrl']
+    assert_status_code(response, 200)
 
-    async def _f():
-        nonlocal _queue_url
-
-        response = await sqs_client.create_queue(QueueName=random_name())
-        _queue_url = response['QueueUrl']
-        assert_status_code(response, 200)
-        return _queue_url
-
-    def fin():
-        event_loop.run_until_complete(delete_sqs_queue(sqs_client, _queue_url))
-
-    request.addfinalizer(fin)
-    return _f
-
-
-@pytest.fixture
-def sqs_queue_url(region, create_sqs_queue, sqs_client, event_loop):
-    name = event_loop.run_until_complete(create_sqs_queue())
-    return name
+    try:
+        yield queue_url
+    finally:
+        await delete_sqs_queue(sqs_client, queue_url)
 
 
 async def delete_sqs_queue(sqs_client, queue_url):
