@@ -20,7 +20,7 @@ _CONNECT_TIMEOUT = 90 if _PYCHARM_HOSTED else 10
 
 def get_free_tcp_port(release_socket: bool = False):
     sckt = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sckt.bind(('', 0))
+    sckt.bind((host, 0))
     addr, port = sckt.getsockname()
     if release_socket:
         sckt.close()
