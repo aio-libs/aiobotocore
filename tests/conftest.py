@@ -200,6 +200,22 @@ async def batch_client(session, region, config, batch_server, mocking_test):
         yield client
 
 
+@pytest.fixture
+async def lambda_client(session, region, config, lambda_server, mocking_test):
+    kw = moto_config(lambda_server) if mocking_test else {}
+    async with session.create_client('lambda', region_name=region,
+                                     config=config, **kw) as client:
+        yield client
+
+
+@pytest.fixture
+async def iam_client(session, region, config, iam_server, mocking_test):
+    kw = moto_config(iam_server) if mocking_test else {}
+    async with session.create_client('iam', region_name=region,
+                                     config=config, **kw) as client:
+        yield client
+
+
 async def recursive_delete(s3_client, bucket_name):
     # Recursively deletes a bucket and all of its contents.
     paginator = s3_client.get_paginator('list_object_versions')

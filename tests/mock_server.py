@@ -30,7 +30,7 @@ class AIOServer(multiprocessing.Process):
         super().__init__(target=self._run)
         self._loop = None
         self._port = get_free_tcp_port(True)
-        self.endpoint_url = 'http://{}:{}'.format(host, self._port)
+        self.endpoint_url = f'http://{host}:{self._port}'
         self.daemon = True  # die when parent dies
 
     def _run(self):
@@ -127,4 +127,16 @@ async def sqs_server():
 @pytest.fixture
 async def batch_server():
     async with MotoService('batch') as svc:
+        yield svc.endpoint_url
+
+
+@pytest.fixture
+async def lambda_server():
+    async with MotoService('lambda') as svc:
+        yield svc.endpoint_url
+
+
+@pytest.fixture
+async def iam_server():
+    async with MotoService('iam') as svc:
         yield svc.endpoint_url
