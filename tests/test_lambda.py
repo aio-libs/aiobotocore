@@ -51,6 +51,8 @@ async def test_run_lambda(iam_client, lambda_client, aws_lambda_zip):
         Timeout=10, MemorySize=128, Publish=True,
         Code={'ZipFile': aws_lambda_zip}
     )
+    assert lambda_response['FunctionName'] == 'test-function'
+
     invoke_response = await lambda_client.invoke(
         FunctionName="test-function",
         InvocationType="RequestResponse",
