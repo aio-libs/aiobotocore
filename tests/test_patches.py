@@ -243,7 +243,8 @@ _API_DIGESTS = {
     RequestSigner.generate_presigned_url: {'2acffdfd926b7b6f6cc4b70b90c0587e7f424888'},
     add_generate_presigned_url: {'5820f74ac46b004eb79e00eea1adc467bcf4defe'},
     generate_presigned_url: {'9c471f957210c0a71a11f5c73be9fed844ecb5bb'},
-    S3PostPresigner.generate_presigned_post: {'b91d50bae4122d7ab540653865ec9294520ac0e1'},
+    S3PostPresigner.generate_presigned_post:
+        {'b91d50bae4122d7ab540653865ec9294520ac0e1'},
     add_generate_presigned_post: {'e30360f2bd893fabf47f5cdb04b0de420ccd414d'},
     generate_presigned_post: {'85e9ebe0412cb10716bf84a1533798882f3fc79f'},
 
