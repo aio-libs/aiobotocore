@@ -1,8 +1,9 @@
+import datetime
 import botocore
 import botocore.auth
 from botocore.signers import RequestSigner, UnknownSignatureVersionError, \
     UnsupportedSignatureVersionError, create_request_object, prepare_request_dict, \
-    _should_use_global_endpoint
+    _should_use_global_endpoint, S3PostPresigner
 from botocore.exceptions import UnknownClientMethodError
 
 
@@ -188,3 +189,94 @@ async def generate_presigned_url(self, ClientMethod, Params=None, ExpiresIn=3600
     return await request_signer.generate_presigned_url(
         request_dict=request_dict, expires_in=expires_in,
         operation_name=operation_name)
+
+
+class AioS3PostPresigner(S3PostPresigner):
+    async def generate_presigned_post(self, request_dict, fields=None,
+                                      conditions=None, expires_in=3600,
+                                      region_name=None):
+        if fields is None:
+            fields = {}
+
+        if conditions is None:
+            conditions = []
+
+        # Create the policy for the post.
+        policy = {}
+
+        # Create an expiration date for the policy
+        datetime_now = datetime.datetime.utcnow()
+        expire_date = datetime_now + datetime.timedelta(seconds=expires_in)
+        policy['expiration'] = expire_date.strftime(botocore.auth.ISO8601)
+
+        # Append all of the conditions that the user supplied.
+        policy['conditions'] = []
+        for condition in conditions:
+            policy['conditions'].append(condition)
+
+        # Store the policy and the fields in the request for signing
+        request = create_request_object(request_dict)
+        request.context['s3-presign-post-fields'] = fields
+        request.context['s3-presign-post-policy'] = policy
+
+        await self._request_signer.sign(
+            'PutObject', request, region_name, 'presign-post')
+        # Return the url and the fields for th form to post.
+        return {'url': request.url, 'fields': fields}
+
+
+def add_generate_presigned_post(class_attributes, **kwargs):
+    class_attributes['generate_presigned_post'] = generate_presigned_post
+
+
+async def generate_presigned_post(self, Bucket, Key, Fields=None, Conditions=None,
+                                  ExpiresIn=3600):
+    bucket = Bucket
+    key = Key
+    fields = Fields
+    conditions = Conditions
+    expires_in = ExpiresIn
+
+    if fields is None:
+        fields = {}
+
+    if conditions is None:
+        conditions = []
+
+    post_presigner = AioS3PostPresigner(self._request_signer)
+    serializer = self._serializer
+
+    # We choose the CreateBucket operation model because its url gets
+    # serialized to what a presign post requires.
+    operation_model = self.meta.service_model.operation_model(
+        'CreateBucket')
+
+    # Create a request dict based on the params to serialize.
+    request_dict = serializer.serialize_to_request(
+        {'Bucket': bucket}, operation_model)
+
+    # Prepare the request dict by including the client's endpoint url.
+    prepare_request_dict(
+        request_dict, endpoint_url=self.meta.endpoint_url,
+        context={
+            'is_presign_request': True,
+            'use_global_endpoint': _should_use_global_endpoint(self),
+        },
+    )
+
+    # Append that the bucket name to the list of conditions.
+    conditions.append({'bucket': bucket})
+
+    # If the key ends with filename, the only constraint that can be
+    # imposed is if it starts with the specified prefix.
+    if key.endswith('${filename}'):
+        conditions.append(["starts-with", '$key', key[:-len('${filename}')]])
+    else:
+        conditions.append({'key': key})
+
+    # Add the key to the fields.
+    fields['key'] = key
+
+    return await post_presigner.generate_presigned_post(
+        request_dict=request_dict, fields=fields, conditions=conditions,
+        expires_in=expires_in)
