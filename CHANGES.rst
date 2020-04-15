@@ -1,7 +1,7 @@
 Changes
 -------
 
-1.0.4 (2020-04-XX)
+1.0.4 (2020-04-15)
 ^^^^^^^^^^^^^^^^^^
 * Fixed S3 Presigned Post not being async
 
