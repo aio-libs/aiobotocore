@@ -1,6 +1,10 @@
 Changes
 -------
 
+1.0.4 (2020-04-XX)
+^^^^^^^^^^^^^^^^^^
+* Fixed S3 Presigned Post not being async
+
 1.0.3 (2020-04-09)
 ^^^^^^^^^^^^^^^^^^
 * Fixes typo when using credential process
