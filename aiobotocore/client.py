@@ -1,5 +1,3 @@
-import asyncio
-
 from botocore.awsrequest import prepare_request_dict
 from botocore.client import logger, PaginatorDocstring, ClientCreator, \
     BaseClient, ClientEndpointBridge
