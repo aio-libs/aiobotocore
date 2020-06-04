@@ -71,36 +71,6 @@ class AioClientCreator(ClientCreator):
             verify, credentials, scoped_config, client_config, endpoint_bridge)
 
 
-class _AsyncAttrAdapter:
-    def __init__(self, coro):
-        self._coro = coro
-        self._args = None
-        self._kwargs = None
-
-    def __call__(self, *args, **kwargs):
-        # bind args
-        self._args = args
-        self._kwargs = kwargs
-        return self
-
-    async def _resolve(self):
-        event_response = await self._coro
-        if asyncio.iscoroutinefunction(event_response):
-            result = await event_response(*self._args, **self._kwargs)
-            return result
-
-        if callable(event_response):
-            result = event_response(*self._args, **self._kwargs)
-            if asyncio.iscoroutine(result):
-                result = await result
-            return result
-
-        return event_response
-
-    def __await__(self):
-        return self._resolve().__await__()
-
-
 class AioBaseClient(BaseClient):
     async def _async_getattr(self, item):
         event_name = 'getattr.%s.%s' % (
@@ -112,7 +82,11 @@ class AioBaseClient(BaseClient):
         return event_response
 
     def __getattr__(self, item):
-        return _AsyncAttrAdapter(self._async_getattr(item))
+        # NOTE: we can not reliably support this because if we were to make this a
+        # deferred attrgetter (See #803), it would resolve in hasattr always returning
+        # true.  This ends up breaking ddtrace for example when it tries to set a pin.
+        raise AttributeError(
+            "'%s' object has no attribute '%s'" % (self.__class__.__name__, item))
 
     async def _make_api_call(self, operation_name, api_params):
         operation_model = self._service_model.operation_model(operation_name)
