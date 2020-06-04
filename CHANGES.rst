@@ -1,6 +1,11 @@
 Changes
 -------
 
+1.0.5 (2020-06-03)
+^^^^^^^^^^^^^^^^^^
+* Fixed AioSession.get_service_data emit call #811 via #812
+* Fixed async __getattr__ #789 via #803
+
 1.0.4 (2020-04-15)
 ^^^^^^^^^^^^^^^^^^
 * Fixed S3 Presigned Post not being async
