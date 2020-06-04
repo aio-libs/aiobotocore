@@ -136,9 +136,9 @@ class AioSession(Session):
             api_version=api_version
         )
         service_id = EVENT_ALIASES.get(service_name, service_name)
-        self._events.emit('service-data-loaded.%s' % service_id,
-                          service_data=service_data,
-                          service_name=service_name, session=self)
+        await self._events.emit('service-data-loaded.%s' % service_id,
+                                service_data=service_data,
+                                service_name=service_name, session=self)
         return service_data
 
     async def get_available_regions(self, service_name, partition_name='aws',
