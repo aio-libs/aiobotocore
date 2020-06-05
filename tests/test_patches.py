@@ -25,7 +25,7 @@ from botocore.parsers import ResponseParserFactory, PROTOCOL_PARSERS, \
 from botocore.response import StreamingBody
 from botocore.signers import RequestSigner, add_generate_presigned_url, \
     generate_presigned_url, S3PostPresigner, add_generate_presigned_post, \
-    generate_presigned_post
+    generate_presigned_post, generate_db_auth_token, add_generate_db_auth_token
 from botocore.hooks import EventAliaser, HierarchicalEmitter
 from botocore.utils import ContainerMetadataFetcher, IMDSFetcher, \
     InstanceMetadataFetcher
@@ -247,6 +247,8 @@ _API_DIGESTS = {
         {'b91d50bae4122d7ab540653865ec9294520ac0e1'},
     add_generate_presigned_post: {'e30360f2bd893fabf47f5cdb04b0de420ccd414d'},
     generate_presigned_post: {'85e9ebe0412cb10716bf84a1533798882f3fc79f'},
+    add_generate_db_auth_token: {'f61014e6fac4b5c7ee7ac2d2bec15fb16fa9fbe5'},
+    generate_db_auth_token: {'5f5a758458c007107a23124192339f747472dc75'},
 
     # utils.py
     ContainerMetadataFetcher.__init__:

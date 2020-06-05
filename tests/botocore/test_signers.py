@@ -1,3 +1,5 @@
+import datetime
+from datetime import timezone
 import pytest
 import mock
 
@@ -234,3 +236,21 @@ async def test_signers_generate_presigned_post():
 
             with pytest.raises(UnknownClientMethodError):
                 await client.generate_presigned_url('lalala')
+
+
+@pytest.mark.moto
+@pytest.mark.asyncio
+async def test_signers_generate_db_auth_token(rds_client):
+    hostname = 'prod-instance.us-east-1.rds.amazonaws.com'
+    port = 3306
+    username = 'someusername'
+    clock = datetime.datetime(2016, 11, 7, 17, 39, 33, tzinfo=timezone.utc)
+
+    with mock.patch('datetime.datetime') as dt:
+        dt.utcnow.return_value = clock
+        result = await aiobotocore.signers.generate_db_auth_token(
+            rds_client, hostname, port, username)
+    # A scheme needs to be appended to the beginning or urlsplit may fail
+    # on certain systems.
+    assert result.startswith(
+        'prod-instance.us-east-1.rds.amazonaws.com:3306/?AWSAccessKeyId=xxx&')
