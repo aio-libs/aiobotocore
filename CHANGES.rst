@@ -1,6 +1,10 @@
 Changes
 -------
 
+1.0.7 (2020-06-04)
+^^^^^^^^^^^^^^^^^^
+* fix generate_db_auth_token via #816
+
 1.0.6 (2020-06-04)
 ^^^^^^^^^^^^^^^^^^
 * revert __getattr__ fix as it breaks ddtrace

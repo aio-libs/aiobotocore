@@ -6,7 +6,8 @@ from botocore.exceptions import PartialCredentialsError
 from .client import AioClientCreator, AioBaseClient
 from .hooks import AioHierarchicalEmitter
 from .parsers import AioResponseParserFactory
-from .signers import add_generate_presigned_url, add_generate_presigned_post
+from .signers import add_generate_presigned_url, add_generate_presigned_post, \
+    add_generate_db_auth_token
 from .credentials import create_credential_resolver, AioCredentials
 
 
@@ -33,9 +34,11 @@ class AioSession(Session):
 
         super().__init__(session_vars, event_hooks, include_builtin_handlers, profile)
 
-        # Register our own handlers
+        # Register our own handlers.  These normally happen via
+        # `botocore.handlers.BUILTIN_HANDLERS`
         self.register('creating-client-class', add_generate_presigned_url)
         self.register('creating-client-class.s3', add_generate_presigned_post)
+        self.register('creating-client-class.rds', add_generate_db_auth_token),
 
     def _register_response_parser_factory(self):
         self._components.register_component('response_parser_factory',

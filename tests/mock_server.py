@@ -140,3 +140,9 @@ async def lambda_server():
 async def iam_server():
     async with MotoService('iam') as svc:
         yield svc.endpoint_url
+
+
+@pytest.fixture
+async def rds_server():
+    async with MotoService('iam') as svc:
+        yield svc.endpoint_url
