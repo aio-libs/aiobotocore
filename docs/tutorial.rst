@@ -31,9 +31,9 @@ The first step in using aiobotocore is to create a ``Session`` object.
 ``Session`` objects then allow you to create individual clients::
 
     session = aiobotocore.get_session()
-    client = session.create_client('s3', region_name='us-west-2',
-                                   aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
-                                   aws_access_key_id=AWS_ACCESS_KEY_ID)
+    async with session.create_client('s3', region_name='us-west-2',
+                                     aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
+                                     aws_access_key_id=AWS_ACCESS_KEY_ID) as client:
 
 Once you have that client created, each operation provided by the service is
 mapped to a method.  Each method takes ``**kwargs`` that maps to the parameter
