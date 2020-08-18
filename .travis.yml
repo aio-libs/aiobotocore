@@ -4,9 +4,9 @@ language: python
 dist: xenial
 
 python:
-    - 3.6.10
-    - 3.7.6
-    - 3.8.1
+    - 3.6.12
+    - 3.7.9
+    - 3.8.5
 # moto is incompatible with 3.5 because it relies on the key order of its url path regex rules
 #    - 3.5.9
 
@@ -37,7 +37,7 @@ script:
         pip install -U pipdeptree .[$EXTRA] &&
         pipdeptree;
       else
-        make flake mototest;
+        DOCKER_API_VERSION=1.38 make flake mototest;
       fi
 after_success:
     codecov
