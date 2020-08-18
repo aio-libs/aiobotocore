@@ -37,7 +37,7 @@ script:
         pip install -U pipdeptree .[$EXTRA] &&
         pipdeptree;
       else
-        DOCKER_API_VERSION=1.38 make flake mototest;
+        make flake mototest;
       fi
 after_success:
     codecov
