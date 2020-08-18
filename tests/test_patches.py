@@ -36,7 +36,7 @@ from botocore.credentials import Credentials, RefreshableCredentials, \
     AssumeRoleWithWebIdentityProvider, AssumeRoleProvider, \
     CanonicalNameCredentialSourcer, BotoProvider, OriginalEC2Provider, \
     create_credential_resolver, get_credentials, create_mfa_serial_refresher, \
-    AssumeRoleWithWebIdentityCredentialFetcher
+    AssumeRoleWithWebIdentityCredentialFetcher, SSOCredentialFetcher, SSOProvider
 
 # This file ensures that our private patches will work going forward.  If a
 # method gets updated this will assert and someone will need to validate:
@@ -114,7 +114,10 @@ _API_DIGESTS = {
         {'432409f81601dbeea9ec187d433d190ab7c5ab2f'},
     RefreshableCredentials.get_frozen_credentials:
         {'f661c84a8b759786e011f0b1e8a468a0c6294e36'},
-
+    SSOCredentialFetcher:
+        {'e092b115155a06760af6f3c72ccef120979b1201'},
+    SSOProvider.load:
+        {'f43d79e1520b2a7b7ef85cd537f41e19d4bce806'},
     CachedCredentialFetcher._get_credentials:
         {'02a7d13599d972e3f258d2b53f87eeda4cc3e3a4'},
     CachedCredentialFetcher.fetch_credentials:
@@ -150,6 +153,8 @@ _API_DIGESTS = {
         {'f9a40d4211f6e663ba2ae9682fba5306152178c5'},
     ProfileProviderBuilder._create_web_identity_provider:
         {'0907c1ad5573bc5c0fc87efb601a6c4c3fcf34ae'},
+    ProfileProviderBuilder._create_sso_provider:
+        {'258e6d07bdf40ea2c7551bae0cd6e1ab58e4e502'},
     ConfigProvider.load: {'8fb32140086dce65fa28be8edd3ac0d22698c3ae'},
     SharedCredentialProvider.load: {'c0be1fe376d25952461ca18d9bef4b4340203441'},
     ProcessProvider.__init__: {'2e870ec0c6b0bc8483fa9b1159ef68bbd7a12c56'},
@@ -188,7 +193,7 @@ _API_DIGESTS = {
     Endpoint.create_request: {'4ccc14de2fd52f5c60017e55ff8e5b78bbaabcec'},
     Endpoint._send_request: {'50ab33d6f16e75594d01ab1c2ec6b7c7903798db'},
     Endpoint._get_response: {'46c3a8cb4ff7672b75193ce5571dbea48aa9da75'},
-    Endpoint._do_get_response: {'df29f099d26dc057834c7b25d3b5217f1f7acbe4'},
+    Endpoint._do_get_response: {'0bc57fbacf3c49ec5cd243b014d531a38b9b4138'},
     Endpoint._needs_retry: {'0f40f52d8c90c6e10b4c9e1c4a5ca00ef2c72850'},
     Endpoint._send: {'644c7e5bb88fecaa0b2a204411f8c7e69cc90bf1'},
 
@@ -246,7 +251,7 @@ _API_DIGESTS = {
     S3PostPresigner.generate_presigned_post:
         {'b91d50bae4122d7ab540653865ec9294520ac0e1'},
     add_generate_presigned_post: {'e30360f2bd893fabf47f5cdb04b0de420ccd414d'},
-    generate_presigned_post: {'85e9ebe0412cb10716bf84a1533798882f3fc79f'},
+    generate_presigned_post: {'e9756488cf1ceb68d23b36688f3d0767505f3c77'},
     add_generate_db_auth_token: {'f61014e6fac4b5c7ee7ac2d2bec15fb16fa9fbe5'},
     generate_db_auth_token: {'5f5a758458c007107a23124192339f747472dc75'},
 

@@ -1,10 +1,16 @@
 import asyncio
+import datetime
 import logging
 import subprocess
+import json
 from copy import deepcopy
 from typing import Optional
+from hashlib import sha1
+
+from dateutil.tz import tzutc
 
 from botocore import UNSIGNED
+from botocore.config import Config
 import botocore.compat
 from botocore.credentials import EnvProvider, Credentials, RefreshableCredentials, \
     ReadOnlyCredentials, ContainerProvider, ContainerMetadataFetcher, \
@@ -13,14 +19,18 @@ from botocore.credentials import EnvProvider, Credentials, RefreshableCredential
     ProcessProvider, AssumeRoleWithWebIdentityProvider, _local_now, \
     CachedCredentialFetcher, _serialize_if_needed, BaseAssumeRoleCredentialFetcher, \
     AssumeRoleProvider, AssumeRoleCredentialFetcher, CredentialResolver, \
-    CanonicalNameCredentialSourcer, BotoProvider, OriginalEC2Provider
+    CanonicalNameCredentialSourcer, BotoProvider, OriginalEC2Provider, \
+    SSOProvider
+from botocore.exceptions import UnauthorizedSSOTokenError
 from botocore.exceptions import MetadataRetrievalError, CredentialRetrievalError, \
     InvalidConfigError, PartialCredentialsError, RefreshWithMFAUnsupportedError, \
     UnknownCredentialError
 from botocore.compat import compat_shell_split
+from botocore.utils import SSOTokenLoader
 
 from aiobotocore.utils import AioContainerMetadataFetcher, AioInstanceMetadataFetcher
 from aiobotocore.config import AioConfig
+
 
 logger = logging.getLogger(__name__)
 
@@ -130,6 +140,15 @@ class AioProfileProviderBuilder(ProfileProviderBuilder):
             cache=self._cache,
             profile_name=profile_name,
             disable_env_vars=disable_env_vars,
+        )
+
+    def _create_sso_provider(self, profile_name):
+        return AioSSOProvider(
+            load_config=lambda: self._session.full_config,
+            client_creator=self._session.create_client,
+            profile_name=profile_name,
+            cache=self._cache,
+            token_cache=self._sso_token_cache,
         )
 
 
@@ -795,3 +814,87 @@ class AioCredentialResolver(CredentialResolver):
         # +1
         # -js
         return None
+
+
+class AioSSOCredentialFetcher(AioCachedCredentialFetcher):
+    def __init__(self, start_url, sso_region, role_name, account_id,
+                 client_creator, token_loader=None, cache=None,
+                 expiry_window_seconds=None):
+        self._client_creator = client_creator
+        self._sso_region = sso_region
+        self._role_name = role_name
+        self._account_id = account_id
+        self._start_url = start_url
+        self._token_loader = token_loader
+
+        super(AioSSOCredentialFetcher, self).__init__(
+            cache, expiry_window_seconds
+        )
+
+    def _create_cache_key(self):
+        args = {
+            'startUrl': self._start_url,
+            'roleName': self._role_name,
+            'accountId': self._account_id,
+        }
+
+        args = json.dumps(args, sort_keys=True, separators=(',', ':'))
+        argument_hash = sha1(args.encode('utf-8')).hexdigest()
+        return self._make_file_safe(argument_hash)
+
+    def _parse_timestamp(self, timestamp_ms):
+        # fromtimestamp expects seconds so: milliseconds / 1000 = seconds
+        timestamp_seconds = timestamp_ms / 1000.0
+        timestamp = datetime.datetime.fromtimestamp(timestamp_seconds, tzutc())
+        return _serialize_if_needed(timestamp)
+
+    async def _get_credentials(self):
+        """Get credentials by calling SSO get role credentials."""
+        config = Config(
+            signature_version=UNSIGNED,
+            region_name=self._sso_region,
+        )
+        async with self._client_creator('sso', config=config) as client:
+            kwargs = {
+                'roleName': self._role_name,
+                'accountId': self._account_id,
+                'accessToken': self._token_loader(self._start_url),
+            }
+            try:
+                response = await client.get_role_credentials(**kwargs)
+            except client.exceptions.UnauthorizedException:
+                raise UnauthorizedSSOTokenError()
+            credentials = response['roleCredentials']
+
+            credentials = {
+                'ProviderType': 'sso',
+                'Credentials': {
+                    'AccessKeyId': credentials['accessKeyId'],
+                    'SecretAccessKey': credentials['secretAccessKey'],
+                    'SessionToken': credentials['sessionToken'],
+                    'Expiration': self._parse_timestamp(credentials['expiration']),
+                }
+            }
+            return credentials
+
+
+class AioSSOProvider(SSOProvider):
+    async def load(self):
+        sso_config = self._load_sso_config()
+        if not sso_config:
+            return None
+
+        sso_fetcher = AioSSOCredentialFetcher(
+            sso_config['sso_start_url'],
+            sso_config['sso_region'],
+            sso_config['sso_role_name'],
+            sso_config['sso_account_id'],
+            self._client_creator,
+            token_loader=SSOTokenLoader(cache=self._token_cache),
+            cache=self.cache,
+        )
+
+        return AioDeferredRefreshableCredentials(
+            method=self.METHOD,
+            refresh_using=sso_fetcher.fetch_credentials,
+        )

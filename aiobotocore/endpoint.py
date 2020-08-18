@@ -178,6 +178,11 @@ class AioEndpoint(Endpoint):
         parser = self._response_parser_factory.create_parser(protocol)
         parsed_response = parser.parse(
             response_dict, operation_model.output_shape)
+        if http_response.status_code >= 300:
+            self._add_modeled_error_fields(
+                response_dict, parsed_response,
+                operation_model, parser,
+            )
         history_recorder.record('PARSED_RESPONSE', parsed_response)
         return (http_response, parsed_response), None
 

@@ -294,6 +294,8 @@ async def generate_presigned_post(self, Bucket, Key, Fields=None, Conditions=Non
 
     if fields is None:
         fields = {}
+    else:
+        fields = fields.copy()
 
     if conditions is None:
         conditions = []

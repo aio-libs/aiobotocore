@@ -4,21 +4,26 @@ https://github.com/boto/botocore/blob/develop/tests/unit/test_credentials.py
 and adapted to work with asyncio and pytest
 """
 import asyncio
-import datetime
+from datetime import datetime, timedelta
 import json
 import subprocess
+from unittest import TestCase
+from functools import partial
 
 import mock
 from typing import Optional
 
 import pytest
 import botocore.exceptions
-from dateutil.tz import tzlocal
+from botocore.stub import Stubber
+from dateutil.tz import tzlocal, tzutc
+from botocore.utils import datetime2timestamp
 
 from aiobotocore.session import AioSession
 from aiobotocore import credentials
 from botocore.configprovider import ConfigValueStore
-from botocore.utils import FileWebIdentityTokenLoader
+from botocore.utils import FileWebIdentityTokenLoader, SSOTokenLoader
+from aiobotocore.credentials import AioSSOCredentialFetcher, AioSSOProvider
 
 
 # From class TestCredentials(BaseEnvVar):
@@ -36,8 +41,8 @@ def test_credentials_normalization(access, secret):
 def refreshable_creds():
     def _f(mock_time_return_value=None, refresher_return_value='METADATA'):
         refresher = mock.AsyncMock()
-        future_time = datetime.datetime.now(tzlocal()) + datetime.timedelta(hours=24)
-        expiry_time = datetime.datetime.now(tzlocal()) - datetime.timedelta(minutes=30)
+        future_time = datetime.now(tzlocal()) + timedelta(hours=24)
+        expiry_time = datetime.now(tzlocal()) - timedelta(minutes=30)
         metadata = {
             'access_key': 'NEW-ACCESS',
             'secret_key': 'NEW-SECRET',
@@ -61,8 +66,8 @@ def refreshable_creds():
 @pytest.mark.asyncio
 async def test_refreshablecredentials_get_credentials_set(refreshable_creds):
     creds = refreshable_creds(
-        mock_time_return_value=(datetime.datetime.now(tzlocal()) -
-                                datetime.timedelta(minutes=60))
+        mock_time_return_value=(datetime.now(tzlocal()) -
+                                timedelta(minutes=60))
     )
 
     assert not creds.refresh_needed()
@@ -78,7 +83,7 @@ async def test_refreshablecredentials_get_credentials_set(refreshable_creds):
 @pytest.mark.asyncio
 async def test_refreshablecredentials_refresh_returns_empty_dict(refreshable_creds):
     creds = refreshable_creds(
-        mock_time_return_value=datetime.datetime.now(tzlocal()),
+        mock_time_return_value=datetime.now(tzlocal()),
         refresher_return_value={}
     )
 
@@ -92,7 +97,7 @@ async def test_refreshablecredentials_refresh_returns_empty_dict(refreshable_cre
 @pytest.mark.asyncio
 async def test_refreshablecredentials_refresh_returns_none(refreshable_creds):
     creds = refreshable_creds(
-        mock_time_return_value=datetime.datetime.now(tzlocal()),
+        mock_time_return_value=datetime.now(tzlocal()),
         refresher_return_value=None
     )
 
@@ -106,7 +111,7 @@ async def test_refreshablecredentials_refresh_returns_none(refreshable_creds):
 @pytest.mark.asyncio
 async def test_refreshablecredentials_refresh_returns_partial(refreshable_creds):
     creds = refreshable_creds(
-        mock_time_return_value=datetime.datetime.now(tzlocal()),
+        mock_time_return_value=datetime.now(tzlocal()),
         refresher_return_value={'access_key': 'akid'}
     )
 
@@ -121,7 +126,7 @@ async def test_refreshablecredentials_refresh_returns_partial(refreshable_creds)
 def deferrable_creds():
     def _f(mock_time_return_value=None, refresher_return_value='METADATA'):
         refresher = mock.AsyncMock()
-        future_time = datetime.datetime.now(tzlocal()) + datetime.timedelta(hours=24)
+        future_time = datetime.now(tzlocal()) + timedelta(hours=24)
         metadata = {
             'access_key': 'NEW-ACCESS',
             'secret_key': 'NEW-SECRET',
@@ -133,7 +138,7 @@ def deferrable_creds():
             else refresher_return_value
         mock_time = mock.Mock()
         mock_time.return_value = (mock_time_return_value or
-                                  datetime.datetime.now(tzlocal()))
+                                  datetime.now(tzlocal()))
         creds = credentials.AioDeferredRefreshableCredentials(
             refresher, 'iam-role', time_fetcher=mock_time
         )
@@ -192,13 +197,13 @@ def assume_role_client_creator(with_response):
 
 
 def some_future_time():
-    timeobj = datetime.datetime.now(tzlocal())
-    return timeobj + datetime.timedelta(hours=24)
+    timeobj = datetime.now(tzlocal())
+    return timeobj + timedelta(hours=24)
 
 
 def get_expected_creds_from_response(response):
     expiration = response['Credentials']['Expiration']
-    if isinstance(expiration, datetime.datetime):
+    if isinstance(expiration, datetime):
         expiration = expiration.isoformat()
     return {
         'access_key': response['Credentials']['AccessKeyId'],
@@ -281,7 +286,7 @@ async def test_assumerolefetcher_cache_in_cache_but_expired():
                 'AccessKeyId': 'foo-cached',
                 'SecretAccessKey': 'bar-cached',
                 'SessionToken': 'baz-cached',
-                'Expiration': datetime.datetime.now(tzlocal()),
+                'Expiration': datetime.now(tzlocal()),
             }
         }
     }
@@ -383,8 +388,8 @@ async def test_webidentfetcher_no_cache():
 @pytest.mark.moto
 @pytest.mark.asyncio
 async def test_instancemetadata_load():
-    timeobj = datetime.datetime.now(tzlocal())
-    timestamp = (timeobj + datetime.timedelta(hours=24)).isoformat()
+    timeobj = datetime.now(tzlocal())
+    timestamp = (timeobj + timedelta(hours=24)).isoformat()
 
     fetcher = mock.AsyncMock()
     fetcher.retrieve_iam_role_credentials.return_value = {
@@ -642,7 +647,7 @@ async def test_assumerolecredprovider_mfa_cannot_refresh_credentials(
         assumerolecredprovider_config_loader(fake_config),
         client_creator, cache={}, profile_name='development', prompter=prompter)
 
-    local_now = mock.Mock(return_value=datetime.datetime.now(tzlocal()))
+    local_now = mock.Mock(return_value=datetime.now(tzlocal()))
     with mock.patch('aiobotocore.credentials._local_now', local_now):
         creds = await provider.load()
         await creds.get_frozen_credentials()
@@ -656,7 +661,7 @@ async def test_assumerolecredprovider_mfa_cannot_refresh_credentials(
 @pytest.mark.moto
 @pytest.mark.asyncio
 async def test_assumerolewebidentprovider_no_cache():
-    future = datetime.datetime.now(tzlocal()) + datetime.timedelta(hours=24)
+    future = datetime.now(tzlocal()) + timedelta(hours=24)
 
     response = {
         'Credentials': {
@@ -714,8 +719,8 @@ async def test_containerprovider_assume_role_no_cache():
     fetcher = mock.AsyncMock()
     fetcher.full_url = full_url
 
-    timeobj = datetime.datetime.now(tzlocal())
-    timestamp = (timeobj + datetime.timedelta(hours=24)).isoformat()
+    timeobj = datetime.now(tzlocal())
+    timestamp = (timeobj + timedelta(hours=24)).isoformat()
     fetcher.retrieve_full_uri.return_value = {
         "AccessKeyId": "access_key",
         "SecretAccessKey": "secret_key",
@@ -766,7 +771,7 @@ async def test_envvarprovider_env_var_absent():
 @pytest.mark.moto
 @pytest.mark.asyncio
 async def test_envvarprovider_env_var_expiry():
-    expiry_time = datetime.datetime.now(tzlocal()) - datetime.timedelta(hours=1)
+    expiry_time = datetime.now(tzlocal()) - timedelta(hours=1)
     environ = {
         'AWS_ACCESS_KEY_ID': 'foo',
         'AWS_SECRET_ACCESS_KEY': 'bar',
@@ -1143,3 +1148,260 @@ async def test_session_credentials():
         session = AioSession()
         creds = await session.get_credentials()
         assert creds == 'somecreds'
+
+
+class Self:
+    pass
+
+
+class _AsyncCtx:
+    def __init__(self, value):
+        self._value = value
+
+    async def __aenter__(self):
+        return self._value
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        pass
+
+
+# From class TestSSOCredentialFetcher:
+@pytest.fixture
+async def ssl_credential_fetcher_setup():
+    async with AioSession().create_client('sso', region_name='us-east-1') as sso:
+        self = Self()
+        self.sso = sso
+        self.stubber = Stubber(self.sso)
+        self.mock_session = mock.Mock(spec=AioSession)
+        self.mock_session.create_client.return_value = _AsyncCtx(sso)
+
+        self.cache = {}
+        self.sso_region = 'us-east-1'
+        self.start_url = 'https://d-92671207e4.awsapps.com/start'
+        self.role_name = 'test-role'
+        self.account_id = '1234567890'
+        self.access_token = 'some.sso.token'
+        # This is just an arbitrary point in time we can pin to
+        self.now = datetime(2008, 9, 23, 12, 26, 40, tzinfo=tzutc())
+        # The SSO endpoint uses ms whereas the OIDC endpoint uses seconds
+        self.now_timestamp = 1222172800000
+
+        self.loader = mock.Mock(spec=SSOTokenLoader)
+        self.loader.return_value = self.access_token
+        self.fetcher = AioSSOCredentialFetcher(
+            self.start_url, self.sso_region, self.role_name, self.account_id,
+            self.mock_session.create_client, token_loader=self.loader,
+            cache=self.cache,
+        )
+
+        tc = TestCase()
+        self.assertEqual = tc.assertEqual
+        self.assertRaises = tc.assertRaises
+        yield self
+
+
+@pytest.mark.moto
+@pytest.mark.asyncio
+async def test_sso_credential_fetcher_can_fetch_credentials(
+        ssl_credential_fetcher_setup):
+    self = ssl_credential_fetcher_setup
+    expected_params = {
+        'roleName': self.role_name,
+        'accountId': self.account_id,
+        'accessToken': self.access_token,
+    }
+    expected_response = {
+        'roleCredentials': {
+            'accessKeyId': 'foo',
+            'secretAccessKey': 'bar',
+            'sessionToken': 'baz',
+            'expiration': self.now_timestamp + 1000000,
+        }
+    }
+    self.stubber.add_response(
+        'get_role_credentials',
+        expected_response,
+        expected_params=expected_params,
+    )
+    with self.stubber:
+        credentials = await self.fetcher.fetch_credentials()
+    self.assertEqual(credentials['access_key'], 'foo')
+    self.assertEqual(credentials['secret_key'], 'bar')
+    self.assertEqual(credentials['token'], 'baz')
+    self.assertEqual(credentials['expiry_time'], '2008-09-23T12:43:20UTC')
+    cache_key = '048db75bbe50955c16af7aba6ff9c41a3131bb7e'
+    expected_cached_credentials = {
+        'ProviderType': 'sso',
+        'Credentials': {
+            'AccessKeyId': 'foo',
+            'SecretAccessKey': 'bar',
+            'SessionToken': 'baz',
+            'Expiration': '2008-09-23T12:43:20UTC',
+        }
+    }
+    self.assertEqual(self.cache[cache_key], expected_cached_credentials)
+
+
+@pytest.mark.moto
+@pytest.mark.asyncio
+async def test_sso_cred_fetcher_raises_helpful_message_on_unauthorized_exception(
+        ssl_credential_fetcher_setup):
+    self = ssl_credential_fetcher_setup
+    expected_params = {
+        'roleName': self.role_name,
+        'accountId': self.account_id,
+        'accessToken': self.access_token,
+    }
+    self.stubber.add_client_error(
+        'get_role_credentials',
+        service_error_code='UnauthorizedException',
+        expected_params=expected_params,
+    )
+    with self.assertRaises(botocore.exceptions.UnauthorizedSSOTokenError):
+        with self.stubber:
+            await self.fetcher.fetch_credentials()
+
+
+# from TestSSOProvider
+@pytest.fixture
+async def sso_provider_setup():
+    self = Self()
+    async with AioSession().create_client('sso', region_name='us-east-1') as sso:
+        self.sso = sso
+        self.stubber = Stubber(self.sso)
+        self.mock_session = mock.Mock(spec=AioSession)
+        self.mock_session.create_client.return_value = _AsyncCtx(sso)
+
+        self.sso_region = 'us-east-1'
+        self.start_url = 'https://d-92671207e4.awsapps.com/start'
+        self.role_name = 'test-role'
+        self.account_id = '1234567890'
+        self.access_token = 'some.sso.token'
+
+        self.profile_name = 'sso-profile'
+        self.config = {
+            'sso_region': self.sso_region,
+            'sso_start_url': self.start_url,
+            'sso_role_name': self.role_name,
+            'sso_account_id': self.account_id,
+        }
+        self.expires_at = datetime.now(tzlocal()) + timedelta(hours=24)
+        self.cached_creds_key = '048db75bbe50955c16af7aba6ff9c41a3131bb7e'
+        self.cached_token_key = '13f9d35043871d073ab260e020f0ffde092cb14b'
+        self.cache = {
+            self.cached_token_key: {
+                'accessToken': self.access_token,
+                'expiresAt': self.expires_at.strftime('%Y-%m-%dT%H:%M:%S%Z'),
+            }
+        }
+        self._mock_load_config = partial(_mock_load_config, self)
+        self._add_get_role_credentials_response = partial(
+            _add_get_role_credentials_response, self)
+        self.provider = AioSSOProvider(
+            load_config=self._mock_load_config,
+            client_creator=self.mock_session.create_client,
+            profile_name=self.profile_name,
+            cache=self.cache,
+            token_cache=self.cache,
+        )
+
+        self.expected_get_role_credentials_params = {
+            'roleName': self.role_name,
+            'accountId': self.account_id,
+            'accessToken': self.access_token,
+        }
+        expiration = datetime2timestamp(self.expires_at)
+        self.expected_get_role_credentials_response = {
+            'roleCredentials': {
+                'accessKeyId': 'foo',
+                'secretAccessKey': 'bar',
+                'sessionToken': 'baz',
+                'expiration': int(expiration * 1000),
+            }
+        }
+
+        tc = TestCase()
+        self.assertEqual = tc.assertEqual
+        self.assertRaises = tc.assertRaises
+
+        yield self
+
+
+def _mock_load_config(self):
+    return {
+        'profiles': {
+            self.profile_name: self.config,
+        }
+    }
+
+
+def _add_get_role_credentials_response(self):
+    self.stubber.add_response(
+        'get_role_credentials',
+        self.expected_get_role_credentials_response,
+        self.expected_get_role_credentials_params,
+    )
+
+
+def test_load_sso_credentials_without_cache(self):
+    self._add_get_role_credentials_response()
+    with self.stubber:
+        credentials = self.provider.load()
+        self.assertEqual(credentials.access_key, 'foo')
+        self.assertEqual(credentials.secret_key, 'bar')
+        self.assertEqual(credentials.token, 'baz')
+
+
+@pytest.mark.moto
+@pytest.mark.asyncio
+async def test_load_sso_credentials_with_cache(sso_provider_setup):
+    self = sso_provider_setup
+
+    cached_creds = {
+        'Credentials': {
+            'AccessKeyId': 'cached-akid',
+            'SecretAccessKey': 'cached-sak',
+            'SessionToken': 'cached-st',
+            'Expiration': self.expires_at.strftime('%Y-%m-%dT%H:%M:%S%Z'),
+        }
+    }
+    self.cache[self.cached_creds_key] = cached_creds
+    credentials = await self.provider.load()
+    credentials = await credentials.get_frozen_credentials()
+    self.assertEqual(credentials.access_key, 'cached-akid')
+    self.assertEqual(credentials.secret_key, 'cached-sak')
+    self.assertEqual(credentials.token, 'cached-st')
+
+
+@pytest.mark.moto
+@pytest.mark.asyncio
+async def test_load_sso_credentials_with_cache_expired(sso_provider_setup):
+    self = sso_provider_setup
+    cached_creds = {
+        'Credentials': {
+            'AccessKeyId': 'expired-akid',
+            'SecretAccessKey': 'expired-sak',
+            'SessionToken': 'expired-st',
+            'Expiration': '2002-10-22T20:52:11UTC',
+        }
+    }
+    self.cache[self.cached_creds_key] = cached_creds
+
+    self._add_get_role_credentials_response()
+    with self.stubber:
+        credentials = await self.provider.load()
+        credentials = await credentials.get_frozen_credentials()
+
+        self.assertEqual(credentials.access_key, 'foo')
+        self.assertEqual(credentials.secret_key, 'bar')
+        self.assertEqual(credentials.token, 'baz')
+
+
+@pytest.mark.moto
+@pytest.mark.asyncio
+async def test_required_config_not_set(sso_provider_setup):
+    self = sso_provider_setup
+    del self.config['sso_start_url']
+    # If any required configuration is missing we should get an error
+    with self.assertRaises(botocore.exceptions.InvalidConfigError):
+        await self.provider.load()
