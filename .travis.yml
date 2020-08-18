@@ -4,8 +4,8 @@ language: python
 dist: xenial
 
 python:
-    - 3.6.12
-    - 3.7.9
+    - 3.6.11
+    - 3.7.8
     - 3.8.5
 # moto is incompatible with 3.5 because it relies on the key order of its url path regex rules
 #    - 3.5.9
