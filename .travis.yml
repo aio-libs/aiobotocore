@@ -1,7 +1,7 @@
 language: python
 
 # Needed for Python 3.7
-dist: xenial
+dist: bionic
 
 python:
     - 3.6.11
