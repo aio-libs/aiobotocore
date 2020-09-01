@@ -79,6 +79,7 @@ _API_DIGESTS = {
     ClientCreator.create_client: {'ee63a3d60b5917879cb644c1b0aa3fe34538b915'},
     ClientCreator._create_client_class: {'5e493d069eedbf314e40e12a7886bbdbcf194335'},
     ClientCreator._get_client_args: {'555e1e41f93df7558c8305a60466681e3a267ef3'},
+    ClientCreator._register_s3_events: {'da3fc62a131d63964c8daa0f52124b092fd8f1b4'},
 
     BaseClient._make_api_call: {'0c59329d4c8a55b88250b512b5e69239c42246fb'},
     BaseClient._make_request: {'033a386f7d1025522bea7f2bbca85edc5c8aafd2'},
