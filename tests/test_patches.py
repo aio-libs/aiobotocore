@@ -28,7 +28,7 @@ from botocore.signers import RequestSigner, add_generate_presigned_url, \
     generate_presigned_post, generate_db_auth_token, add_generate_db_auth_token
 from botocore.hooks import EventAliaser, HierarchicalEmitter
 from botocore.utils import ContainerMetadataFetcher, IMDSFetcher, \
-    InstanceMetadataFetcher
+    InstanceMetadataFetcher, S3RegionRedirector
 from botocore.credentials import Credentials, RefreshableCredentials, \
     CachedCredentialFetcher, AssumeRoleCredentialFetcher, EnvProvider, \
     ContainerProvider, InstanceMetadataProvider, ProfileProviderBuilder, \
@@ -79,6 +79,7 @@ _API_DIGESTS = {
     ClientCreator.create_client: {'ee63a3d60b5917879cb644c1b0aa3fe34538b915'},
     ClientCreator._create_client_class: {'5e493d069eedbf314e40e12a7886bbdbcf194335'},
     ClientCreator._get_client_args: {'555e1e41f93df7558c8305a60466681e3a267ef3'},
+    ClientCreator._register_s3_events: {'da3fc62a131d63964c8daa0f52124b092fd8f1b4'},
 
     BaseClient._make_api_call: {'0c59329d4c8a55b88250b512b5e69239c42246fb'},
     BaseClient._make_request: {'033a386f7d1025522bea7f2bbca85edc5c8aafd2'},
@@ -273,9 +274,14 @@ _API_DIGESTS = {
 
     InstanceMetadataFetcher.retrieve_iam_role_credentials:
         {'76737f6add82a1b9a0dc590cf10bfac0c7026a2e'},
-    InstanceMetadataFetcher._get_iam_role: {'80073d7adc9fb604bc6235af87241f5efc296ad7'},
+    InstanceMetadataFetcher._get_iam_role:
+        {'80073d7adc9fb604bc6235af87241f5efc296ad7'},
     InstanceMetadataFetcher._get_credentials:
         {'1a64f59a3ca70b83700bd14deeac25af14100d58'},
+    S3RegionRedirector.redirect_from_error:
+        {'f6f765431145a9bed8e73e6a3dbc7b0d6ae5f738'},
+    S3RegionRedirector.get_bucket_region:
+        {'b5bbc8b010576668dc2812d657c4b48af79e8f99'},
 
     # waiter.py
     NormalizedOperationMethod.__call__: {'79723632d023739aa19c8a899bc2b814b8ab12ff'},
