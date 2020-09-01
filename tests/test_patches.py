@@ -274,11 +274,14 @@ _API_DIGESTS = {
 
     InstanceMetadataFetcher.retrieve_iam_role_credentials:
         {'76737f6add82a1b9a0dc590cf10bfac0c7026a2e'},
-    InstanceMetadataFetcher._get_iam_role: {'80073d7adc9fb604bc6235af87241f5efc296ad7'},
+    InstanceMetadataFetcher._get_iam_role:
+        {'80073d7adc9fb604bc6235af87241f5efc296ad7'},
     InstanceMetadataFetcher._get_credentials:
         {'1a64f59a3ca70b83700bd14deeac25af14100d58'},
-    S3RegionRedirector.redirect_from_error: {'f6f765431145a9bed8e73e6a3dbc7b0d6ae5f738'},
-    S3RegionRedirector.get_bucket_region: {'b5bbc8b010576668dc2812d657c4b48af79e8f99'},
+    S3RegionRedirector.redirect_from_error:
+        {'f6f765431145a9bed8e73e6a3dbc7b0d6ae5f738'},
+    S3RegionRedirector.get_bucket_region:
+        {'b5bbc8b010576668dc2812d657c4b48af79e8f99'},
 
     # waiter.py
     NormalizedOperationMethod.__call__: {'79723632d023739aa19c8a899bc2b814b8ab12ff'},
