@@ -2,7 +2,7 @@ Changes
 -------
 1.1.1 (2020-08-31)
 ^^^^^^^^^^^^^^^^^^
-* fix s3 region redirect bug
+* fix s3 region redirect bug #825
 
 1.1.0 (2020-08-18)
 ^^^^^^^^^^^^^^^^^^
