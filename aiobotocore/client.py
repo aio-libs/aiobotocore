@@ -1,6 +1,6 @@
 from botocore.awsrequest import prepare_request_dict
 from botocore.client import logger, PaginatorDocstring, ClientCreator, \
-    BaseClient, ClientEndpointBridge
+    BaseClient, ClientEndpointBridge, S3ArnParamHandler, S3EndpointSetter
 from botocore.exceptions import OperationNotPageableError
 from botocore.history import get_global_history_recorder
 from botocore.utils import get_service_module_name
@@ -9,6 +9,7 @@ from botocore.hooks import first_non_none_response
 
 from .paginate import AioPaginator
 from .args import AioClientArgsCreator
+from .utils import AioS3RegionRedirector
 from . import waiter
 
 history_recorder = get_global_history_recorder()
@@ -54,6 +55,22 @@ class AioClientCreator(ClientCreator):
         class_name = get_service_module_name(service_model)
         cls = type(str(class_name), tuple(bases), class_attributes)
         return cls
+
+    def _register_s3_events(self, client, endpoint_bridge, endpoint_url,
+                            client_config, scoped_config):
+        if client.meta.service_model.service_name != 's3':
+            return
+        AioS3RegionRedirector(endpoint_bridge, client).register()
+        S3ArnParamHandler().register(client.meta.events)
+        S3EndpointSetter(
+            endpoint_resolver=self._endpoint_resolver,
+            region=client.meta.region_name,
+            s3_config=client.meta.config.s3,
+            endpoint_url=endpoint_url,
+            partition=client.meta.partition
+        ).register(client.meta.events)
+        self._set_s3_presign_signature_version(
+            client.meta, client_config, scoped_config)
 
     def _get_client_args(self, service_model, region_name, is_secure,
                          endpoint_url, verify, credentials,

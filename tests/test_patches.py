@@ -28,7 +28,7 @@ from botocore.signers import RequestSigner, add_generate_presigned_url, \
     generate_presigned_post, generate_db_auth_token, add_generate_db_auth_token
 from botocore.hooks import EventAliaser, HierarchicalEmitter
 from botocore.utils import ContainerMetadataFetcher, IMDSFetcher, \
-    InstanceMetadataFetcher
+    InstanceMetadataFetcher, S3RegionRedirector
 from botocore.credentials import Credentials, RefreshableCredentials, \
     CachedCredentialFetcher, AssumeRoleCredentialFetcher, EnvProvider, \
     ContainerProvider, InstanceMetadataProvider, ProfileProviderBuilder, \
@@ -276,6 +276,8 @@ _API_DIGESTS = {
     InstanceMetadataFetcher._get_iam_role: {'80073d7adc9fb604bc6235af87241f5efc296ad7'},
     InstanceMetadataFetcher._get_credentials:
         {'1a64f59a3ca70b83700bd14deeac25af14100d58'},
+    S3RegionRedirector.redirect_from_error: {'f6f765431145a9bed8e73e6a3dbc7b0d6ae5f738'},
+    S3RegionRedirector.get_bucket_region: {'b5bbc8b010576668dc2812d657c4b48af79e8f99'},
 
     # waiter.py
     NormalizedOperationMethod.__call__: {'79723632d023739aa19c8a899bc2b814b8ab12ff'},
