@@ -198,3 +198,17 @@ specific range of botocore versions. To ensure you install the latest version of
 awscli that your specific combination or aiobotocore and botocore can support use::
 
     pip install -U aiobotocore[awscli]
+    
+    
+install_requires
+----------------
+
+if you depend on `aiobotocore` in a pypi.org package it's recommended to pass-through the compatability extras::
+
+    setup(
+        ...,
+        extras_require = {
+          'awscli': ['aiobotocore[awscli]'],
+          'boto3': ['aiobotocore[boto3]'],
+        },
+    )
