@@ -3,6 +3,7 @@ from botocore.paginate import Paginator, PageIterator
 from botocore.utils import set_value_from_jmespath, merge_dicts
 from botocore.compat import six
 
+import jmespath
 import aioitertools
 
 
@@ -129,6 +130,15 @@ class AioPageIterator(PageIterator):
             complete_result['NextToken'] = self.resume_token
         return complete_result
 
+    async def search(self, expression):
+        compiled = jmespath.compile(expression)
+        async for page in self:
+            results = compiled.search(page)
+            if isinstance(results, list):
+                for element in results:
+                    yield element
+            else:
+                yield results
 
 class AioPaginator(Paginator):
     PAGE_ITERATOR_CLS = AioPageIterator
