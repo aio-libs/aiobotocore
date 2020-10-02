@@ -140,6 +140,7 @@ class AioPageIterator(PageIterator):
             else:
                 yield results
 
+
 class AioPaginator(Paginator):
     PAGE_ITERATOR_CLS = AioPageIterator
 
