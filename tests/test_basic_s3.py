@@ -109,6 +109,22 @@ async def test_can_paginate_with_page_size(
 
 @pytest.mark.asyncio
 @pytest.mark.moto
+async def test_can_search_paginate(
+        s3_client, bucket_name, create_object):
+    keys = []
+    for i in range(5):
+        key_name = 'key%s' % i
+        keys.append(key_name)
+        await create_object(key_name)
+
+    paginator = s3_client.get_paginator('list_objects')
+    page_iter = paginator.paginate(Bucket=bucket_name)
+    async for key_name in page_iter.search('Contents[*].Key'):
+        assert key_name in keys
+
+
+@pytest.mark.asyncio
+@pytest.mark.moto
 async def test_can_paginate_iterator(s3_client, bucket_name, create_object):
     for i in range(5):
         key_name = 'key%s' % i
