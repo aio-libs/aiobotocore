@@ -13,16 +13,18 @@ Fist of all just clone repository::
 
     $ git clone git@github.com:aio-libs/aiobotocore.git
 
-Create virtualenv with at least python3.5 (older version are not supported).
+Create virtualenv with at least python3.8 for development purposes.
 For example using *virtualenvwrapper* commands could look like::
 
    $ cd aiobotocore
-   $ mkvirtualenv --python=`which python3.5` aiobotocore
+   $ mkvirtualenv --python=`which python3.8` aiobotocore
 
+After that please install libraries required for development.  The
+`make init` recipe will install [poetry](https://python-poetry.org/)
+and then invoke a `poetry install` to install the required
+dependencies for the library development.
 
-After that please install libraries required for development::
-
-    $ pipenv sync --dev
+   $ make init
 
 Congratulations, you are ready to run the test suite::
 
