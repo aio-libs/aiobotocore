@@ -24,6 +24,10 @@ Install
 -------
 ::
 
+    $ pip install aio-botocore
+
+The original library is installed using
+
     $ pip install aiobotocore
 
 
@@ -159,13 +163,13 @@ secret accessible via environment variables:
     $ cd aiobotocore
     $ export AWS_ACCESS_KEY_ID=xxx
     $ export AWS_SECRET_ACCESS_KEY=xxx
-    $ pipenv sync --dev
+    $ poetry install --with=dev
 
 Execute tests suite:
 
 ::
 
-    $ py.test -v tests
+    $ poetry run pytest -v tests
 
 
 

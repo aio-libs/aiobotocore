@@ -3,6 +3,7 @@ label_prs: deps-update
 
 schedule: every week
 
+# https://github.com/pyupio/pyup/issues/332 ??
+# Or use poetry export to create requirements.txt
 requirements:
-  - Pipfile
-  - docs/requirements.txt
+  - Poetry
