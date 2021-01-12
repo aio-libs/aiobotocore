@@ -16,7 +16,7 @@ jobs:
     name: Test
     strategy:
       matrix:
-        pyver: [3.8, 3.9]
+        pyver: [3.8]
         no-extensions: ['', 'Y']
         os: [ubuntu, macos, windows]
         exclude:
@@ -44,12 +44,6 @@ jobs:
       env:
         COLOR: 'yes'
       run: |
-        pip install -U setuptools pip
-        pip install -U pipenv codecov
-        pipenv lock
-        pipenv sync --dev
-        pipenv check || true
-        pipenv graph
         make flake mototest
 
   pre-deploy:
@@ -132,7 +126,7 @@ jobs:
     name: Binary wheels
     strategy:
       matrix:
-        pyver: [3.8, 3.9]
+        pyver: [3.8]
         os: [macos, windows]
         arch: [x86, x64]
         exclude:
