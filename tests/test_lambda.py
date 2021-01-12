@@ -56,6 +56,7 @@ async def test_run_lambda(iam_client, lambda_client, aws_lambda_zip):
     invoke_response = await lambda_client.invoke(
         FunctionName="test-function",
         InvocationType="RequestResponse",
+        LogType='Tail',
         Payload=json.dumps({"hello": "world"}),
     )
 
@@ -64,5 +65,5 @@ async def test_run_lambda(iam_client, lambda_client, aws_lambda_zip):
 
     log_result = base64.b64decode(invoke_response["LogResult"])
 
-    assert data is not None and data == log_result
-    assert b'{"hello":"world"}' in log_result
+    assert json.loads(data) == {'statusCode': 200, "body": {"hello": "world"}}
+    assert b"{'hello': 'world'}" in log_result

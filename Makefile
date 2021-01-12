@@ -20,7 +20,9 @@ cov cover coverage: flake
 
 # BOTO_CONFIG solves https://github.com/travis-ci/travis-ci/issues/7940
 mototest:
-	BOTO_CONFIG=/dev/null pipenv run python3 -Wd -X tracemalloc=5 -X faulthandler -m pytest -vv -m moto -n auto --cov-report term --cov-report html --cov aiobotocore tests
+	docker pull alpine
+	docker pull lambci/lambda:python3.8
+	BOTO_CONFIG=/dev/null pipenv run python3 -Wd -X tracemalloc=5 -X faulthandler -m pytest -vv -m moto -n auto --cov-report term --cov-report html --cov --log-cli-level=DEBUG aiobotocore tests
 	@echo "open file://`pwd`/htmlcov/index.html"
 
 
