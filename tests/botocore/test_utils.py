@@ -130,11 +130,11 @@ async def test_instancemetadatafetcher_retrieve_creds():
         fetcher = utils.AioInstanceMetadataFetcher()
 
         creds = await fetcher.retrieve_iam_role_credentials()
-        assert creds['role_name'] == 'some-role'
-        assert creds['access_key'] == 'foo'
-        assert creds['secret_key'] == 'bar'
-        assert creds['token'] == 'baz'
-        assert creds['expiry_time'] == 'bah'
+        assert creds.get('role_name') == 'some-role', f'failed with creds: {creds}'
+        assert creds['access_key'] == 'foo', f'failed with creds: {creds}'
+        assert creds['secret_key'] == 'bar', f'failed with creds: {creds}'
+        assert creds['token'] == 'baz', f'failed with creds: {creds}'
+        assert creds['expiry_time'] == 'bah', f'failed with creds: {creds}'
 
 
 @pytest.mark.moto
