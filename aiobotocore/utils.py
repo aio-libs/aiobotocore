@@ -61,7 +61,9 @@ class AioIMDSFetcher(IMDSFetcher):
                         "Caught retryable HTTP exception while making metadata "
                         "service request to %s: %s", url, e, exc_info=True)
                 except aiohttp.client_exceptions.ClientConnectorError as e:
-                    if getattr(e, 'errno', None) == 8 or str(getattr(e, 'os_error', None)) == 'Domain name not found':  # threaded vs async resolver
+                    if getattr(e, 'errno', None) == 8 or \
+                            str(getattr(e, 'os_error', None)) == \
+                            'Domain name not found':  # threaded vs async resolver
                         raise InvalidIMDSEndpointError(endpoint=url, error=e)
                     else:
                         raise

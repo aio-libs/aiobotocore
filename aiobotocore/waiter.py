@@ -68,7 +68,7 @@ class AIOWaiter(Waiter):
                 if last_matched_acceptor is None:
                     reason = 'Max attempts exceeded'
                 else:
-                    reason = 'Max attempts exceeded. Previously accepted state: %s' %(
+                    reason = 'Max attempts exceeded. Previously accepted state: %s' % (
                         acceptor.explanation
                     )
                 raise WaiterError(
