@@ -1,5 +1,10 @@
 Changes
 -------
+1.2.0 (2021-01-11)
+^^^^^^^^^^^^^^^^^^
+* bump botocore to 1.19.52
+* use passed in http_session_cls param to create_client (#797)
+
 1.1.2 (2020-10-07)
 ^^^^^^^^^^^^^^^^^^
 * fix AioPageIterator search method #831 (thanks @joseph-jones)

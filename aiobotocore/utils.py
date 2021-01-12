@@ -7,7 +7,9 @@ import aiohttp.client_exceptions
 from botocore.utils import ContainerMetadataFetcher, InstanceMetadataFetcher, \
     IMDSFetcher, get_environ_proxies, BadIMDSRequestError, S3RegionRedirector, \
     ClientError
-from botocore.exceptions import MetadataRetrievalError
+from botocore.exceptions import (
+    InvalidIMDSEndpointError, MetadataRetrievalError,
+)
 import botocore.awsrequest
 
 
@@ -58,6 +60,13 @@ class AioIMDSFetcher(IMDSFetcher):
                     logger.debug(
                         "Caught retryable HTTP exception while making metadata "
                         "service request to %s: %s", url, e, exc_info=True)
+                except aiohttp.client_exceptions.ClientConnectorError as e:
+                    if getattr(e, 'errno', None) == 8 or \
+                            str(getattr(e, 'os_error', None)) == \
+                            'Domain name not found':  # threaded vs async resolver
+                        raise InvalidIMDSEndpointError(endpoint=url, error=e)
+                    else:
+                        raise
 
         return None
 

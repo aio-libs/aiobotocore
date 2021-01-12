@@ -304,7 +304,7 @@ class AioEndpointCreator(EndpointCreator):
             ssl_context=ssl_context,
             **connector_args)
 
-        aio_session = aiohttp.ClientSession(
+        aio_session = http_session_cls(
             connector=connector,
             timeout=timeout,
             skip_auto_headers={'CONTENT-TYPE'},

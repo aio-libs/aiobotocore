@@ -22,12 +22,14 @@ cov cover coverage: flake
 mototest:
 	docker pull alpine
 	docker pull lambci/lambda:python3.8
-	BOTO_CONFIG=/dev/null pipenv run python3 -Wd -X tracemalloc=5 -X faulthandler -m pytest -vv -m moto -n auto --cov-report term --cov-report html --cov --log-cli-level=DEBUG aiobotocore tests
+	BOTO_CONFIG=/dev/null pipenv run python3 -Wd -X tracemalloc=5 -X faulthandler -m pytest -vv -m moto -n auto --cov-report term --cov-report html --cov=aiobotocore --cov=tests --log-cli-level=DEBUG aiobotocore tests
 	@echo "open file://`pwd`/htmlcov/index.html"
 
 
 clean:
 	rm -rf `find . -name __pycache__`
+	rm -rf `find . -name .pytest_cache`
+	rm -rf `find . -name *.egg-info`
 	rm -f `find . -type f -name '*.py[co]' `
 	rm -f `find . -type f -name '*~' `
 	rm -f `find . -type f -name '.*~' `
@@ -35,8 +37,10 @@ clean:
 	rm -f `find . -type f -name '#*#' `
 	rm -f `find . -type f -name '*.orig' `
 	rm -f `find . -type f -name '*.rej' `
-	rm -f .coverage
+	rm -f .coverage*
 	rm -rf coverage
+	rm -rf coverage.xml
+	rm -rf htmlcov
 	rm -rf build
 	rm -rf cover
 	rm -rf dist
