@@ -75,7 +75,7 @@ class StreamingBody(wrapt.ObjectProxy):
 
     anext = __anext__
 
-    async def iter_lines(self, chunk_size=1024):
+    async def iter_lines(self, chunk_size=1024, keepends=False):
         """Return an iterator to yield lines from the raw stream.
 
         This is achieved by reading chunk of bytes (of size chunk_size) at a
@@ -85,10 +85,10 @@ class StreamingBody(wrapt.ObjectProxy):
         async for chunk in self.iter_chunks(chunk_size):
             lines = (pending + chunk).splitlines(True)
             for line in lines[:-1]:
-                yield line.splitlines()[0]
+                yield line.splitlines(keepends)[0]
             pending = lines[-1]
         if pending:
-            yield pending.splitlines()[0]
+            yield pending.splitlines(keepends)[0]
 
     async def iter_chunks(self, chunk_size=_DEFAULT_CHUNK_SIZE):
         """Return an iterator to yield chunks of chunk_size bytes from the raw

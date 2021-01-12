@@ -25,6 +25,7 @@ class AIOWaiter(Waiter):
         config = kwargs.pop('WaiterConfig', {})
         sleep_amount = config.get('Delay', self.config.delay)
         max_attempts = config.get('MaxAttempts', self.config.max_attempts)
+        last_matched_acceptor = None
         num_attempts = 0
 
         while True:
@@ -32,6 +33,7 @@ class AIOWaiter(Waiter):
             num_attempts += 1
             for acceptor in acceptors:
                 if acceptor.matcher_func(response):
+                    last_matched_acceptor = acceptor
                     current_state = acceptor.state
                     break
             else:
@@ -43,24 +45,36 @@ class AIOWaiter(Waiter):
                     # can just handle here by raising an exception.
                     raise WaiterError(
                         name=self.name,
-                        reason=response['Error'].get('Message', 'Unknown'),
-                        last_response=response
+                        reason='An error occurred (%s): %s' % (
+                            response['Error'].get('Code', 'Unknown'),
+                            response['Error'].get('Message', 'Unknown'),
+                        ),
+                        last_response=response,
                     )
             if current_state == 'success':
                 logger.debug("Waiting complete, waiter matched the "
                              "success state.")
                 return
             if current_state == 'failure':
+                reason = 'Waiter encountered a terminal failure state: %s' % (
+                        acceptor.explanation
+                        )
                 raise WaiterError(
                     name=self.name,
-                    reason='Waiter encountered a terminal failure state',
+                    reason=reason,
                     last_response=response,
                 )
             if num_attempts >= max_attempts:
+                if last_matched_acceptor is None:
+                    reason = 'Max attempts exceeded'
+                else:
+                    reason = 'Max attempts exceeded. Previously accepted state: %s' %(
+                        acceptor.explanation
+                    )
                 raise WaiterError(
                     name=self.name,
-                    reason='Max attempts exceeded',
-                    last_response=response
+                    reason=reason,
+                    last_response=response,
                 )
             await asyncio.sleep(sleep_amount)
 

@@ -76,7 +76,7 @@ _API_DIGESTS = {
     ClientArgsCreator.get_client_args: {'e3a44e6f50159e8e31c3d76f5e8a1110dda495fa'},
 
     # client.py
-    ClientCreator.create_client: {'ee63a3d60b5917879cb644c1b0aa3fe34538b915'},
+    ClientCreator.create_client: {'281fbf7afc4e6282e5c881c7a03717c9e5e4e176'},
     ClientCreator._create_client_class: {'5e493d069eedbf314e40e12a7886bbdbcf194335'},
     ClientCreator._get_client_args: {'555e1e41f93df7558c8305a60466681e3a267ef3'},
     ClientCreator._register_s3_events: {'da3fc62a131d63964c8daa0f52124b092fd8f1b4'},
@@ -116,7 +116,7 @@ _API_DIGESTS = {
     RefreshableCredentials.get_frozen_credentials:
         {'f661c84a8b759786e011f0b1e8a468a0c6294e36'},
     SSOCredentialFetcher:
-        {'e092b115155a06760af6f3c72ccef120979b1201'},
+        {'d68353a0d2c291d5742f134d28ae1e1419faa4c6'},
     SSOProvider.load:
         {'f43d79e1520b2a7b7ef85cd537f41e19d4bce806'},
     CachedCredentialFetcher._get_credentials:
@@ -185,7 +185,7 @@ _API_DIGESTS = {
         {'c028b9776383cc566be10999745b6082f458d902'},
     BotoProvider.load: {'9351b8565c2c969937963fc1d3fbc8b3b6d8ccc1'},
     OriginalEC2Provider.load: {'bde9af019f01acf3848a6eda125338b2c588c1ab'},
-    create_credential_resolver: {'5ff7fe49d7636b795a50202ff5c089611f4e27c1'},
+    create_credential_resolver: {'c6a08bfc59a4e8f59c8b7a846dbb74db649101fd'},
     get_credentials: {'ff0c735a388ac8dd7fe300a32c1e36cdf33c0f56'},
 
     # endpoint.py
@@ -226,7 +226,7 @@ _API_DIGESTS = {
     RestJSONParser._create_event_stream: {'0564ba55383a71cc1ba3e5be7110549d7e9992f5'},
 
     # response.py
-    StreamingBody: {'bb4d872649b0c118c9a3d5e44961e1bea92eb79c'},
+    StreamingBody: {'b77bd0903f9013bc47c01f91c6d9bfb8a504d106'},
 
     # session.py
     Session.__init__: {'ccf156a76beda3425fb54363f3b2718dc0445f6d'},
@@ -242,7 +242,7 @@ _API_DIGESTS = {
 
     # signers.py
     RequestSigner.handler: {'371909df136a0964ef7469a63d25149176c2b442'},
-    RequestSigner.sign: {'7df841d3df3f4015763523c1932652aef754287a'},
+    RequestSigner.sign: {'a07e4caab222bf9375036b1fafaf021ccb5b2bf3'},
     RequestSigner.get_auth: {'4f8099bef30f9a72fa3bcaa1bd3d22c4fbd224a8'},
     RequestSigner.get_auth_instance: {'4f8099bef30f9a72fa3bcaa1bd3d22c4fbd224a8'},
     RequestSigner._choose_signer: {'d1e0e3196ada449d3ae0ec09b8ae9b5868c50d4e'},
@@ -268,9 +268,9 @@ _API_DIGESTS = {
     ContainerMetadataFetcher._get_response:
         {'7e5acdd2cf0167a047e3d5ee1439565a2f79f6a6'},
     # Overrided session and dealing with proxy support
-    IMDSFetcher.__init__: {'690e37140ccdcd67c7a85ce5d36331491a79954e'},
+    IMDSFetcher.__init__: {'a0766a5ba7dde9c26f3c51eb38d73f8e6087d492'},
     IMDSFetcher._get_request: {'96a0e580cab5a21deb4d2cd7e904aa17d5e1e504'},
-    IMDSFetcher._fetch_metadata_token: {'4fdad673b4997b1268c6d9dff09a4b99c1cb5e0d'},
+    IMDSFetcher._fetch_metadata_token: {'dcb147f6c7a425ba9e30be8ad4818be4b781305c'},
 
     InstanceMetadataFetcher.retrieve_iam_role_credentials:
         {'76737f6add82a1b9a0dc590cf10bfac0c7026a2e'},
@@ -285,7 +285,7 @@ _API_DIGESTS = {
 
     # waiter.py
     NormalizedOperationMethod.__call__: {'79723632d023739aa19c8a899bc2b814b8ab12ff'},
-    Waiter.wait: {'5502a89ed740fb5d6238a6f72a3a08efc1a9f43b'},
+    Waiter.wait: {'3a4ff0fdfc78b7ec42bfd41f3e1ba3b741f2d2b9'},
     create_waiter_with_client: {'c3d12c9a4293105cc8c2ecfc7e69a2152ad564de'},
 }
 

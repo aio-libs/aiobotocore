@@ -1084,6 +1084,7 @@ def mock_session():
             'config_file': 'c',
             'metadata_service_timeout': 1,
             'metadata_service_num_attempts': 1,
+            'imds_use_ipv6': 'false',
         }
 
         def fake_get_component(self, key):
@@ -1228,7 +1229,7 @@ async def test_sso_credential_fetcher_can_fetch_credentials(
     self.assertEqual(credentials['access_key'], 'foo')
     self.assertEqual(credentials['secret_key'], 'bar')
     self.assertEqual(credentials['token'], 'baz')
-    self.assertEqual(credentials['expiry_time'], '2008-09-23T12:43:20UTC')
+    self.assertEqual(credentials['expiry_time'], '2008-09-23T12:43:20Z')
     cache_key = '048db75bbe50955c16af7aba6ff9c41a3131bb7e'
     expected_cached_credentials = {
         'ProviderType': 'sso',
@@ -1236,7 +1237,7 @@ async def test_sso_credential_fetcher_can_fetch_credentials(
             'AccessKeyId': 'foo',
             'SecretAccessKey': 'bar',
             'SessionToken': 'baz',
-            'Expiration': '2008-09-23T12:43:20UTC',
+            'Expiration': '2008-09-23T12:43:20Z',
         }
     }
     self.assertEqual(self.cache[cache_key], expected_cached_credentials)
