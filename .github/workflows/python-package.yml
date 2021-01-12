@@ -75,50 +75,6 @@ jobs:
         name: dist
         path: dist
 
-  build-linux:
-    name: Linux
-    strategy:
-      matrix:
-        pyver: [cp38-cp38, cp39-cp39]
-        arch: [x86_64, aarch64, i686, ppc64le, s390x]
-      fail-fast: false
-    runs-on: ubuntu-latest
-    env:
-      py: /opt/python/${{ matrix.pyver }}/bin/python
-      img: quay.io/pypa/manylinux2014_${{ matrix.arch }}
-    needs: pre-deploy
-    steps:
-    - name: Checkout
-      uses: actions/checkout@v2
-      with:
-        submodules: true
-    - name: Set up QEMU
-      id: qemu
-      uses: docker/setup-qemu-action@v1
-    - name: Available platforms
-      run: echo ${{ steps.qemu.outputs.platforms }}
-    - name: Setup Python 3.8
-      uses: actions/setup-python@v2
-      with:
-        python-version: 3.8
-    - name: Install tools
-      run: |
-        docker run --rm -v ${{ github.workspace }}:/ws:rw --workdir=/ws \
-          ${{ env.img }} ${{ env.py }} -m pip install -U setuptools wheel
-    - name: Make wheel
-      run: |
-        docker run --rm -v ${{ github.workspace }}:/ws:rw --workdir=/ws \
-          ${{ env.img }} ${{ env.py }} setup.py sdist_wheel
-    - name: Repair wheel wheel
-      run: |
-        docker run --rm -v ${{ github.workspace }}:/ws:rw --workdir=/ws \
-          ${{ env.img }} auditwheel repair dist/*.whl --wheel-dir wheelhouse/
-    - name: Upload artifacts
-      uses: actions/upload-artifact@v2
-      with:
-        name: dist
-        path: wheelhouse/*
-
   deploy:
     name: Deploy
     needs: [build-linux, build-binary, build-tarball]
