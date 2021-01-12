@@ -114,7 +114,8 @@ class AioInstanceMetadataFetcher(AioIMDSFetcher, InstanceMetadataFetcher):
                          self._num_attempts)
         except BadIMDSRequestError as e:
             import traceback
-            logger.debug("Bad IMDS request: %s exc: %s", e.request, traceback.format_exc())
+            logger.debug("Bad IMDS request: %s exc: %s", e.request,
+                         traceback.format_exc())
         return {}
 
     async def _get_iam_role(self, token=None):
