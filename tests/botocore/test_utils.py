@@ -370,7 +370,8 @@ class TestInstanceMetadataFetcher(unittest.IsolatedAsyncioTestCase):
         # Check that subsequent calls after getting the token include the token.
         self.assertEqual(self._send.call_count, 3)
         for call in self._send.call_args_list[1:]:
-            self.assertEqual(call.kwargs['headers']['x-aws-ec2-metadata-token'], 'token')
+            self.assertEqual(call.kwargs['headers']['x-aws-ec2-metadata-token'],
+                             'token')
         self.assertEqual(result, self._expected_creds)
 
     @pytest.mark.moto
