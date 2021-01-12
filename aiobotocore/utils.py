@@ -113,7 +113,8 @@ class AioInstanceMetadataFetcher(AioIMDSFetcher, InstanceMetadataFetcher):
                          "attempting to retrieve data from metadata service.",
                          self._num_attempts)
         except BadIMDSRequestError as e:
-            logger.debug("Bad IMDS request: %s", e.request)
+            import traceback
+            logger.debug("Bad IMDS request: %s exc: %s", e.request, traceback.format_exc())
         return {}
 
     async def _get_iam_role(self, token=None):
