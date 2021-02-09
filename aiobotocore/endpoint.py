@@ -1,6 +1,7 @@
 import aiohttp
 import asyncio
 import io
+import pathlib
 import ssl
 import aiohttp.http_exceptions
 from aiohttp.client import URL
@@ -285,6 +286,7 @@ class AioEndpointCreator(EndpointCreator):
             sock_read=read_timeout
         )
 
+        verify = self._get_verify_value(verify)
         ssl_context = None
         if client_cert:
             if isinstance(client_cert, str):
@@ -293,14 +295,18 @@ class AioEndpointCreator(EndpointCreator):
             elif isinstance(client_cert, tuple):
                 cert_file, key_file = client_cert
             else:
-                assert False
+                raise TypeError("client_cert must be str or tuple, not %s" %
+                                client_cert.__class__.__name__)
 
             ssl_context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
             ssl_context.load_cert_chain(cert_file, key_file)
+        elif isinstance(verify, (str, pathlib.Path)):
+            ssl_context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH,
+                                                     cafile=str(verify))
 
         connector = aiohttp.TCPConnector(
             limit=max_pool_connections,
-            verify_ssl=self._get_verify_value(verify),
+            verify_ssl=bool(verify),
             ssl_context=ssl_context,
             **connector_args)
 
