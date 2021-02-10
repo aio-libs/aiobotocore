@@ -1,5 +1,9 @@
 Changes
 -------
+1.2.1 (2021-02-10)
+^^^^^^^^^^^^^^^^^^
+* verify strings are now correctly passed to aiohttp.TCPConnector #851 (thanks @FHTMitchell)
+
 1.2.0 (2021-01-11)
 ^^^^^^^^^^^^^^^^^^
 * bump botocore to 1.19.52
