@@ -629,7 +629,7 @@ class AioAssumeRoleProvider(AssumeRoleProvider):
                 )
             return credentials
 
-        return self._load_creds_via_assume_role(profile_name)
+        return await self._load_creds_via_assume_role(profile_name)
 
     def _resolve_static_credentials_from_profile(self, profile):
         try:

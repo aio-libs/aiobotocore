@@ -1,5 +1,9 @@
 Changes
 -------
+1.2.2 (2021-03-11)
+^^^^^^^^^^^^^^^^^^
+* Await call to async method _load_creds_via_assume_role #851 (thanks @puzza007)
+
 1.2.1 (2021-02-10)
 ^^^^^^^^^^^^^^^^^^
 * verify strings are now correctly passed to aiohttp.TCPConnector #851 (thanks @FHTMitchell)
