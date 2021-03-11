@@ -24,8 +24,9 @@ class StubbedSession(aiobotocore.session.AioSession):
     async def _create_stubbed_client(self, service_name, *args, **kwargs):
         async with AsyncExitStack() as es:
             es: AsyncExitStack
-            client = await es.enter_async_context(super(StubbedSession, self).create_client(
-                service_name, *args, **kwargs))
+            client = await es.enter_async_context(
+                super(StubbedSession, self).create_client(
+                    service_name, *args, **kwargs))
             stubber = Stubber(client)
             self._client_stubs[service_name] = stubber
             yield client
