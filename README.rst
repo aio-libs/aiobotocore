@@ -90,9 +90,8 @@ Context Manager Examples
 .. code:: python
 
     from contextlib import AsyncExitStack
-    from typing import
-    
-    import aiobotocore.session
+  
+    import aiobotocore
     
     
     # How to use in existing context manager
