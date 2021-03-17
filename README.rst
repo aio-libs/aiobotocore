@@ -91,7 +91,7 @@ Context Manager Examples
 
     from contextlib import AsyncExitStack
   
-    import aiobotocore
+    from aiobotocore.session import AioSession
     
     
     # How to use in existing context manager
@@ -101,21 +101,21 @@ Context Manager Examples
             self._s3_client = None
     
         async def __aenter__(self):
-            session = aiobotocore.session.AioSession()
+            session = AioSession()
             self._s3_client = await self._exit_stack.enter_async_context(session.create_client('s3'))
     
         async def __aexit__(self, exc_type, exc_val, exc_tb):
             await self._exit_stack.__aexit__(exc_type, exc_val, exc_tb)
     
     # How to use with an external exit_stack
-    async def create_s3_client(session: aiobotocore.session.AioSession, exit_stack: AsyncExitStack):
+    async def create_s3_client(session: AioSession, exit_stack: AsyncExitStack):
         # Create client and add cleanup
         client = await exit_stack.enter_async_context(session.create_client('s3'))
         return client
     
     
     async def non_manager_example():
-        session = aiobotocore.session.AioSession()
+        session = AioSession()
     
         async with AsyncExitStack() as exit_stack:
             s3_client = await create_s3_client(session, exit_stack)
