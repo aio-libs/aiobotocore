@@ -49,7 +49,8 @@ from botocore.credentials import Credentials, RefreshableCredentials, \
 #    github.com/aio-libs/aiobotocore/pull/248
 _AIOHTTP_DIGESTS = {
     # for using _body
-    ClientResponse: {'e178726065b609c69a1c02e8bb78f22efce90792', '225e8033bfcff8cccbc2e975d7bd0c7993f14366'},
+    ClientResponse: {'e178726065b609c69a1c02e8bb78f22efce90792',
+                     '225e8033bfcff8cccbc2e975d7bd0c7993f14366'},
 }
 
 # These are guards to our main patches
