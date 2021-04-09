@@ -1,5 +1,9 @@
 Changes
 -------
+1.3.0 (2021-04-09)
+^^^^^^^^^^^^^^^^^^
+* Bump to botocore 1.20.49 #856
+
 1.2.2 (2021-03-11)
 ^^^^^^^^^^^^^^^^^^
 * Await call to async method _load_creds_via_assume_role #851 (thanks @puzza007)
