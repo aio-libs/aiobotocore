@@ -4,7 +4,7 @@ import asyncio
 from botocore.exceptions import ClientError
 from botocore.waiter import WaiterModel  # noqa: F401, lgtm[py/unused-import]
 from botocore.waiter import Waiter, xform_name, logger, WaiterError, \
-    NormalizedOperationMethod as _NormalizedOperationMethod
+    NormalizedOperationMethod as _NormalizedOperationMethod, is_valid_waiter_error
 from botocore.docs.docstring import WaiterDocstring
 from botocore.utils import get_service_module_name
 
@@ -40,7 +40,7 @@ class AIOWaiter(Waiter):
                 # If none of the acceptors matched, we should
                 # transition to the failure state if an error
                 # response was received.
-                if 'Error' in response:
+                if is_valid_waiter_error(response):
                     # Transition to a failure state, which we
                     # can just handle here by raising an exception.
                     raise WaiterError(

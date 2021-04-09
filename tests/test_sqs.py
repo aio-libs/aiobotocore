@@ -36,6 +36,7 @@ async def test_put_pull_delete_test(sqs_client, sqs_queue_url):
 
     response = await sqs_client.receive_message(
         QueueUrl=sqs_queue_url,
+        MessageAttributeNames=['attr1']
     )
     pytest.aio.assert_status_code(response, 200)
 

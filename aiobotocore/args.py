@@ -59,6 +59,7 @@ class AioClientArgsCreator(ClientArgsCreator):
             timeout=(new_config.connect_timeout, new_config.read_timeout),
             socket_options=socket_options,
             client_cert=new_config.client_cert,
+            proxies_config=new_config.proxies_config,
             connector_args=new_config.connector_args)
 
         serializer = botocore.serialize.create_serializer(

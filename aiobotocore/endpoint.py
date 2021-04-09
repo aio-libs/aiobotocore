@@ -260,6 +260,7 @@ class AioEndpointCreator(EndpointCreator):
                         proxies=None,
                         socket_options=None,
                         client_cert=None,
+                        proxies_config=None,
                         connector_args=None):
         if not is_valid_endpoint_url(endpoint_url):
 
@@ -303,6 +304,8 @@ class AioEndpointCreator(EndpointCreator):
         elif isinstance(verify, (str, pathlib.Path)):
             ssl_context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH,
                                                      cafile=str(verify))
+
+        # TODO: add support for proxies_config
 
         connector = aiohttp.TCPConnector(
             limit=max_pool_connections,

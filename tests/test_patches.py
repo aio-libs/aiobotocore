@@ -49,7 +49,8 @@ from botocore.credentials import Credentials, RefreshableCredentials, \
 #    github.com/aio-libs/aiobotocore/pull/248
 _AIOHTTP_DIGESTS = {
     # for using _body
-    ClientResponse: {'e178726065b609c69a1c02e8bb78f22efce90792'},
+    ClientResponse: {'e178726065b609c69a1c02e8bb78f22efce90792',
+                     '225e8033bfcff8cccbc2e975d7bd0c7993f14366'},
 }
 
 # These are guards to our main patches
@@ -73,7 +74,7 @@ _AIOHTTP_DIGESTS = {
 # If you're changing these, most likely need to update setup.py as well.
 _API_DIGESTS = {
     # args.py
-    ClientArgsCreator.get_client_args: {'e3a44e6f50159e8e31c3d76f5e8a1110dda495fa'},
+    ClientArgsCreator.get_client_args: {'96d97f97fce6d883281dc4ffe0fa0743e190f7bd'},
 
     # client.py
     ClientCreator.create_client: {'281fbf7afc4e6282e5c881c7a03717c9e5e4e176'},
@@ -91,7 +92,7 @@ _API_DIGESTS = {
 
     # config.py
     Config.merge: {'c3dd8c3ffe0da86953ceba4a35267dfb79c6a2c8'},
-    Config: {'2dcc44190a3dc2a4b26ab0ed9410daefcd7c93c1'},
+    Config: {'e63975f828f8d20e4d739dbdb4d496ec3a3e3dc9'},
 
     # credentials.py
     create_mfa_serial_refresher: {'180b81fc40c91d1cf40de1a28e32ae7d601e1d50'},
@@ -198,7 +199,7 @@ _API_DIGESTS = {
     Endpoint._needs_retry: {'0f40f52d8c90c6e10b4c9e1c4a5ca00ef2c72850'},
     Endpoint._send: {'644c7e5bb88fecaa0b2a204411f8c7e69cc90bf1'},
 
-    EndpointCreator.create_endpoint: {'36065caa2398573be229bee500e27303bc362348'},
+    EndpointCreator.create_endpoint: {'502315533a86991ea5f57c04973ea5c837bf6197'},
 
     # eventstream.py
     EventStream._create_raw_event_generator: {
@@ -285,7 +286,7 @@ _API_DIGESTS = {
 
     # waiter.py
     NormalizedOperationMethod.__call__: {'79723632d023739aa19c8a899bc2b814b8ab12ff'},
-    Waiter.wait: {'3a4ff0fdfc78b7ec42bfd41f3e1ba3b741f2d2b9'},
+    Waiter.wait: {'e9c7f98b12ac8d9ba44637e89499617590bc4f6f'},
     create_waiter_with_client: {'c3d12c9a4293105cc8c2ecfc7e69a2152ad564de'},
 }
 
