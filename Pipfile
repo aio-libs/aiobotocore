@@ -15,6 +15,9 @@ pytest-cov = "==2.11.1"
 pytest-asyncio = "==0.14.0"
 pytest-xdist = "==2.2.1"
 
+# this is needed when running setup.py check -rms
+Pygments = "*"
+
 [packages]
 aiohttp = "==3.7.4.post0"
 aiobotocore = {editable = true,extras = ["awscli", "boto3"],path = "."}
