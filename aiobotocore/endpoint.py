@@ -288,7 +288,7 @@ class AioEndpointCreator(EndpointCreator):
         )
 
         verify = self._get_verify_value(verify)
-        ssl = None
+        ssl_context = None
         if client_cert:
             if isinstance(client_cert, str):
                 key_file = None
@@ -299,18 +299,18 @@ class AioEndpointCreator(EndpointCreator):
                 raise TypeError("client_cert must be str or tuple, not %s" %
                                 client_cert.__class__.__name__)
 
-            ssl = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
-            ssl.load_cert_chain(cert_file, key_file)
+            ssl_context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+            ssl_context.load_cert_chain(cert_file, key_file)
         elif isinstance(verify, (str, pathlib.Path)):
-            ssl = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH,
-                                             cafile=str(verify))
+            ssl_context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH,
+                                                     cafile=str(verify))
 
         # TODO: add support for proxies_config
 
         connector = aiohttp.TCPConnector(
             limit=max_pool_connections,
             verify_ssl=bool(verify),
-            ssl=ssl,
+            ssl=ssl_context,
             **connector_args)
 
         aio_session = http_session_cls(
