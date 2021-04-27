@@ -1,5 +1,9 @@
 Changes
 -------
+1.3.1 (2021-04-23)
+^^^^^^^^^^^^^^^^^^
+* TCPConnector: change deprecated ssl_context to ssl
+
 1.3.0 (2021-04-09)
 ^^^^^^^^^^^^^^^^^^
 * Bump to botocore 1.20.49 #856
