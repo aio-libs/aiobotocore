@@ -310,7 +310,7 @@ class AioEndpointCreator(EndpointCreator):
         connector = aiohttp.TCPConnector(
             limit=max_pool_connections,
             verify_ssl=bool(verify),
-            ssl_context=ssl_context,
+            ssl=ssl_context,
             **connector_args)
 
         aio_session = http_session_cls(
