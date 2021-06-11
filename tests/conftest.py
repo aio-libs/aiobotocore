@@ -224,6 +224,14 @@ async def rds_client(session, region, config, rds_server, mocking_test):
         yield client
 
 
+@pytest.fixture
+async def ec2_client(session, region, config, ec2_server, mocking_test):
+    kw = moto_config(ec2_server) if mocking_test else {}
+    async with session.create_client('ec2', region_name=region,
+                                     config=config, **kw) as client:
+        yield client
+
+
 async def recursive_delete(s3_client, bucket_name):
     # Recursively deletes a bucket and all of its contents.
     paginator = s3_client.get_paginator('list_object_versions')

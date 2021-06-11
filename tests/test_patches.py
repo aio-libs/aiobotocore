@@ -37,6 +37,8 @@ from botocore.credentials import Credentials, RefreshableCredentials, \
     CanonicalNameCredentialSourcer, BotoProvider, OriginalEC2Provider, \
     create_credential_resolver, get_credentials, create_mfa_serial_refresher, \
     AssumeRoleWithWebIdentityCredentialFetcher, SSOCredentialFetcher, SSOProvider
+from botocore.handlers import inject_presigned_url_ec2, inject_presigned_url_rds
+
 
 # This file ensures that our private patches will work going forward.  If a
 # method gets updated this will assert and someone will need to validate:
@@ -240,6 +242,7 @@ _API_DIGESTS = {
     Session.get_service_data: {'e28f2de9ebaf13214f1606d33349dfa8e2555923'},
     Session.get_service_model: {'1c8f93e6fb9913e859e43aea9bc2546edbea8365'},
     Session.get_available_regions: {'bc455d24d98fbc112ff22325ebfd12a6773cb7d4'},
+    Session.register: {'39791fd2cffcea480f81e77c7daf3974581d9291'},
 
     # signers.py
     RequestSigner.handler: {'371909df136a0964ef7469a63d25149176c2b442'},
@@ -288,6 +291,10 @@ _API_DIGESTS = {
     NormalizedOperationMethod.__call__: {'79723632d023739aa19c8a899bc2b814b8ab12ff'},
     Waiter.wait: {'e9c7f98b12ac8d9ba44637e89499617590bc4f6f'},
     create_waiter_with_client: {'c3d12c9a4293105cc8c2ecfc7e69a2152ad564de'},
+
+    # handlers.py
+    inject_presigned_url_rds: {'5a34e1666d84f6229c54a59bffb69d46e8117b3a'},
+    inject_presigned_url_ec2: {'37fad2d9c53ca4f1783e32799fa8f70930f44c23'},
 }
 
 
