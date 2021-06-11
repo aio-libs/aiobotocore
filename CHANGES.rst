@@ -1,8 +1,9 @@
 Changes
 -------
-1.3.1 (2021-04-23)
+1.3.1 (2021-06-11)
 ^^^^^^^^^^^^^^^^^^
 * TCPConnector: change deprecated ssl_context to ssl
+* fix non awaited generate presigned url calls # 868
 
 1.3.0 (2021-04-09)
 ^^^^^^^^^^^^^^^^^^
