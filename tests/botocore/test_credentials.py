@@ -16,7 +16,7 @@ import subprocess
 from unittest import TestCase
 from functools import partial
 
-import mock
+from unittest import mock
 from typing import Optional
 
 import pytest
