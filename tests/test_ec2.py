@@ -1,10 +1,12 @@
 import pytest
 
+
 @pytest.mark.moto
 @pytest.mark.asyncio
 async def test_ec2_snapshot(ec2_client):
     # TODO: this needs to somehow validate the presigned url sent because moto is not
-    volume_response = await ec2_client.create_volume(AvailabilityZone="us-east-1", Size=10)
+    volume_response = await ec2_client.create_volume(
+        AvailabilityZone="us-east-1", Size=10)
     tag_spec = [
         {"ResourceType": "snapshot", "Tags": [{"Key": "key", "Value": "value"}]}
     ]
@@ -21,3 +23,5 @@ async def test_ec2_snapshot(ec2_client):
         TagSpecifications=tag_spec,
         KmsKeyId="key-1234",
     )
+
+    assert copy_snapshot_response['SnapshotId']

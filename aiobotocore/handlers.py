@@ -1,4 +1,5 @@
-from botocore.handlers import _get_presigned_url_source_and_destination_regions, _get_cross_region_presigned_url
+from botocore.handlers import _get_presigned_url_source_and_destination_regions, \
+    _get_cross_region_presigned_url
 
 
 async def inject_presigned_url_ec2(params, request_signer, model, **kwargs):
