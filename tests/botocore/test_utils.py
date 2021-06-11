@@ -1,7 +1,7 @@
 import asyncio
 import pytest
 import json
-import mock
+from unittest import mock
 import itertools
 import unittest
 from typing import Union, List, Tuple
