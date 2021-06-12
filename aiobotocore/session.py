@@ -1,5 +1,7 @@
-from botocore.session import Session, EVENT_ALIASES, ServiceModel, UnknownServiceError
+import platform
+import os
 
+from botocore.session import Session, EVENT_ALIASES, ServiceModel, UnknownServiceError
 from botocore import UNSIGNED
 from botocore import retryhandler, translate
 from botocore.exceptions import PartialCredentialsError
@@ -16,7 +18,9 @@ from botocore.signers import \
     add_generate_presigned_url as boto_add_generate_presigned_url, \
     add_generate_presigned_post as boto_add_generate_presigned_post, \
     add_generate_db_auth_token as boto_add_generate_db_auth_token
+
 from .credentials import create_credential_resolver, AioCredentials
+from aiobotocore import __version__
 
 
 _HANDLER_MAPPING = {
@@ -42,12 +46,13 @@ class ClientCreatorContext:
 
 
 class AioSession(Session):
-
-    # noinspection PyMissingConstructor
     def __init__(self, session_vars=None, event_hooks=None,
                  include_builtin_handlers=True, profile=None):
         if event_hooks is None:
             event_hooks = AioHierarchicalEmitter()
+
+        self.aio_user_agent_name = 'AioBotocore'
+        self.aio_user_agent_version = __version__
 
         super().__init__(session_vars, event_hooks, include_builtin_handlers, profile)
 
@@ -137,6 +142,22 @@ class AioSession(Session):
             self._credentials = await (self._components.get_component(
                 'credential_provider').load_credentials())
         return self._credentials
+
+    def user_agent(self):
+        base = '%s/%s %s/%s Python/%s %s/%s' % (
+            self.aio_user_agent_name,
+            self.aio_user_agent_version,
+            self.user_agent_name,
+            self.user_agent_version,
+            platform.python_version(),
+            platform.system(),
+            platform.release())
+        if os.environ.get('AWS_EXECUTION_ENV') is not None:
+            base += ' exec-env/%s' % os.environ.get('AWS_EXECUTION_ENV')
+        if self.user_agent_extra:
+            base += ' %s' % self.user_agent_extra
+
+        return base
 
     def set_credentials(self, access_key, secret_key, token=None):
         self._credentials = AioCredentials(access_key, secret_key, token)

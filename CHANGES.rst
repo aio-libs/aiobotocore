@@ -1,5 +1,9 @@
 Changes
 -------
+1.4.0 (2021-06-11)
+^^^^^^^^^^^^^^^^^^
+* add support for aioboto user agent
+
 1.3.1 (2021-06-11)
 ^^^^^^^^^^^^^^^^^^
 * TCPConnector: change deprecated ssl_context to ssl

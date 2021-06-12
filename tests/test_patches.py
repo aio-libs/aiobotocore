@@ -243,6 +243,7 @@ _API_DIGESTS = {
     Session.get_service_model: {'1c8f93e6fb9913e859e43aea9bc2546edbea8365'},
     Session.get_available_regions: {'bc455d24d98fbc112ff22325ebfd12a6773cb7d4'},
     Session.register: {'39791fd2cffcea480f81e77c7daf3974581d9291'},
+    Session.user_agent: {'a41957048b8b9f073b4695c3de18a141b76ef969'},
 
     # signers.py
     RequestSigner.handler: {'371909df136a0964ef7469a63d25149176c2b442'},
