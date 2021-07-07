@@ -308,8 +308,8 @@ class AioEndpointCreator(EndpointCreator):
                                                      cafile=str(verify))
 
         if ssl_context:
-            # Enable logging of TLS session keys via defacto standard environment variable
-            # 'SSLKEYLOGFILE', if the feature is available (Python 3.8+). Skip empty values.
+            # Enable logging of TLS session keys via defacto standard environment variable  # noqa: E501
+            # 'SSLKEYLOGFILE', if the feature is available (Python 3.8+). Skip empty values.  # noqa: E501
             if hasattr(ssl_context, 'keylog_filename'):
                 keylogfile = os.environ.get('SSLKEYLOGFILE')
                 if keylogfile and not sys.flags.ignore_environment:
