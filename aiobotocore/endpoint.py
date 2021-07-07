@@ -2,7 +2,9 @@ import aiohttp
 import asyncio
 import io
 import pathlib
+import os
 import ssl
+import sys
 import aiohttp.http_exceptions
 from aiohttp.client import URL
 from botocore.endpoint import EndpointCreator, Endpoint, DEFAULT_TIMEOUT, \
@@ -304,6 +306,14 @@ class AioEndpointCreator(EndpointCreator):
         elif isinstance(verify, (str, pathlib.Path)):
             ssl_context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH,
                                                      cafile=str(verify))
+
+        if ssl_context:
+            # Enable logging of TLS session keys via defacto standard environment variable
+            # 'SSLKEYLOGFILE', if the feature is available (Python 3.8+). Skip empty values.
+            if hasattr(ssl_context, 'keylog_filename'):
+                keylogfile = os.environ.get('SSLKEYLOGFILE')
+                if keylogfile and not sys.flags.ignore_environment:
+                    ssl_context.keylog_filename = keylogfile
 
         # TODO: add support for proxies_config
 

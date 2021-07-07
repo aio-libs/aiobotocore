@@ -79,7 +79,7 @@ _API_DIGESTS = {
     ClientArgsCreator.get_client_args: {'96d97f97fce6d883281dc4ffe0fa0743e190f7bd'},
 
     # client.py
-    ClientCreator.create_client: {'281fbf7afc4e6282e5c881c7a03717c9e5e4e176'},
+    ClientCreator.create_client: {'d18bc3d5d2f09e8ad775f4f1c6211b500a4bce11'},
     ClientCreator._create_client_class: {'5e493d069eedbf314e40e12a7886bbdbcf194335'},
     ClientCreator._get_client_args: {'555e1e41f93df7558c8305a60466681e3a267ef3'},
     ClientCreator._register_s3_events: {'da3fc62a131d63964c8daa0f52124b092fd8f1b4'},
