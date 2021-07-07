@@ -43,6 +43,7 @@ class AioClientCreator(ClientCreator):
         self._register_endpoint_discovery(
             service_client, endpoint_url, client_config
         )
+        self._register_lazy_block_unknown_fips_pseudo_regions(service_client)
         return service_client
 
     async def _create_client_class(self, service_name, service_model):
