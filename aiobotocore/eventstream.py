@@ -1,4 +1,4 @@
-from botocore.eventstream import EventStream, EventStreamBuffer
+from botocore.eventstream import EventStream, EventStreamBuffer, NoInitialResponseError
 
 
 class AioEventStream(EventStream):
@@ -20,3 +20,15 @@ class AioEventStream(EventStream):
             parsed_event = self._parse_event(event)
             if parsed_event:
                 yield parsed_event
+
+    async def get_initial_response(self):
+        try:
+            async for event in self._event_generator:
+                event_type = event.headers.get(':event-type')
+                if event_type == 'initial-response':
+                    return event
+
+                break
+        except StopIteration:
+            pass
+        raise NoInitialResponseError()

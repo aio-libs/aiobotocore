@@ -21,8 +21,9 @@ from botocore.waiter import NormalizedOperationMethod, Waiter, \
     create_waiter_with_client
 from botocore.eventstream import EventStream
 from botocore.parsers import ResponseParserFactory, PROTOCOL_PARSERS, \
-    RestXMLParser, EC2QueryParser, QueryParser, JSONParser, RestJSONParser
-from botocore.response import StreamingBody
+    RestXMLParser, EC2QueryParser, QueryParser, JSONParser, RestJSONParser, \
+    create_parser
+from botocore.response import StreamingBody, get_response
 from botocore.signers import RequestSigner, add_generate_presigned_url, \
     generate_presigned_url, S3PostPresigner, add_generate_presigned_post, \
     generate_presigned_post, generate_db_auth_token, add_generate_db_auth_token
@@ -200,6 +201,7 @@ _API_DIGESTS = {
     Endpoint._do_get_response: {'0bc57fbacf3c49ec5cd243b014d531a38b9b4138'},
     Endpoint._needs_retry: {'0f40f52d8c90c6e10b4c9e1c4a5ca00ef2c72850'},
     Endpoint._send: {'644c7e5bb88fecaa0b2a204411f8c7e69cc90bf1'},
+    Endpoint._add_modeled_error_fields: {'1eefcfacbe9a2c3700c61982e565ce6c4cf1ea3a'},
 
     EndpointCreator.create_endpoint: {'502315533a86991ea5f57c04973ea5c837bf6197'},
 
@@ -207,6 +209,7 @@ _API_DIGESTS = {
     EventStream._create_raw_event_generator: {
         'cc101f3ca2bca4f14ccd6b385af900a15f96967b'},
     EventStream.__iter__: {'8a9b454943f8ef6e81f5794d641adddd1fdd5248'},
+    EventStream.get_initial_response: {'aed648305970c90bb5d1e31f6fe5ff12cf6a2a06'},
 
     # hooks.py
     HierarchicalEmitter._emit: {'5d9a6b1aea1323667a9310e707a9f0a006f8f6e8'},
@@ -226,10 +229,15 @@ _API_DIGESTS = {
     EC2QueryParser._create_event_stream: {'0564ba55383a71cc1ba3e5be7110549d7e9992f5'},
     QueryParser._create_event_stream: {'0564ba55383a71cc1ba3e5be7110549d7e9992f5'},
     JSONParser._create_event_stream: {'0564ba55383a71cc1ba3e5be7110549d7e9992f5'},
+    JSONParser._do_parse: {'9c3d5832e6c55a87630128cc8b9121579ef4a708'},
+    JSONParser._handle_event_stream: {'3cf7bb1ecff0d72bafd7e7fd6625595b4060abd6'},
+    JSONParser.parse: {'46e9e8ecf2ca3a9cdddbb40825cb58fb246b28f1'},
     RestJSONParser._create_event_stream: {'0564ba55383a71cc1ba3e5be7110549d7e9992f5'},
+    create_parser: {'37e9f1c3b60de17f477a9b79eae8e1acaa7c89d7'},
 
     # response.py
     StreamingBody: {'b77bd0903f9013bc47c01f91c6d9bfb8a504d106'},
+    get_response: {'f31b478792a5e0502f142daca881b69955e5c11d'},
 
     # session.py
     Session.__init__: {'ccf156a76beda3425fb54363f3b2718dc0445f6d'},

@@ -1,8 +1,13 @@
+import asyncio
+from contextlib import AsyncExitStack
+
 import pytest
 # TODO once Moto supports either S3 Select or Kinesis SubscribeToShard then
 # this can be tested against a real AWS API
 
 import botocore.parsers
+
+import aiobotocore.session
 from aiobotocore.eventstream import AioEventStream
 
 TEST_STREAM_DATA = (
@@ -97,3 +102,65 @@ async def test_eventstream_no_iter(s3_client):
     with pytest.raises(NotImplementedError):
         for _ in event_stream:
             pass
+
+
+@pytest.mark.moto
+@pytest.mark.asyncio
+async def test_kinesis_stream_json_parser(exit_stack: AsyncExitStack):
+    # unfortunately moto doesn't support kinesis register_stream_consumer/subscribe_to_shard yet
+    stream_name = "my_stream"
+    stream_arn = consumer_arn = None
+    consumer_name = 'consumer'
+
+    session = aiobotocore.session.AioSession()
+
+    kinesis_client = await exit_stack.enter_async_context(session.create_client('kinesis'))
+    create_response = await kinesis_client.create_stream(StreamName=stream_name, ShardCount=1)
+
+    while (describe_response := (await kinesis_client.describe_stream(
+            StreamName=stream_name))) and \
+            describe_response['StreamDescription']['StreamStatus'] == 'CREATING':
+        print("Waiting for stream creation")
+        await asyncio.sleep(1)
+
+    shard_id = describe_response["StreamDescription"]["Shards"][0]["ShardId"]
+    stream_arn = describe_response["StreamDescription"]["StreamARN"]
+
+    try:
+        # Create some data
+        keys = [str(i) for i in range(1, 5)]
+        for k in keys:
+            await kinesis_client.put_record(StreamName=stream_name, Data=k, PartitionKey=k)
+
+        register_response = await kinesis_client.register_stream_consumer(
+            StreamARN=stream_arn,
+            ConsumerName=consumer_name
+        )
+        consumer_arn = register_response['Consumer']['ConsumerARN']
+
+        while (describe_response := (await kinesis_client.describe_stream_consumer(
+                StreamARN=stream_arn, ConsumerName=consumer_name, ConsumerARN=consumer_arn))) and \
+                describe_response['ConsumerDescription']['ConsumerStatus'] == 'CREATING':
+            print("Waiting for stream consumer creation")
+            await asyncio.sleep(1)
+
+        starting_position = {
+            'Type': 'LATEST'
+        }
+        subscribe_response = await kinesis_client.subscribe_to_shard(
+            ConsumerARN=consumer_arn,
+            ShardId=shard_id,
+            StartingPosition=starting_position
+        )
+        async for event in subscribe_response['EventStream']:
+            assert event['SubscribeToShardEvent']['Records'] == []
+            break
+    finally:
+        if consumer_arn:
+            response = await kinesis_client.deregister_stream_consumer(
+                StreamARN=stream_arn,
+                ConsumerName=consumer_name,
+                ConsumerARN=consumer_arn
+            )
+
+        await kinesis_client.delete_stream(StreamName=stream_name)

@@ -152,3 +152,9 @@ async def rds_server():
 async def ec2_server():
     async with MotoService('ec2') as svc:
         yield svc.endpoint_url
+
+
+@pytest.fixture
+async def kinesis_server():
+    async with MotoService('kinesis') as svc:
+        yield svc.endpoint_url

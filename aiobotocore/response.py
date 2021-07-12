@@ -2,6 +2,7 @@ import asyncio
 
 import wrapt
 from botocore.exceptions import IncompleteReadError, ReadTimeoutError
+from aiobotocore import parsers
 
 
 class AioReadTimeoutError(ReadTimeoutError, asyncio.TimeoutError):
@@ -109,3 +110,30 @@ class StreamingBody(wrapt.ObjectProxy):
             raise IncompleteReadError(
                 actual_bytes=self._self_amount_read,
                 expected_bytes=int(self._self_content_length))
+
+
+async def get_response(operation_model, http_response):
+    protocol = operation_model.metadata['protocol']
+    response_dict = {
+        'headers': http_response.headers,
+        'status_code': http_response.status_code,
+    }
+    # TODO: Unfortunately, we have to have error logic here.
+    # If it looks like an error, in the streaming response case we
+    # need to actually grab the contents.
+    if response_dict['status_code'] >= 300:
+        response_dict['body'] = http_response.content
+    elif operation_model.has_streaming_output:
+        response_dict['body'] = StreamingBody(
+            http_response.raw, response_dict['headers'].get('content-length'))
+    else:
+        response_dict['body'] = http_response.content
+
+    parser = parsers.create_parser(protocol)
+    if asyncio.iscoroutinefunction(parser.parse):
+        parsed = await parser.parse(
+            response_dict, operation_model.output_shape)
+    else:
+        parsed = parser.parse(
+            response_dict, operation_model.output_shape)
+    return http_response, parsed

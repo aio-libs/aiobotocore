@@ -1,4 +1,5 @@
 import asyncio
+from contextlib import AsyncExitStack
 import random
 import string
 import aiobotocore
@@ -232,6 +233,14 @@ async def ec2_client(session, region, config, ec2_server, mocking_test):
         yield client
 
 
+@pytest.fixture
+async def kinesis_client(session, region, config, kinesis_server, mocking_test):
+    kw = moto_config(kinesis_server) if mocking_test else {}
+    async with session.create_client('kinesis', region_name=region,
+                                     config=config, **kw) as client:
+        yield client
+
+
 async def recursive_delete(s3_client, bucket_name):
     # Recursively deletes a bucket and all of its contents.
     paginator = s3_client.get_paginator('list_object_versions')
@@ -456,14 +465,16 @@ async def sqs_queue_url(sqs_client):
     try:
         yield queue_url
     finally:
-        await delete_sqs_queue(sqs_client, queue_url)
+        response = await sqs_client.delete_queue(
+            QueueUrl=queue_url
+        )
+        assert_status_code(response, 200)
 
 
-async def delete_sqs_queue(sqs_client, queue_url):
-    response = await sqs_client.delete_queue(
-        QueueUrl=queue_url
-    )
-    assert_status_code(response, 200)
+@pytest.fixture
+async def exit_stack():
+    async with AsyncExitStack() as es:
+        yield es
 
 
 pytest_plugins = ['mock_server']
