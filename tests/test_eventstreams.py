@@ -104,18 +104,19 @@ async def test_eventstream_no_iter(s3_client):
             pass
 
 
-@pytest.mark.moto
 @pytest.mark.asyncio
 async def test_kinesis_stream_json_parser(exit_stack: AsyncExitStack):
-    # unfortunately moto doesn't support kinesis register_stream_consumer/subscribe_to_shard yet
+    # unfortunately moto doesn't support kinesis register_stream_consumer +
+    # subscribe_to_shard yet
     stream_name = "my_stream"
     stream_arn = consumer_arn = None
     consumer_name = 'consumer'
 
     session = aiobotocore.session.AioSession()
 
-    kinesis_client = await exit_stack.enter_async_context(session.create_client('kinesis'))
-    create_response = await kinesis_client.create_stream(StreamName=stream_name, ShardCount=1)
+    kinesis_client = await exit_stack.enter_async_context(
+        session.create_client('kinesis'))
+    await kinesis_client.create_stream(StreamName=stream_name, ShardCount=1)
 
     while (describe_response := (await kinesis_client.describe_stream(
             StreamName=stream_name))) and \
@@ -130,7 +131,8 @@ async def test_kinesis_stream_json_parser(exit_stack: AsyncExitStack):
         # Create some data
         keys = [str(i) for i in range(1, 5)]
         for k in keys:
-            await kinesis_client.put_record(StreamName=stream_name, Data=k, PartitionKey=k)
+            await kinesis_client.put_record(StreamName=stream_name, Data=k,
+                                            PartitionKey=k)
 
         register_response = await kinesis_client.register_stream_consumer(
             StreamARN=stream_arn,
@@ -139,8 +141,10 @@ async def test_kinesis_stream_json_parser(exit_stack: AsyncExitStack):
         consumer_arn = register_response['Consumer']['ConsumerARN']
 
         while (describe_response := (await kinesis_client.describe_stream_consumer(
-                StreamARN=stream_arn, ConsumerName=consumer_name, ConsumerARN=consumer_arn))) and \
-                describe_response['ConsumerDescription']['ConsumerStatus'] == 'CREATING':
+                StreamARN=stream_arn, ConsumerName=consumer_name,
+                ConsumerARN=consumer_arn))) and \
+                describe_response['ConsumerDescription'][
+                    'ConsumerStatus'] == 'CREATING':
             print("Waiting for stream consumer creation")
             await asyncio.sleep(1)
 
@@ -157,7 +161,7 @@ async def test_kinesis_stream_json_parser(exit_stack: AsyncExitStack):
             break
     finally:
         if consumer_arn:
-            response = await kinesis_client.deregister_stream_consumer(
+            await kinesis_client.deregister_stream_consumer(
                 StreamARN=stream_arn,
                 ConsumerName=consumer_name,
                 ConsumerARN=consumer_arn
