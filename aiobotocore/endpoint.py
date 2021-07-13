@@ -179,15 +179,40 @@ class AioEndpoint(Endpoint):
 
         protocol = operation_model.metadata['protocol']
         parser = self._response_parser_factory.create_parser(protocol)
-        parsed_response = parser.parse(
-            response_dict, operation_model.output_shape)
+
+        if asyncio.iscoroutinefunction(parser.parse):
+            parsed_response = await parser.parse(
+                response_dict, operation_model.output_shape)
+        else:
+            parsed_response = parser.parse(
+                response_dict, operation_model.output_shape)
+
         if http_response.status_code >= 300:
-            self._add_modeled_error_fields(
+            await self._add_modeled_error_fields(
                 response_dict, parsed_response,
                 operation_model, parser,
             )
         history_recorder.record('PARSED_RESPONSE', parsed_response)
         return (http_response, parsed_response), None
+
+    async def _add_modeled_error_fields(
+            self, response_dict, parsed_response,
+            operation_model, parser,
+    ):
+        error_code = parsed_response.get("Error", {}).get("Code")
+        if error_code is None:
+            return
+        service_model = operation_model.service_model
+        error_shape = service_model.shape_for_error_code(error_code)
+        if error_shape is None:
+            return
+
+        if asyncio.iscoroutinefunction(parser.parse):
+            modeled_parse = await parser.parse(response_dict, error_shape)
+        else:
+            modeled_parse = parser.parse(response_dict, error_shape)
+        # TODO: avoid naming conflicts with ResponseMetadata and Error
+        parsed_response.update(modeled_parse)
 
     # NOTE: The only line changed here changing time.sleep to asyncio.sleep
     async def _needs_retry(self, attempts, operation_model, request_dict,

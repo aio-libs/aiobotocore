@@ -1,5 +1,9 @@
 Changes
 -------
+1.3.3 (2021-07-12)
+^^^^^^^^^^^^^^^^^^
+* fix AioJSONParser #872
+
 1.3.2 (2021-07-07)
 ^^^^^^^^^^^^^^^^^^
 * Bump to botocore 1.20.106
@@ -7,7 +11,7 @@ Changes
 1.3.1 (2021-06-11)
 ^^^^^^^^^^^^^^^^^^
 * TCPConnector: change deprecated ssl_context to ssl
-* fix non awaited generate presigned url calls # 868
+* fix non awaited generate presigned url calls #868
 
 1.3.0 (2021-04-09)
 ^^^^^^^^^^^^^^^^^^
