@@ -4,9 +4,7 @@ Changes
 ^^^^^^^^^^^^^^^^^^
 * fix retries via config `#877 <https://github.com/aio-libs/aiobotocore/pull/877>`_
 * remove AioSession and get_session top level names to match botocore_
-* change exceptions raised to match those of botocore_, see changes_
-
-.. _changes: https://github.com/aio-libs/aiobotocore/pull/877/files#diff-b1675e1eb4276bfae81107cda919ba446e4ce1b1e228a9e878d65dd1f474bf8cR162-R181
+* change exceptions raised to match those of botocore_, see `mappings <https://github.com/aio-libs/aiobotocore/pull/877/files#diff-b1675e1eb4276bfae81107cda919ba446e4ce1b1e228a9e878d65dd1f474bf8cR162-R181>`_
 
 1.3.3 (2021-07-12)
 ^^^^^^^^^^^^^^^^^^
@@ -286,5 +284,3 @@ Changes
 ^^^^^^^^^^^^^^^^^^
 
 * Initial alpha release
-
-.. _botocore: https://github.com/boto/botocore

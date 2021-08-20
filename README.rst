@@ -17,7 +17,7 @@ aiobotocore
 
 Async client for amazon services using botocore_ and aiohttp_/asyncio_.
 
-aiobotocore_ is a mostly full featured asynchronous version of botocore.
+This library is a mostly full featured asynchronous version of botocore.
 
 
 Install
@@ -184,7 +184,6 @@ Requirements
 .. _asyncio: https://docs.python.org/3/library/asyncio.html
 .. _botocore: https://github.com/boto/botocore
 .. _aiohttp: https://github.com/aio-libs/aiohttp
-.. _aiobotocore: https://github.com/aio-libs/aiobotocores
 
 awscli
 ------
