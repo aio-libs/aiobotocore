@@ -3,7 +3,7 @@ import logging
 import pytest
 from botocore.exceptions import EndpointConnectionError
 
-from aiobotocore import AioSession
+from aiobotocore.session import AioSession
 from aiobotocore.config import AioConfig
 
 
