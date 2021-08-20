@@ -139,6 +139,9 @@ class AIOHTTPSession:
             headers = request.headers
             data = request.body
 
+            # https://github.com/boto/botocore/issues/1255
+            headers['Accept-Encoding'] = 'identity'
+
             headers_ = MultiDict(
                 (z[0], _text(z[1], encoding='utf-8')) for z in headers.items())
 
