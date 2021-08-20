@@ -11,7 +11,7 @@ from urllib3.response import HTTPHeaderDict
 
 from aiobotocore.httpsession import AIOHTTPSession
 from aiobotocore.response import StreamingBody
-from aiobotocore._endpoint_helpers import ClientResponseProxy  # noqa: F401, lgtm[py/unused-import]
+from aiobotocore._endpoint_helpers import ClientResponseProxy  # noqa: F401, E501 lgtm [py/unused-import]
 
 
 async def convert_to_response_dict(http_response, operation_model):

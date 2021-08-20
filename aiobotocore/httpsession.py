@@ -3,7 +3,7 @@ import io
 import socket
 from typing import Dict, Optional
 
-import aiohttp
+import aiohttp  # lgtm [py/import-and-import-from]
 from aiohttp import ClientSSLError, ClientConnectorError, ClientProxyConnectionError, \
     ClientHttpProxyError, ServerTimeoutError, ServerDisconnectedError
 from aiohttp.client import URL
