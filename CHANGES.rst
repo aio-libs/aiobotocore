@@ -287,4 +287,4 @@ Changes
 
 * Initial alpha release
 
-.. _botocore: https://github.com/boto/botocore/blob/1.20.106/botocore/__init__.py
+.. _botocore: https://github.com/boto/botocore

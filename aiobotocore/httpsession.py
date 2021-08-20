@@ -12,7 +12,7 @@ from multidict import MultiDict
 from botocore.httpsession import ProxyConfiguration, create_urllib3_context, \
     MAX_POOL_CONNECTIONS, InvalidProxiesConfigError, SSLError, \
     EndpointConnectionError, ProxyConnectionError, ConnectTimeoutError, \
-    ConnectionClosedError, HTTPClientError, ReadTimeoutError, logger
+    ConnectionClosedError, HTTPClientError, ReadTimeoutError, logger, get_cert_path
 
 from aiobotocore._endpoint_helpers import _text, _IOBaseWrapper, \
     ClientResponseProxy
@@ -65,7 +65,6 @@ class AIOHTTPSession:
         self._socket_options = socket_options
         if socket_options is None:
             self._socket_options = []
-        self._proxy_managers = {}
 
         # aiohttp handles 100 continue so we shouldn't need AWSHTTP[S]ConnectionPool
         # it also pools by host so we don't need a manager, and can pass proxy via
@@ -78,6 +77,12 @@ class AIOHTTPSession:
             #    proxies_settings.get('proxy_use_forwarding_for_https')
         else:
             ssl_context = self._get_ssl_context()
+
+            # inline self._setup_ssl_cert
+            if bool(verify):
+                ca_certs = get_cert_path(verify)
+                if ca_certs:
+                    ssl_context.load_verify_locations(ca_certs, None, None)
 
         self._connector = aiohttp.TCPConnector(
             limit=max_pool_connections,
@@ -127,9 +132,6 @@ class AIOHTTPSession:
             return context
         except IOError as e:
             raise InvalidProxiesConfigError(error=e)
-
-    def _chunked(self, headers):
-        return headers.get('Transfer-Encoding', '') == 'chunked'
 
     async def send(self, request):
         proxy_url = self._proxy_config.proxy_url_for(request.url)
