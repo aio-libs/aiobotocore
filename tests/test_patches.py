@@ -39,6 +39,7 @@ from botocore.credentials import Credentials, RefreshableCredentials, \
     create_credential_resolver, get_credentials, create_mfa_serial_refresher, \
     AssumeRoleWithWebIdentityCredentialFetcher, SSOCredentialFetcher, SSOProvider
 from botocore.handlers import inject_presigned_url_ec2, inject_presigned_url_rds
+from botocore.httpsession import URLLib3Session
 
 
 # This file ensures that our private patches will work going forward.  If a
@@ -303,6 +304,9 @@ _API_DIGESTS = {
     # handlers.py
     inject_presigned_url_rds: {'5a34e1666d84f6229c54a59bffb69d46e8117b3a'},
     inject_presigned_url_ec2: {'37fad2d9c53ca4f1783e32799fa8f70930f44c23'},
+
+    # httpsession.py
+    URLLib3Session: {'ecb7c86e8eb07c7f261493de3d08d221a39e8ef4'},
 }
 
 
