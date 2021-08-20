@@ -17,10 +17,7 @@ aiobotocore
 
 Async client for amazon services using botocore_ and aiohttp_/asyncio_.
 
-Main purpose of this library to support amazon s3 api, but other services
-should work (may be with minor fixes). For now we have tested
-only upload/download api for s3, other users report that SQS and Dynamo
-services work also. More tests coming soon.
+aiobotocore_ is a mostly full featured asynchronous version of botocore.
 
 
 Install
@@ -36,7 +33,7 @@ Basic Example
 .. code:: python
 
     import asyncio
-    import aiobotocore
+    from aiobotocore.session import get_session
 
     AWS_ACCESS_KEY_ID = "xxx"
     AWS_SECRET_ACCESS_KEY = "xxx"
@@ -48,7 +45,7 @@ Basic Example
         folder = 'aiobotocore'
         key = '{}/{}'.format(folder, filename)
 
-        session = aiobotocore.get_session()
+        session = get_session()
         async with session.create_client('s3', region_name='us-west-2',
                                        aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
                                        aws_access_key_id=AWS_ACCESS_KEY_ID) as client:
@@ -90,36 +87,36 @@ Context Manager Examples
 .. code:: python
 
     from contextlib import AsyncExitStack
-  
+
     from aiobotocore.session import AioSession
-    
-    
+
+
     # How to use in existing context manager
     class Manager:
         def __init__(self):
             self._exit_stack = AsyncExitStack()
             self._s3_client = None
-    
+
         async def __aenter__(self):
             session = AioSession()
             self._s3_client = await self._exit_stack.enter_async_context(session.create_client('s3'))
-    
+
         async def __aexit__(self, exc_type, exc_val, exc_tb):
             await self._exit_stack.__aexit__(exc_type, exc_val, exc_tb)
-    
+
     # How to use with an external exit_stack
     async def create_s3_client(session: AioSession, exit_stack: AsyncExitStack):
         # Create client and add cleanup
         client = await exit_stack.enter_async_context(session.create_client('s3'))
         return client
-    
-    
+
+
     async def non_manager_example():
         session = AioSession()
-    
+
         async with AsyncExitStack() as exit_stack:
             s3_client = await create_s3_client(session, exit_stack)
-    
+
             # do work with s3_client
 
 
@@ -186,8 +183,8 @@ Requirements
 .. _Python: https://www.python.org
 .. _asyncio: https://docs.python.org/3/library/asyncio.html
 .. _botocore: https://github.com/boto/botocore
-.. _aiohttp: https://github.com/KeepSafe/aiohttp
-
+.. _aiohttp: https://github.com/aio-libs/aiohttp
+.. _aiobotocore: https://github.com/aio-libs/aiobotocores
 
 awscli
 ------

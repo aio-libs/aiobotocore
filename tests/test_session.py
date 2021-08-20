@@ -39,7 +39,8 @@ async def test_retry(session: AioSession, caplog):
     )
 
     async with session.create_client(
-            's3', config=config, endpoint_url='http://localhost:7878') as client:
+            's3', config=config, aws_secret_access_key="xxx", aws_access_key_id="xxx",
+            endpoint_url='http://localhost:7878') as client:
 
         with pytest.raises(EndpointConnectionError):
             await client.get_object(Bucket='foo', Key='bar')

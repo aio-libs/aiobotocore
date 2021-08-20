@@ -76,15 +76,15 @@ async def assert_num_uploads_found(
 @pytest.fixture
 def aa_fail_proxy_config(monkeypatch):
     # NOTE: name of this fixture must be alphabetically first to run first
-    monkeypatch.setenv('HTTP_PROXY', 'http://{}:54321'.format(host))
-    monkeypatch.setenv('HTTPS_PROXY', 'http://{}:54321'.format(host))
+    monkeypatch.setenv('HTTP_PROXY', f'http://{host}:54321')
+    monkeypatch.setenv('HTTPS_PROXY', f'http://{host}:54321')
 
 
 @pytest.fixture
 def aa_succeed_proxy_config(monkeypatch):
     # NOTE: name of this fixture must be alphabetically first to run first
-    monkeypatch.setenv('HTTP_PROXY', 'http://{}:54321'.format(host))
-    monkeypatch.setenv('HTTPS_PROXY', 'http://{}:54321'.format(host))
+    monkeypatch.setenv('HTTP_PROXY', f'http://{host}:54321')
+    monkeypatch.setenv('HTTPS_PROXY', f'http://{host}:54321')
 
     # this will cause us to skip proxying
     monkeypatch.setenv('NO_PROXY', 'amazonaws.com')

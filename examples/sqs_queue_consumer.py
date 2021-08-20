@@ -5,7 +5,7 @@ aiobotocore SQS Consumer Example
 import asyncio
 import sys
 
-import aiobotocore
+from aiobotocore.session import get_session
 import botocore.exceptions
 
 QUEUE_NAME = 'test_queue12'
@@ -13,7 +13,7 @@ QUEUE_NAME = 'test_queue12'
 
 async def go():
     # Boto should get credentials from ~/.aws/credentials or the environment
-    session = aiobotocore.get_session()
+    session = get_session()
     async with session.create_client('sqs', region_name='us-west-2') as client:
         try:
             response = await client.get_queue_url(QueueName=QUEUE_NAME)
@@ -54,13 +54,5 @@ async def go():
         print('Finished')
 
 
-def main():
-    try:
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(go())
-    except KeyboardInterrupt:
-        pass
-
-
 if __name__ == '__main__':
-    main()
+    asyncio.run(go())

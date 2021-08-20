@@ -56,10 +56,6 @@ async def convert_to_response_dict(http_response, operation_model):
 
 
 class AioEndpoint(Endpoint):
-    def __init__(self, *args, proxies=None, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.proxies = proxies or {}
-
     async def create_request(self, params, operation_model=None):
         request = create_request_object(params)
         if operation_model:
@@ -269,5 +265,4 @@ class AioEndpointCreator(EndpointCreator):
             endpoint_prefix=endpoint_prefix,
             event_emitter=self._event_emitter,
             response_parser_factory=response_parser_factory,
-            http_session=http_session,
-            proxies=proxies)
+            http_session=http_session)

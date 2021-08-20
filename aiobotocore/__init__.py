@@ -1,4 +1,1 @@
-from .session import get_session, AioSession
-
-__all__ = ['get_session', 'AioSession']
-__version__ = '1.3.4'
+__version__ = '1.4.0'

@@ -30,7 +30,7 @@ Using Botocore
 The first step in using aiobotocore is to create a ``Session`` object.
 ``Session`` objects then allow you to create individual clients::
 
-    session = aiobotocore.get_session()
+    session = aiobotocore.session.get_session()
     async with session.create_client('s3', region_name='us-west-2',
                                      aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
                                      aws_access_key_id=AWS_ACCESS_KEY_ID) as client:

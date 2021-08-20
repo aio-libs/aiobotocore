@@ -14,10 +14,7 @@ aiobotocore's documentation!
 
 Async client for amazon services using botocore_ and aiohttp_/asyncio_.
 
-Main purpose of this library to support amazon S3 API, but other services
-should work (may be with minor fixes). For now we have tested
-only upload/download API for S3, other users report that SQS and Dynamo
-services work also. More tests coming soon.
+This library is a mostly full featured asynchronous version of botocore.
 
 
 Features
@@ -32,7 +29,7 @@ Basic Example
 .. code:: python
 
     import asyncio
-    import aiobotocore
+    from aiobotocore.session import get_session
 
     AWS_ACCESS_KEY_ID = "xxx"
     AWS_SECRET_ACCESS_KEY = "xxx"

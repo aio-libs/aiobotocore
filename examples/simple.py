@@ -1,5 +1,6 @@
 import asyncio
-import aiobotocore
+from aiobotocore.session import get_session
+
 
 AWS_ACCESS_KEY_ID = "xxx"
 AWS_SECRET_ACCESS_KEY = "xxx"
@@ -12,7 +13,7 @@ async def go():
     folder = 'aiobotocore'
     key = f'{folder}/{filename}'
 
-    session = aiobotocore.get_session()
+    session = get_session()
     async with session.create_client(
             's3', region_name='us-west-2',
             aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
@@ -33,5 +34,5 @@ async def go():
         print(resp)
 
 
-loop = asyncio.get_event_loop()
-loop.run_until_complete(go())
+if __name__ == '__main__':
+    asyncio.run(go())

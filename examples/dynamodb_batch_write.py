@@ -1,7 +1,7 @@
 # Boto should get credentials from ~/.aws/credentials or the environment
 import asyncio
 
-import aiobotocore
+from aiobotocore.session import get_session
 
 
 def get_items(start_num, num_items):
@@ -43,7 +43,7 @@ def create_batch_write_structure(table_name, start_num, num_items):
 
 
 async def go():
-    session = aiobotocore.get_session()
+    session = get_session()
     async with session.create_client('dynamodb', region_name='us-west-2') as client:
         table_name = 'test'
 
@@ -97,13 +97,5 @@ async def go():
         print(f'Response: {response["Item"]}')
 
 
-def main():
-    try:
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(go())
-    except KeyboardInterrupt:
-        pass
-
-
 if __name__ == '__main__':
-    main()
+    asyncio.run(go())
