@@ -6,7 +6,7 @@ import asyncio
 import random
 import sys
 
-import aiobotocore
+from aiobotocore.session import get_session
 import botocore.exceptions
 
 QUEUE_NAME = 'test_queue12'
@@ -14,7 +14,7 @@ QUEUE_NAME = 'test_queue12'
 
 async def go():
     # Boto should get credentials from ~/.aws/credentials or the environment
-    session = aiobotocore.get_session()
+    session = get_session()
     async with session.create_client('sqs', region_name='us-west-2') as client:
         try:
             response = await client.get_queue_url(QueueName=QUEUE_NAME)

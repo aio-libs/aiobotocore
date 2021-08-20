@@ -1,23 +1,17 @@
 import aiohttp
 import asyncio
-import io
-import pathlib
-import os
-import ssl
-import sys
+
 import aiohttp.http_exceptions
-from aiohttp.client import URL
 from botocore.endpoint import EndpointCreator, Endpoint, DEFAULT_TIMEOUT, \
     MAX_POOL_CONNECTIONS, logger, history_recorder, create_request_object
 from botocore.exceptions import ConnectionClosedError
 from botocore.hooks import first_non_none_response
 from botocore.utils import is_valid_endpoint_url
-from multidict import MultiDict
-from urllib.parse import urlparse
 from urllib3.response import HTTPHeaderDict
+
+from aiobotocore.httpsession import AIOHTTPSession
 from aiobotocore.response import StreamingBody
-from aiobotocore._endpoint_helpers import _text, _IOBaseWrapper, \
-    ClientResponseProxy
+from aiobotocore._endpoint_helpers import ClientResponseProxy  # noqa: F401, E501 lgtm [py/unused-import]
 
 
 async def convert_to_response_dict(http_response, operation_model):
@@ -62,10 +56,6 @@ async def convert_to_response_dict(http_response, operation_model):
 
 
 class AioEndpoint(Endpoint):
-    def __init__(self, *args, proxies=None, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.proxies = proxies or {}
-
     async def create_request(self, params, operation_model=None):
         request = create_request_object(params)
         if operation_model:
@@ -237,53 +227,15 @@ class AioEndpoint(Endpoint):
             return True
 
     async def _send(self, request):
-        # Note: When using aiobotocore with dynamodb, requests fail on crc32
-        # checksum computation as soon as the response data reaches ~5KB.
-        # When AWS response is gzip compressed:
-        # 1. aiohttp is automatically decompressing the data
-        # (http://aiohttp.readthedocs.io/en/stable/client.html#binary-response-content)
-        # 2. botocore computes crc32 on the uncompressed data bytes and fails
-        # cause crc32 has been computed on the compressed data
-        # The following line forces aws not to use gzip compression,
-        # if there is a way to configure aiohttp not to perform decompression,
-        # we can remove the following line and take advantage of
-        # aws gzip compression.
-        # https://github.com/boto/botocore/issues/1255
-        url = request.url
-        headers = request.headers
-        data = request.body
-
-        headers['Accept-Encoding'] = 'identity'
-        headers_ = MultiDict(
-            (z[0], _text(z[1], encoding='utf-8')) for z in headers.items())
-
-        # botocore does this during the request so we do this here as well
-        # TODO: this should be part of the ClientSession, perhaps make wrapper
-        proxy = self.proxies.get(urlparse(url.lower()).scheme)
-
-        if isinstance(data, io.IOBase):
-            data = _IOBaseWrapper(data)
-
-        url = URL(url, encoded=True)
-        resp = await self.http_session.request(
-            request.method, url=url, headers=headers_, data=data, proxy=proxy)
-
-        # If we're not streaming, read the content so we can retry any timeout
-        #  errors, see:
-        # https://github.com/boto/botocore/blob/develop/botocore/vendored/requests/sessions.py#L604
-        if not request.stream_output:
-            await resp.read()
-
-        return resp
+        return await self.http_session.send(request)
 
 
 class AioEndpointCreator(EndpointCreator):
-    # TODO: handle socket_options
     def create_endpoint(self, service_model, region_name, endpoint_url,
                         verify=None, response_parser_factory=None,
                         timeout=DEFAULT_TIMEOUT,
                         max_pool_connections=MAX_POOL_CONNECTIONS,
-                        http_session_cls=aiohttp.ClientSession,
+                        http_session_cls=AIOHTTPSession,
                         proxies=None,
                         socket_options=None,
                         client_cert=None,
@@ -297,68 +249,20 @@ class AioEndpointCreator(EndpointCreator):
         endpoint_prefix = service_model.endpoint_prefix
 
         logger.debug('Setting %s timeout as %s', endpoint_prefix, timeout)
-
-        if isinstance(timeout, (list, tuple)):
-            conn_timeout, read_timeout = timeout
-        else:
-            conn_timeout = read_timeout = timeout
-
-        if connector_args is None:
-            # AWS has a 20 second idle timeout:
-            #   https://forums.aws.amazon.com/message.jspa?messageID=215367
-            # aiohttp default timeout is 30s so set something reasonable here
-            connector_args = dict(keepalive_timeout=12)
-
-        timeout = aiohttp.ClientTimeout(
-            sock_connect=conn_timeout,
-            sock_read=read_timeout
-        )
-
-        verify = self._get_verify_value(verify)
-        ssl_context = None
-        if client_cert:
-            if isinstance(client_cert, str):
-                key_file = None
-                cert_file = client_cert
-            elif isinstance(client_cert, tuple):
-                cert_file, key_file = client_cert
-            else:
-                raise TypeError("client_cert must be str or tuple, not %s" %
-                                client_cert.__class__.__name__)
-
-            ssl_context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
-            ssl_context.load_cert_chain(cert_file, key_file)
-        elif isinstance(verify, (str, pathlib.Path)):
-            ssl_context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH,
-                                                     cafile=str(verify))
-
-        if ssl_context:
-            # Enable logging of TLS session keys via defacto standard environment variable  # noqa: E501
-            # 'SSLKEYLOGFILE', if the feature is available (Python 3.8+). Skip empty values.  # noqa: E501
-            if hasattr(ssl_context, 'keylog_filename'):
-                keylogfile = os.environ.get('SSLKEYLOGFILE')
-                if keylogfile and not sys.flags.ignore_environment:
-                    ssl_context.keylog_filename = keylogfile
-
-        # TODO: add support for proxies_config
-
-        connector = aiohttp.TCPConnector(
-            limit=max_pool_connections,
-            verify_ssl=bool(verify),
-            ssl=ssl_context,
-            **connector_args)
-
-        aio_session = http_session_cls(
-            connector=connector,
+        http_session = http_session_cls(
             timeout=timeout,
-            skip_auto_headers={'CONTENT-TYPE'},
-            response_class=ClientResponseProxy,
-            auto_decompress=False)
+            proxies=proxies,
+            verify=self._get_verify_value(verify),
+            max_pool_connections=max_pool_connections,
+            socket_options=socket_options,
+            client_cert=client_cert,
+            proxies_config=proxies_config,
+            connector_args=connector_args
+        )
 
         return AioEndpoint(
             endpoint_url,
             endpoint_prefix=endpoint_prefix,
             event_emitter=self._event_emitter,
             response_parser_factory=response_parser_factory,
-            http_session=aio_session,
-            proxies=proxies)
+            http_session=http_session)

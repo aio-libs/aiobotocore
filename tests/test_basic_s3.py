@@ -2,8 +2,8 @@ import asyncio
 from collections import defaultdict
 
 import pytest
-import aiohttp
 import aioitertools
+from botocore.exceptions import EndpointConnectionError
 
 
 async def fetch_all(pages):
@@ -29,7 +29,7 @@ async def test_can_make_request(s3_client):
 async def test_fail_proxy_request(aa_fail_proxy_config, s3_client):
     # based on test_can_make_request
 
-    with pytest.raises(aiohttp.ClientConnectorError):
+    with pytest.raises(EndpointConnectionError):
         await s3_client.list_buckets()
 
 

@@ -1,38 +1,44 @@
 Changes
 -------
+1.4.0 (2021-08-20)
+^^^^^^^^^^^^^^^^^^
+* fix retries via config `#877 <https://github.com/aio-libs/aiobotocore/pull/877>`_
+* remove AioSession and get_session top level names to match botocore_
+* change exceptions raised to match those of botocore_, see `mappings <https://github.com/aio-libs/aiobotocore/pull/877/files#diff-b1675e1eb4276bfae81107cda919ba446e4ce1b1e228a9e878d65dd1f474bf8cR162-R181>`_
+
 1.3.3 (2021-07-12)
 ^^^^^^^^^^^^^^^^^^
-* fix AioJSONParser #872
+* fix AioJSONParser `#872 <https://github.com/aio-libs/aiobotocore/issues/872>`_
 
 1.3.2 (2021-07-07)
 ^^^^^^^^^^^^^^^^^^
-* Bump to botocore 1.20.106
+* Bump to botocore_ to `1.20.106 <https://github.com/boto/botocore/tree/1.20.106>`_
 
 1.3.1 (2021-06-11)
 ^^^^^^^^^^^^^^^^^^
 * TCPConnector: change deprecated ssl_context to ssl
-* fix non awaited generate presigned url calls #868
+* fix non awaited generate presigned url calls `#868 <https://github.com/aio-libs/aiobotocore/issues/868>`_
 
 1.3.0 (2021-04-09)
 ^^^^^^^^^^^^^^^^^^
-* Bump to botocore 1.20.49 #856
+* Bump to botocore_ to `1.20.49 <https://github.com/boto/botocore/tree/1.20.49>`_ `#856 <https://github.com/aio-libs/aiobotocore/pull/856>`_
 
 1.2.2 (2021-03-11)
 ^^^^^^^^^^^^^^^^^^
-* Await call to async method _load_creds_via_assume_role #851 (thanks @puzza007)
+* Await call to async method _load_creds_via_assume_role `#858 <https://github.com/aio-libs/aiobotocore/pull/858>`_ (thanks `@puzza007 <https://github.com/puzza007>`_)
 
 1.2.1 (2021-02-10)
 ^^^^^^^^^^^^^^^^^^
-* verify strings are now correctly passed to aiohttp.TCPConnector #851 (thanks @FHTMitchell)
+* verify strings are now correctly passed to aiohttp.TCPConnector `#851 <https://github.com/aio-libs/aiobotocore/pull/851>`_ (thanks `@FHTMitchell <https://github.com/FHTMitchell>`_)
 
 1.2.0 (2021-01-11)
 ^^^^^^^^^^^^^^^^^^
-* bump botocore to 1.19.52
-* use passed in http_session_cls param to create_client (#797)
+* bump botocore to `1.19.52 <https://github.com/boto/botocore/tree/1.19.52>`_
+* use passed in http_session_cls param to create_client `#797 <https://github.com/aio-libs/aiobotocore/issues/797>`_
 
 1.1.2 (2020-10-07)
 ^^^^^^^^^^^^^^^^^^
-* fix AioPageIterator search method #831 (thanks @joseph-jones)
+* fix AioPageIterator search method #831 (thanks `@joseph-jones <https://github.com/joseph-jones>`_)
 
 1.1.1 (2020-08-31)
 ^^^^^^^^^^^^^^^^^^

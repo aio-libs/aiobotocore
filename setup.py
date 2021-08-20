@@ -55,6 +55,7 @@ setup(
     version=read_version(),
     description='Async client for aws services using botocore and aiohttp',
     long_description='\n\n'.join((read('README.rst'), read('CHANGES.rst'))),
+    long_description_content_type='text/x-rst',
     classifiers=classifiers,
     author="Nikolay Novik",
     author_email="nickolainovik@gmail.com",

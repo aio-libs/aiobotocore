@@ -1,11 +1,11 @@
 # Boto should get credentials from ~/.aws/credentials or the environment
 import asyncio
 
-import aiobotocore
+from aiobotocore.session import get_session
 
 
 async def go():
-    session = aiobotocore.get_session()
+    session = get_session()
     async with session.create_client('sqs', region_name='us-west-2') as client:
 
         print('Creating test_queue1')
@@ -24,13 +24,5 @@ async def go():
         print('Done')
 
 
-def main():
-    try:
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(go())
-    except KeyboardInterrupt:
-        pass
-
-
 if __name__ == '__main__':
-    main()
+    asyncio.run(go())

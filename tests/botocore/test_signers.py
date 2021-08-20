@@ -3,7 +3,6 @@ from datetime import timezone
 import pytest
 from unittest import mock
 
-import aiobotocore
 import aiobotocore.credentials
 import aiobotocore.signers
 import botocore.auth
