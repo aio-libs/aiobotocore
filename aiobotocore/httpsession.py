@@ -14,41 +14,9 @@ from botocore.httpsession import ProxyConfiguration, create_urllib3_context, \
     EndpointConnectionError, ProxyConnectionError, ConnectTimeoutError, \
     ConnectionClosedError, HTTPClientError, ReadTimeoutError, logger, get_cert_path
 
+from aiobotocore import DEPRECATED_1_4_0_APIS
 from aiobotocore._endpoint_helpers import _text, _IOBaseWrapper, \
     ClientResponseProxy
-
-
-# These are only here for backwards compatibility, they will be removed in 2.x
-class DeprecatedSSLError(SSLError, ClientSSLError):
-    def __init__(self, **kwargs):
-        SSLError.__init__(self, **kwargs)
-
-
-class DeprecatedEndpointConnectionError(EndpointConnectionError,
-                                        ClientConnectorError, socket.gaierror):
-    def __init__(self, **kwargs):
-        EndpointConnectionError.__init__(self, **kwargs)
-
-
-class DeprecatedProxyConnectionError(ProxyConnectionError,
-                                     ClientProxyConnectionError, ClientHttpProxyError):
-    def __init__(self, **kwargs):
-        ProxyConnectionError.__init__(self, **kwargs)
-
-
-class DeprecatedConnectTimeoutError(ConnectTimeoutError, ServerTimeoutError):
-    def __init__(self, **kwargs):
-        ConnectTimeoutError.__init__(self, **kwargs)
-
-
-class DeprecatedReadTimeoutError(ReadTimeoutError, asyncio.TimeoutError):
-    def __init__(self, **kwargs):
-        ReadTimeoutError.__init__(self, **kwargs)
-
-
-class DeprecatedConnectionClosedError(ConnectionClosedError, ServerDisconnectedError):
-    def __init__(self, **kwargs):
-        ConnectionClosedError.__init__(self, **kwargs)
 
 
 class AIOHTTPSession:
@@ -195,22 +163,43 @@ class AIOHTTPSession:
 
             return resp
         except ClientSSLError as e:
-            raise DeprecatedSSLError(endpoint_url=request.url, error=e)
+            if DEPRECATED_1_4_0_APIS:
+                raise
+
+            raise SSLError(endpoint_url=request.url, error=e)
         except (ClientConnectorError, socket.gaierror) as e:
-            raise DeprecatedEndpointConnectionError(endpoint_url=request.url, error=e)
+            if DEPRECATED_1_4_0_APIS:
+                raise
+
+            raise EndpointConnectionError(endpoint_url=request.url, error=e)
         except (ClientProxyConnectionError, ClientHttpProxyError) as e:
-            raise DeprecatedProxyConnectionError(proxy_url=proxy_url, error=e)
+            if DEPRECATED_1_4_0_APIS:
+                raise
+
+            raise ProxyConnectionError(proxy_url=proxy_url, error=e)
         except ServerTimeoutError as e:
-            raise DeprecatedConnectTimeoutError(endpoint_url=request.url, error=e)
+            if DEPRECATED_1_4_0_APIS:
+                raise
+
+            raise ConnectTimeoutError(endpoint_url=request.url, error=e)
         except asyncio.TimeoutError as e:
-            raise DeprecatedReadTimeoutError(endpoint_url=request.url, error=e)
+            if DEPRECATED_1_4_0_APIS:
+                raise
+
+            raise ReadTimeoutError(endpoint_url=request.url, error=e)
         except ServerDisconnectedError as e:
+            if DEPRECATED_1_4_0_APIS:
+                raise
+
             raise ConnectionClosedError(
                 error=e,
                 request=request,
                 endpoint_url=request.url
             )
         except Exception as e:
+            if DEPRECATED_1_4_0_APIS:
+                raise
+
             message = 'Exception received when sending urllib3 HTTP request'
             logger.debug(message, exc_info=True)
             raise HTTPClientError(error=e)

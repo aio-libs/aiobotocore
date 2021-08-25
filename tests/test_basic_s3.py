@@ -3,7 +3,8 @@ from collections import defaultdict
 
 import pytest
 import aioitertools
-from botocore.exceptions import EndpointConnectionError
+
+from aiobotocore import httpsession
 
 
 async def fetch_all(pages):
@@ -26,10 +27,14 @@ async def test_can_make_request(s3_client):
 
 @pytest.mark.moto
 @pytest.mark.asyncio
-async def test_fail_proxy_request(aa_fail_proxy_config, s3_client):
+async def test_fail_proxy_request(aa_fail_proxy_config, s3_client, monkeypatch):
     # based on test_can_make_request
 
-    with pytest.raises(EndpointConnectionError):
+    with pytest.raises(httpsession.ClientProxyConnectionError):
+        await s3_client.list_buckets()
+
+    monkeypatch.setattr(httpsession, 'DEPRECATED_1_4_0_APIS', 0)
+    with pytest.raises(httpsession.EndpointConnectionError):
         await s3_client.list_buckets()
 
 

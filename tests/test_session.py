@@ -7,6 +7,7 @@ from aiobotocore.httpsession import ClientConnectorError
 
 from aiobotocore.session import AioSession
 from aiobotocore.config import AioConfig
+from aiobotocore import httpsession
 
 
 @pytest.mark.moto
@@ -26,7 +27,7 @@ async def test_get_service_data(session):
 
 @pytest.mark.moto
 @pytest.mark.asyncio
-async def test_retry(session: AioSession, caplog: LogCaptureFixture):
+async def test_retry(session: AioSession, caplog: LogCaptureFixture, monkeypatch):
     caplog.set_level(logging.DEBUG)
 
     config = AioConfig(
@@ -44,13 +45,9 @@ async def test_retry(session: AioSession, caplog: LogCaptureFixture):
             's3', config=config, aws_secret_access_key="xxx", aws_access_key_id="xxx",
             endpoint_url='http://localhost:7878') as client:
 
+        # this needs the new style exceptions to work
+        monkeypatch.setattr(httpsession, 'DEPRECATED_1_4_0_APIS', 0)
         with pytest.raises(EndpointConnectionError):
-            await client.get_object(Bucket='foo', Key='bar')
-
-        assert 'sleeping for' in caplog.text
-        caplog.clear()
-
-        with pytest.raises(ClientConnectorError):
             await client.get_object(Bucket='foo', Key='bar')
 
         assert 'sleeping for' in caplog.text
