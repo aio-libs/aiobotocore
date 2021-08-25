@@ -14,6 +14,7 @@ from botocore.httpsession import ProxyConfiguration, create_urllib3_context, \
     EndpointConnectionError, ProxyConnectionError, ConnectTimeoutError, \
     ConnectionClosedError, HTTPClientError, ReadTimeoutError, logger, get_cert_path
 
+from aiobotocore import DEPRECATED_1_4_0_APIS
 from aiobotocore._endpoint_helpers import _text, _IOBaseWrapper, \
     ClientResponseProxy
 
@@ -162,22 +163,43 @@ class AIOHTTPSession:
 
             return resp
         except ClientSSLError as e:
+            if DEPRECATED_1_4_0_APIS:
+                raise
+
             raise SSLError(endpoint_url=request.url, error=e)
         except (ClientConnectorError, socket.gaierror) as e:
+            if DEPRECATED_1_4_0_APIS:
+                raise
+
             raise EndpointConnectionError(endpoint_url=request.url, error=e)
         except (ClientProxyConnectionError, ClientHttpProxyError) as e:
+            if DEPRECATED_1_4_0_APIS:
+                raise
+
             raise ProxyConnectionError(proxy_url=proxy_url, error=e)
         except ServerTimeoutError as e:
+            if DEPRECATED_1_4_0_APIS:
+                raise
+
             raise ConnectTimeoutError(endpoint_url=request.url, error=e)
         except asyncio.TimeoutError as e:
+            if DEPRECATED_1_4_0_APIS:
+                raise
+
             raise ReadTimeoutError(endpoint_url=request.url, error=e)
         except ServerDisconnectedError as e:
+            if DEPRECATED_1_4_0_APIS:
+                raise
+
             raise ConnectionClosedError(
                 error=e,
                 request=request,
                 endpoint_url=request.url
             )
         except Exception as e:
+            if DEPRECATED_1_4_0_APIS:
+                raise
+
             message = 'Exception received when sending urllib3 HTTP request'
             logger.debug(message, exc_info=True)
             raise HTTPClientError(error=e)
