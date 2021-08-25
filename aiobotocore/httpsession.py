@@ -18,6 +18,39 @@ from aiobotocore._endpoint_helpers import _text, _IOBaseWrapper, \
     ClientResponseProxy
 
 
+# These are only here for backwards compatibility, they will be removed in 2.x
+class DeprecatedSSLError(SSLError, ClientSSLError):
+    def __init__(self, **kwargs):
+        SSLError.__init__(self, **kwargs)
+
+
+class DeprecatedEndpointConnectionError(EndpointConnectionError,
+                                        ClientConnectorError, socket.gaierror):
+    def __init__(self, **kwargs):
+        EndpointConnectionError.__init__(self, **kwargs)
+
+
+class DeprecatedProxyConnectionError(ProxyConnectionError,
+                                     ClientProxyConnectionError, ClientHttpProxyError):
+    def __init__(self, **kwargs):
+        ProxyConnectionError.__init__(self, **kwargs)
+
+
+class DeprecatedConnectTimeoutError(ConnectTimeoutError, ServerTimeoutError):
+    def __init__(self, **kwargs):
+        ConnectTimeoutError.__init__(self, **kwargs)
+
+
+class DeprecatedReadTimeoutError(ReadTimeoutError, asyncio.TimeoutError):
+    def __init__(self, **kwargs):
+        ReadTimeoutError.__init__(self, **kwargs)
+
+
+class DeprecatedConnectionClosedError(ConnectionClosedError, ServerDisconnectedError):
+    def __init__(self, **kwargs):
+        ConnectionClosedError.__init__(self, **kwargs)
+
+
 class AIOHTTPSession:
     def __init__(
             self,
@@ -162,15 +195,15 @@ class AIOHTTPSession:
 
             return resp
         except ClientSSLError as e:
-            raise SSLError(endpoint_url=request.url, error=e)
+            raise DeprecatedSSLError(endpoint_url=request.url, error=e)
         except (ClientConnectorError, socket.gaierror) as e:
-            raise EndpointConnectionError(endpoint_url=request.url, error=e)
+            raise DeprecatedEndpointConnectionError(endpoint_url=request.url, error=e)
         except (ClientProxyConnectionError, ClientHttpProxyError) as e:
-            raise ProxyConnectionError(proxy_url=proxy_url, error=e)
+            raise DeprecatedProxyConnectionError(proxy_url=proxy_url, error=e)
         except ServerTimeoutError as e:
-            raise ConnectTimeoutError(endpoint_url=request.url, error=e)
+            raise DeprecatedConnectTimeoutError(endpoint_url=request.url, error=e)
         except asyncio.TimeoutError as e:
-            raise ReadTimeoutError(endpoint_url=request.url, error=e)
+            raise DeprecatedReadTimeoutError(endpoint_url=request.url, error=e)
         except ServerDisconnectedError as e:
             raise ConnectionClosedError(
                 error=e,

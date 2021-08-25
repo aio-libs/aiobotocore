@@ -1,7 +1,9 @@
 import logging
 
 import pytest
+from _pytest.logging import LogCaptureFixture
 from botocore.exceptions import EndpointConnectionError
+from aiobotocore.httpsession import ClientConnectorError
 
 from aiobotocore.session import AioSession
 from aiobotocore.config import AioConfig
@@ -24,7 +26,7 @@ async def test_get_service_data(session):
 
 @pytest.mark.moto
 @pytest.mark.asyncio
-async def test_retry(session: AioSession, caplog):
+async def test_retry(session: AioSession, caplog: LogCaptureFixture):
     caplog.set_level(logging.DEBUG)
 
     config = AioConfig(
@@ -43,6 +45,12 @@ async def test_retry(session: AioSession, caplog):
             endpoint_url='http://localhost:7878') as client:
 
         with pytest.raises(EndpointConnectionError):
+            await client.get_object(Bucket='foo', Key='bar')
+
+        assert 'sleeping for' in caplog.text
+        caplog.clear()
+
+        with pytest.raises(ClientConnectorError):
             await client.get_object(Bucket='foo', Key='bar')
 
         assert 'sleeping for' in caplog.text

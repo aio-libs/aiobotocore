@@ -1,5 +1,9 @@
 Changes
 -------
+1.4.1 (2021-08-24)
+^^^^^^^^^^^^^^^^^^
+* fix backwards compatibility until 2.0 release
+
 1.4.0 (2021-08-20)
 ^^^^^^^^^^^^^^^^^^
 * fix retries via config `#877 <https://github.com/aio-libs/aiobotocore/pull/877>`_
