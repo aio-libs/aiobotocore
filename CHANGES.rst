@@ -2,7 +2,7 @@ Changes
 -------
 1.4.1 (2021-08-24)
 ^^^^^^^^^^^^^^^^^^
-* fix backwards compatibility until 2.0 release
+* put backwards incompatible changes behind ``AIOBOTOCORE_DEPRECATED_1_4_0_APIS`` env var.  This means that `#876 <https://github.com/aio-libs/aiobotocore/issues/876>`_ will not work unless this env var has been set to 0.
 
 1.4.0 (2021-08-20)
 ^^^^^^^^^^^^^^^^^^

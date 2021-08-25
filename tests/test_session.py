@@ -2,8 +2,6 @@ import logging
 
 import pytest
 from _pytest.logging import LogCaptureFixture
-from botocore.exceptions import EndpointConnectionError
-from aiobotocore.httpsession import ClientConnectorError
 
 from aiobotocore.session import AioSession
 from aiobotocore.config import AioConfig
@@ -47,7 +45,7 @@ async def test_retry(session: AioSession, caplog: LogCaptureFixture, monkeypatch
 
         # this needs the new style exceptions to work
         monkeypatch.setattr(httpsession, 'DEPRECATED_1_4_0_APIS', 0)
-        with pytest.raises(EndpointConnectionError):
+        with pytest.raises(httpsession.EndpointConnectionError):
             await client.get_object(Bucket='foo', Key='bar')
 
         assert 'sleeping for' in caplog.text
