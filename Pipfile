@@ -4,11 +4,11 @@ url = "https://pypi.org/simple"
 verify_ssl = true
 
 [dev-packages]
-codecov = "2.1.11"
+codecov = "==2.1.11"
 coverage = "==5.5"
 flake8 = "==3.9.0"
 flake8-formatter-abspath = "==1.0.1"
-docker = '5.0.0'
+docker = '==5.0.0'
 moto = {extras = ["server","s3","sqs","lambda","dynamodb","cloudformation", "sns", "batch", "ec2", "rds"],version = "==2.0.8"}
 pytest = "==6.2.4"
 pytest-cov = "==2.11.1"
