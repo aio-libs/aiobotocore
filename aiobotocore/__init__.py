@@ -12,4 +12,4 @@ if DEPRECATED_1_4_0_APIS:
 
     __all__ = ['get_session', 'AioSession']
 
-__version__ = '1.4.1'
+__version__ = '1.4.2'

@@ -32,7 +32,7 @@ class AIOHTTPSession:
             connector_args=None
     ):
         # TODO: handle socket_options
-
+        self._session: Optional[aiohttp.ClientSession] = None
         self._verify = verify
         self._proxy_config = ProxyConfiguration(proxies=proxies,
                                                 proxies_settings=proxies_config)
@@ -71,16 +71,17 @@ class AIOHTTPSession:
         # it also pools by host so we don't need a manager, and can pass proxy via
         # request so don't need proxy manager
 
-        if proxies:
-            proxies_settings = self._proxy_config.settings
-            ssl_context = self._setup_proxy_ssl_context(proxies_settings)
-            # TODO: add support for
-            #    proxies_settings.get('proxy_use_forwarding_for_https')
-        else:
-            ssl_context = self._get_ssl_context()
+        ssl_context = None
+        if bool(verify):
+            if proxies:
+                proxies_settings = self._proxy_config.settings
+                ssl_context = self._setup_proxy_ssl_context(proxies_settings)
+                # TODO: add support for
+                #    proxies_settings.get('proxy_use_forwarding_for_https')
+            else:
+                ssl_context = self._get_ssl_context()
 
-            # inline self._setup_ssl_cert
-            if bool(verify):
+                # inline self._setup_ssl_cert
                 ca_certs = get_cert_path(verify)
                 if ca_certs:
                     ssl_context.load_verify_locations(ca_certs, None, None)
@@ -90,8 +91,6 @@ class AIOHTTPSession:
             verify_ssl=bool(verify),
             ssl=ssl_context,
             **connector_args)
-
-        self._session: Optional[aiohttp.ClientSession] = None
 
     async def __aenter__(self):
         self._session = aiohttp.ClientSession(
@@ -103,7 +102,12 @@ class AIOHTTPSession:
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        await self._session.__aexit__(exc_type, exc_val, exc_tb)
+        if self._session:
+            await self._session.__aexit__(exc_type, exc_val, exc_tb)
+
+    async def close(self):
+        await self._session.__aexit__(None, None, None)
+        self._session = None
 
     def _get_ssl_context(self):
         ssl_context = create_urllib3_context()
