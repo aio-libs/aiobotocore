@@ -26,6 +26,18 @@ async def test_can_make_request(s3_client):
 
 
 @pytest.mark.moto
+@pytest.mark.parametrize('s3_verify', [False])
+@pytest.mark.asyncio
+async def test_can_make_request_no_verify(s3_client):
+    # Basic smoke test to ensure we can talk to s3.
+    result = await s3_client.list_buckets()
+    # Can't really assume anything about whether or not they have buckets,
+    # but we can assume something about the structure of the response.
+    actual_keys = sorted(list(result.keys()))
+    assert actual_keys == ['Buckets', 'Owner', 'ResponseMetadata']
+
+
+@pytest.mark.moto
 @pytest.mark.asyncio
 async def test_fail_proxy_request(aa_fail_proxy_config, s3_client, monkeypatch):
     # based on test_can_make_request

@@ -1,5 +1,10 @@
 Changes
 -------
+1.4.2 (2021-09-03)
+^^^^^^^^^^^^^^^^^^
+* Fix missing close() method on http session (thanks `@terrycain <https://github.com/terrycain>`_)
+* Fix for verify=False
+
 1.4.1 (2021-08-24)
 ^^^^^^^^^^^^^^^^^^
 * put backwards incompatible changes behind ``AIOBOTOCORE_DEPRECATED_1_4_0_APIS`` env var.  This means that `#876 <https://github.com/aio-libs/aiobotocore/issues/876>`_ will not work unless this env var has been set to 0.

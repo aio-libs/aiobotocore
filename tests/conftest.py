@@ -112,6 +112,11 @@ def signature_version():
 
 
 @pytest.fixture
+def s3_verify():
+    return None
+
+
+@pytest.fixture
 def config(region, signature_version):
     connect_timeout = read_timout = 5
     if _PYCHARM_HOSTED:
@@ -137,11 +142,11 @@ def moto_config(endpoint_url):
 
 
 @pytest.fixture
-async def s3_client(session, region, config, s3_server, mocking_test):
+async def s3_client(session, region, config, s3_server, mocking_test, s3_verify):
     kw = moto_config(s3_server) if mocking_test else {}
 
     async with session.create_client('s3', region_name=region,
-                                     config=config, **kw) as client:
+                                     config=config, verify=s3_verify, **kw) as client:
         yield client
 
 
