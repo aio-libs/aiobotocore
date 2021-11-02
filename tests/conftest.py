@@ -2,7 +2,7 @@ import asyncio
 from contextlib import AsyncExitStack
 import random
 import string
-import aiobotocore
+import aiobotocore.session
 from aiobotocore.config import AioConfig
 from itertools import chain
 import tempfile

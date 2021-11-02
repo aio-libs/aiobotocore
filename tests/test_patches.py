@@ -78,7 +78,7 @@ _AIOHTTP_DIGESTS = {
 # If you're changing these, most likely need to update setup.py as well.
 _API_DIGESTS = {
     # args.py
-    ClientArgsCreator.get_client_args: {'96d97f97fce6d883281dc4ffe0fa0743e190f7bd'},
+    ClientArgsCreator.get_client_args: {'a98b0bf9fe62f79b533b87664183c8886bc6816b'},
 
     # client.py
     ClientCreator.create_client: {'d18bc3d5d2f09e8ad775f4f1c6211b500a4bce11'},
@@ -117,7 +117,7 @@ _API_DIGESTS = {
         {'005c1b44b616f37739ce9276352e4e83644d8220'},
     RefreshableCredentials._refresh: {'f4759b7ef0d1f0d8af07855dcd9ca49ef12c2e7b'},
     RefreshableCredentials._protected_refresh:
-        {'432409f81601dbeea9ec187d433d190ab7c5ab2f'},
+        {'c1b6bcb5d1d145ef2980037f2c24385151e3acab'},
     RefreshableCredentials.get_frozen_credentials:
         {'f661c84a8b759786e011f0b1e8a468a0c6294e36'},
     SSOCredentialFetcher:
@@ -190,14 +190,14 @@ _API_DIGESTS = {
         {'c028b9776383cc566be10999745b6082f458d902'},
     BotoProvider.load: {'9351b8565c2c969937963fc1d3fbc8b3b6d8ccc1'},
     OriginalEC2Provider.load: {'bde9af019f01acf3848a6eda125338b2c588c1ab'},
-    create_credential_resolver: {'c6a08bfc59a4e8f59c8b7a846dbb74db649101fd'},
+    create_credential_resolver: {'177ad331d4b527b9aae765d90e2f17badefeb4a8'},
     get_credentials: {'ff0c735a388ac8dd7fe300a32c1e36cdf33c0f56'},
 
     # endpoint.py
     convert_to_response_dict: {'2c73c059fa63552115314b079ae8cbf5c4e78da0'},
 
     Endpoint.create_request: {'4ccc14de2fd52f5c60017e55ff8e5b78bbaabcec'},
-    Endpoint._send_request: {'50ab33d6f16e75594d01ab1c2ec6b7c7903798db'},
+    Endpoint._send_request: {'5591e6609c138ea7a16298390f4952aac1fbe962'},
     Endpoint._get_response: {'46c3a8cb4ff7672b75193ce5571dbea48aa9da75'},
     Endpoint._do_get_response: {'0bc57fbacf3c49ec5cd243b014d531a38b9b4138'},
     Endpoint._needs_retry: {'0f40f52d8c90c6e10b4c9e1c4a5ca00ef2c72850'},
@@ -219,7 +219,7 @@ _API_DIGESTS = {
     EventAliaser.emit_until_response: {'0d635bf7ae5022b1fdde891cd9a91cd4c449fd49'},
 
     # paginate.py
-    PageIterator.__iter__: {'56b3a1e30f488e2f1f5d5309db42fd5ad8a3895d'},
+    PageIterator.__iter__: {'a56ec9b28dba7e48936d7164b5ea0e3a0fc0287d'},
     PageIterator.result_key_iters: {'04d3c647bd98caba3687df80e650fea517a0068e'},
     PageIterator.build_full_result: {'afe8cd8daad2cf32ae34f877985ab79501bf7742'},
     ResultKeyIterator: {'f71d98959ccda5e05e35cf3cf224fbc9310d33bb'},
@@ -244,7 +244,7 @@ _API_DIGESTS = {
     Session.__init__: {'ccf156a76beda3425fb54363f3b2718dc0445f6d'},
     Session._register_response_parser_factory:
         {'d6cd5a8b1b473b0ec3b71db5f621acfb12cc412c'},
-    Session.create_client: {'36f4e718fc4bada66808c2f98fa71835c09076f7'},
+    Session.create_client: {'801d1b8942f89d3c497d857b280d48628878d1ed'},
     Session._create_credential_resolver: {'87e98d201c72d06f7fbdb4ebee2dce1c09de0fb2'},
     Session.get_credentials: {'c0de970743b6b9dd91b5a71031db8a495fde53e4'},
     get_session: {'c47d588f5da9b8bde81ccc26eaef3aee19ddd901'},
@@ -298,7 +298,7 @@ _API_DIGESTS = {
 
     # waiter.py
     NormalizedOperationMethod.__call__: {'79723632d023739aa19c8a899bc2b814b8ab12ff'},
-    Waiter.wait: {'e9c7f98b12ac8d9ba44637e89499617590bc4f6f'},
+    Waiter.wait: {'a9fa6e3b1210929b9e3887abff90aeb451383547'},
     create_waiter_with_client: {'c3d12c9a4293105cc8c2ecfc7e69a2152ad564de'},
 
     # handlers.py
@@ -306,7 +306,7 @@ _API_DIGESTS = {
     inject_presigned_url_ec2: {'37fad2d9c53ca4f1783e32799fa8f70930f44c23'},
 
     # httpsession.py
-    URLLib3Session: {'ecb7c86e8eb07c7f261493de3d08d221a39e8ef4'},
+    URLLib3Session: {'021bdd55d5579d387eb7d1e77fa0e59a37cbaa7c'},
 }
 
 

@@ -20,7 +20,7 @@ from botocore.credentials import EnvProvider, Credentials, RefreshableCredential
     CachedCredentialFetcher, _serialize_if_needed, BaseAssumeRoleCredentialFetcher, \
     AssumeRoleProvider, AssumeRoleCredentialFetcher, CredentialResolver, \
     CanonicalNameCredentialSourcer, BotoProvider, OriginalEC2Provider, \
-    SSOProvider
+    SSOProvider, resolve_imds_endpoint_mode
 from botocore.exceptions import UnauthorizedSSOTokenError
 from botocore.exceptions import MetadataRetrievalError, CredentialRetrievalError, \
     InvalidConfigError, PartialCredentialsError, RefreshWithMFAUnsupportedError, \
@@ -49,7 +49,8 @@ def create_credential_resolver(session, cache=None, region_name=None):
     imds_config = {
         'ec2_metadata_service_endpoint': session.get_config_variable(
             'ec2_metadata_service_endpoint'),
-        'imds_use_ipv6': session.get_config_variable('imds_use_ipv6')
+        'ec2_metadata_service_endpoint_mode': resolve_imds_endpoint_mode(
+            session)
     }
 
     if cache is None:

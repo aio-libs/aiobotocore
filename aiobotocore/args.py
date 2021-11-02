@@ -19,7 +19,7 @@ class AioClientArgsCreator(ClientArgsCreator):
             service_model, client_config, endpoint_bridge, region_name,
             endpoint_url, is_secure, scoped_config)
 
-        # service_name = final_args['service_name']
+        service_name = final_args['service_name'] # noqa
         parameter_validation = final_args['parameter_validation']
         endpoint_config = final_args['endpoint_config']
         protocol = final_args['protocol']

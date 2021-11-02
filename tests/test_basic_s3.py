@@ -42,6 +42,7 @@ async def test_can_make_request_no_verify(s3_client):
 async def test_fail_proxy_request(aa_fail_proxy_config, s3_client, monkeypatch):
     # based on test_can_make_request
 
+    monkeypatch.setattr(httpsession, 'DEPRECATED_1_4_0_APIS', 1)
     with pytest.raises(httpsession.ClientProxyConnectionError):
         await s3_client.list_buckets()
 
