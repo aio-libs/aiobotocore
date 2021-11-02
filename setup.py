@@ -47,7 +47,7 @@ classifiers = [
     'Programming Language :: Python :: 3.9',
     'Programming Language :: Python :: 3.10`',
     'Environment :: Web Environment',
-    'Development Status :: 3 - Alpha',
+    'Development Status :: 4 - Beta',
     'Framework :: AsyncIO',
 ]
 
