@@ -182,6 +182,9 @@ class AIOHTTPSession:
 
             return resp
         except ClientSSLError as e:
+            if DEPRECATED_1_4_0_APIS:
+                raise
+
             raise SSLError(endpoint_url=request.url, error=e)
         except (ClientConnectorError, socket.gaierror) as e:
             if DEPRECATED_1_4_0_APIS:
