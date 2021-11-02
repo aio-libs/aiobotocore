@@ -1,5 +1,10 @@
 Changes
 -------
+2.0.0 (2021-11-02)
+^^^^^^^^^^^^^^^^^^
+* bump to botocore 1.22.8
+* turn off default ``AIOBOTOCORE_DEPRECATED_1_4_0_APIS`` env var to match botocore module.  See notes in 1.4.0.
+
 1.4.2 (2021-09-03)
 ^^^^^^^^^^^^^^^^^^
 * Fix missing close() method on http session (thanks `@terrycain <https://github.com/terrycain>`_)

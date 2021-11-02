@@ -57,8 +57,8 @@ class AIOWaiter(Waiter):
                 return
             if current_state == 'failure':
                 reason = 'Waiter encountered a terminal failure state: %s' % (
-                        acceptor.explanation
-                        )
+                    acceptor.explanation
+                )
                 raise WaiterError(
                     name=self.name,
                     reason=reason,

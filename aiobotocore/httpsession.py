@@ -1,6 +1,7 @@
 import asyncio
 import io
 import socket
+import os
 from typing import Dict, Optional
 
 import aiohttp  # lgtm [py/import-and-import-from]
@@ -12,7 +13,8 @@ from multidict import MultiDict
 from botocore.httpsession import ProxyConfiguration, create_urllib3_context, \
     MAX_POOL_CONNECTIONS, InvalidProxiesConfigError, SSLError, \
     EndpointConnectionError, ProxyConnectionError, ConnectTimeoutError, \
-    ConnectionClosedError, HTTPClientError, ReadTimeoutError, logger, get_cert_path
+    ConnectionClosedError, HTTPClientError, ReadTimeoutError, logger, get_cert_path, \
+    ensure_boolean, urlparse
 
 from aiobotocore import DEPRECATED_1_4_0_APIS
 from aiobotocore._endpoint_helpers import _text, _IOBaseWrapper, \
@@ -34,9 +36,9 @@ class AIOHTTPSession:
         # TODO: handle socket_options
         self._session: Optional[aiohttp.ClientSession] = None
         self._verify = verify
-        self._proxy_config = ProxyConfiguration(proxies=proxies,
-                                                proxies_settings=proxies_config)
-
+        self._proxy_config = ProxyConfiguration(
+            proxies=proxies, proxies_settings=proxies_config
+        )
         if isinstance(timeout, (list, tuple)):
             conn_timeout, read_timeout = timeout
         else:
@@ -140,11 +142,22 @@ class AIOHTTPSession:
 
     async def send(self, request):
         proxy_url = self._proxy_config.proxy_url_for(request.url)
+        proxy_headers = self._proxy_config.proxy_headers_for(request.url)
 
         try:
             url = request.url
             headers = request.headers
             data = request.body
+
+            if ensure_boolean(
+                os.environ.get('BOTO_EXPERIMENTAL__ADD_PROXY_HOST_HEADER', '')
+            ):
+                # This is currently an "experimental" feature which provides
+                # no guarantees of backwards compatibility. It may be subject
+                # to change or removal in any patch version. Anyone opting in
+                # to this feature should strictly pin botocore.
+                host = urlparse(request.url).hostname
+                proxy_headers['host'] = host
 
             # https://github.com/boto/botocore/issues/1255
             headers['Accept-Encoding'] = 'identity'
@@ -157,7 +170,9 @@ class AIOHTTPSession:
 
             url = URL(url, encoded=True)
             resp = await self._session.request(
-                request.method, url=url, headers=headers_, data=data, proxy=proxy_url)
+                request.method, url=url, headers=headers_, data=data, proxy=proxy_url,
+                proxy_headers=proxy_headers
+            )
 
             if not request.stream_output:
                 # Cause the raw stream to be exhausted immediately. We do it
