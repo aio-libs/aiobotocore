@@ -37,9 +37,6 @@ class AioClientCreator(ClientCreator):
         self._register_s3_events(
             service_client, endpoint_bridge, endpoint_url, client_config,
             scoped_config)
-        self._register_s3_events(
-            service_client, endpoint_bridge, endpoint_url, client_config,
-            scoped_config)
         self._register_endpoint_discovery(
             service_client, endpoint_url, client_config
         )
