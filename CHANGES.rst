@@ -2,6 +2,7 @@ Changes
 -------
 2.0.1 (2021-11-25)
 ^^^^^^^^^^^^^^^^^^
+* revert accidental dupe of _register_s3_events #867 (thanks @eoghanmurray)
 * Support customizing the aiohttp connector resolver class #893 (thanks @orf)
 * fix timestream query #902
 
