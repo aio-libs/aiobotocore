@@ -40,6 +40,7 @@ from botocore.credentials import Credentials, RefreshableCredentials, \
     AssumeRoleWithWebIdentityCredentialFetcher, SSOCredentialFetcher, SSOProvider
 from botocore.handlers import inject_presigned_url_ec2, inject_presigned_url_rds
 from botocore.httpsession import URLLib3Session
+from botocore.discovery import EndpointDiscoveryManager, EndpointDiscoveryHandler
 
 
 # This file ensures that our private patches will work going forward.  If a
@@ -83,6 +84,8 @@ _API_DIGESTS = {
     # client.py
     ClientCreator.create_client: {'d18bc3d5d2f09e8ad775f4f1c6211b500a4bce11'},
     ClientCreator._create_client_class: {'5e493d069eedbf314e40e12a7886bbdbcf194335'},
+    ClientCreator._register_endpoint_discovery:
+        {'2eb9009d83a3999c77ecf2fd3335dab94348182e'},
     ClientCreator._get_client_args: {'555e1e41f93df7558c8305a60466681e3a267ef3'},
     ClientCreator._register_s3_events: {'da3fc62a131d63964c8daa0f52124b092fd8f1b4'},
 
@@ -307,6 +310,13 @@ _API_DIGESTS = {
 
     # httpsession.py
     URLLib3Session: {'021bdd55d5579d387eb7d1e77fa0e59a37cbaa7c'},
+
+    EndpointDiscoveryHandler.discover_endpoint:
+        {'d87eff9008356a6aaa9b7078f23ba7a9ff0c7a60'},
+    EndpointDiscoveryManager.describe_endpoint:
+        {'b2f1b29177cf30f299e61b85ddec09eaa070e54e'},
+    EndpointDiscoveryManager._refresh_current_endpoints:
+        {'f8a51047c8f395d9458a904e778a3ac156a11911'},
 }
 
 

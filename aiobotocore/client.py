@@ -1,6 +1,7 @@
 from botocore.awsrequest import prepare_request_dict
 from botocore.client import logger, PaginatorDocstring, ClientCreator, \
     BaseClient, ClientEndpointBridge, S3ArnParamHandler, S3EndpointSetter
+from botocore.discovery import block_endpoint_discovery_required_operations
 from botocore.exceptions import OperationNotPageableError
 from botocore.history import get_global_history_recorder
 from botocore.utils import get_service_module_name
@@ -10,6 +11,7 @@ from botocore.hooks import first_non_none_response
 from .paginate import AioPaginator
 from .args import AioClientArgsCreator
 from .utils import AioS3RegionRedirector
+from .discovery import AioEndpointDiscoveryManager, AioEndpointDiscoveryHandler
 from . import waiter
 
 history_recorder = get_global_history_recorder()
@@ -59,6 +61,32 @@ class AioClientCreator(ClientCreator):
         class_name = get_service_module_name(service_model)
         cls = type(str(class_name), tuple(bases), class_attributes)
         return cls
+
+    def _register_endpoint_discovery(self, client, endpoint_url, config):
+        if endpoint_url is not None:
+            # Don't register any handlers in the case of a custom endpoint url
+            return
+        # Only attach handlers if the service supports discovery
+        if client.meta.service_model.endpoint_discovery_operation is None:
+            return
+        events = client.meta.events
+        service_id = client.meta.service_model.service_id.hyphenize()
+        enabled = False
+        if config and config.endpoint_discovery_enabled is not None:
+            enabled = config.endpoint_discovery_enabled
+        elif self._config_store:
+            enabled = self._config_store.get_config_variable(
+                'endpoint_discovery_enabled')
+
+        enabled = self._normalize_endpoint_discovery_config(enabled)
+        if enabled and self._requires_endpoint_discovery(client, enabled):
+            discover = enabled is True
+            manager = AioEndpointDiscoveryManager(client, always_discover=discover)
+            handler = AioEndpointDiscoveryHandler(manager)
+            handler.register(events, service_id)
+        else:
+            events.register('before-parameter-build',
+                            block_endpoint_discovery_required_operations)
 
     def _register_s3_events(self, client, endpoint_bridge, endpoint_url,
                             client_config, scoped_config):
