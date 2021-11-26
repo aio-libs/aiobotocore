@@ -1,7 +1,8 @@
 Changes
 -------
-2.0.0 (2021-11-25)
+2.0.1 (2021-11-25)
 ^^^^^^^^^^^^^^^^^^
+* Support customizing the aiohttp connector resolver class #893 (thanks @orf)
 * fix timestream query #902
 
 
