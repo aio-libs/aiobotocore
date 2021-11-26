@@ -1,4 +1,7 @@
 import asyncio
+
+import aiohttp.resolver
+
 from mock_server import AIOServer
 from aiobotocore.session import AioSession, get_session
 from aiobotocore.config import AioConfig
@@ -31,9 +34,19 @@ def test_connector_args():
         AioConfig(connector_args)
 
     with pytest.raises(ParamValidationError):
+        # invalid DNS resolver
+        connector_args = dict(resolver="1")
+        AioConfig(connector_args)
+
+    with pytest.raises(ParamValidationError):
         # invalid key
         connector_args = dict(foo="1")
         AioConfig(connector_args)
+
+    # Test valid config:
+    AioConfig({
+        "resolver": aiohttp.resolver.DefaultResolver
+    })
 
     # test merge
     cfg = Config(read_timeout=75)
