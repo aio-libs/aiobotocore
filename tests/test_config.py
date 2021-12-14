@@ -45,7 +45,7 @@ def test_connector_args():
 
     # Test valid config:
     AioConfig({
-        "resolver": aiohttp.resolver.DefaultResolver
+        "resolver": aiohttp.resolver.DefaultResolver()
     })
 
     # test merge
