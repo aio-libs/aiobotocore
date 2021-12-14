@@ -3,10 +3,10 @@ import asyncio
 
 import aiohttp.http_exceptions
 from botocore.endpoint import EndpointCreator, Endpoint, DEFAULT_TIMEOUT, \
-    MAX_POOL_CONNECTIONS, logger, history_recorder, create_request_object
+    MAX_POOL_CONNECTIONS, logger, history_recorder, create_request_object, \
+    is_valid_ipv6_endpoint_url, is_valid_endpoint_url
 from botocore.exceptions import ConnectionClosedError
 from botocore.hooks import first_non_none_response
-from botocore.utils import is_valid_endpoint_url
 from urllib3.response import HTTPHeaderDict
 
 from aiobotocore.httpsession import AIOHTTPSession
@@ -230,19 +230,23 @@ class AioEndpoint(Endpoint):
 
 
 class AioEndpointCreator(EndpointCreator):
-    def create_endpoint(self, service_model, region_name, endpoint_url,
-                        verify=None, response_parser_factory=None,
-                        timeout=DEFAULT_TIMEOUT,
-                        max_pool_connections=MAX_POOL_CONNECTIONS,
-                        http_session_cls=AIOHTTPSession,
-                        proxies=None,
-                        socket_options=None,
-                        client_cert=None,
-                        proxies_config=None,
-                        connector_args=None):
-        if not is_valid_endpoint_url(endpoint_url):
-
+    def create_endpoint(
+            self, service_model, region_name, endpoint_url,
+            verify=None, response_parser_factory=None,
+            timeout=DEFAULT_TIMEOUT,
+            max_pool_connections=MAX_POOL_CONNECTIONS,
+            http_session_cls=AIOHTTPSession,
+            proxies=None,
+            socket_options=None,
+            client_cert=None, proxies_config=None,
+            connector_args=None
+    ):
+        if (
+            not is_valid_endpoint_url(endpoint_url)
+            and not is_valid_ipv6_endpoint_url(endpoint_url)
+        ):
             raise ValueError("Invalid endpoint: %s" % endpoint_url)
+
         if proxies is None:
             proxies = self._get_proxies(endpoint_url)
         endpoint_prefix = service_model.endpoint_prefix
@@ -264,4 +268,5 @@ class AioEndpointCreator(EndpointCreator):
             endpoint_prefix=endpoint_prefix,
             event_emitter=self._event_emitter,
             response_parser_factory=response_parser_factory,
-            http_session=http_session)
+            http_session=http_session
+        )

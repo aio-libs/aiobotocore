@@ -82,12 +82,12 @@ _API_DIGESTS = {
     ClientArgsCreator.get_client_args: {'a98b0bf9fe62f79b533b87664183c8886bc6816b'},
 
     # client.py
-    ClientCreator.create_client: {'d18bc3d5d2f09e8ad775f4f1c6211b500a4bce11'},
+    ClientCreator.create_client: {'5cc47860c371ecd83b2e62c58bef590085cb07e0'},
     ClientCreator._create_client_class: {'5e493d069eedbf314e40e12a7886bbdbcf194335'},
     ClientCreator._register_endpoint_discovery:
         {'2eb9009d83a3999c77ecf2fd3335dab94348182e'},
     ClientCreator._get_client_args: {'555e1e41f93df7558c8305a60466681e3a267ef3'},
-    ClientCreator._register_s3_events: {'da3fc62a131d63964c8daa0f52124b092fd8f1b4'},
+    ClientCreator._register_s3_events: {'accf68c9e3e45b114310e8c635270ccb5fc4926e'},
 
     BaseClient._make_api_call: {'0c59329d4c8a55b88250b512b5e69239c42246fb'},
     BaseClient._make_request: {'033a386f7d1025522bea7f2bbca85edc5c8aafd2'},
@@ -99,7 +99,7 @@ _API_DIGESTS = {
 
     # config.py
     Config.merge: {'c3dd8c3ffe0da86953ceba4a35267dfb79c6a2c8'},
-    Config: {'e63975f828f8d20e4d739dbdb4d496ec3a3e3dc9'},
+    Config: {'05ad5de7db3910654b0ded39874552aaf29c4e1d'},
 
     # credentials.py
     create_mfa_serial_refresher: {'180b81fc40c91d1cf40de1a28e32ae7d601e1d50'},
@@ -207,7 +207,7 @@ _API_DIGESTS = {
     Endpoint._send: {'644c7e5bb88fecaa0b2a204411f8c7e69cc90bf1'},
     Endpoint._add_modeled_error_fields: {'1eefcfacbe9a2c3700c61982e565ce6c4cf1ea3a'},
 
-    EndpointCreator.create_endpoint: {'502315533a86991ea5f57c04973ea5c837bf6197'},
+    EndpointCreator.create_endpoint: {'77a36b0fdc2e4ae7c421849843b93b4dcae5e06f'},
 
     # eventstream.py
     EventStream._create_raw_event_generator: {
@@ -240,7 +240,7 @@ _API_DIGESTS = {
     create_parser: {'37e9f1c3b60de17f477a9b79eae8e1acaa7c89d7'},
 
     # response.py
-    StreamingBody: {'b77bd0903f9013bc47c01f91c6d9bfb8a504d106'},
+    StreamingBody: {'0c52037e7b46dc2be5fc08fe572fbb2fe280e0af'},
     get_response: {'f31b478792a5e0502f142daca881b69955e5c11d'},
 
     # session.py

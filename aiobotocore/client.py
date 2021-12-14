@@ -28,9 +28,12 @@ class AioClientCreator(ClientCreator):
         service_name = first_non_none_response(responses, default=service_name)
         service_model = self._load_service_model(service_name, api_version)
         cls = await self._create_client_class(service_name, service_model)
+        region_name, client_config = self._normalize_fips_region(
+            region_name, client_config)
         endpoint_bridge = ClientEndpointBridge(
             self._endpoint_resolver, scoped_config, client_config,
-            service_signing_name=service_model.metadata.get('signingName'))
+            service_signing_name=service_model.metadata.get('signingName'),
+            config_store=self._config_store)
         client_args = self._get_client_args(
             service_model, region_name, is_secure, endpoint_url,
             verify, credentials, scoped_config, client_config, endpoint_bridge)
@@ -39,10 +42,12 @@ class AioClientCreator(ClientCreator):
         self._register_s3_events(
             service_client, endpoint_bridge, endpoint_url, client_config,
             scoped_config)
+        self._register_s3_control_events(
+            service_client, endpoint_bridge, endpoint_url, client_config,
+            scoped_config)
         self._register_endpoint_discovery(
             service_client, endpoint_url, client_config
         )
-        self._register_lazy_block_unknown_fips_pseudo_regions(service_client)
         return service_client
 
     async def _create_client_class(self, service_name, service_model):
@@ -91,12 +96,14 @@ class AioClientCreator(ClientCreator):
             return
         AioS3RegionRedirector(endpoint_bridge, client).register()
         S3ArnParamHandler().register(client.meta.events)
+        use_fips_endpoint = client.meta.config.use_fips_endpoint
         S3EndpointSetter(
             endpoint_resolver=self._endpoint_resolver,
             region=client.meta.region_name,
             s3_config=client.meta.config.s3,
             endpoint_url=endpoint_url,
-            partition=client.meta.partition
+            partition=client.meta.partition,
+            use_fips_endpoint=use_fips_endpoint
         ).register(client.meta.events)
         self._set_s3_presign_signature_version(
             client.meta, client_config, scoped_config)

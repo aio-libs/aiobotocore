@@ -1,7 +1,9 @@
 import asyncio
 
+import aiohttp.client_exceptions
 import wrapt
-from botocore.exceptions import IncompleteReadError, ReadTimeoutError
+from botocore.response import ResponseStreamingError, IncompleteReadError, \
+    ReadTimeoutError
 from aiobotocore import parsers
 
 
@@ -52,6 +54,8 @@ class StreamingBody(wrapt.ObjectProxy):
         except asyncio.TimeoutError as e:
             raise AioReadTimeoutError(endpoint_url=self.__wrapped__.url,
                                       error=e)
+        except aiohttp.client_exceptions.ClientConnectionError as e:
+            raise ResponseStreamingError(error=e)
 
         self._self_amount_read += len(chunk)
         if amt is None or (not chunk and amt > 0):
