@@ -1,5 +1,4 @@
 import copy
-import inspect
 
 import botocore.client
 from botocore.exceptions import ParamValidationError
@@ -55,9 +54,9 @@ class AioConfig(botocore.client.Config):
                         report='{} must be an SSLContext instance'.format(k))
             elif k == "resolver":
                 from aiohttp.abc import AbstractResolver
-                if not inspect.isclass(v) or not issubclass(v, AbstractResolver):
+                if not isinstance(v, AbstractResolver):
                     raise ParamValidationError(
-                        report='{} must be an AbstractResolver subclass'.format(k))
+                        report='{} must be an instance of a AbstractResolver'.format(k))
             else:
                 raise ParamValidationError(
                     report='invalid connector_arg:{}'.format(k))
