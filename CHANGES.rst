@@ -1,5 +1,9 @@
 Changes
 -------
+2.1.0 (2021-12-14)
+^^^^^^^^^^^^^^^^^^
+* bump to botocore 1.23.24
+
 2.0.1 (2021-11-25)
 ^^^^^^^^^^^^^^^^^^
 * revert accidental dupe of _register_s3_events #867 (thanks @eoghanmurray)
