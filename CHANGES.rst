@@ -1,5 +1,9 @@
 Changes
 -------
+2.2.0 (2021-12-23)
+^^^^^^^^^^^^^^^^^^
+* AioConfig: change deprecated ssl_context to ssl
+
 2.1.0 (2021-12-14)
 ^^^^^^^^^^^^^^^^^^
 * bump to botocore 1.23.24
