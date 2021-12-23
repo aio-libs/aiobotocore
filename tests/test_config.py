@@ -30,7 +30,7 @@ def test_connector_args():
 
     with pytest.raises(ParamValidationError):
         # wrong type
-        connector_args = dict(ssl_context="1")
+        connector_args = dict(ssl="1")
         AioConfig(connector_args)
 
     with pytest.raises(ParamValidationError):

@@ -73,11 +73,10 @@ class AIOHTTPSession:
         # it also pools by host so we don't need a manager, and can pass proxy via
         # request so don't need proxy manager
 
-        ssl_context = None
-        if bool(verify):
+        if bool(verify) and "ssl" not in connector_args:
             if proxies:
                 proxies_settings = self._proxy_config.settings
-                ssl_context = self._setup_proxy_ssl_context(proxies_settings)
+                connector_args["ssl"] = self._setup_proxy_ssl_context(proxies_settings)
                 # TODO: add support for
                 #    proxies_settings.get('proxy_use_forwarding_for_https')
             else:
@@ -88,10 +87,11 @@ class AIOHTTPSession:
                 if ca_certs:
                     ssl_context.load_verify_locations(ca_certs, None, None)
 
+                connector_args["ssl"] = ssl_context
+
         self._connector = aiohttp.TCPConnector(
             limit=max_pool_connections,
             verify_ssl=bool(verify),
-            ssl=ssl_context,
             **connector_args)
 
     async def __aenter__(self):

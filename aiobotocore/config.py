@@ -47,7 +47,7 @@ class AioConfig(botocore.client.Config):
                     raise ParamValidationError(
                         report='{} value must be a boolean'.format(k))
             # limit is handled by max_pool_connections
-            elif k == 'ssl_context':
+            elif k == 'ssl':
                 import ssl
                 if not isinstance(v, ssl.SSLContext):
                     raise ParamValidationError(
