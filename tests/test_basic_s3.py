@@ -205,6 +205,18 @@ async def test_can_get_and_put_object(s3_client, create_object, bucket_name):
 
 @pytest.mark.moto
 @pytest.mark.asyncio
+@pytest.mark.config_kwargs(dict(retries={"max_attempts": 5, "mode": "adaptive"}))
+async def test_adaptive_retry(s3_client, create_object, bucket_name):
+    await create_object('foobarbaz', body='body contents')
+    resp = await s3_client.get_object(Bucket=bucket_name, Key='foobarbaz')
+    data = await resp['Body'].read()
+    # TODO: think about better api and make behavior like in aiohttp
+    resp['Body'].close()
+    assert data == b'body contents'
+
+
+@pytest.mark.moto
+@pytest.mark.asyncio
 async def test_get_object_stream_wrapper(s3_client, create_object,
                                          bucket_name):
     await create_object('foobarbaz', body='body contents')

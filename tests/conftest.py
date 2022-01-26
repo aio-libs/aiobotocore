@@ -117,13 +117,20 @@ def s3_verify():
 
 
 @pytest.fixture
-def config(region, signature_version):
+def config(request, region, signature_version):
+    config_kwargs = request.node.get_closest_marker("config_kwargs") or {}
+    if config_kwargs:
+        assert not config_kwargs.kwargs, config_kwargs
+        assert len(config_kwargs.args) == 1
+        config_kwargs = config_kwargs.args[0]
+
     connect_timeout = read_timout = 5
     if _PYCHARM_HOSTED:
         connect_timeout = read_timout = 180
 
     return AioConfig(region_name=region, signature_version=signature_version,
-                     read_timeout=read_timout, connect_timeout=connect_timeout)
+                     read_timeout=read_timout, connect_timeout=connect_timeout,
+                     **config_kwargs)
 
 
 @pytest.fixture
@@ -144,7 +151,6 @@ def moto_config(endpoint_url):
 @pytest.fixture
 async def s3_client(session, region, config, s3_server, mocking_test, s3_verify):
     kw = moto_config(s3_server) if mocking_test else {}
-
     async with session.create_client('s3', region_name=region,
                                      config=config, verify=s3_verify, **kw) as client:
         yield client
