@@ -1,10 +1,13 @@
 import asyncio
 from collections import defaultdict
+from functools import partial
+from unittest.mock import patch
 
 import pytest
 import aioitertools
-
 from aiobotocore import httpsession
+
+from tests.helpers import wrapt_function
 
 
 async def fetch_all(pages):
@@ -207,13 +210,20 @@ async def test_can_get_and_put_object(s3_client, create_object, bucket_name):
 @pytest.mark.asyncio
 @pytest.mark.config_kwargs(dict(retries={"max_attempts": 5, "mode": "adaptive"}))
 async def test_adaptive_retry(s3_client, create_object, bucket_name):
-    await create_object('foobarbaz', body='body contents')
-    resp = await s3_client.get_object(Bucket=bucket_name, Key='foobarbaz')
-    data = await resp['Body'].read()
-    # TODO: think about better api and make behavior like in aiohttp
-    resp['Body'].close()
-    assert data == b'body contents'
+    called = []
 
+    def _wrapt_failed(wrapped, instance, args, kwargs):
+        called.append(wrapped.__name__)
+        return wrapped(*args, **kwargs)
+
+    # unfortunately can't patch threading.Lock.__enter__
+    with wrapt_function('botocore.retries.adaptive', 'ClientRateLimiter.on_sending_request', _wrapt_failed), \
+        wrapt_function('botocore.retries.adaptive', 'RateClocker.record', _wrapt_failed), \
+        wrapt_function('botocore.retries.bucket', 'TokenBucket.acquire', _wrapt_failed):
+        await create_object('foobarbaz', body='body contents')
+        resp = await s3_client.get_object(Bucket=bucket_name, Key='foobarbaz')
+
+    assert not called
 
 @pytest.mark.moto
 @pytest.mark.asyncio
