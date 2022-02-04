@@ -1,5 +1,9 @@
 Changes
 -------
+2.1.1 (2022-02-04
+^^^^^^^^^^^^^^^^^^
+* add aiohttp exception inheritance for easier transitioning to 2.x
+
 2.1.0 (2021-12-14)
 ^^^^^^^^^^^^^^^^^^
 * bump to botocore 1.23.24

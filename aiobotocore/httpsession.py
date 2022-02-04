@@ -11,14 +11,15 @@ from aiohttp.client import URL
 from multidict import MultiDict
 
 from botocore.httpsession import ProxyConfiguration, create_urllib3_context, \
-    MAX_POOL_CONNECTIONS, InvalidProxiesConfigError, SSLError, \
-    EndpointConnectionError, ProxyConnectionError, ConnectTimeoutError, \
-    ConnectionClosedError, HTTPClientError, ReadTimeoutError, logger, get_cert_path, \
+    MAX_POOL_CONNECTIONS, InvalidProxiesConfigError, logger, get_cert_path, \
     ensure_boolean, urlparse
 
 from aiobotocore import DEPRECATED_1_4_0_APIS
 from aiobotocore._endpoint_helpers import _text, _IOBaseWrapper, \
     ClientResponseProxy
+from aiobotocore.exceptions import SSLError, EndpointConnectionError, \
+    ProxyConnectionError, ConnectTimeoutError, ReadTimeoutError, \
+    ConnectionClosedError, HTTPClientError
 
 
 class AIOHTTPSession:
