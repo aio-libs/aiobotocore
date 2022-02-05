@@ -22,25 +22,28 @@ class SSLError(boto_SSLError, ClientSSLError):
 
 class EndpointConnectionError(boto_EndpointConnectionError,
                               ClientConnectorError, socket.gaierror):
-    pass
+    def __str__(self):  # to avoid picking up the str from aiohttp
+        return boto_EndpointConnectionError.__str__(self)
 
 
 class ProxyConnectionError(boto_ProxyConnectionError, ClientProxyConnectionError,
                            ClientHttpProxyError):
-    pass
+    def __str__(self):
+        return boto_ProxyConnectionError.__str__(self)
 
 
 class ConnectTimeoutError(boto_ConnectTimeoutError, ServerTimeoutError):
-    pass
-
+    def __str__(self):
+        return boto_ConnectTimeoutError.__str__(self)
 
 class ReadTimeoutError(boto_ReadTimeoutError, asyncio.TimeoutError):
-    pass
-
+    def __str__(self):
+        return boto_ReadTimeoutError.__str__(self)
 
 class ConnectionClosedError(boto_ConnectionClosedError, ServerDisconnectedError):
-    pass
-
+    def __str__(self):
+        return boto_ConnectionClosedError.__str__(self)
 
 class HTTPClientError(boto_HTTPClientError, Exception):
-    pass
+    def __str__(self):
+        return boto_HTTPClientError.__str__(self)
