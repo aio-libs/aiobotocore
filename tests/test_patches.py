@@ -41,6 +41,8 @@ from botocore.credentials import Credentials, RefreshableCredentials, \
 from botocore.handlers import inject_presigned_url_ec2, inject_presigned_url_rds
 from botocore.httpsession import URLLib3Session
 from botocore.discovery import EndpointDiscoveryManager, EndpointDiscoveryHandler
+from botocore.retries.adaptive import ClientRateLimiter, register_retry_handler
+from botocore.retries.bucket import TokenBucket
 
 
 # This file ensures that our private patches will work going forward.  If a
@@ -88,6 +90,9 @@ _API_DIGESTS = {
         {'2eb9009d83a3999c77ecf2fd3335dab94348182e'},
     ClientCreator._get_client_args: {'555e1e41f93df7558c8305a60466681e3a267ef3'},
     ClientCreator._register_s3_events: {'accf68c9e3e45b114310e8c635270ccb5fc4926e'},
+    ClientCreator._register_retries: {'16d3064142e5f9e45b0094bbfabf7be30183f255'},
+    ClientCreator._register_v2_adaptive_retries:
+        {'665ecd77d36a5abedffb746d83a44bb0a64c660a'},
 
     BaseClient._make_api_call: {'0c59329d4c8a55b88250b512b5e69239c42246fb'},
     BaseClient._make_request: {'033a386f7d1025522bea7f2bbca85edc5c8aafd2'},
@@ -317,6 +322,17 @@ _API_DIGESTS = {
         {'b2f1b29177cf30f299e61b85ddec09eaa070e54e'},
     EndpointDiscoveryManager._refresh_current_endpoints:
         {'f8a51047c8f395d9458a904e778a3ac156a11911'},
+
+    # retries/adaptive.py
+    # See comments in AsyncTokenBucket: we completely replace the ClientRateLimiter
+    # implementation from botocore.
+    ClientRateLimiter: {'d4ba74b924cdccf705adeb89f2c1885b4d21ce02'},
+    register_retry_handler: {'d662512878511e72d1202d880ae181be6a5f9d37'},
+
+    # retries/bucket.py
+    # See comments in AsyncTokenBucket: we completely replace the TokenBucket
+    # implementation from botocore.
+    TokenBucket: {'9d543c15de1d582fe99a768fd6d8bde1ed8bb930'},
 }
 
 
