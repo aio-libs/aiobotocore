@@ -12,6 +12,7 @@ from .paginate import AioPaginator
 from .args import AioClientArgsCreator
 from .utils import AioS3RegionRedirector
 from .discovery import AioEndpointDiscoveryManager, AioEndpointDiscoveryHandler
+from .retries import adaptive
 from . import waiter
 
 history_recorder = get_global_history_recorder()
@@ -89,6 +90,43 @@ class AioClientCreator(ClientCreator):
         else:
             events.register('before-parameter-build',
                             block_endpoint_discovery_required_operations)
+
+    def _register_retries(self, client):
+        # botocore retry handlers may block. We add our own implementation here.
+        # botocore provides three implementations:
+        #
+        # 1) standard
+        # This one doesn't block. A threading.Lock is used in quota.RetryQuota,
+        # but it's only used to protect concurrent modifications of internal
+        # state inside multithreaded programs. When running under a single
+        # asyncio thread, this lock will be acquired and released in the same
+        # coroutine, and the coroutine will never block waiting for the lock.
+        # Thus, we don't need to redefine this strategy.
+        #
+        # 2) adaptive
+        # This one blocks when the client is applying self rate limiting.
+        # We override the corresponding definition to replace it with async
+        # objects.
+        #
+        # 3) legacy
+        # This one probably doesn't block.
+        #
+        # The code for this method comes directly from botocore. We could
+        # override `_register_v2_adaptive_retries` only. The override for
+        # `_register_retries` is only included for clarity.
+        retry_mode = client.meta.config.retries['mode']
+        if retry_mode == 'standard':
+            self._register_v2_standard_retries(client)
+        elif retry_mode == 'adaptive':
+            self._register_v2_standard_retries(client)
+            self._register_v2_adaptive_retries(client)
+        elif retry_mode == 'legacy':
+            self._register_legacy_retries(client)
+
+    def _register_v2_adaptive_retries(self, client):
+        # See comment in `_register_retries`.
+        # Note that this `adaptive` module is an aiobotocore reimplementation.
+        adaptive.register_retry_handler(client)
 
     def _register_s3_events(self, client, endpoint_bridge, endpoint_url,
                             client_config, scoped_config):
