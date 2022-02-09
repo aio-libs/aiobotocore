@@ -1,9 +1,10 @@
 import asyncio
-from contextlib import AsyncExitStack
+from contextlib import AsyncExitStack, ExitStack
 import random
 import string
 import aiobotocore.session
 from aiobotocore.config import AioConfig
+from unittest.mock import patch
 from itertools import chain
 import tempfile
 import os
@@ -117,13 +118,20 @@ def s3_verify():
 
 
 @pytest.fixture
-def config(region, signature_version):
+def config(request, region, signature_version):
+    config_kwargs = request.node.get_closest_marker("config_kwargs") or {}
+    if config_kwargs:
+        assert not config_kwargs.kwargs, config_kwargs
+        assert len(config_kwargs.args) == 1
+        config_kwargs = config_kwargs.args[0]
+
     connect_timeout = read_timout = 5
     if _PYCHARM_HOSTED:
         connect_timeout = read_timout = 180
 
     return AioConfig(region_name=region, signature_version=signature_version,
-                     read_timeout=read_timout, connect_timeout=connect_timeout)
+                     read_timeout=read_timout, connect_timeout=connect_timeout,
+                     **config_kwargs)
 
 
 @pytest.fixture
@@ -142,7 +150,52 @@ def moto_config(endpoint_url):
 
 
 @pytest.fixture
-async def s3_client(session, region, config, s3_server, mocking_test, s3_verify):
+def patch_attributes(request):
+    """Call unittest.mock.patch on arguments passed through a pytest mark.
+
+    This fixture looks at the @pytest.mark.patch_attributes mark. This mark is a list
+    of arguments to be passed to unittest.mock.patch (see example below). This fixture
+    returns the list of mock objects, one per element in the input list.
+
+    Why do we need this? In some cases, we want to perform the patching before other
+    fixtures are run. For instance, the `s3_client` fixture creates an aiobotocore
+    client. During the client creation process, some event listeners are registered.
+    When we want to patch the target of these event listeners, we must do so before
+    the `s3_client` fixture is executed.  Otherwise, the aiobotocore client will store
+    references to the unpatched targets.
+
+    In such situations, make sure that subsequent fixtures explicitly depends on
+    `patch_attribute` to enforce the ordering between fixtures.
+
+    Example:
+
+    @pytest.mark.patch_attributes([
+        dict(
+            target="aiobotocore.retries.adaptive.AsyncClientRateLimiter.on_sending_request",
+            side_effect=aiobotocore.retries.adaptive.AsyncClientRateLimiter.on_sending_request,
+            autospec=True
+        )
+    ])
+    async def test_client_rate_limiter_called(s3_client, patch_attributes):
+        await s3_client.get_object(Bucket="bucket", Key="key")
+        # Just for illustration (this test doesn't pass).
+        # mock_attributes is a list of 1 element, since we passed a list of 1 element
+        # to the patch_attributes marker.
+        mock_attributes[0].assert_called_once()
+    """
+    marker = request.node.get_closest_marker("patch_attributes")
+    if marker is None:
+        yield
+    else:
+        with ExitStack() as stack:
+            yield [stack.enter_context(patch(**kwargs)) for kwargs in marker.args[0]]
+
+
+@pytest.fixture
+async def s3_client(session, region, config, s3_server, mocking_test, s3_verify,
+                    patch_attributes):
+    # This depends on mock_attributes because we may want to test event listeners.
+    # See the documentation of `mock_attributes` for details.
     kw = moto_config(s3_server) if mocking_test else {}
 
     async with session.create_client('s3', region_name=region,
