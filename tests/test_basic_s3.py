@@ -4,6 +4,8 @@ from collections import defaultdict
 import pytest
 import aioitertools
 
+import aiobotocore.retries.adaptive
+import botocore.retries.adaptive
 from aiobotocore import httpsession
 
 
@@ -201,6 +203,51 @@ async def test_can_get_and_put_object(s3_client, create_object, bucket_name):
     # TODO: think about better api and make behavior like in aiohttp
     resp['Body'].close()
     assert data == b'body contents'
+
+
+@pytest.mark.moto
+@pytest.mark.asyncio
+@pytest.mark.patch_attributes([dict(
+    target="aiobotocore.retries.adaptive.AsyncClientRateLimiter.on_sending_request",
+    side_effect=aiobotocore.retries.adaptive.AsyncClientRateLimiter.on_sending_request,
+    autospec=True
+), dict(
+    target="aiobotocore.retries.adaptive.AsyncClientRateLimiter.on_receiving_response",
+    side_effect=aiobotocore.retries.adaptive.AsyncClientRateLimiter.
+    on_receiving_response,
+    autospec=True
+), dict(
+    target="botocore.retries.adaptive.ClientRateLimiter.on_sending_request",
+    side_effect=botocore.retries.adaptive.ClientRateLimiter.on_sending_request,
+    autospec=True
+), dict(
+    target="botocore.retries.adaptive.ClientRateLimiter.on_receiving_response",
+    side_effect=botocore.retries.adaptive.ClientRateLimiter.on_receiving_response,
+    autospec=True
+)])
+@pytest.mark.config_kwargs(dict(retries={"max_attempts": 5, "mode": "adaptive"}))
+async def test_adaptive_retry(s3_client, config, create_object, bucket_name,
+                              patch_attributes):
+    await create_object('foobarbaz', body='body contents')
+
+    # Check that our async implementations were correctly called.
+    # We need to patch event listeners before the S3 client is created (see
+    # documentation for `patch_attributes`), but as a result, other calls may be
+    # performed during the setup of other fixtures. Thus, we can't rely on the total
+    # number of calls, we just inspect the last one.
+    assert len(patch_attributes[0].mock_calls) > 0  # on_sending_request
+    _, _, call_args = patch_attributes[0].mock_calls[-1]
+    assert call_args["event_name"] == "before-send.s3.PutObject"
+    assert call_args["request"].url.endswith("foobarbaz")
+
+    assert len(patch_attributes[1].mock_calls) > 0  # on_receiving_response
+    _, _, call_args = patch_attributes[1].mock_calls[-1]
+    assert call_args["event_name"] == "needs-retry.s3.PutObject"
+
+    # Check that we did not call any blocking method.
+    # Unfortunately can't directly patch threading.Lock.__enter__.
+    patch_attributes[2].assert_not_called()
+    patch_attributes[3].assert_not_called()
 
 
 @pytest.mark.moto
