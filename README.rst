@@ -172,8 +172,8 @@ Execute tests suite:
 Enable type checking and code completion
 ----------------------------------------
 
-Install `types-aiobotocore` that contains type annotations for `aiobotocore`
-and all supported `boto3` services. 
+Install _types-aiobotocore that contains type annotations for `aiobotocore`
+and all supported _botocore services. 
 
 .. code:: bash
 
@@ -223,6 +223,7 @@ Requirements
 .. _asyncio: https://docs.python.org/3/library/asyncio.html
 .. _botocore: https://github.com/boto/botocore
 .. _aiohttp: https://github.com/aio-libs/aiohttp
+.. _types-aiobotocore: https://vemel.github.io/types_aiobotocore_docs/
 
 awscli
 ------
