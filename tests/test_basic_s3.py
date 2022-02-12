@@ -472,7 +472,7 @@ async def test_presign_sigv4(s3_client, bucket_name, aio_session,
         'get_object', Params={'Bucket': bucket_name, 'Key': key})
     msg = "Host was suppose to be the us-east-1 endpoint, " \
           "instead got: %s" % presigned_url
-    assert presigned_url.startswith('https://s3.amazonaws.com/%s/%s'
+    assert presigned_url.startswith('https://%s.s3.amazonaws.com/%s'
                                     % (bucket_name, key)), msg
 
     # Try to retrieve the object using the presigned url.
