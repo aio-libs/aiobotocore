@@ -172,8 +172,8 @@ Execute tests suite:
 Enable type checking and code completion
 ----------------------------------------
 
-Install _types-aiobotocore that contains type annotations for `aiobotocore`
-and all supported _botocore services. 
+Install types-aiobotocore_ that contains type annotations for `aiobotocore`
+and all supported botocore_ services. 
 
 .. code:: bash
 
