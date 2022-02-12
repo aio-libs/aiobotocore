@@ -188,8 +188,8 @@ and all supported botocore_ services.
     # it is more RAM-friendly, but requires explicit type annotations
     python -m pip install 'types-aiobotocore-lite[essential]'
 
-Now you should be able to run `Pylance`, `pyright` or `mypy` for type checking
-as well as IntelliSense in your IDE.
+Now you should be able to run Pylance_, pyright_, or mypy_ for type checking
+as well as code completion in your IDE.
 
 For `types-aiobotocore-lite` package use explicit type annotations:
 
@@ -224,6 +224,9 @@ Requirements
 .. _botocore: https://github.com/boto/botocore
 .. _aiohttp: https://github.com/aio-libs/aiohttp
 .. _types-aiobotocore: https://vemel.github.io/types_aiobotocore_docs/
+.. _Pylance: https://marketplace.visualstudio.com/items?itemName=ms-python.vscode-pylance
+.. _pyright: https://github.com/microsoft/pyright
+.. _mypy: http://mypy-lang.org/
 
 awscli
 ------
