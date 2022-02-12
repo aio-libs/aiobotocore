@@ -176,6 +176,7 @@ Install `types-aiobotocore` that contains type annotations for `aiobotocore`
 and all supported `boto3` services. 
 
 .. code:: bash
+
     # install aiobotocore type annotations
     # for ec2, s3, rds, lambda, sqs, dynamo and cloudformation
     python -m pip install 'types-aiobotocore[essential]'
@@ -193,6 +194,7 @@ as well as IntelliSense in your IDE.
 For `types-aiobotocore-lite` package use explicit type annotations:
 
 .. code:: python
+
     from aiobotocore.session import get_session
     from types_aiobotocore_s3.client import S3Client
 
