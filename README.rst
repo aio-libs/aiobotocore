@@ -168,6 +168,43 @@ Execute tests suite:
     $ py.test -v tests
 
 
+
+Enable type checking and code completion
+----------------------------------------
+
+Install `types-aiobotocore` that contains type annotations for `aiobotocore`
+and all supported `boto3` services. 
+
+.. code:: bash
+    # install aiobotocore type annotations
+    # for ec2, s3, rds, lambda, sqs, dynamo and cloudformation
+    python -m pip install 'types-aiobotocore[essential]'
+
+    # or install annotations for services you use
+    python -m pip install 'types-aiobotocore[acm,apigateway]'
+
+    # Lite version does not provide session.create_client overloads
+    # it is more RAM-friendly, but requires explicit type annotations
+    python -m pip install 'types-aiobotocore-lite[essential]'
+
+Now you should be able to run `Pylance`, `pyright` or `mypy` for type checking
+as well as IntelliSense in your IDE.
+
+For `types-aiobotocore-lite` package use explicit type annotations:
+
+.. code:: python
+    from aiobotocore.session import get_session
+    from types_aiobotocore_s3.client import S3Client
+
+    session = get_session()
+    async with session.create_client("s3") as client:
+        client: S3Client
+        # type checking and code completion is now enabled for client
+
+
+Full documentation for `types-aiobotocore` can be found here: https://vemel.github.io/types_aiobotocore_docs/
+
+
 Mailing List
 ------------
 
