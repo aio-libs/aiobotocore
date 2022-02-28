@@ -168,6 +168,45 @@ Execute tests suite:
     $ py.test -v tests
 
 
+
+Enable type checking and code completion
+----------------------------------------
+
+Install types-aiobotocore_ that contains type annotations for `aiobotocore`
+and all supported botocore_ services. 
+
+.. code:: bash
+
+    # install aiobotocore type annotations
+    # for ec2, s3, rds, lambda, sqs, dynamo and cloudformation
+    python -m pip install 'types-aiobotocore[essential]'
+
+    # or install annotations for services you use
+    python -m pip install 'types-aiobotocore[acm,apigateway]'
+
+    # Lite version does not provide session.create_client overloads
+    # it is more RAM-friendly, but requires explicit type annotations
+    python -m pip install 'types-aiobotocore-lite[essential]'
+
+Now you should be able to run Pylance_, pyright_, or mypy_ for type checking
+as well as code completion in your IDE.
+
+For `types-aiobotocore-lite` package use explicit type annotations:
+
+.. code:: python
+
+    from aiobotocore.session import get_session
+    from types_aiobotocore_s3.client import S3Client
+
+    session = get_session()
+    async with session.create_client("s3") as client:
+        client: S3Client
+        # type checking and code completion is now enabled for client
+
+
+Full documentation for `types-aiobotocore` can be found here: https://vemel.github.io/types_aiobotocore_docs/
+
+
 Mailing List
 ------------
 
@@ -184,6 +223,10 @@ Requirements
 .. _asyncio: https://docs.python.org/3/library/asyncio.html
 .. _botocore: https://github.com/boto/botocore
 .. _aiohttp: https://github.com/aio-libs/aiohttp
+.. _types-aiobotocore: https://vemel.github.io/types_aiobotocore_docs/
+.. _Pylance: https://marketplace.visualstudio.com/items?itemName=ms-python.vscode-pylance
+.. _pyright: https://github.com/microsoft/pyright
+.. _mypy: http://mypy-lang.org/
 
 awscli
 ------
