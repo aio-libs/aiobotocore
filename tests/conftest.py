@@ -40,7 +40,7 @@ def random_name():
     The string contains only symbols allowed for s3 buckets
     (alphanumeric, dot and hyphen).
     """
-    return ''.join(random.sample(string.ascii_letters, k=40))
+    return ''.join(random.sample(string.ascii_lowercase, k=26))
 
 
 def assert_status_code(response, status_code):
