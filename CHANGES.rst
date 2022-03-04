@@ -1,5 +1,9 @@
 Changes
 -------
+2.1.2 (2022-03-03)
+^^^^^^^^^^^^^^^^^^
+* fix httpsession close call
+
 2.1.1 (2022-02-10)
 ^^^^^^^^^^^^^^^^^^
 * implement asynchronous non-blocking adaptive retry strategy

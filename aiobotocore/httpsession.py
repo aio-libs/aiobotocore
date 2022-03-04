@@ -106,10 +106,10 @@ class AIOHTTPSession:
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         if self._session:
             await self._session.__aexit__(exc_type, exc_val, exc_tb)
+            self._session = None
 
     async def close(self):
-        await self._session.__aexit__(None, None, None)
-        self._session = None
+        await self.__aexit__(None, None, None)
 
     def _get_ssl_context(self):
         ssl_context = create_urllib3_context()
