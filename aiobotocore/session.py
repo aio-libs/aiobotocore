@@ -132,7 +132,7 @@ class AioSession(Session):
             smart_defaults_factory = self._get_internal_component(
                 'smart_defaults_factory')
             config_store = copy.deepcopy(config_store)
-            smart_defaults_factory.merge_smart_defaults(
+            await smart_defaults_factory.merge_smart_defaults(
                 config_store, defaults_mode, region_name)
         client_creator = AioClientCreator(
             loader, endpoint_resolver, self.user_agent(), event_emitter,
