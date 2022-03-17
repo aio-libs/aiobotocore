@@ -190,7 +190,7 @@ class AIOHTTPSession:
             raise ConnectTimeoutError(endpoint_url=request.url, error=e)
         except asyncio.TimeoutError as e:
             raise ReadTimeoutError(endpoint_url=request.url, error=e)
-        except ServerDisconnectedError as e:
+        except (ServerDisconnectedError, aiohttp.ClientPayloadError) as e:
             raise ConnectionClosedError(
                 error=e,
                 request=request,

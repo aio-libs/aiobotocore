@@ -4,6 +4,7 @@ Changes
 ^^^^^^^^^^^^^^^^^^
 * remove deprecated APIs
 * bump to botocore 1.24.21
+* re-enable retry of aiohttp.ClientPayloadError
 
 2.1.2 (2022-03-03)
 ^^^^^^^^^^^^^^^^^^
