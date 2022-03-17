@@ -44,7 +44,6 @@ async def test_retry(session: AioSession, caplog: LogCaptureFixture, monkeypatch
             endpoint_url='http://localhost:7878') as client:
 
         # this needs the new style exceptions to work
-        monkeypatch.setattr(httpsession, 'DEPRECATED_1_4_0_APIS', 0)
         with pytest.raises(httpsession.EndpointConnectionError):
             await client.get_object(Bucket='foo', Key='bar')
 

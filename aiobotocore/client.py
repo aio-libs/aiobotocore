@@ -1,6 +1,7 @@
 from botocore.awsrequest import prepare_request_dict
 from botocore.client import logger, PaginatorDocstring, ClientCreator, \
-    BaseClient, ClientEndpointBridge, S3ArnParamHandler, S3EndpointSetter
+    BaseClient, ClientEndpointBridge, S3ArnParamHandler, S3EndpointSetter, \
+    resolve_checksum_context, apply_request_checksum
 from botocore.discovery import block_endpoint_discovery_required_operations
 from botocore.exceptions import OperationNotPageableError
 from botocore.history import get_global_history_recorder
@@ -196,6 +197,7 @@ class AioBaseClient(BaseClient):
         }
         request_dict = await self._convert_to_request_dict(
             api_params, operation_model, context=request_context)
+        resolve_checksum_context(request_dict, operation_model, api_params)
 
         service_id = self._service_model.service_id.hyphenize()
         handler, event_response = await self.meta.events.emit_until_response(
@@ -208,6 +210,7 @@ class AioBaseClient(BaseClient):
         if event_response is not None:
             http, parsed_response = event_response
         else:
+            apply_request_checksum(request_dict)
             http, parsed_response = await self._make_request(
                 operation_model, request_dict, request_context)
 

@@ -1,5 +1,10 @@
 Changes
 -------
+2.2.0 (2022-03-16)
+^^^^^^^^^^^^^^^^^^
+* remove deprecated APIs
+* bump to botocore 1.24.21
+
 2.1.2 (2022-03-03)
 ^^^^^^^^^^^^^^^^^^
 * fix httpsession close call

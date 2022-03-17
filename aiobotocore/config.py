@@ -5,7 +5,6 @@ from botocore.exceptions import ParamValidationError
 
 
 class AioConfig(botocore.client.Config):
-
     def __init__(self, connector_args=None, **kwargs):
         super().__init__(**kwargs)
 
