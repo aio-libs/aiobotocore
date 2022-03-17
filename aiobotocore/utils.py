@@ -6,7 +6,8 @@ import aiohttp
 import aiohttp.client_exceptions
 from botocore.utils import ContainerMetadataFetcher, InstanceMetadataFetcher, \
     IMDSFetcher, get_environ_proxies, BadIMDSRequestError, S3RegionRedirector, \
-    ClientError
+    ClientError, InstanceMetadataRegionFetcher, IMDSRegionProvider, \
+    resolve_imds_endpoint_mode
 from botocore.exceptions import (
     InvalidIMDSEndpointError, MetadataRetrievalError,
 )
@@ -32,7 +33,7 @@ class AioIMDSFetcher(IMDSFetcher):
 
     async def _fetch_metadata_token(self):
         self._assert_enabled()
-        url = self._base_url + self._TOKEN_PATH
+        url = self._construct_url(self._TOKEN_PATH)
         headers = {
             'x-aws-ec2-metadata-token-ttl-seconds': self._TOKEN_TTL,
         }
@@ -74,7 +75,7 @@ class AioIMDSFetcher(IMDSFetcher):
         self._assert_enabled()
         if retry_func is None:
             retry_func = self._default_retry
-        url = self._base_url + url_path
+        url = self._construct_url(url_path)
         headers = {}
         if token is not None:
             headers['x-aws-ec2-metadata-token'] = token
@@ -140,6 +141,62 @@ class AioInstanceMetadataFetcher(AioIMDSFetcher, InstanceMetadataFetcher):
             token=token
         )
         return json.loads(r.text)
+
+
+class AioIMDSRegionProvider(IMDSRegionProvider):
+    async def provide(self):
+        """Provide the region value from IMDS."""
+        instance_region = await self._get_instance_metadata_region()
+        return instance_region
+
+    async def _get_instance_metadata_region(self):
+        fetcher = self._get_fetcher()
+        region = await fetcher.retrieve_region()
+        return region
+
+    def _create_fetcher(self):
+        metadata_timeout = self._session.get_config_variable(
+            'metadata_service_timeout')
+        metadata_num_attempts = self._session.get_config_variable(
+            'metadata_service_num_attempts')
+        imds_config = {
+            'ec2_metadata_service_endpoint': self._session.get_config_variable(
+                'ec2_metadata_service_endpoint'),
+            'ec2_metadata_service_endpoint_mode': resolve_imds_endpoint_mode(
+                self._session
+            )
+        }
+        fetcher = AioInstanceMetadataRegionFetcher(
+            timeout=metadata_timeout,
+            num_attempts=metadata_num_attempts,
+            env=self._environ,
+            user_agent=self._session.user_agent(),
+            config=imds_config,
+        )
+        return fetcher
+
+
+class AioInstanceMetadataRegionFetcher(AioIMDSFetcher, InstanceMetadataRegionFetcher):
+    async def retrieve_region(self):
+        try:
+            region = await self._get_region()
+            return region
+        except self._RETRIES_EXCEEDED_ERROR_CLS:
+            logger.debug("Max number of attempts exceeded (%s) when "
+                         "attempting to retrieve data from metadata service.",
+                         self._num_attempts)
+        return None
+
+    async def _get_region(self):
+        token = await self._fetch_metadata_token()
+        response = await self._get_request(
+            url_path=self._URL_PATH,
+            retry_func=self._default_retry,
+            token=token
+        )
+        availability_zone = response.text
+        region = availability_zone[:-1]
+        return region
 
 
 class AioS3RegionRedirector(S3RegionRedirector):

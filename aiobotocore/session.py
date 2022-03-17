@@ -1,4 +1,5 @@
-from botocore.session import Session, EVENT_ALIASES, ServiceModel, UnknownServiceError
+from botocore.session import Session, EVENT_ALIASES, ServiceModel, \
+    UnknownServiceError, copy
 
 from botocore import UNSIGNED
 from botocore import retryhandler, translate
@@ -16,7 +17,9 @@ from botocore.signers import \
     add_generate_presigned_url as boto_add_generate_presigned_url, \
     add_generate_presigned_post as boto_add_generate_presigned_post, \
     add_generate_db_auth_token as boto_add_generate_db_auth_token
+from .configprovider import AioSmartDefaultsConfigStoreFactory
 from .credentials import create_credential_resolver, AioCredentials
+from .utils import AioIMDSRegionProvider
 
 
 _HANDLER_MAPPING = {
@@ -60,6 +63,16 @@ class AioSession(Session):
     def _register_response_parser_factory(self):
         self._components.register_component('response_parser_factory',
                                             AioResponseParserFactory())
+
+    def _register_smart_defaults_factory(self):
+        def create_smart_defaults_factory():
+            default_config_resolver = self._get_internal_component(
+                'default_config_resolver')
+            imds_region_provider = AioIMDSRegionProvider(session=self)
+            return AioSmartDefaultsConfigStoreFactory(
+                default_config_resolver, imds_region_provider)
+        self._internal_components.lazy_register_component(
+            'smart_defaults_factory', create_smart_defaults_factory)
 
     def create_client(self, *args, **kwargs):
         return ClientCreatorContext(self._create_client(*args, **kwargs))
@@ -114,6 +127,13 @@ class AioSession(Session):
         endpoint_resolver = self._get_internal_component('endpoint_resolver')
         exceptions_factory = self._get_internal_component('exceptions_factory')
         config_store = self.get_component('config_store')
+        defaults_mode = self._resolve_defaults_mode(config, config_store)
+        if defaults_mode != 'legacy':
+            smart_defaults_factory = self._get_internal_component(
+                'smart_defaults_factory')
+            config_store = copy.deepcopy(config_store)
+            await smart_defaults_factory.merge_smart_defaults(
+                config_store, defaults_mode, region_name)
         client_creator = AioClientCreator(
             loader, endpoint_resolver, self.user_agent(), event_emitter,
             retryhandler, translate, response_parser_factory,

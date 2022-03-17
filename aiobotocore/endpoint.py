@@ -4,7 +4,7 @@ import asyncio
 import aiohttp.http_exceptions
 from botocore.endpoint import EndpointCreator, Endpoint, DEFAULT_TIMEOUT, \
     MAX_POOL_CONNECTIONS, logger, history_recorder, create_request_object, \
-    is_valid_ipv6_endpoint_url, is_valid_endpoint_url
+    is_valid_ipv6_endpoint_url, is_valid_endpoint_url, handle_checksum_body
 from botocore.exceptions import ConnectionClosedError
 from botocore.hooks import first_non_none_response
 from urllib3.response import HTTPHeaderDict
@@ -74,6 +74,8 @@ class AioEndpoint(Endpoint):
 
     async def _send_request(self, request_dict, operation_model):
         attempts = 1
+        context = request_dict['context']
+        self._update_retries_context(context, attempts)
         request = await self.create_request(request_dict, operation_model)
         context = request_dict['context']
         success_response, exception = await self._get_response(
@@ -82,6 +84,9 @@ class AioEndpoint(Endpoint):
                                       request_dict, success_response,
                                       exception):
             attempts += 1
+            self._update_retries_context(
+                context, attempts, success_response
+            )
             # If there is a stream associated with the request, we need
             # to reset it before attempting to send the request again.
             # This will ensure that we resend the entire contents of the
@@ -109,7 +114,7 @@ class AioEndpoint(Endpoint):
         # If an exception occurs then the success_response is None.
         # If no exception occurs then exception is None.
         success_response, exception = await self._do_get_response(
-            request, operation_model)
+            request, operation_model, context)
         kwargs_to_emit = {
             'response_dict': None,
             'parsed_response': None,
@@ -127,7 +132,7 @@ class AioEndpoint(Endpoint):
                 service_id, operation_model.name), **kwargs_to_emit)
         return success_response, exception
 
-    async def _do_get_response(self, request, operation_model):
+    async def _do_get_response(self, request, operation_model, context):
         try:
             logger.debug("Sending http request: %s", request)
             history_recorder.record('HTTP_REQUEST', {
@@ -160,6 +165,9 @@ class AioEndpoint(Endpoint):
         # This returns the http_response and the parsed_data.
         response_dict = await convert_to_response_dict(http_response,
                                                        operation_model)
+        handle_checksum_body(
+            http_response, response_dict, context, operation_model,
+        )
 
         http_response_record_dict = response_dict.copy()
         http_response_record_dict['streaming'] = \

@@ -86,6 +86,7 @@ class AioJSONParser(JSONParser):
             headers = response['headers']
             response_metadata['HTTPHeaders'] = lowercase_dict(headers)
             parsed['ResponseMetadata'] = response_metadata
+            self._add_checksum_response_metadata(response, response_metadata)
         return parsed
 
 

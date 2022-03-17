@@ -13,6 +13,7 @@ from aiohttp.client import ClientResponse
 import botocore
 from botocore.args import ClientArgsCreator
 from botocore.client import ClientCreator, BaseClient, Config
+from botocore.configprovider import SmartDefaultsConfigStoreFactory
 from botocore.endpoint import convert_to_response_dict, Endpoint, \
     EndpointCreator
 from botocore.paginate import PageIterator, ResultKeyIterator
@@ -29,7 +30,8 @@ from botocore.signers import RequestSigner, add_generate_presigned_url, \
     generate_presigned_post, generate_db_auth_token, add_generate_db_auth_token
 from botocore.hooks import EventAliaser, HierarchicalEmitter
 from botocore.utils import ContainerMetadataFetcher, IMDSFetcher, \
-    InstanceMetadataFetcher, S3RegionRedirector
+    InstanceMetadataFetcher, S3RegionRedirector, InstanceMetadataRegionFetcher, \
+    IMDSRegionProvider
 from botocore.credentials import Credentials, RefreshableCredentials, \
     CachedCredentialFetcher, AssumeRoleCredentialFetcher, EnvProvider, \
     ContainerProvider, InstanceMetadataProvider, ProfileProviderBuilder, \
@@ -94,7 +96,7 @@ _API_DIGESTS = {
     ClientCreator._register_v2_adaptive_retries:
         {'665ecd77d36a5abedffb746d83a44bb0a64c660a'},
 
-    BaseClient._make_api_call: {'0c59329d4c8a55b88250b512b5e69239c42246fb'},
+    BaseClient._make_api_call: {'6517c7ead41bf0c70f38bb70666bffd21835ed72'},
     BaseClient._make_request: {'033a386f7d1025522bea7f2bbca85edc5c8aafd2'},
     BaseClient._convert_to_request_dict: {'0071c2a37c3c696d9b0fba5f54b2985489c76b78'},
     BaseClient._emit_api_params: {'2bfadaaa70671b63c50b1beed6d6c66e85813e9b'},
@@ -104,7 +106,7 @@ _API_DIGESTS = {
 
     # config.py
     Config.merge: {'c3dd8c3ffe0da86953ceba4a35267dfb79c6a2c8'},
-    Config: {'05ad5de7db3910654b0ded39874552aaf29c4e1d'},
+    Config: {'1fb5fb546abe4970c98560b9f869339322930cdc'},
 
     # credentials.py
     create_mfa_serial_refresher: {'180b81fc40c91d1cf40de1a28e32ae7d601e1d50'},
@@ -201,13 +203,19 @@ _API_DIGESTS = {
     create_credential_resolver: {'177ad331d4b527b9aae765d90e2f17badefeb4a8'},
     get_credentials: {'ff0c735a388ac8dd7fe300a32c1e36cdf33c0f56'},
 
+    # configprovider.py
+    SmartDefaultsConfigStoreFactory.merge_smart_defaults:
+        {'e1049d34cba3197b4e70dabbbe59e17686fa90f9'},
+    SmartDefaultsConfigStoreFactory.resolve_auto_mode:
+        {'61e749ec045bb0c670bcbc9846b4cfc16cde5718'},
+
     # endpoint.py
     convert_to_response_dict: {'2c73c059fa63552115314b079ae8cbf5c4e78da0'},
 
     Endpoint.create_request: {'4ccc14de2fd52f5c60017e55ff8e5b78bbaabcec'},
-    Endpoint._send_request: {'5591e6609c138ea7a16298390f4952aac1fbe962'},
-    Endpoint._get_response: {'46c3a8cb4ff7672b75193ce5571dbea48aa9da75'},
-    Endpoint._do_get_response: {'0bc57fbacf3c49ec5cd243b014d531a38b9b4138'},
+    Endpoint._send_request: {'214fa3a0e72f3877cef915c8429d40729775f0cf'},
+    Endpoint._get_response: {'6803c16fb6576ea18d9e3d8ffb2e9f3874d9b8ee'},
+    Endpoint._do_get_response: {'91370e4a034ec61fa8090fe9442cfafe9b63c6cc'},
     Endpoint._needs_retry: {'0f40f52d8c90c6e10b4c9e1c4a5ca00ef2c72850'},
     Endpoint._send: {'644c7e5bb88fecaa0b2a204411f8c7e69cc90bf1'},
     Endpoint._add_modeled_error_fields: {'1eefcfacbe9a2c3700c61982e565ce6c4cf1ea3a'},
@@ -240,19 +248,22 @@ _API_DIGESTS = {
     JSONParser._create_event_stream: {'0564ba55383a71cc1ba3e5be7110549d7e9992f5'},
     JSONParser._do_parse: {'9c3d5832e6c55a87630128cc8b9121579ef4a708'},
     JSONParser._handle_event_stream: {'3cf7bb1ecff0d72bafd7e7fd6625595b4060abd6'},
-    JSONParser.parse: {'46e9e8ecf2ca3a9cdddbb40825cb58fb246b28f1'},
+
+    # NOTE: if this hits we need to change our ResponseParser impl in JSONParser
+    JSONParser.parse: {'38231a2fffddfa6e91c56c2a01134459e365beb3'},
+
     RestJSONParser._create_event_stream: {'0564ba55383a71cc1ba3e5be7110549d7e9992f5'},
     create_parser: {'37e9f1c3b60de17f477a9b79eae8e1acaa7c89d7'},
 
     # response.py
-    StreamingBody: {'0c52037e7b46dc2be5fc08fe572fbb2fe280e0af'},
+    StreamingBody: {'a177edffd0c4ec72f1bb4b9e09ea33bc6d37b248'},
     get_response: {'f31b478792a5e0502f142daca881b69955e5c11d'},
 
     # session.py
     Session.__init__: {'ccf156a76beda3425fb54363f3b2718dc0445f6d'},
     Session._register_response_parser_factory:
         {'d6cd5a8b1b473b0ec3b71db5f621acfb12cc412c'},
-    Session.create_client: {'801d1b8942f89d3c497d857b280d48628878d1ed'},
+    Session.create_client: {'7e0c40c06d3fede4ebbd862f1d6e51118c4a1ff0'},
     Session._create_credential_resolver: {'87e98d201c72d06f7fbdb4ebee2dce1c09de0fb2'},
     Session.get_credentials: {'c0de970743b6b9dd91b5a71031db8a495fde53e4'},
     get_session: {'c47d588f5da9b8bde81ccc26eaef3aee19ddd901'},
@@ -260,6 +271,8 @@ _API_DIGESTS = {
     Session.get_service_model: {'1c8f93e6fb9913e859e43aea9bc2546edbea8365'},
     Session.get_available_regions: {'bc455d24d98fbc112ff22325ebfd12a6773cb7d4'},
     Session.register: {'39791fd2cffcea480f81e77c7daf3974581d9291'},
+    Session._register_smart_defaults_factory:
+        {'24ab10e4751ada800dde24d40d1d105be76a0a14'},
 
     # signers.py
     RequestSigner.handler: {'371909df136a0964ef7469a63d25149176c2b442'},
@@ -290,8 +303,8 @@ _API_DIGESTS = {
         {'7e5acdd2cf0167a047e3d5ee1439565a2f79f6a6'},
     # Overrided session and dealing with proxy support
     IMDSFetcher.__init__: {'a0766a5ba7dde9c26f3c51eb38d73f8e6087d492'},
-    IMDSFetcher._get_request: {'96a0e580cab5a21deb4d2cd7e904aa17d5e1e504'},
-    IMDSFetcher._fetch_metadata_token: {'dcb147f6c7a425ba9e30be8ad4818be4b781305c'},
+    IMDSFetcher._get_request: {'d06ba6890b94c819e79e27ac819454b28f704535'},
+    IMDSFetcher._fetch_metadata_token: {'c162c832ec24082cd2054945382d8dc6a1ec5e7b'},
 
     InstanceMetadataFetcher.retrieve_iam_role_credentials:
         {'76737f6add82a1b9a0dc590cf10bfac0c7026a2e'},
@@ -303,6 +316,16 @@ _API_DIGESTS = {
         {'f6f765431145a9bed8e73e6a3dbc7b0d6ae5f738'},
     S3RegionRedirector.get_bucket_region:
         {'b5bbc8b010576668dc2812d657c4b48af79e8f99'},
+    InstanceMetadataRegionFetcher.retrieve_region:
+        {'e916aeb4a28a265224a21006dce1d443cd1207c4'},
+    InstanceMetadataRegionFetcher._get_region:
+        {'73f8c60d21aae765db3a473a527c846e0108291f'},
+    IMDSRegionProvider.provide:
+        {'09d1b70bc1dd7a37cb9ffd437acd71283b9142e9'},
+    IMDSRegionProvider._get_instance_metadata_region:
+        {'4631ced79cff143de5d3fdf03cd69720778f141b'},
+    IMDSRegionProvider._create_fetcher:
+        {'28b711326769d03a282558066058cd85b1cb4568'},
 
     # waiter.py
     NormalizedOperationMethod.__call__: {'79723632d023739aa19c8a899bc2b814b8ab12ff'},
@@ -314,7 +337,7 @@ _API_DIGESTS = {
     inject_presigned_url_ec2: {'37fad2d9c53ca4f1783e32799fa8f70930f44c23'},
 
     # httpsession.py
-    URLLib3Session: {'021bdd55d5579d387eb7d1e77fa0e59a37cbaa7c'},
+    URLLib3Session: {'5adede4ba9d2a80e776bfeb71127656fafff91d7'},
 
     EndpointDiscoveryHandler.discover_endpoint:
         {'d87eff9008356a6aaa9b7078f23ba7a9ff0c7a60'},

@@ -1,5 +1,6 @@
 import asyncio
 
+import aiohttp
 import aiohttp.client_exceptions
 import wrapt
 from botocore.response import ResponseStreamingError, IncompleteReadError, \
@@ -25,7 +26,7 @@ class StreamingBody(wrapt.ObjectProxy):
 
     _DEFAULT_CHUNK_SIZE = 1024
 
-    def __init__(self, raw_stream, content_length):
+    def __init__(self, raw_stream: aiohttp.StreamReader, content_length: str):
         super().__init__(raw_stream)
         self._self_content_length = content_length
         self._self_amount_read = 0
@@ -39,9 +40,8 @@ class StreamingBody(wrapt.ObjectProxy):
 
     # NOTE: set_socket_timeout was only for when requests didn't support
     #       read timeouts, so not needed
-
-    def tell(self):
-        return self._self_amount_read
+    def readable(self):
+        return not self.at_eof()
 
     async def read(self, amt=None):
         """Read at most amt bytes from the stream.
@@ -65,6 +65,11 @@ class StreamingBody(wrapt.ObjectProxy):
             self._verify_content_length()
         return chunk
 
+    async def readlines(self):
+        # assuming this is not an iterator
+        lines = [line async for line in self.iter_lines()]
+        return lines
+
     def __aiter__(self):
         """Return an iterator to yield 1k chunks from the raw stream.
         """
@@ -80,7 +85,7 @@ class StreamingBody(wrapt.ObjectProxy):
 
     anext = __anext__
 
-    async def iter_lines(self, chunk_size=1024, keepends=False):
+    async def iter_lines(self, chunk_size=_DEFAULT_CHUNK_SIZE, keepends=False):
         """Return an iterator to yield lines from the raw stream.
 
         This is achieved by reading chunk of bytes (of size chunk_size) at a
@@ -114,6 +119,9 @@ class StreamingBody(wrapt.ObjectProxy):
             raise IncompleteReadError(
                 actual_bytes=self._self_amount_read,
                 expected_bytes=int(self._self_content_length))
+
+    def tell(self):
+        return self._self_amount_read
 
 
 async def get_response(operation_model, http_response):

@@ -7,21 +7,20 @@ from setuptools import setup, find_packages
 # NOTE: When updating botocore make sure to update awscli/boto3 versions below
 install_requires = [
     # pegged to also match items in `extras_require`
-    'botocore>=1.23.24,<1.23.25',
+    'botocore>=1.24.21,<1.24.22',
     'aiohttp>=3.3.1',
     'wrapt>=1.10.10',
     'aioitertools>=0.5.1',
 ]
 
+extras_require = {
+    'awscli': ['awscli>=1.22.76,<1.22.77'],
+    'boto3': ['boto3>=1.21.21,<1.21.22'],
+}
+
 
 def read(f):
     return open(os.path.join(os.path.dirname(__file__), f)).read().strip()
-
-
-extras_require = {
-    'awscli': ['awscli>=1.22.24,<1.22.25'],
-    'boto3': ['boto3>=1.20.24,<1.20.25'],
-}
 
 
 def read_version():
@@ -37,32 +36,32 @@ def read_version():
                            'aiobotocore/__init__.py')
 
 
-classifiers = [
-    'Intended Audience :: Developers',
-    'Intended Audience :: System Administrators',
-    'Programming Language :: Python :: 3',
-    'Programming Language :: Python :: 3.6',
-    'Programming Language :: Python :: 3.7',
-    'Programming Language :: Python :: 3.8',
-    'Programming Language :: Python :: 3.9',
-    'Environment :: Web Environment',
-    'Development Status :: 4 - Beta',
-    'Framework :: AsyncIO',
-]
-
-
 setup(
     name='aiobotocore',
     version=read_version(),
     description='Async client for aws services using botocore and aiohttp',
     long_description='\n\n'.join((read('README.rst'), read('CHANGES.rst'))),
     long_description_content_type='text/x-rst',
-    classifiers=classifiers,
+    classifiers=[
+        'Development Status :: 4 - Beta',
+        'Intended Audience :: Developers',
+        'Intended Audience :: System Administrators',
+        'Natural Language :: English',
+        'License :: OSI Approved :: Apache Software License',
+        'Programming Language :: Python :: 3',
+        'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
+        'Programming Language :: Python :: 3.9',
+        'Programming Language :: Python :: 3.10',
+        'Environment :: Web Environment',
+        'Framework :: AsyncIO',
+    ],
     author="Nikolay Novik",
     author_email="nickolainovik@gmail.com",
     url='https://github.com/aio-libs/aiobotocore',
     download_url='https://pypi.python.org/pypi/aiobotocore',
-    license='Apache 2',
+    license='Apache License 2.0',
     packages=find_packages(),
     python_requires='>=3.6',
     install_requires=install_requires,
