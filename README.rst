@@ -204,7 +204,7 @@ For `types-aiobotocore-lite` package use explicit type annotations:
         # type checking and code completion is now enabled for client
 
 
-Full documentation for `types-aiobotocore` can be found here: https://vemel.github.io/types_aiobotocore_docs/
+Full documentation for `types-aiobotocore` can be found here: https://youtype.github.io/types_aiobotocore_docs/
 
 
 Mailing List
@@ -223,7 +223,7 @@ Requirements
 .. _asyncio: https://docs.python.org/3/library/asyncio.html
 .. _botocore: https://github.com/boto/botocore
 .. _aiohttp: https://github.com/aio-libs/aiohttp
-.. _types-aiobotocore: https://vemel.github.io/types_aiobotocore_docs/
+.. _types-aiobotocore: https://youtype.github.io/types_aiobotocore_docs/
 .. _Pylance: https://marketplace.visualstudio.com/items?itemName=ms-python.vscode-pylance
 .. _pyright: https://github.com/microsoft/pyright
 .. _mypy: http://mypy-lang.org/
