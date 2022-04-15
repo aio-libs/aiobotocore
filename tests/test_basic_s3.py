@@ -76,10 +76,11 @@ async def test_can_delete_urlencoded_object(s3_client, bucket_name,
     assert len(bucket_contents) == 1
     assert bucket_contents[-1]['Key'] == 'a+b/foo'
 
-    resp = await s3_client.list_objects(Bucket=bucket_name, Prefix='a+b')
-    subdir_contents = resp['Contents']
-    assert len(subdir_contents) == 1
-    assert subdir_contents[0]['Key'] == 'a+b/foo'
+    # TODO: unfortunately this is broken now: https://github.com/spulec/moto/issues/5030
+    # resp = await s3_client.list_objects(Bucket=bucket_name, Prefix='a+b')
+    # subdir_contents = resp['Contents']
+    # assert len(subdir_contents) == 1
+    # assert subdir_contents[0]['Key'] == 'a+b/foo'
 
     response = await s3_client.delete_object(
         Bucket=bucket_name, Key=key_name)
