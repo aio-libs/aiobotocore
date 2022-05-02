@@ -40,7 +40,7 @@ def fake_aiohttp_session(responses: Union[List[Tuple[Union[str, object], int]],
             async def __aexit__(self, exc_type, exc_val, exc_tb):
                 pass
 
-            async def text(self, encoding):
+            async def text(self, encoding=None):
                 return self._body
 
             async def json(self):
