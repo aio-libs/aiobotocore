@@ -48,7 +48,7 @@ class AioIMDSFetcher(IMDSFetcher):
             for i in range(self._num_attempts):
                 try:
                     async with session.put(url, headers=headers) as resp:
-                        text = await resp.text()
+                        text = await resp.text(encoding='utf-8')
                         if resp.status == 200:
                             return text
                         elif resp.status in (404, 403, 405):
@@ -87,7 +87,7 @@ class AioIMDSFetcher(IMDSFetcher):
             for i in range(self._num_attempts):
                 try:
                     async with session.get(url, headers=headers) as resp:
-                        text = await resp.text()
+                        text = await resp.text(encoding='utf-8')
                         response = self.Response(resp.status, text, resp.url)
 
                     if not retry_func(response):
@@ -348,7 +348,7 @@ class AioContainerMetadataFetcher(ContainerMetadataFetcher):
             async with self._session(timeout=timeout) as session:
                 async with session.get(full_url, headers=headers) as resp:
                     if resp.status != 200:
-                        text = await resp.text()
+                        text = await resp.text(encoding='utf-8')
                         raise MetadataRetrievalError(
                             error_msg=(
                                           "Received non 200 response (%d) "
@@ -357,7 +357,7 @@ class AioContainerMetadataFetcher(ContainerMetadataFetcher):
                     try:
                         return await resp.json()
                     except ValueError:
-                        text = await resp.text()
+                        text = await resp.text(encoding='utf-8')
                         error_msg = (
                             "Unable to parse JSON returned from ECS metadata services"
                         )
