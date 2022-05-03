@@ -1,5 +1,9 @@
 Changes
 -------
+2.2.1 (2022-05-03)
+^^^^^^^^^^^^^^^^^^
+* AioConfig: allow keepalive_timeout to be None
+
 2.2.0 (2022-03-16)
 ^^^^^^^^^^^^^^^^^^
 * remove deprecated APIs
