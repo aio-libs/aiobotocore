@@ -462,4 +462,4 @@ class AioContainerMetadataFetcher(ContainerMetadataFetcher):
         except RETRYABLE_HTTP_ERRORS as e:
             error_msg = ("Received error when attempting to retrieve "
                          "ECS metadata: %s" % e)
-        raise MetadataRetrievalError(error_msg=error_msg)
+            raise MetadataRetrievalError(error_msg=error_msg)
