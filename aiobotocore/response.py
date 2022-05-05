@@ -134,12 +134,12 @@ async def get_response(operation_model, http_response):
     # If it looks like an error, in the streaming response case we
     # need to actually grab the contents.
     if response_dict['status_code'] >= 300:
-        response_dict['body'] = http_response.content
+        response_dict['body'] = await http_response.content
     elif operation_model.has_streaming_output:
         response_dict['body'] = StreamingBody(
             http_response.raw, response_dict['headers'].get('content-length'))
     else:
-        response_dict['body'] = http_response.content
+        response_dict['body'] = await http_response.content
 
     parser = parsers.create_parser(protocol)
     if asyncio.iscoroutinefunction(parser.parse):

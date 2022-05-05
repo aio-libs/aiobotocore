@@ -2,6 +2,7 @@ import asyncio
 import logging
 import json
 from contextlib import asynccontextmanager, AsyncExitStack
+import inspect
 
 import aiohttp.client_exceptions
 from botocore.utils import ContainerMetadataFetcher, InstanceMetadataFetcher, \
@@ -110,14 +111,48 @@ class AioIMDSFetcher(IMDSFetcher):
                     request = botocore.awsrequest.AWSRequest(
                         method='GET', url=url, headers=headers)
                     response = await session.send(request.prepare())
-                    # TODO: we need to do the async piping so we don't need to do this
-                    if not retry_func(await response.to_sync()):
+                    should_retry = retry_func(response)
+                    if inspect.isawaitable(should_retry):
+                        should_retry = await should_retry
+
+                    if not should_retry:
                         return response
                 except RETRYABLE_HTTP_ERRORS as e:
                     logger.debug(
                         "Caught retryable HTTP exception while making metadata "
                         "service request to %s: %s", url, e, exc_info=True)
         raise self._RETRIES_EXCEEDED_ERROR_CLS()
+
+    async def _default_retry(self, response):
+        return (
+                await self._is_non_ok_response(response) or
+                await self._is_empty(response)
+        )
+
+    async def _is_non_ok_response(self, response):
+        if response.status_code != 200:
+            await self._log_imds_response(response, 'non-200', log_body=True)
+            return True
+        return False
+
+    async def _is_empty(self, response):
+        if not await response.content:
+            await self._log_imds_response(response, 'no body', log_body=True)
+            return True
+        return False
+
+    async def _log_imds_response(self, response, reason_to_log, log_body=False):
+        statement = (
+            "Metadata service returned %s response "
+            "with status code of %s for url: %s"
+        )
+        logger_args = [
+            reason_to_log, response.status_code, response.url
+        ]
+        if log_body:
+            statement += ", content body: %s"
+            logger_args.append(await response.content)
+        logger.debug(statement, *logger_args)
 
 
 class AioInstanceMetadataFetcher(AioIMDSFetcher, InstanceMetadataFetcher):
@@ -162,6 +197,26 @@ class AioInstanceMetadataFetcher(AioIMDSFetcher, InstanceMetadataFetcher):
         )
         return json.loads(await r.text)
 
+    async def _is_invalid_json(self, response):
+        try:
+            json.loads(await response.text)
+            return False
+        except ValueError:
+            await self._log_imds_response(response, 'invalid json')
+            return True
+
+    async def _needs_retry_for_role_name(self, response):
+        return (
+                await self._is_non_ok_response(response) or
+                await self._is_empty(response)
+        )
+
+    async def _needs_retry_for_credentials(self, response):
+        return (
+                await self._is_non_ok_response(response) or
+                await self._is_empty(response) or
+                await self._is_invalid_json(response)
+        )
 
 class AioIMDSRegionProvider(IMDSRegionProvider):
     async def provide(self):

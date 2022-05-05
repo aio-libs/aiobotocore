@@ -37,8 +37,3 @@ class AioAWSResponse(AWSResponse):
     @property
     def text(self):
         return self._text_prop()
-
-    async def to_sync(self):
-        r = AWSResponse(self.url, self.status_code, self.headers, self.raw)
-        r._content = await self.content
-        return r

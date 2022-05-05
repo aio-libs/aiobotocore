@@ -6,7 +6,8 @@ from typing import Dict, Optional
 
 import aiohttp  # lgtm [py/import-and-import-from]
 from aiohttp import ClientSSLError, ClientConnectorError, ClientProxyConnectionError, \
-    ClientHttpProxyError, ServerTimeoutError, ServerDisconnectedError
+    ClientHttpProxyError, ServerTimeoutError, ServerDisconnectedError, \
+    ClientConnectionError
 from aiohttp.client import URL
 from multidict import MultiDict
 
@@ -197,20 +198,21 @@ class AIOHTTPSession:
             return http_response
         except ClientSSLError as e:
             raise SSLError(endpoint_url=request.url, error=e)
-        except (ClientConnectorError, socket.gaierror) as e:
-            raise EndpointConnectionError(endpoint_url=request.url, error=e)
         except (ClientProxyConnectionError, ClientHttpProxyError) as e:
             raise ProxyConnectionError(proxy_url=mask_proxy_url(proxy_url), error=e)
-        except ServerTimeoutError as e:
-            raise ConnectTimeoutError(endpoint_url=request.url, error=e)
-        except asyncio.TimeoutError as e:
-            raise ReadTimeoutError(endpoint_url=request.url, error=e)
-        except (ServerDisconnectedError, aiohttp.ClientPayloadError) as e:
+        except (ServerDisconnectedError, aiohttp.ClientPayloadError,
+                aiohttp.http_exceptions.BadStatusLine) as e:
             raise ConnectionClosedError(
                 error=e,
                 request=request,
                 endpoint_url=request.url
             )
+        except (ClientConnectorError, ClientConnectionError, socket.gaierror) as e:
+            raise EndpointConnectionError(endpoint_url=request.url, error=e)
+        except ServerTimeoutError as e:
+            raise ConnectTimeoutError(endpoint_url=request.url, error=e)
+        except asyncio.TimeoutError as e:
+            raise ReadTimeoutError(endpoint_url=request.url, error=e)
         except Exception as e:
             message = 'Exception received when sending urllib3 HTTP request'
             logger.debug(message, exc_info=True)

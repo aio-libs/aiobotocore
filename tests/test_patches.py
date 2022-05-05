@@ -40,12 +40,14 @@ from botocore.credentials import Credentials, RefreshableCredentials, \
     CanonicalNameCredentialSourcer, BotoProvider, OriginalEC2Provider, \
     create_credential_resolver, get_credentials, create_mfa_serial_refresher, \
     AssumeRoleWithWebIdentityCredentialFetcher, SSOCredentialFetcher, SSOProvider
-from botocore.handlers import inject_presigned_url_ec2, inject_presigned_url_rds
+from botocore.handlers import inject_presigned_url_ec2, inject_presigned_url_rds, \
+    parse_get_bucket_location, check_for_200_error, _looks_like_special_case_error
 from botocore.httpsession import URLLib3Session
 from botocore.discovery import EndpointDiscoveryManager, EndpointDiscoveryHandler
 from botocore.retries.adaptive import ClientRateLimiter, register_retry_handler
 from botocore.retries.bucket import TokenBucket
 from botocore.awsrequest import AWSResponse
+from botocore.httpchecksum import handle_checksum_body, _handle_bytes_response
 
 
 # This file ensures that our private patches will work going forward.  If a
@@ -306,6 +308,10 @@ _API_DIGESTS = {
     IMDSFetcher.__init__: {'a0766a5ba7dde9c26f3c51eb38d73f8e6087d492'},
     IMDSFetcher._get_request: {'d06ba6890b94c819e79e27ac819454b28f704535'},
     IMDSFetcher._fetch_metadata_token: {'c162c832ec24082cd2054945382d8dc6a1ec5e7b'},
+    IMDSFetcher._default_retry: {''},
+    IMDSFetcher._is_non_ok_response: {''},
+    IMDSFetcher._is_empty: {''},
+    IMDSFetcher._log_imds_response: {''},
 
     InstanceMetadataFetcher.retrieve_iam_role_credentials:
         {'76737f6add82a1b9a0dc590cf10bfac0c7026a2e'},
@@ -313,6 +319,10 @@ _API_DIGESTS = {
         {'80073d7adc9fb604bc6235af87241f5efc296ad7'},
     InstanceMetadataFetcher._get_credentials:
         {'1a64f59a3ca70b83700bd14deeac25af14100d58'},
+    InstanceMetadataFetcher._is_invalid_json: {''},
+    InstanceMetadataFetcher._needs_retry_for_role_name: {''},
+    InstanceMetadataFetcher._needs_retry_for_credentials: {''},
+
     S3RegionRedirector.redirect_from_error:
         {'f6f765431145a9bed8e73e6a3dbc7b0d6ae5f738'},
     S3RegionRedirector.get_bucket_region:
@@ -336,6 +346,9 @@ _API_DIGESTS = {
     # handlers.py
     inject_presigned_url_rds: {'5a34e1666d84f6229c54a59bffb69d46e8117b3a'},
     inject_presigned_url_ec2: {'37fad2d9c53ca4f1783e32799fa8f70930f44c23'},
+    parse_get_bucket_location: {''},
+    check_for_200_error: {''},
+    _looks_like_special_case_error: {''},
 
     # httpsession.py
     URLLib3Session: {'5adede4ba9d2a80e776bfeb71127656fafff91d7'},
@@ -361,6 +374,10 @@ _API_DIGESTS = {
     # awsresponse
     AWSResponse.content: {''},
     AWSResponse.text: {''},
+
+    # httpchecksum
+    handle_checksum_body: {''},
+    _handle_bytes_response: {''},
 }
 
 

@@ -1,17 +1,15 @@
-import aiohttp
 import asyncio
 
-import aiohttp.http_exceptions
 from botocore.endpoint import EndpointCreator, Endpoint, DEFAULT_TIMEOUT, \
     MAX_POOL_CONNECTIONS, logger, history_recorder, create_request_object, \
-    is_valid_ipv6_endpoint_url, is_valid_endpoint_url, handle_checksum_body
-from botocore.exceptions import ConnectionClosedError
+    is_valid_ipv6_endpoint_url, is_valid_endpoint_url, HTTPClientError
 from botocore.hooks import first_non_none_response
 from urllib3.response import HTTPHeaderDict
 
 from aiobotocore.httpsession import AIOHTTPSession
 from aiobotocore.response import StreamingBody
 from aiobotocore._endpoint_helpers import ClientResponseProxy  # noqa: F401, E501 lgtm [py/unused-import]
+from aiobotocore.httpchecksum import handle_checksum_body
 
 
 async def convert_to_response_dict(http_response, operation_model):
@@ -150,13 +148,8 @@ class AioEndpoint(Endpoint):
             http_response = first_non_none_response(responses)
             if http_response is None:
                 http_response = await self._send(request)
-        except aiohttp.ClientConnectionError as e:
-            e.request = request  # botocore expects the request property
+        except HTTPClientError as e:
             return None, e
-        except aiohttp.http_exceptions.BadStatusLine:
-            better_exception = ConnectionClosedError(
-                endpoint_url=request.url, request=request)
-            return None, better_exception
         except Exception as e:
             logger.debug("Exception received when sending HTTP request.",
                          exc_info=True)
@@ -165,7 +158,7 @@ class AioEndpoint(Endpoint):
         # This returns the http_response and the parsed_data.
         response_dict = await convert_to_response_dict(http_response,
                                                        operation_model)
-        handle_checksum_body(
+        await handle_checksum_body(
             http_response, response_dict, context, operation_model,
         )
 

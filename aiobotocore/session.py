@@ -1,22 +1,25 @@
 from botocore.session import Session, EVENT_ALIASES, ServiceModel, \
     UnknownServiceError, copy
-
 from botocore import UNSIGNED
 from botocore import retryhandler, translate
 from botocore.exceptions import PartialCredentialsError
+from botocore.handlers import \
+    inject_presigned_url_rds as boto_inject_presigned_url_rds, \
+    inject_presigned_url_ec2 as boto_inject_presigned_url_ec2, \
+    parse_get_bucket_location as boto_parse_get_bucket_location, \
+    check_for_200_error as boto_check_for_200_error
+from botocore.signers import \
+    add_generate_presigned_url as boto_add_generate_presigned_url, \
+    add_generate_presigned_post as boto_add_generate_presigned_post, \
+    add_generate_db_auth_token as boto_add_generate_db_auth_token
+
 from .client import AioClientCreator, AioBaseClient
 from .hooks import AioHierarchicalEmitter
 from .parsers import AioResponseParserFactory
 from .signers import add_generate_presigned_url, add_generate_presigned_post, \
     add_generate_db_auth_token
-from .handlers import inject_presigned_url_ec2, inject_presigned_url_rds
-from botocore.handlers import \
-    inject_presigned_url_rds as boto_inject_presigned_url_rds, \
-    inject_presigned_url_ec2 as boto_inject_presigned_url_ec2
-from botocore.signers import \
-    add_generate_presigned_url as boto_add_generate_presigned_url, \
-    add_generate_presigned_post as boto_add_generate_presigned_post, \
-    add_generate_db_auth_token as boto_add_generate_db_auth_token
+from .handlers import inject_presigned_url_ec2, inject_presigned_url_rds, \
+    parse_get_bucket_location, check_for_200_error
 from .configprovider import AioSmartDefaultsConfigStoreFactory
 from .credentials import create_credential_resolver, AioCredentials
 from .utils import AioIMDSRegionProvider
@@ -28,6 +31,8 @@ _HANDLER_MAPPING = {
     boto_add_generate_presigned_url: add_generate_presigned_url,
     boto_add_generate_presigned_post: add_generate_presigned_post,
     boto_add_generate_db_auth_token: add_generate_db_auth_token,
+    boto_parse_get_bucket_location: parse_get_bucket_location,
+    boto_check_for_200_error: check_for_200_error
 }
 
 
