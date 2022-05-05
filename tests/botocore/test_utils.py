@@ -15,8 +15,10 @@ from botocore.exceptions import ReadTimeoutError
 from aiobotocore import utils
 from aiobotocore.utils import AioInstanceMetadataFetcher
 from botocore.utils import MetadataRetrievalError, BadIMDSRequestError
+import botocore.awsrequest
 import yarl
-
+from tests.test_response import AsyncBytesIO
+from aiobotocore.awsrequest import AioAWSResponse
 
 # From class TestContainerMetadataFetcher
 def fake_aiohttp_session(responses: Union[List[Tuple[Union[str, object], int]],
@@ -130,7 +132,7 @@ async def test_containermetadatafetcher_retrieve_url_not_json():
 
 class TestInstanceMetadataFetcher(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
-        urllib3_session_send = 'aiohttp.ClientSession._request'
+        urllib3_session_send = 'aiobotocore.httpsession.AIOHTTPSession.send'
         self._urllib3_patch = mock.patch(urllib3_session_send)
         self._send = self._urllib3_patch.start()
         self._imds_responses = []
@@ -155,19 +157,14 @@ class TestInstanceMetadataFetcher(unittest.IsolatedAsyncioTestCase):
 
     def add_imds_response(self, body, status_code=200):
         loop = asyncio.get_running_loop()
-        url = yarl.URL('http://169.254.169.254/')
-        method = 'get'
-        response = ClientResponse(method, url,
-                                  request_info=RequestInfo(url, method, {}),
-                                  writer=mock.AsyncMock(),
-                                  continue100=None,
-                                  timer=TimerNoop(),
-                                  traces=[],
-                                  loop=loop,
-                                  session=mock.AsyncMock())
-        response.status = status_code
-        response._body = body
-        response._headers = {}
+
+        response = AioAWSResponse(
+            url='http://169.254.169.254/',
+            status_code=status_code,
+            headers={},
+            raw=AsyncBytesIO(body)
+        )
+
         self._imds_responses.append(response)
 
     def add_get_role_name_imds_response(self, role_name=None):
@@ -380,7 +377,7 @@ class TestInstanceMetadataFetcher(unittest.IsolatedAsyncioTestCase):
         # Check that subsequent calls after getting the token include the token.
         self.assertEqual(self._send.call_count, 3)
         for call in self._send.call_args_list[1:]:
-            self.assertEqual(call.kwargs['headers']['x-aws-ec2-metadata-token'],
+            self.assertEqual(call[0][0].headers['x-aws-ec2-metadata-token'],
                              'token')
         self.assertEqual(result, self._expected_creds)
 
@@ -396,7 +393,7 @@ class TestInstanceMetadataFetcher(unittest.IsolatedAsyncioTestCase):
             user_agent=user_agent).retrieve_iam_role_credentials()
 
         for call in self._send.call_args_list[1:]:
-            self.assertNotIn('x-aws-ec2-metadata-token', call.kwargs['headers'])
+            self.assertNotIn('x-aws-ec2-metadata-token', call[0][0].headers)
         self.assertEqual(result, self._expected_creds)
 
     @pytest.mark.moto
@@ -411,7 +408,7 @@ class TestInstanceMetadataFetcher(unittest.IsolatedAsyncioTestCase):
             user_agent=user_agent).retrieve_iam_role_credentials()
 
         for call in self._send.call_args_list[1:]:
-            self.assertNotIn('x-aws-ec2-metadata-token', call.kwargs['headers'])
+            self.assertNotIn('x-aws-ec2-metadata-token', call[0][0].headers)
         self.assertEqual(result, self._expected_creds)
 
     @pytest.mark.moto
@@ -426,7 +423,7 @@ class TestInstanceMetadataFetcher(unittest.IsolatedAsyncioTestCase):
             user_agent=user_agent).retrieve_iam_role_credentials()
 
         for call in self._send.call_args_list[1:]:
-            self.assertNotIn('x-aws-ec2-metadata-token', call.kwargs['headers'])
+            self.assertNotIn('x-aws-ec2-metadata-token', call[0][0].headers)
         self.assertEqual(result, self._expected_creds)
 
     @pytest.mark.moto
@@ -441,7 +438,7 @@ class TestInstanceMetadataFetcher(unittest.IsolatedAsyncioTestCase):
             user_agent=user_agent).retrieve_iam_role_credentials()
 
         for call in self._send.call_args_list[1:]:
-            self.assertNotIn('x-aws-ec2-metadata-token', call.kwargs['headers'])
+            self.assertNotIn('x-aws-ec2-metadata-token', call[0][0].headers)
         self.assertEqual(result, self._expected_creds)
 
     @pytest.mark.moto
@@ -456,7 +453,7 @@ class TestInstanceMetadataFetcher(unittest.IsolatedAsyncioTestCase):
             user_agent=user_agent).retrieve_iam_role_credentials()
 
         for call in self._send.call_args_list[1:]:
-            self.assertNotIn('x-aws-ec2-metadata-token', call.kwargs['headers'])
+            self.assertNotIn('x-aws-ec2-metadata-token', call[0][0].headers)
         self.assertEqual(result, self._expected_creds)
 
     @pytest.mark.moto
