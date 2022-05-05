@@ -96,8 +96,10 @@ _API_DIGESTS = {
     ClientCreator._register_retries: {'16d3064142e5f9e45b0094bbfabf7be30183f255'},
     ClientCreator._register_v2_adaptive_retries:
         {'665ecd77d36a5abedffb746d83a44bb0a64c660a'},
-    ClientCreator._register_v2_standard_retries: {'9ec4ff68599544b4f46067b3783287862d38fb50'},
-    ClientCreator._register_legacy_retries: {'7dbd1a9d045b3d4f5bf830664f17c7bc610ee3a3'},
+    ClientCreator._register_v2_standard_retries:
+        {'9ec4ff68599544b4f46067b3783287862d38fb50'},
+    ClientCreator._register_legacy_retries:
+        {'7dbd1a9d045b3d4f5bf830664f17c7bc610ee3a3'},
 
     BaseClient._make_api_call: {'6517c7ead41bf0c70f38bb70666bffd21835ed72'},
     BaseClient._make_request: {'033a386f7d1025522bea7f2bbca85edc5c8aafd2'},
@@ -235,7 +237,8 @@ _API_DIGESTS = {
     HierarchicalEmitter._emit: {'5d9a6b1aea1323667a9310e707a9f0a006f8f6e8'},
     HierarchicalEmitter.emit_until_response:
         {'23670e04e0b09a9575c7533442bca1b2972ade82'},
-    HierarchicalEmitter._verify_and_register: {'aa14572fd9d42b83793d4a9d61c680e37761d762'},
+    HierarchicalEmitter._verify_and_register:
+        {'aa14572fd9d42b83793d4a9d61c680e37761d762'},
 
     EventAliaser.emit_until_response: {'0d635bf7ae5022b1fdde891cd9a91cd4c449fd49'},
 
@@ -320,9 +323,12 @@ _API_DIGESTS = {
         {'80073d7adc9fb604bc6235af87241f5efc296ad7'},
     InstanceMetadataFetcher._get_credentials:
         {'1a64f59a3ca70b83700bd14deeac25af14100d58'},
-    InstanceMetadataFetcher._is_invalid_json: {'97818b51182a2507c99876a40155adda0451dd82'},
-    InstanceMetadataFetcher._needs_retry_for_role_name: {'0f1034c9de5be2d79a584e1e057b8df5b39f4514'},
-    InstanceMetadataFetcher._needs_retry_for_credentials: {'977be4286b42916779ade4c20472ec3a6a26c90d'},
+    InstanceMetadataFetcher._is_invalid_json:
+        {'97818b51182a2507c99876a40155adda0451dd82'},
+    InstanceMetadataFetcher._needs_retry_for_role_name:
+        {'0f1034c9de5be2d79a584e1e057b8df5b39f4514'},
+    InstanceMetadataFetcher._needs_retry_for_credentials:
+        {'977be4286b42916779ade4c20472ec3a6a26c90d'},
 
     S3RegionRedirector.redirect_from_error:
         {'f6f765431145a9bed8e73e6a3dbc7b0d6ae5f738'},
@@ -371,12 +377,15 @@ _API_DIGESTS = {
     standard.register_retry_handler: {'8d464a753335ce7457c5eea73e80d9a224fe7f21'},
     standard.RetryHandler.needs_retry: {'2dfc4c2d2efcd5ca00ae84ccdca4ab070d831e22'},
     standard.RetryPolicy.should_retry: {'b30eadcb94dadcdb90a5810cdeb2e3a0bc0c74c9'},
-    standard.StandardRetryConditions.__init__: {'82f00342fb50a681e431f07e63623ab3f1e39577'},
-    standard.StandardRetryConditions.is_retryable: {'4d14d1713bc2806c24b6797b2ec395a29c9b0453'},
+    standard.StandardRetryConditions.__init__:
+        {'82f00342fb50a681e431f07e63623ab3f1e39577'},
+    standard.StandardRetryConditions.is_retryable:
+        {'4d14d1713bc2806c24b6797b2ec395a29c9b0453'},
     standard.OrRetryChecker.is_retryable: {'5ef0b84b1ef3a49bc193d76a359dbd314682856b'},
 
     # retries/special.py
-    special.RetryDDBChecksumError.is_retryable: {'0769cca303874f8dce47dcc93980fa0841fbaab6'},
+    special.RetryDDBChecksumError.is_retryable:
+        {'0769cca303874f8dce47dcc93980fa0841fbaab6'},
 
     # retries/bucket.py
     # See comments in AsyncTokenBucket: we completely replace the TokenBucket
@@ -393,15 +402,20 @@ _API_DIGESTS = {
 
     # retryhandler.py
     retryhandler.create_retry_handler: {'fde9dfbc581f3d571f7bf9af1a966f0d28f6d89d'},
-    retryhandler.create_checker_from_retry_config: {'3022785da77b62e0df06f048da3bb627a2e59bd5'},
+    retryhandler.create_checker_from_retry_config:
+        {'3022785da77b62e0df06f048da3bb627a2e59bd5'},
     retryhandler._create_single_checker: {'517aaf8efda4bfe851d8dc024513973de1c5ffde'},
-    retryhandler._create_single_response_checker: {'f55d841e5afa5ebac6b883edf74a9d656415474b'},
+    retryhandler._create_single_response_checker:
+        {'f55d841e5afa5ebac6b883edf74a9d656415474b'},
     retryhandler.RetryHandler.__call__: {'0ff14b0e97db0d553e8b94a357c11187ca31ea5a'},
-    retryhandler.MaxAttemptsDecorator.__call__: {'d04ae8ff3ab82940bd7a5ffcd2aa27bf45a4817a'},
-    retryhandler.MaxAttemptsDecorator._should_retry: {'33af9b4af06372dc2a7985d6cbbf8dfbaee4be2a'},
+    retryhandler.MaxAttemptsDecorator.__call__:
+        {'d04ae8ff3ab82940bd7a5ffcd2aa27bf45a4817a'},
+    retryhandler.MaxAttemptsDecorator._should_retry:
+        {'33af9b4af06372dc2a7985d6cbbf8dfbaee4be2a'},
     retryhandler.MultiChecker.__call__: {'dae2cc32aae9fa0a527630db5c5d8db96d957633'},
     retryhandler.CRC32Checker.__call__: {'4f0b55948e05a9039dc0ba62c80eb341682b85ac'},
-    retryhandler.CRC32Checker._check_response: {'bc371df204ab7138e792b782e83473e6e9b7a620'},
+    retryhandler.CRC32Checker._check_response:
+        {'bc371df204ab7138e792b782e83473e6e9b7a620'},
 }
 
 

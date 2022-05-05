@@ -218,6 +218,7 @@ class AioInstanceMetadataFetcher(AioIMDSFetcher, InstanceMetadataFetcher):
                 await self._is_invalid_json(response)
         )
 
+
 class AioIMDSRegionProvider(IMDSRegionProvider):
     async def provide(self):
         """Provide the region value from IMDS."""
@@ -431,8 +432,9 @@ class AioContainerMetadataFetcher(ContainerMetadataFetcher):
                 if response.status_code != 200:
                     raise MetadataRetrievalError(
                         error_msg=(
-                                      "Received non 200 response (%s) from ECS metadata: %s"
-                                  ) % (response.status_code, response_text))
+                            "Received non 200 response (%s) from ECS metadata: %s"
+                        ) % (response.status_code, response_text)
+                    )
                 try:
                     return json.loads(response_text)
                 except ValueError:

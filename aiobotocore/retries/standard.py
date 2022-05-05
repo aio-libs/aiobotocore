@@ -90,4 +90,3 @@ class AioOrRetryChecker(OrRetryChecker):
             checker.is_retryable(context)
             for checker in self._checkers
         )
-

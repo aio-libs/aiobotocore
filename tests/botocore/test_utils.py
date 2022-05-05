@@ -7,18 +7,15 @@ import unittest
 from typing import Union, List, Tuple
 from contextlib import asynccontextmanager
 
-from aiohttp.client_reqrep import ClientResponse, RequestInfo
-from aiohttp.helpers import TimerNoop
 from aiohttp.client_exceptions import ClientConnectionError
 from botocore.exceptions import ReadTimeoutError
 
 from aiobotocore import utils
 from aiobotocore.utils import AioInstanceMetadataFetcher
 from botocore.utils import MetadataRetrievalError, BadIMDSRequestError
-import botocore.awsrequest
-import yarl
 from tests.test_response import AsyncBytesIO
 from aiobotocore.awsrequest import AioAWSResponse
+
 
 # From class TestContainerMetadataFetcher
 def fake_aiohttp_session(responses: Union[List[Tuple[Union[str, object], int]],
@@ -156,8 +153,6 @@ class TestInstanceMetadataFetcher(unittest.IsolatedAsyncioTestCase):
         self._urllib3_patch.stop()
 
     def add_imds_response(self, body, status_code=200):
-        loop = asyncio.get_running_loop()
-
         response = AioAWSResponse(
             url='http://169.254.169.254/',
             status_code=status_code,

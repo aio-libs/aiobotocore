@@ -1,5 +1,5 @@
-from botocore.httpchecksum import logger, _CHECKSUM_CLS, StreamingChecksumBody, \
-    base64, FlexibleChecksumError, _handle_streaming_response
+from botocore.httpchecksum import logger, _CHECKSUM_CLS, base64, \
+    FlexibleChecksumError, _handle_streaming_response
 
 
 async def handle_checksum_body(http_response, response, context, operation_model):
