@@ -36,10 +36,9 @@ def fake_aiohttp_session(responses: Union[List[Tuple[Union[str, object], int]],
             def __init__(self, request, *args, **kwargs):
                 self.request = request
                 self.url = request.url
-                self._body, self.status = next(data)
+                self._body, self.status_code = next(data)
                 self.content = self._content()
                 self.text = self._text()
-                self.status_code = 200
                 if not isinstance(self._body, str):
                     raise self._body
 
