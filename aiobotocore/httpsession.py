@@ -15,6 +15,7 @@ from botocore.httpsession import ProxyConfiguration, create_urllib3_context, \
     EndpointConnectionError, ProxyConnectionError, ConnectTimeoutError, \
     ConnectionClosedError, HTTPClientError, ReadTimeoutError, logger, get_cert_path, \
     ensure_boolean, urlparse, mask_proxy_url
+import aiobotocore.awsrequest
 
 from aiobotocore._endpoint_helpers import _text, _IOBaseWrapper, \
     ClientResponseProxy
@@ -87,13 +88,19 @@ class AIOHTTPSession:
                 if ca_certs:
                     ssl_context.load_verify_locations(ca_certs, None, None)
 
-        self._connector = aiohttp.TCPConnector(
+        self._create_connector = lambda: aiohttp.TCPConnector(
             limit=max_pool_connections,
             verify_ssl=bool(verify),
             ssl=ssl_context,
-            **connector_args)
+            **self._connector_args
+        )
+        self._connector = None
 
     async def __aenter__(self):
+        assert not self._session and not self._connector
+
+        self._connector = self._create_connector()
+
         self._session = aiohttp.ClientSession(
             connector=self._connector,
             timeout=self._timeout,
@@ -106,6 +113,7 @@ class AIOHTTPSession:
         if self._session:
             await self._session.__aexit__(exc_type, exc_val, exc_tb)
             self._session = None
+            self._connector = None
 
     async def close(self):
         await self.__aexit__(None, None, None)
@@ -168,18 +176,25 @@ class AIOHTTPSession:
                 data = _IOBaseWrapper(data)
 
             url = URL(url, encoded=True)
-            resp = await self._session.request(
+            response = await self._session.request(
                 request.method, url=url, headers=headers_, data=data, proxy=proxy_url,
                 proxy_headers=proxy_headers
+            )
+
+            http_response = aiobotocore.awsrequest.AioAWSResponse(
+                str(response.url),
+                response.status,
+                response.headers,
+                response
             )
 
             if not request.stream_output:
                 # Cause the raw stream to be exhausted immediately. We do it
                 # this way instead of using preload_content because
                 # preload_content will never buffer chunked responses
-                await resp.read()
+                await http_response.content
 
-            return resp
+            return http_response
         except ClientSSLError as e:
             raise SSLError(endpoint_url=request.url, error=e)
         except (ClientConnectorError, socket.gaierror) as e:
