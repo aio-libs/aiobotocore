@@ -45,6 +45,7 @@ from botocore.httpsession import URLLib3Session
 from botocore.discovery import EndpointDiscoveryManager, EndpointDiscoveryHandler
 from botocore.retries.adaptive import ClientRateLimiter, register_retry_handler
 from botocore.retries.bucket import TokenBucket
+from botocore.awsrequest import AWSResponse
 
 
 # This file ensures that our private patches will work going forward.  If a
@@ -356,6 +357,10 @@ _API_DIGESTS = {
     # See comments in AsyncTokenBucket: we completely replace the TokenBucket
     # implementation from botocore.
     TokenBucket: {'9d543c15de1d582fe99a768fd6d8bde1ed8bb930'},
+
+    # awsresponse
+    AWSResponse.content: {''},
+    AWSResponse.text: {''},
 }
 
 

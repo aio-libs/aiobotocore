@@ -110,7 +110,8 @@ class AioIMDSFetcher(IMDSFetcher):
                     request = botocore.awsrequest.AWSRequest(
                         method='GET', url=url, headers=headers)
                     response = await session.send(request.prepare())
-                    if not retry_func(response):
+                    # TODO: we need to do the async piping so we don't need to do this
+                    if not retry_func(await response.to_sync()):
                         return response
                 except RETRYABLE_HTTP_ERRORS as e:
                     logger.debug(
@@ -146,7 +147,7 @@ class AioInstanceMetadataFetcher(AioIMDSFetcher, InstanceMetadataFetcher):
             logger.debug("Bad IMDS request: %s", e.request)
         return {}
 
-    def _get_iam_role(self, token=None):
+    async def _get_iam_role(self, token=None):
         return await (await self._get_request(
             url_path=self._URL_PATH,
             retry_func=self._needs_retry_for_role_name,
