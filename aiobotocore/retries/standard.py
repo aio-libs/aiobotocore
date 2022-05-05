@@ -61,7 +61,7 @@ class AioRetryPolicy(RetryPolicy):
 
 
 class AioStandardRetryConditions(StandardRetryConditions):
-    def __init__(self, max_attempts=DEFAULT_MAX_ATTEMPTS):
+    def __init__(self, max_attempts=DEFAULT_MAX_ATTEMPTS):  # noqa: E501, lgtm [py/missing-call-to-init]
         # Note: This class is for convenience so you can have the
         # standard retry condition in a single class.
         self._max_attempts_checker = MaxAttemptsChecker(max_attempts)

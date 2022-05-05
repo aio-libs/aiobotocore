@@ -8,7 +8,8 @@ import aiohttp.client_exceptions
 from botocore.utils import ContainerMetadataFetcher, InstanceMetadataFetcher, \
     IMDSFetcher, get_environ_proxies, BadIMDSRequestError, S3RegionRedirector, \
     ClientError, InstanceMetadataRegionFetcher, IMDSRegionProvider, \
-    resolve_imds_endpoint_mode, ReadTimeoutError, HTTPClientError, LocationParseError
+    resolve_imds_endpoint_mode, ReadTimeoutError, HTTPClientError, \
+    DEFAULT_METADATA_SERVICE_TIMEOUT, METADATA_BASE_URL, os
 from botocore.exceptions import (
     InvalidIMDSEndpointError, MetadataRetrievalError,
 )
@@ -53,8 +54,19 @@ class _RefCountedSession(aiobotocore.httpsession.AIOHTTPSession):
 
 
 class AioIMDSFetcher(IMDSFetcher):
-    def __init__(self, *args, session=None, **kwargs):
-        super(AioIMDSFetcher, self).__init__(*args, **kwargs)
+    def __init__(self, timeout=DEFAULT_METADATA_SERVICE_TIMEOUT,  # noqa: E501, lgtm [py/missing-call-to-init]
+                 num_attempts=1, base_url=METADATA_BASE_URL,
+                 env=None, user_agent=None, config=None, session=None):
+        self._timeout = timeout
+        self._num_attempts = num_attempts
+        self._base_url = self._select_base_url(base_url, config)
+
+        if env is None:
+            env = os.environ.copy()
+        self._disabled = env.get('AWS_EC2_METADATA_DISABLED', 'false').lower()
+        self._disabled = self._disabled == 'true'
+        self._user_agent = user_agent
+
         self._session = session or _RefCountedSession(
             timeout=self._timeout,
             proxies=get_environ_proxies(self._base_url),
@@ -88,7 +100,10 @@ class AioIMDSFetcher(IMDSFetcher):
                         "Caught retryable HTTP exception while making metadata "
                         "service request to %s: %s", url, e, exc_info=True)
                 except HTTPClientError as e:
-                    if isinstance(e.kwargs.get('error'), LocationParseError):
+                    error = e.kwargs.get('error')
+                    if error and getattr(error, 'errno', None) == 8 or \
+                            str(getattr(error, 'os_error', None)) == \
+                            'Domain name not found':  # threaded vs async resolver
                         raise InvalidIMDSEndpointError(endpoint=url, error=e)
                     else:
                         raise
@@ -380,7 +395,7 @@ class AioS3RegionRedirector(S3RegionRedirector):
 
 
 class AioContainerMetadataFetcher(ContainerMetadataFetcher):
-    def __init__(self, session=None, sleep=asyncio.sleep):
+    def __init__(self, session=None, sleep=asyncio.sleep):  # noqa: E501, lgtm [py/missing-call-to-init]
         if session is None:
             session = _RefCountedSession(
                 timeout=self.TIMEOUT_SECONDS

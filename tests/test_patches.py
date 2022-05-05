@@ -308,7 +308,7 @@ _API_DIGESTS = {
         {'f5294f9f811cb3cc370e4824ca106269ea1f44f9'},
     ContainerMetadataFetcher._get_response:
         {'7e5acdd2cf0167a047e3d5ee1439565a2f79f6a6'},
-    # Overrided session and dealing with proxy support
+
     IMDSFetcher.__init__: {'a0766a5ba7dde9c26f3c51eb38d73f8e6087d492'},
     IMDSFetcher._get_request: {'d06ba6890b94c819e79e27ac819454b28f704535'},
     IMDSFetcher._fetch_metadata_token: {'c162c832ec24082cd2054945382d8dc6a1ec5e7b'},
