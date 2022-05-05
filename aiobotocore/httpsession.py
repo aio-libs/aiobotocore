@@ -6,7 +6,8 @@ from typing import Dict, Optional
 
 import aiohttp  # lgtm [py/import-and-import-from]
 from aiohttp import ClientSSLError, ClientConnectorError, ClientProxyConnectionError, \
-    ClientHttpProxyError, ServerTimeoutError, ServerDisconnectedError
+    ClientHttpProxyError, ServerTimeoutError, ServerDisconnectedError, \
+    ClientConnectionError
 from aiohttp.client import URL
 from multidict import MultiDict
 
@@ -15,9 +16,9 @@ from botocore.httpsession import ProxyConfiguration, create_urllib3_context, \
     EndpointConnectionError, ProxyConnectionError, ConnectTimeoutError, \
     ConnectionClosedError, HTTPClientError, ReadTimeoutError, logger, get_cert_path, \
     ensure_boolean, urlparse, mask_proxy_url
+import aiobotocore.awsrequest
 
-from aiobotocore._endpoint_helpers import _text, _IOBaseWrapper, \
-    ClientResponseProxy
+from aiobotocore._endpoint_helpers import _text, _IOBaseWrapper
 
 
 class AIOHTTPSession:
@@ -87,18 +88,23 @@ class AIOHTTPSession:
                 if ca_certs:
                     ssl_context.load_verify_locations(ca_certs, None, None)
 
-        self._connector = aiohttp.TCPConnector(
+        self._create_connector = lambda: aiohttp.TCPConnector(
             limit=max_pool_connections,
             verify_ssl=bool(verify),
             ssl=ssl_context,
-            **connector_args)
+            **self._connector_args
+        )
+        self._connector = None
 
     async def __aenter__(self):
+        assert not self._session and not self._connector
+
+        self._connector = self._create_connector()
+
         self._session = aiohttp.ClientSession(
             connector=self._connector,
             timeout=self._timeout,
             skip_auto_headers={'CONTENT-TYPE'},
-            response_class=ClientResponseProxy,
             auto_decompress=False)
         return self
 
@@ -106,6 +112,7 @@ class AIOHTTPSession:
         if self._session:
             await self._session.__aexit__(exc_type, exc_val, exc_tb)
             self._session = None
+            self._connector = None
 
     async def close(self):
         await self.__aexit__(None, None, None)
@@ -168,34 +175,42 @@ class AIOHTTPSession:
                 data = _IOBaseWrapper(data)
 
             url = URL(url, encoded=True)
-            resp = await self._session.request(
+            response = await self._session.request(
                 request.method, url=url, headers=headers_, data=data, proxy=proxy_url,
                 proxy_headers=proxy_headers
+            )
+
+            http_response = aiobotocore.awsrequest.AioAWSResponse(
+                str(response.url),
+                response.status,
+                response.headers,
+                response
             )
 
             if not request.stream_output:
                 # Cause the raw stream to be exhausted immediately. We do it
                 # this way instead of using preload_content because
                 # preload_content will never buffer chunked responses
-                await resp.read()
+                await http_response.content
 
-            return resp
+            return http_response
         except ClientSSLError as e:
             raise SSLError(endpoint_url=request.url, error=e)
-        except (ClientConnectorError, socket.gaierror) as e:
-            raise EndpointConnectionError(endpoint_url=request.url, error=e)
         except (ClientProxyConnectionError, ClientHttpProxyError) as e:
             raise ProxyConnectionError(proxy_url=mask_proxy_url(proxy_url), error=e)
-        except ServerTimeoutError as e:
-            raise ConnectTimeoutError(endpoint_url=request.url, error=e)
-        except asyncio.TimeoutError as e:
-            raise ReadTimeoutError(endpoint_url=request.url, error=e)
-        except (ServerDisconnectedError, aiohttp.ClientPayloadError) as e:
+        except (ServerDisconnectedError, aiohttp.ClientPayloadError,
+                aiohttp.http_exceptions.BadStatusLine) as e:
             raise ConnectionClosedError(
                 error=e,
                 request=request,
                 endpoint_url=request.url
             )
+        except ServerTimeoutError as e:
+            raise ConnectTimeoutError(endpoint_url=request.url, error=e)
+        except (ClientConnectorError, ClientConnectionError, socket.gaierror) as e:
+            raise EndpointConnectionError(endpoint_url=request.url, error=e)
+        except asyncio.TimeoutError as e:
+            raise ReadTimeoutError(endpoint_url=request.url, error=e)
         except Exception as e:
             message = 'Exception received when sending urllib3 HTTP request'
             logger.debug(message, exc_info=True)

@@ -1,34 +1,16 @@
 from botocore.session import Session, EVENT_ALIASES, ServiceModel, \
     UnknownServiceError, copy
-
 from botocore import UNSIGNED
-from botocore import retryhandler, translate
+from botocore import translate
 from botocore.exceptions import PartialCredentialsError
+
+from . import retryhandler
 from .client import AioClientCreator, AioBaseClient
 from .hooks import AioHierarchicalEmitter
 from .parsers import AioResponseParserFactory
-from .signers import add_generate_presigned_url, add_generate_presigned_post, \
-    add_generate_db_auth_token
-from .handlers import inject_presigned_url_ec2, inject_presigned_url_rds
-from botocore.handlers import \
-    inject_presigned_url_rds as boto_inject_presigned_url_rds, \
-    inject_presigned_url_ec2 as boto_inject_presigned_url_ec2
-from botocore.signers import \
-    add_generate_presigned_url as boto_add_generate_presigned_url, \
-    add_generate_presigned_post as boto_add_generate_presigned_post, \
-    add_generate_db_auth_token as boto_add_generate_db_auth_token
 from .configprovider import AioSmartDefaultsConfigStoreFactory
 from .credentials import create_credential_resolver, AioCredentials
 from .utils import AioIMDSRegionProvider
-
-
-_HANDLER_MAPPING = {
-    boto_inject_presigned_url_ec2: inject_presigned_url_ec2,
-    boto_inject_presigned_url_rds: inject_presigned_url_rds,
-    boto_add_generate_presigned_url: add_generate_presigned_url,
-    boto_add_generate_presigned_post: add_generate_presigned_post,
-    boto_add_generate_db_auth_token: add_generate_db_auth_token,
-}
 
 
 class ClientCreatorContext:
@@ -53,12 +35,6 @@ class AioSession(Session):
             event_hooks = AioHierarchicalEmitter()
 
         super().__init__(session_vars, event_hooks, include_builtin_handlers, profile)
-
-    def register(self, event_name, handler, unique_id=None,
-                 unique_id_uses_count=False):
-        handler = _HANDLER_MAPPING.get(handler, handler)
-
-        return super().register(event_name, handler, unique_id, unique_id_uses_count)
 
     def _register_response_parser_factory(self):
         self._components.register_component('response_parser_factory',

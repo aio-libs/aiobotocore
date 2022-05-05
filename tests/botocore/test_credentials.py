@@ -21,6 +21,7 @@ from typing import Optional
 
 import pytest
 import botocore.exceptions
+import wrapt
 from botocore.stub import Stubber
 from dateutil.tz import tzlocal, tzutc
 from botocore.utils import datetime2timestamp
@@ -1330,6 +1331,14 @@ def _mock_provider(provider_cls):
     return mock_instance
 
 
+class DummyContextWrapper(wrapt.ObjectProxy):
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        pass
+
+
 @asynccontextmanager
 async def _create_session(self, profile=None):
     session = StubbedSession(profile=profile)
@@ -1341,7 +1350,7 @@ async def _create_session(self, profile=None):
         aws_access_key_id='spam',
         aws_secret_access_key='eggs',
     ) as sts:
-        self.mock_client_creator.return_value = sts
+        self.mock_client_creator.return_value = DummyContextWrapper(sts)
         assume_role_provider = AioAssumeRoleProvider(
             load_config=lambda: session.full_config,
             client_creator=self.mock_client_creator,

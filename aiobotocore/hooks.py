@@ -1,6 +1,30 @@
-import asyncio
-
 from botocore.hooks import HierarchicalEmitter, logger
+from botocore.handlers import \
+    inject_presigned_url_rds as boto_inject_presigned_url_rds, \
+    inject_presigned_url_ec2 as boto_inject_presigned_url_ec2, \
+    parse_get_bucket_location as boto_parse_get_bucket_location, \
+    check_for_200_error as boto_check_for_200_error
+from botocore.signers import \
+    add_generate_presigned_url as boto_add_generate_presigned_url, \
+    add_generate_presigned_post as boto_add_generate_presigned_post, \
+    add_generate_db_auth_token as boto_add_generate_db_auth_token
+
+from ._helpers import resolve_awaitable
+from .signers import add_generate_presigned_url, add_generate_presigned_post, \
+    add_generate_db_auth_token
+from .handlers import inject_presigned_url_ec2, inject_presigned_url_rds, \
+    parse_get_bucket_location, check_for_200_error
+
+
+_HANDLER_MAPPING = {
+    boto_inject_presigned_url_ec2: inject_presigned_url_ec2,
+    boto_inject_presigned_url_rds: inject_presigned_url_rds,
+    boto_add_generate_presigned_url: add_generate_presigned_url,
+    boto_add_generate_presigned_post: add_generate_presigned_post,
+    boto_add_generate_db_auth_token: add_generate_db_auth_token,
+    boto_parse_get_bucket_location: parse_get_bucket_location,
+    boto_check_for_200_error: check_for_200_error
+}
 
 
 class AioHierarchicalEmitter(HierarchicalEmitter):
@@ -23,11 +47,7 @@ class AioHierarchicalEmitter(HierarchicalEmitter):
             logger.debug('Event %s: calling handler %s', event_name, handler)
 
             # Await the handler if its a coroutine.
-            if asyncio.iscoroutinefunction(handler):
-                response = await handler(**kwargs)
-            else:
-                response = handler(**kwargs)
-
+            response = await resolve_awaitable(handler(**kwargs))
             responses.append((handler, response))
             if stop_on_response and response is not None:
                 return responses
@@ -39,3 +59,11 @@ class AioHierarchicalEmitter(HierarchicalEmitter):
             return responses[-1]
         else:
             return None, None
+
+    def _verify_and_register(self, event_name, handler, unique_id,
+                             register_method, unique_id_uses_count):
+        handler = _HANDLER_MAPPING.get(handler, handler)
+
+        self._verify_is_callable(handler)
+        self._verify_accept_kwargs(handler)
+        register_method(event_name, handler, unique_id, unique_id_uses_count)

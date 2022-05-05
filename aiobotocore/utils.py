@@ -1,35 +1,76 @@
 import asyncio
 import logging
 import json
+from contextlib import asynccontextmanager
+import inspect
 
-import aiohttp
 import aiohttp.client_exceptions
 from botocore.utils import ContainerMetadataFetcher, InstanceMetadataFetcher, \
     IMDSFetcher, get_environ_proxies, BadIMDSRequestError, S3RegionRedirector, \
     ClientError, InstanceMetadataRegionFetcher, IMDSRegionProvider, \
-    resolve_imds_endpoint_mode
+    resolve_imds_endpoint_mode, ReadTimeoutError, HTTPClientError, \
+    DEFAULT_METADATA_SERVICE_TIMEOUT, METADATA_BASE_URL, os
 from botocore.exceptions import (
     InvalidIMDSEndpointError, MetadataRetrievalError,
 )
 import botocore.awsrequest
+import aiobotocore.httpsession
 
 
 logger = logging.getLogger(__name__)
 RETRYABLE_HTTP_ERRORS = (aiohttp.client_exceptions.ClientError, asyncio.TimeoutError)
 
 
-class AioIMDSFetcher(IMDSFetcher):
-    class Response(object):
-        def __init__(self, status_code, text, url):
-            self.status_code = status_code
-            self.url = url
-            self.text = text
-            self.content = text
+class _RefCountedSession(aiobotocore.httpsession.AIOHTTPSession):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.__ref_count = 0
+        self.__lock = None
 
-    def __init__(self, *args, session=None, **kwargs):
-        super(AioIMDSFetcher, self).__init__(*args, **kwargs)
-        self._trust_env = bool(get_environ_proxies(self._base_url))
-        self._session = session or aiohttp.ClientSession
+    @asynccontextmanager
+    async def acquire(self):
+        if not self.__lock:
+            self.__lock = asyncio.Lock()
+
+        # ensure we have a session
+        async with self.__lock:
+            self.__ref_count += 1
+
+            try:
+                if self.__ref_count == 1:
+                    await self.__aenter__()
+            except BaseException:
+                self.__ref_count -= 1
+                raise
+
+        try:
+            yield self
+        finally:
+            async with self.__lock:
+                if self.__ref_count == 1:
+                    await self.__aexit__(None, None, None)
+
+                self.__ref_count -= 1
+
+
+class AioIMDSFetcher(IMDSFetcher):
+    def __init__(self, timeout=DEFAULT_METADATA_SERVICE_TIMEOUT,  # noqa: E501, lgtm [py/missing-call-to-init]
+                 num_attempts=1, base_url=METADATA_BASE_URL,
+                 env=None, user_agent=None, config=None, session=None):
+        self._timeout = timeout
+        self._num_attempts = num_attempts
+        self._base_url = self._select_base_url(base_url, config)
+
+        if env is None:
+            env = os.environ.copy()
+        self._disabled = env.get('AWS_EC2_METADATA_DISABLED', 'false').lower()
+        self._disabled = self._disabled == 'true'
+        self._user_agent = user_agent
+
+        self._session = session or _RefCountedSession(
+            timeout=self._timeout,
+            proxies=get_environ_proxies(self._base_url),
+        )
 
     async def _fetch_metadata_token(self):
         self._assert_enabled()
@@ -42,28 +83,26 @@ class AioIMDSFetcher(IMDSFetcher):
         request = botocore.awsrequest.AWSRequest(
             method='PUT', url=url, headers=headers)
 
-        timeout = aiohttp.ClientTimeout(total=self._timeout)
-        async with self._session(timeout=timeout,
-                                 trust_env=self._trust_env) as session:
+        async with self._session.acquire() as session:
             for i in range(self._num_attempts):
                 try:
-                    async with session.put(url, headers=headers) as resp:
-                        text = await resp.text()
-                        if resp.status == 200:
-                            return text
-                        elif resp.status in (404, 403, 405):
-                            return None
-                        elif resp.status in (400,):
-                            raise BadIMDSRequestError(request)
-                except asyncio.TimeoutError:
+                    response = await session.send(request.prepare())
+                    if response.status_code == 200:
+                        return await response.text
+                    elif response.status_code in (404, 403, 405):
+                        return None
+                    elif response.status_code in (400,):
+                        raise BadIMDSRequestError(request)
+                except ReadTimeoutError:
                     return None
                 except RETRYABLE_HTTP_ERRORS as e:
                     logger.debug(
                         "Caught retryable HTTP exception while making metadata "
                         "service request to %s: %s", url, e, exc_info=True)
-                except aiohttp.client_exceptions.ClientConnectorError as e:
-                    if getattr(e, 'errno', None) == 8 or \
-                            str(getattr(e, 'os_error', None)) == \
+                except HTTPClientError as e:
+                    error = e.kwargs.get('error')
+                    if error and getattr(error, 'errno', None) == 8 or \
+                            str(getattr(error, 'os_error', None)) == \
                             'Domain name not found':  # threaded vs async resolver
                         raise InvalidIMDSEndpointError(endpoint=url, error=e)
                     else:
@@ -81,22 +120,54 @@ class AioIMDSFetcher(IMDSFetcher):
             headers['x-aws-ec2-metadata-token'] = token
         self._add_user_agent(headers)
 
-        timeout = aiohttp.ClientTimeout(total=self._timeout)
-        async with self._session(timeout=timeout,
-                                 trust_env=self._trust_env) as session:
+        async with self._session.acquire() as session:
             for i in range(self._num_attempts):
                 try:
-                    async with session.get(url, headers=headers) as resp:
-                        text = await resp.text()
-                        response = self.Response(resp.status, text, resp.url)
+                    request = botocore.awsrequest.AWSRequest(
+                        method='GET', url=url, headers=headers)
+                    response = await session.send(request.prepare())
+                    should_retry = retry_func(response)
+                    if inspect.isawaitable(should_retry):
+                        should_retry = await should_retry
 
-                    if not retry_func(response):
+                    if not should_retry:
                         return response
                 except RETRYABLE_HTTP_ERRORS as e:
                     logger.debug(
                         "Caught retryable HTTP exception while making metadata "
                         "service request to %s: %s", url, e, exc_info=True)
         raise self._RETRIES_EXCEEDED_ERROR_CLS()
+
+    async def _default_retry(self, response):
+        return (
+                await self._is_non_ok_response(response) or
+                await self._is_empty(response)
+        )
+
+    async def _is_non_ok_response(self, response):
+        if response.status_code != 200:
+            await self._log_imds_response(response, 'non-200', log_body=True)
+            return True
+        return False
+
+    async def _is_empty(self, response):
+        if not await response.content:
+            await self._log_imds_response(response, 'no body', log_body=True)
+            return True
+        return False
+
+    async def _log_imds_response(self, response, reason_to_log, log_body=False):
+        statement = (
+            "Metadata service returned %s response "
+            "with status code of %s for url: %s"
+        )
+        logger_args = [
+            reason_to_log, response.status_code, response.url
+        ]
+        if log_body:
+            statement += ", content body: %s"
+            logger_args.append(await response.content)
+        logger.debug(statement, *logger_args)
 
 
 class AioInstanceMetadataFetcher(AioIMDSFetcher, InstanceMetadataFetcher):
@@ -127,12 +198,11 @@ class AioInstanceMetadataFetcher(AioIMDSFetcher, InstanceMetadataFetcher):
         return {}
 
     async def _get_iam_role(self, token=None):
-        r = await self._get_request(
+        return await (await self._get_request(
             url_path=self._URL_PATH,
             retry_func=self._needs_retry_for_role_name,
-            token=token
-        )
-        return r.text
+            token=token,
+        )).text
 
     async def _get_credentials(self, role_name, token=None):
         r = await self._get_request(
@@ -140,7 +210,28 @@ class AioInstanceMetadataFetcher(AioIMDSFetcher, InstanceMetadataFetcher):
             retry_func=self._needs_retry_for_credentials,
             token=token
         )
-        return json.loads(r.text)
+        return json.loads(await r.text)
+
+    async def _is_invalid_json(self, response):
+        try:
+            json.loads(await response.text)
+            return False
+        except ValueError:
+            await self._log_imds_response(response, 'invalid json')
+            return True
+
+    async def _needs_retry_for_role_name(self, response):
+        return (
+                await self._is_non_ok_response(response) or
+                await self._is_empty(response)
+        )
+
+    async def _needs_retry_for_credentials(self, response):
+        return (
+                await self._is_non_ok_response(response) or
+                await self._is_empty(response) or
+                await self._is_invalid_json(response)
+        )
 
 
 class AioIMDSRegionProvider(IMDSRegionProvider):
@@ -194,7 +285,7 @@ class AioInstanceMetadataRegionFetcher(AioIMDSFetcher, InstanceMetadataRegionFet
             retry_func=self._default_retry,
             token=token
         )
-        availability_zone = response.text
+        availability_zone = await response.text
         region = availability_zone[:-1]
         return region
 
@@ -304,10 +395,13 @@ class AioS3RegionRedirector(S3RegionRedirector):
 
 
 class AioContainerMetadataFetcher(ContainerMetadataFetcher):
-    def __init__(self, session=None, sleep=asyncio.sleep):
+    def __init__(self, session=None, sleep=asyncio.sleep):  # noqa: E501, lgtm [py/missing-call-to-init]
         if session is None:
-            session = aiohttp.ClientSession
-        super(AioContainerMetadataFetcher, self).__init__(session, sleep)
+            session = _RefCountedSession(
+                timeout=self.TIMEOUT_SECONDS
+            )
+        self._session = session
+        self._sleep = sleep
 
     async def retrieve_full_uri(self, full_url, headers=None):
         self._validate_allowed_url(full_url)
@@ -344,25 +438,27 @@ class AioContainerMetadataFetcher(ContainerMetadataFetcher):
 
     async def _get_response(self, full_url, headers, timeout):
         try:
-            timeout = aiohttp.ClientTimeout(total=self.TIMEOUT_SECONDS)
-            async with self._session(timeout=timeout) as session:
-                async with session.get(full_url, headers=headers) as resp:
-                    if resp.status != 200:
-                        text = await resp.text()
-                        raise MetadataRetrievalError(
-                            error_msg=(
-                                          "Received non 200 response (%d) "
-                                          "from ECS metadata: %s"
-                                      ) % (resp.status, text))
-                    try:
-                        return await resp.json()
-                    except ValueError:
-                        text = await resp.text()
-                        error_msg = (
-                            "Unable to parse JSON returned from ECS metadata services"
-                        )
-                        logger.debug('%s:%s', error_msg, text)
-                        raise MetadataRetrievalError(error_msg=error_msg)
+            async with self._session.acquire() as session:
+                AWSRequest = botocore.awsrequest.AWSRequest
+                request = AWSRequest(method='GET', url=full_url, headers=headers)
+                response = await session.send(request.prepare())
+                response_text = (await response.content).decode('utf-8')
+
+                if response.status_code != 200:
+                    raise MetadataRetrievalError(
+                        error_msg=(
+                            "Received non 200 response (%s) from ECS metadata: %s"
+                        ) % (response.status_code, response_text)
+                    )
+                try:
+                    return json.loads(response_text)
+                except ValueError:
+                    error_msg = (
+                        "Unable to parse JSON returned from ECS metadata services"
+                    )
+                    logger.debug('%s:%s', error_msg, response_text)
+                    raise MetadataRetrievalError(error_msg=error_msg)
+
         except RETRYABLE_HTTP_ERRORS as e:
             error_msg = ("Received error when attempting to retrieve "
                          "ECS metadata: %s" % e)
