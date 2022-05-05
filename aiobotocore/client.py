@@ -138,6 +138,34 @@ class AioClientCreator(ClientCreator):
         # Note that this `adaptive` module is an aiobotocore reimplementation.
         adaptive.register_retry_handler(client)
 
+    def _register_legacy_retries(self, client):
+        endpoint_prefix = client.meta.service_model.endpoint_prefix
+        service_id = client.meta.service_model.service_id
+        service_event_name = service_id.hyphenize()
+
+        # First, we load the entire retry config for all services,
+        # then pull out just the information we need.
+        original_config = self._loader.load_data('_retry')
+        if not original_config:
+            return
+
+        retries = self._transform_legacy_retries(client.meta.config.retries)
+        retry_config = self._retry_config_translator.build_retry_config(
+            endpoint_prefix, original_config.get('retry', {}),
+            original_config.get('definitions', {}),
+            retries
+        )
+
+        logger.debug("Registering retry handlers for service: %s",
+                     client.meta.service_model.service_name)
+        handler = self._retry_handler_factory.create_retry_handler(
+            retry_config, endpoint_prefix)
+        unique_id = 'retry-config-%s' % service_event_name
+        client.meta.events.register(
+            'needs-retry.%s' % service_event_name, handler,
+            unique_id=unique_id
+        )
+
     def _register_s3_events(self, client, endpoint_bridge, endpoint_url,
                             client_config, scoped_config):
         if client.meta.service_model.service_name != 's3':

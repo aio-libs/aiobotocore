@@ -1,7 +1,7 @@
 from botocore.session import Session, EVENT_ALIASES, ServiceModel, \
     UnknownServiceError, copy
 from botocore import UNSIGNED
-from botocore import retryhandler, translate
+from botocore import translate
 from botocore.exceptions import PartialCredentialsError
 from botocore.handlers import \
     inject_presigned_url_rds as boto_inject_presigned_url_rds, \
@@ -13,6 +13,7 @@ from botocore.signers import \
     add_generate_presigned_post as boto_add_generate_presigned_post, \
     add_generate_db_auth_token as boto_add_generate_db_auth_token
 
+from . import retryhandler
 from .client import AioClientCreator, AioBaseClient
 from .hooks import AioHierarchicalEmitter
 from .parsers import AioResponseParserFactory

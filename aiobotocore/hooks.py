@@ -2,6 +2,8 @@ import asyncio
 
 from botocore.hooks import HierarchicalEmitter, logger
 
+from ._helpers import resolve_awaitable
+
 
 class AioHierarchicalEmitter(HierarchicalEmitter):
     async def _emit(self, event_name, kwargs, stop_on_response=False):
@@ -23,11 +25,7 @@ class AioHierarchicalEmitter(HierarchicalEmitter):
             logger.debug('Event %s: calling handler %s', event_name, handler)
 
             # Await the handler if its a coroutine.
-            if asyncio.iscoroutinefunction(handler):
-                response = await handler(**kwargs)
-            else:
-                response = handler(**kwargs)
-
+            response = await resolve_awaitable(handler(**kwargs))
             responses.append((handler, response))
             if stop_on_response and response is not None:
                 return responses

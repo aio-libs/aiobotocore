@@ -46,7 +46,7 @@ from botocore.httpsession import URLLib3Session
 from botocore.discovery import EndpointDiscoveryManager, EndpointDiscoveryHandler
 from botocore.retries import adaptive, special
 from botocore.retries.bucket import TokenBucket
-
+from botocore import retryhandler
 from botocore.retries import standard
 from botocore.awsrequest import AWSResponse
 from botocore.httpchecksum import handle_checksum_body, _handle_bytes_response
@@ -101,6 +101,7 @@ _API_DIGESTS = {
     ClientCreator._register_v2_adaptive_retries:
         {'665ecd77d36a5abedffb746d83a44bb0a64c660a'},
     ClientCreator._register_v2_standard_retries: {''},
+    ClientCreator._register_legacy_retries: {''},
 
     BaseClient._make_api_call: {'6517c7ead41bf0c70f38bb70666bffd21835ed72'},
     BaseClient._make_request: {'033a386f7d1025522bea7f2bbca85edc5c8aafd2'},
@@ -385,14 +386,25 @@ _API_DIGESTS = {
     # implementation from botocore.
     TokenBucket: {'9d543c15de1d582fe99a768fd6d8bde1ed8bb930'},
 
-    # awsresponse
+    # awsresponse.py
     AWSResponse.content: {''},
     AWSResponse.text: {''},
 
-    # httpchecksum
+    # httpchecksum.py
     handle_checksum_body: {''},
     _handle_bytes_response: {''},
 
+    # retryhandler.py
+    retryhandler.create_retry_handler: {''},
+    retryhandler.create_checker_from_retry_config: {''},
+    retryhandler._create_single_checker: {''},
+    retryhandler._create_single_response_checker: {''},
+    retryhandler.RetryHandler.__call__: {''},
+    retryhandler.MaxAttemptsDecorator.__call__: {''},
+    retryhandler.MaxAttemptsDecorator._should_retry: {''},
+    retryhandler.MultiChecker.__call__: {''},
+    retryhandler.CRC32Checker.__call__: {''},
+    retryhandler.CRC32Checker._check_response: {''},
 }
 
 
