@@ -10,6 +10,8 @@ from contextlib import asynccontextmanager
 from aiohttp.client_reqrep import ClientResponse, RequestInfo
 from aiohttp.helpers import TimerNoop
 from aiohttp.client_exceptions import ClientConnectionError
+from botocore.exceptions import ReadTimeoutError
+
 from aiobotocore import utils
 from aiobotocore.utils import AioInstanceMetadataFetcher
 from botocore.utils import MetadataRetrievalError, BadIMDSRequestError
@@ -523,7 +525,7 @@ async def test_idmsfetcher_get_token_bad_request():
 @pytest.mark.asyncio
 async def test_idmsfetcher_get_token_timeout():
     session = fake_aiohttp_session([
-        (asyncio.TimeoutError(), 500),
+        (ReadTimeoutError(endpoint_url='aaa'), 500),
     ])
 
     fetcher = utils.AioIMDSFetcher(num_attempts=2,
@@ -562,7 +564,7 @@ async def test_idmsfetcher_retry():
                                    user_agent='test')
     response = await fetcher._get_request('path', None, 'some_token')
 
-    assert response.text == 'data'
+    assert await response.text == 'data'
 
     session = fake_aiohttp_session([
         ('blah', 500),

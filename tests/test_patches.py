@@ -235,7 +235,7 @@ _API_DIGESTS = {
     HierarchicalEmitter._emit: {'5d9a6b1aea1323667a9310e707a9f0a006f8f6e8'},
     HierarchicalEmitter.emit_until_response:
         {'23670e04e0b09a9575c7533442bca1b2972ade82'},
-    HierarchicalEmitter._verify_and_register: {''},
+    HierarchicalEmitter._verify_and_register: {'aa14572fd9d42b83793d4a9d61c680e37761d762'},
 
     EventAliaser.emit_until_response: {'0d635bf7ae5022b1fdde891cd9a91cd4c449fd49'},
 
@@ -384,24 +384,24 @@ _API_DIGESTS = {
     TokenBucket: {'9d543c15de1d582fe99a768fd6d8bde1ed8bb930'},
 
     # awsresponse.py
-    AWSResponse.content: {''},
-    AWSResponse.text: {''},
+    AWSResponse.content: {'1d74998e3e0abe52b52c251a1eae4971e65b1053'},
+    AWSResponse.text: {'a724100ba9f6d51b333b8fe470fac46376d5044a'},
 
     # httpchecksum.py
-    handle_checksum_body: {''},
-    _handle_bytes_response: {''},
+    handle_checksum_body: {'4b9aeef18d816563624c66c57126d1ffa6fe1993'},
+    _handle_bytes_response: {'76f4f9d1da968dc6dbc24fd9f59b4b8ee86799f4'},
 
     # retryhandler.py
-    retryhandler.create_retry_handler: {''},
-    retryhandler.create_checker_from_retry_config: {''},
-    retryhandler._create_single_checker: {''},
-    retryhandler._create_single_response_checker: {''},
-    retryhandler.RetryHandler.__call__: {''},
-    retryhandler.MaxAttemptsDecorator.__call__: {''},
-    retryhandler.MaxAttemptsDecorator._should_retry: {''},
-    retryhandler.MultiChecker.__call__: {''},
-    retryhandler.CRC32Checker.__call__: {''},
-    retryhandler.CRC32Checker._check_response: {''},
+    retryhandler.create_retry_handler: {'fde9dfbc581f3d571f7bf9af1a966f0d28f6d89d'},
+    retryhandler.create_checker_from_retry_config: {'3022785da77b62e0df06f048da3bb627a2e59bd5'},
+    retryhandler._create_single_checker: {'517aaf8efda4bfe851d8dc024513973de1c5ffde'},
+    retryhandler._create_single_response_checker: {'f55d841e5afa5ebac6b883edf74a9d656415474b'},
+    retryhandler.RetryHandler.__call__: {'0ff14b0e97db0d553e8b94a357c11187ca31ea5a'},
+    retryhandler.MaxAttemptsDecorator.__call__: {'d04ae8ff3ab82940bd7a5ffcd2aa27bf45a4817a'},
+    retryhandler.MaxAttemptsDecorator._should_retry: {'33af9b4af06372dc2a7985d6cbbf8dfbaee4be2a'},
+    retryhandler.MultiChecker.__call__: {'dae2cc32aae9fa0a527630db5c5d8db96d957633'},
+    retryhandler.CRC32Checker.__call__: {'4f0b55948e05a9039dc0ba62c80eb341682b85ac'},
+    retryhandler.CRC32Checker._check_response: {'bc371df204ab7138e792b782e83473e6e9b7a620'},
 }
 
 
@@ -423,7 +423,15 @@ def test_patches():
 
     success = True
     for obj, digests in chain(_AIOHTTP_DIGESTS.items(), _API_DIGESTS.items()):
-        digest = hashlib.sha1(getsource(obj).encode('utf-8')).hexdigest()
+
+        try:
+            source = getsource(obj)
+        except TypeError:
+            obj = obj.fget
+            source = getsource(obj)
+
+        digest = hashlib.sha1(source.encode('utf-8')).hexdigest()
+
         if digest not in digests:
             print("Digest of {}:{} not found in: {}".format(
                 obj.__qualname__, digest, digests))

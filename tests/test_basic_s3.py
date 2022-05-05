@@ -43,7 +43,7 @@ async def test_can_make_request_no_verify(s3_client):
 @pytest.mark.asyncio
 async def test_fail_proxy_request(aa_fail_proxy_config, s3_client, monkeypatch):
     # based on test_can_make_request
-    with pytest.raises(httpsession.EndpointConnectionError):
+    with pytest.raises(httpsession.ProxyConnectionError):
         await s3_client.list_buckets()
 
 

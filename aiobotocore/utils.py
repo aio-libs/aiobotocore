@@ -90,8 +90,8 @@ class AioIMDSFetcher(IMDSFetcher):
                 except HTTPClientError as e:
                     if isinstance(e.kwargs.get('error'), LocationParseError):
                         raise InvalidIMDSEndpointError(endpoint=url, error=e)
-                else:
-                    raise
+                    else:
+                        raise
 
         return None
 
