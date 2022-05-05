@@ -50,7 +50,7 @@ class StreamingBody(wrapt.ObjectProxy):
         """
         # botocore to aiohttp mapping
         try:
-            chunk = await self.__wrapped__.read(amt if amt is not None else -1)
+            chunk = await self.__wrapped__.content.read(amt if amt is not None else -1)
         except asyncio.TimeoutError as e:
             raise AioReadTimeoutError(endpoint_url=self.__wrapped__.url,
                                       error=e)

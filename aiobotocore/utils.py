@@ -426,7 +426,7 @@ class AioContainerMetadataFetcher(ContainerMetadataFetcher):
                 AWSRequest = botocore.awsrequest.AWSRequest
                 request = AWSRequest(method='GET', url=full_url, headers=headers)
                 response = await session.send(request.prepare())
-                response_text = response.content.decode('utf-8')
+                response_text = (await response.content).decode('utf-8')
 
                 if response.status_code != 200:
                     raise MetadataRetrievalError(

@@ -8,7 +8,6 @@ from urllib3.response import HTTPHeaderDict
 
 from aiobotocore.httpsession import AIOHTTPSession
 from aiobotocore.response import StreamingBody
-from aiobotocore._endpoint_helpers import ClientResponseProxy  # noqa: F401, E501 lgtm [py/unused-import]
 from aiobotocore.httpchecksum import handle_checksum_body
 
 

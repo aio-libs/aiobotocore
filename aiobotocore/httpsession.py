@@ -18,8 +18,7 @@ from botocore.httpsession import ProxyConfiguration, create_urllib3_context, \
     ensure_boolean, urlparse, mask_proxy_url
 import aiobotocore.awsrequest
 
-from aiobotocore._endpoint_helpers import _text, _IOBaseWrapper, \
-    ClientResponseProxy
+from aiobotocore._endpoint_helpers import _text, _IOBaseWrapper
 
 
 class AIOHTTPSession:
@@ -106,7 +105,6 @@ class AIOHTTPSession:
             connector=self._connector,
             timeout=self._timeout,
             skip_auto_headers={'CONTENT-TYPE'},
-            response_class=ClientResponseProxy,
             auto_decompress=False)
         return self
 

@@ -17,6 +17,10 @@ async def assert_lines(line_iterator, expected_lines):
 
 
 class AsyncBytesIO(io.BytesIO):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.content = self
+
     async def read(self, amt):
         if amt == -1:  # aiohttp to regular response
             amt = None

@@ -5,6 +5,7 @@ from unittest import mock
 import itertools
 import unittest
 from typing import Union, List, Tuple
+from contextlib import asynccontextmanager
 
 from aiohttp.client_reqrep import ClientResponse, RequestInfo
 from aiohttp.helpers import TimerNoop
@@ -27,12 +28,23 @@ def fake_aiohttp_session(responses: Union[List[Tuple[Union[str, object], int]],
         data = iter(responses)
 
     class FakeAioHttpSession(object):
+        @asynccontextmanager
+        async def acquire(self):
+            yield self
+
         class FakeResponse(object):
-            def __init__(self, url, *args, **kwargs):
-                self.url = url
+            def __init__(self, request, *args, **kwargs):
+                self.request = request
+                self.url = request.url
                 self._body, self.status = next(data)
+                self.content = self._content()
+                self.text = self._text()
+                self.status_code = 200
                 if not isinstance(self._body, str):
                     raise self._body
+
+            async def _content(self):
+                return self._body.encode('utf-8')
 
             async def __aenter__(self):
                 return self
@@ -40,7 +52,7 @@ def fake_aiohttp_session(responses: Union[List[Tuple[Union[str, object], int]],
             async def __aexit__(self, exc_type, exc_val, exc_tb):
                 pass
 
-            async def text(self):
+            async def _text(self):
                 return self._body
 
             async def json(self):
@@ -55,13 +67,10 @@ def fake_aiohttp_session(responses: Union[List[Tuple[Union[str, object], int]],
         async def __aexit__(self, exc_type, exc_val, exc_tb):
             pass
 
-        def get(self, url, *args, **kwargs):
-            return self.FakeResponse(url)
+        async def send(self, request):
+            return self.FakeResponse(request)
 
-        def put(self, url, *args, **kwargs):
-            return self.FakeResponse(url)
-
-    return FakeAioHttpSession
+    return FakeAioHttpSession()
 
 
 @pytest.mark.moto

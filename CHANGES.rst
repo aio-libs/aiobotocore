@@ -1,6 +1,6 @@
 Changes
 -------
-2.2.1 (2022-XX-XX)
+2.2.1 (2022-05-05)
 ^^^^^^^^^^^^^^^^^^
 * fix encoding issue by swapping to AioAWSResponse and AioAWSRequest to behave more
   like botocore

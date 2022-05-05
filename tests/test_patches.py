@@ -1,12 +1,8 @@
-import asyncio
 import hashlib
 from dill.source import getsource
 from itertools import chain
 
 import pytest
-from yarl import URL
-
-from aiobotocore.endpoint import ClientResponseProxy
 
 import aiohttp
 from aiohttp.client import ClientResponse
@@ -100,8 +96,8 @@ _API_DIGESTS = {
     ClientCreator._register_retries: {'16d3064142e5f9e45b0094bbfabf7be30183f255'},
     ClientCreator._register_v2_adaptive_retries:
         {'665ecd77d36a5abedffb746d83a44bb0a64c660a'},
-    ClientCreator._register_v2_standard_retries: {''},
-    ClientCreator._register_legacy_retries: {''},
+    ClientCreator._register_v2_standard_retries: {'9ec4ff68599544b4f46067b3783287862d38fb50'},
+    ClientCreator._register_legacy_retries: {'7dbd1a9d045b3d4f5bf830664f17c7bc610ee3a3'},
 
     BaseClient._make_api_call: {'6517c7ead41bf0c70f38bb70666bffd21835ed72'},
     BaseClient._make_request: {'033a386f7d1025522bea7f2bbca85edc5c8aafd2'},
@@ -239,6 +235,8 @@ _API_DIGESTS = {
     HierarchicalEmitter._emit: {'5d9a6b1aea1323667a9310e707a9f0a006f8f6e8'},
     HierarchicalEmitter.emit_until_response:
         {'23670e04e0b09a9575c7533442bca1b2972ade82'},
+    HierarchicalEmitter._verify_and_register: {''},
+
     EventAliaser.emit_until_response: {'0d635bf7ae5022b1fdde891cd9a91cd4c449fd49'},
 
     # paginate.py
@@ -277,7 +275,6 @@ _API_DIGESTS = {
     Session.get_service_data: {'e28f2de9ebaf13214f1606d33349dfa8e2555923'},
     Session.get_service_model: {'1c8f93e6fb9913e859e43aea9bc2546edbea8365'},
     Session.get_available_regions: {'bc455d24d98fbc112ff22325ebfd12a6773cb7d4'},
-    Session.register: {'39791fd2cffcea480f81e77c7daf3974581d9291'},
     Session._register_smart_defaults_factory:
         {'24ab10e4751ada800dde24d40d1d105be76a0a14'},
 
@@ -312,10 +309,10 @@ _API_DIGESTS = {
     IMDSFetcher.__init__: {'a0766a5ba7dde9c26f3c51eb38d73f8e6087d492'},
     IMDSFetcher._get_request: {'d06ba6890b94c819e79e27ac819454b28f704535'},
     IMDSFetcher._fetch_metadata_token: {'c162c832ec24082cd2054945382d8dc6a1ec5e7b'},
-    IMDSFetcher._default_retry: {''},
-    IMDSFetcher._is_non_ok_response: {''},
-    IMDSFetcher._is_empty: {''},
-    IMDSFetcher._log_imds_response: {''},
+    IMDSFetcher._default_retry: {'d1fa834cedfc7a2bf9957ba528eed24f600f7ef6'},
+    IMDSFetcher._is_non_ok_response: {'448b80545b1946ec44ff19ebca8d4993872a6281'},
+    IMDSFetcher._is_empty: {'241b141c9c352a4ef72964f8399d46cbe9a5aebc'},
+    IMDSFetcher._log_imds_response: {'f1e09ad248feb167f55b11bbae735ea0e2c7b446'},
 
     InstanceMetadataFetcher.retrieve_iam_role_credentials:
         {'76737f6add82a1b9a0dc590cf10bfac0c7026a2e'},
@@ -323,9 +320,9 @@ _API_DIGESTS = {
         {'80073d7adc9fb604bc6235af87241f5efc296ad7'},
     InstanceMetadataFetcher._get_credentials:
         {'1a64f59a3ca70b83700bd14deeac25af14100d58'},
-    InstanceMetadataFetcher._is_invalid_json: {''},
-    InstanceMetadataFetcher._needs_retry_for_role_name: {''},
-    InstanceMetadataFetcher._needs_retry_for_credentials: {''},
+    InstanceMetadataFetcher._is_invalid_json: {'97818b51182a2507c99876a40155adda0451dd82'},
+    InstanceMetadataFetcher._needs_retry_for_role_name: {'0f1034c9de5be2d79a584e1e057b8df5b39f4514'},
+    InstanceMetadataFetcher._needs_retry_for_credentials: {'977be4286b42916779ade4c20472ec3a6a26c90d'},
 
     S3RegionRedirector.redirect_from_error:
         {'f6f765431145a9bed8e73e6a3dbc7b0d6ae5f738'},
@@ -350,9 +347,9 @@ _API_DIGESTS = {
     # handlers.py
     inject_presigned_url_rds: {'5a34e1666d84f6229c54a59bffb69d46e8117b3a'},
     inject_presigned_url_ec2: {'37fad2d9c53ca4f1783e32799fa8f70930f44c23'},
-    parse_get_bucket_location: {''},
-    check_for_200_error: {''},
-    _looks_like_special_case_error: {''},
+    parse_get_bucket_location: {'dde31b9fe4447ed6eb9b8c26ab14cc2bd3ae2c64'},
+    check_for_200_error: {'94005c964d034e68bb2f079e89c93115c1f11aad'},
+    _looks_like_special_case_error: {'adcf7c6f77aa123bd94e96ef0beb4ba548e55086'},
 
     # httpsession.py
     URLLib3Session: {'5adede4ba9d2a80e776bfeb71127656fafff91d7'},
@@ -371,15 +368,15 @@ _API_DIGESTS = {
     adaptive.register_retry_handler: {'d662512878511e72d1202d880ae181be6a5f9d37'},
 
     # retries/standard.py
-    standard.register_retry_handler: {''},
-    standard.RetryHandler.needs_retry: {''},
-    standard.RetryPolicy.should_retry: {''},
-    standard.StandardRetryConditions.__init__: {''},
-    standard.StandardRetryConditions.is_retryable: {''},
-    standard.OrRetryChecker.is_retryable: {''},
+    standard.register_retry_handler: {'8d464a753335ce7457c5eea73e80d9a224fe7f21'},
+    standard.RetryHandler.needs_retry: {'2dfc4c2d2efcd5ca00ae84ccdca4ab070d831e22'},
+    standard.RetryPolicy.should_retry: {'b30eadcb94dadcdb90a5810cdeb2e3a0bc0c74c9'},
+    standard.StandardRetryConditions.__init__: {'82f00342fb50a681e431f07e63623ab3f1e39577'},
+    standard.StandardRetryConditions.is_retryable: {'4d14d1713bc2806c24b6797b2ec395a29c9b0453'},
+    standard.OrRetryChecker.is_retryable: {'5ef0b84b1ef3a49bc193d76a359dbd314682856b'},
 
     # retries/special.py
-    special.RetryDDBChecksumError.is_retryable: {''},
+    special.RetryDDBChecksumError.is_retryable: {'0769cca303874f8dce47dcc93980fa0841fbaab6'},
 
     # retries/bucket.py
     # See comments in AsyncTokenBucket: we completely replace the TokenBucket
@@ -433,18 +430,3 @@ def test_patches():
             success = False
 
     assert success
-
-
-# NOTE: this doesn't require moto but needs to be marked to run with coverage
-@pytest.mark.moto
-@pytest.mark.asyncio
-async def test_set_status_code():
-    resp = ClientResponseProxy(
-        'GET', URL('http://foo/bar'),
-        loop=asyncio.get_event_loop(),
-        writer=None, continue100=None, timer=None,
-        request_info=None,
-        traces=None,
-        session=None)
-    resp.status_code = 500
-    assert resp.status_code == 500
