@@ -1,7 +1,7 @@
 import asyncio
 import logging
 import json
-from contextlib import asynccontextmanager, AsyncExitStack
+from contextlib import asynccontextmanager
 import inspect
 
 import aiohttp.client_exceptions

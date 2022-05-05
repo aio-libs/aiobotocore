@@ -44,8 +44,10 @@ from botocore.handlers import inject_presigned_url_ec2, inject_presigned_url_rds
     parse_get_bucket_location, check_for_200_error, _looks_like_special_case_error
 from botocore.httpsession import URLLib3Session
 from botocore.discovery import EndpointDiscoveryManager, EndpointDiscoveryHandler
-from botocore.retries.adaptive import ClientRateLimiter, register_retry_handler
+from botocore.retries import adaptive, special
 from botocore.retries.bucket import TokenBucket
+
+from botocore.retries import standard
 from botocore.awsrequest import AWSResponse
 from botocore.httpchecksum import handle_checksum_body, _handle_bytes_response
 
@@ -98,6 +100,7 @@ _API_DIGESTS = {
     ClientCreator._register_retries: {'16d3064142e5f9e45b0094bbfabf7be30183f255'},
     ClientCreator._register_v2_adaptive_retries:
         {'665ecd77d36a5abedffb746d83a44bb0a64c660a'},
+    ClientCreator._register_v2_standard_retries: {''},
 
     BaseClient._make_api_call: {'6517c7ead41bf0c70f38bb70666bffd21835ed72'},
     BaseClient._make_request: {'033a386f7d1025522bea7f2bbca85edc5c8aafd2'},
@@ -363,8 +366,19 @@ _API_DIGESTS = {
     # retries/adaptive.py
     # See comments in AsyncTokenBucket: we completely replace the ClientRateLimiter
     # implementation from botocore.
-    ClientRateLimiter: {'d4ba74b924cdccf705adeb89f2c1885b4d21ce02'},
-    register_retry_handler: {'d662512878511e72d1202d880ae181be6a5f9d37'},
+    adaptive.ClientRateLimiter: {'d4ba74b924cdccf705adeb89f2c1885b4d21ce02'},
+    adaptive.register_retry_handler: {'d662512878511e72d1202d880ae181be6a5f9d37'},
+
+    # retries/standard.py
+    standard.register_retry_handler: {''},
+    standard.RetryHandler.needs_retry: {''},
+    standard.RetryPolicy.should_retry: {''},
+    standard.StandardRetryConditions.__init__: {''},
+    standard.StandardRetryConditions.is_retryable: {''},
+    standard.OrRetryChecker.is_retryable: {''},
+
+    # retries/special.py
+    special.RetryDDBChecksumError.is_retryable: {''},
 
     # retries/bucket.py
     # See comments in AsyncTokenBucket: we completely replace the TokenBucket
@@ -378,6 +392,7 @@ _API_DIGESTS = {
     # httpchecksum
     handle_checksum_body: {''},
     _handle_bytes_response: {''},
+
 }
 
 

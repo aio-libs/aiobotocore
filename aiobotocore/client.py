@@ -15,6 +15,8 @@ from .utils import AioS3RegionRedirector
 from .discovery import AioEndpointDiscoveryManager, AioEndpointDiscoveryHandler
 from .retries import adaptive
 from . import waiter
+from .retries import standard
+
 
 history_recorder = get_global_history_recorder()
 
@@ -123,6 +125,13 @@ class AioClientCreator(ClientCreator):
             self._register_v2_adaptive_retries(client)
         elif retry_mode == 'legacy':
             self._register_legacy_retries(client)
+
+    def _register_v2_standard_retries(self, client):
+        max_attempts = client.meta.config.retries.get('total_max_attempts')
+        kwargs = {'client': client}
+        if max_attempts is not None:
+            kwargs['max_attempts'] = max_attempts
+        standard.register_retry_handler(**kwargs)
 
     def _register_v2_adaptive_retries(self, client):
         # See comment in `_register_retries`.
