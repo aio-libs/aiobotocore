@@ -30,6 +30,11 @@ def test_connector_args():
 
     with pytest.raises(ParamValidationError):
         # wrong type
+        connector_args = dict(keepalive_timeout="1")
+        AioConfig(connector_args)
+
+    with pytest.raises(ParamValidationError):
+        # wrong type
         connector_args = dict(ssl_context="1")
         AioConfig(connector_args)
 
@@ -43,10 +48,11 @@ def test_connector_args():
         connector_args = dict(foo="1")
         AioConfig(connector_args)
 
-    # Test valid config:
+    # Test valid configs:
     AioConfig({
         "resolver": aiohttp.resolver.DefaultResolver()
     })
+    AioConfig({'keepalive_timeout': None})
 
     # test merge
     cfg = Config(read_timeout=75)

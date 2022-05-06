@@ -3,6 +3,7 @@ Changes
 2.3.1 (2022-05-06)
 ^^^^^^^^^^^^^^^^^^
 * fix 3.6 support
+* AioConfig: allow keepalive_timeout to be None (thanks @dnlserrano #933)
 
 2.3.0 (2022-05-05)
 ^^^^^^^^^^^^^^^^^^
