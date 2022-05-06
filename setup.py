@@ -11,6 +11,7 @@ install_requires = [
     'aiohttp>=3.3.1',
     'wrapt>=1.10.10',
     'aioitertools>=0.5.1',
+    "async_generator ; python_version<'3.7'",
 ]
 
 extras_require = {

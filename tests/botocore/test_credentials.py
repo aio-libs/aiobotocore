@@ -9,7 +9,12 @@ import os
 import sys
 import tempfile
 import uuid
-from contextlib import asynccontextmanager
+
+try:
+    from contextlib import asynccontextmanager
+except ImportError:
+    from async_generator import asynccontextmanager
+
 from datetime import datetime, timedelta
 import json
 import subprocess
