@@ -1,5 +1,9 @@
 Changes
 -------
+2.3.1 (2022-05-06)
+^^^^^^^^^^^^^^^^^^
+* fix 3.6 support
+
 2.3.0 (2022-05-05)
 ^^^^^^^^^^^^^^^^^^
 * fix encoding issue by swapping to AioAWSResponse and AioAWSRequest to behave more
