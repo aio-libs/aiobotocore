@@ -1,6 +1,6 @@
-from contextlib import asynccontextmanager, AsyncExitStack
-
 import aiobotocore.session
+from aiobotocore._helpers import asynccontextmanager
+from tests._helpers import AsyncExitStack
 from botocore.stub import Stubber
 
 

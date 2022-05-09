@@ -1,5 +1,10 @@
 import inspect
 
+try:
+    from contextlib import asynccontextmanager  # noqa: F401 lgtm[py/unused-import]
+except ImportError:
+    from async_generator import asynccontextmanager  # noqa: F401 E501, lgtm[py/unused-import]
+
 
 async def resolve_awaitable(obj):
     if inspect.isawaitable(obj):
