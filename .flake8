@@ -1,3 +1,4 @@
 [flake8]
 # to match longest line in botocore: https://github.com/boto/botocore/blob/develop/botocore/client.py#L730
 max-line-length = 88
+exclude = .git,__pycache__,.pytest_cache,.venv,*.egg-info,build,dist

@@ -3,7 +3,6 @@ These tests have been taken from
 https://github.com/boto/botocore/blob/develop/tests/unit/test_credentials.py
 and adapted to work with asyncio and pytest
 """
-import asyncio
 import binascii
 import os
 import sys
@@ -776,19 +775,6 @@ async def test_originalec2provider_file_missing():
     provider = credentials.AioOriginalEC2Provider(environ={})
     creds = await provider.load()
     assert creds is None
-
-
-# From class TestProcessProvider
-@pytest.fixture()
-def process_provider():
-    def _f(profile_name='default', loaded_config=None, invoked_process=None):
-        load_config = mock.Mock(return_value=loaded_config)
-        popen_mock = mock.Mock(return_value=invoked_process or mock.Mock(),
-                               spec=asyncio.create_subprocess_exec)
-        return popen_mock, credentials.AioProcessProvider(profile_name,
-                                                          load_config,
-                                                          popen=popen_mock)
-    return _f
 
 
 # From class TestCreateCredentialResolver

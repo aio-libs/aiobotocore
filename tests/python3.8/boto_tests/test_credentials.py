@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime, timedelta
 from unittest import mock
 import json
@@ -9,12 +10,10 @@ from dateutil.tz import tzlocal
 
 from aiobotocore.session import AioSession
 from aiobotocore import credentials
-from tests.boto_tests.test_credentials import full_url, process_provider
+from tests.boto_tests.test_credentials import full_url
 
 
 # From class TestRefreshableCredentials(TestCredentials):
-
-
 @pytest.fixture
 def refreshable_creds():
     def _f(mock_time_return_value=None, refresher_return_value='METADATA'):
@@ -156,7 +155,7 @@ async def test_instancemetadata_load():
     timestamp = (timeobj + timedelta(hours=24)).isoformat()
 
     fetcher = mock.AsyncMock()
-    fetcher.retrieve_iam_role_credentials = mock.AsyncMock(return_value = {
+    fetcher.retrieve_iam_role_credentials = mock.AsyncMock(return_value={
         'access_key': 'a',
         'secret_key': 'b',
         'token': 'c',
@@ -207,6 +206,19 @@ async def test_containerprovider_assume_role_no_cache():
     assert creds.access_key == 'access_key'
     assert creds.secret_key == 'secret_key'
     assert creds.token == 'token'
+
+
+# From class TestProcessProvider
+@pytest.fixture()
+def process_provider():
+    def _f(profile_name='default', loaded_config=None, invoked_process=None):
+        load_config = mock.Mock(return_value=loaded_config)
+        popen_mock = mock.Mock(return_value=invoked_process or mock.Mock(),
+                               spec=asyncio.create_subprocess_exec)
+        return popen_mock, credentials.AioProcessProvider(profile_name,
+                                                          load_config,
+                                                          popen=popen_mock)
+    return _f
 
 
 @pytest.mark.moto

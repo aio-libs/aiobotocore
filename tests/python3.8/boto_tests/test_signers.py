@@ -50,7 +50,6 @@ async def base_signer_setup_s3v4() -> dict:
     }
 
 
-
 # From class TestGenerateUrl
 @pytest.mark.moto
 @pytest.mark.asyncio
