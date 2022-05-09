@@ -2,7 +2,7 @@ Changes
 -------
 2.3.2 (2022-05-08)
 ^^^^^^^^^^^^^^^^^^
-* fix 3.6 testing and support
+* fix 3.6 testing and and actually fix 3.6 support
 
 2.3.1 (2022-05-06)
 ^^^^^^^^^^^^^^^^^^
