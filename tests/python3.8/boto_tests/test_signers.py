@@ -1,15 +1,14 @@
-import datetime
-from datetime import timezone
-import pytest
 from unittest import mock
+
+import pytest
+from botocore.awsrequest import AWSRequest
+from botocore.model import ServiceId
+import botocore.auth
+from botocore.exceptions import NoRegionError, UnknownClientMethodError, \
+    UnknownSignatureVersionError
 
 import aiobotocore.credentials
 import aiobotocore.signers
-import botocore.auth
-from botocore.model import ServiceId
-from botocore.awsrequest import AWSRequest
-from botocore.exceptions import UnknownClientMethodError, NoRegionError, \
-    UnknownSignatureVersionError
 
 
 # From class TestSigner
@@ -49,6 +48,81 @@ async def base_signer_setup_s3v4() -> dict:
         'fixed_credentials': await credentials.get_frozen_credentials(),
         'request': AWSRequest()
     }
+
+
+
+# From class TestGenerateUrl
+@pytest.mark.moto
+@pytest.mark.asyncio
+async def test_signers_generate_presigned_urls():
+    with mock.patch('aiobotocore.signers.AioRequestSigner.generate_presigned_url') \
+            as cls_gen_presigned_url_mock:
+        session = aiobotocore.session.get_session()
+        async with session.create_client('s3', region_name='us-east-1',
+                                         aws_access_key_id='lalala',
+                                         aws_secret_access_key='lalala',
+                                         aws_session_token='lalala') as client:
+
+            # Uses HEAD as it covers more lines :)
+            await client.generate_presigned_url('get_object',
+                                                Params={'Bucket': 'mybucket',
+                                                        'Key': 'mykey'},
+                                                HttpMethod='HEAD')
+
+            ref_request_dict = {
+                'body': b'',
+                'url': 'https://s3.amazonaws.com/mybucket/mykey',
+                'headers': {},
+                'query_string': {},
+                'url_path': '/mybucket/mykey',
+                'method': 'HEAD',
+                'context': mock.ANY
+            }
+
+            cls_gen_presigned_url_mock.assert_called_with(
+                request_dict=ref_request_dict,
+                expires_in=3600,
+                operation_name='GetObject')
+
+            cls_gen_presigned_url_mock.reset_mock()
+
+            with pytest.raises(UnknownClientMethodError):
+                await client.generate_presigned_url('lalala')
+
+
+@pytest.mark.moto
+@pytest.mark.asyncio
+async def test_signers_generate_presigned_post():
+    with mock.patch('aiobotocore.signers.AioS3PostPresigner.generate_presigned_post') \
+            as cls_gen_presigned_url_mock:
+        session = aiobotocore.session.get_session()
+        async with session.create_client('s3', region_name='us-east-1',
+                                         aws_access_key_id='lalala',
+                                         aws_secret_access_key='lalala',
+                                         aws_session_token='lalala') as client:
+
+            await client.generate_presigned_post(
+                'somebucket',
+                'someprefix/key'
+            )
+
+            cls_gen_presigned_url_mock.assert_called_once()
+
+            cls_gen_presigned_url_mock.reset_mock()
+
+            await client.generate_presigned_post(
+                'somebucket',
+                'someprefix/${filename}',
+                {'some': 'fields'},
+                [{'acl': 'public-read'}]
+            )
+
+            cls_gen_presigned_url_mock.assert_called_once()
+
+            cls_gen_presigned_url_mock.reset_mock()
+
+            with pytest.raises(UnknownClientMethodError):
+                await client.generate_presigned_url('lalala')
 
 
 @pytest.mark.moto
@@ -133,45 +207,6 @@ async def test_testsigner_generate_presigned_url(base_signer_setup: dict):
     assert presigned_url == 'https://foo.com'
 
 
-# From class TestGenerateUrl
-@pytest.mark.moto
-@pytest.mark.asyncio
-async def test_signers_generate_presigned_urls():
-    with mock.patch('aiobotocore.signers.AioRequestSigner.generate_presigned_url') \
-            as cls_gen_presigned_url_mock:
-        session = aiobotocore.session.get_session()
-        async with session.create_client('s3', region_name='us-east-1',
-                                         aws_access_key_id='lalala',
-                                         aws_secret_access_key='lalala',
-                                         aws_session_token='lalala') as client:
-
-            # Uses HEAD as it covers more lines :)
-            await client.generate_presigned_url('get_object',
-                                                Params={'Bucket': 'mybucket',
-                                                        'Key': 'mykey'},
-                                                HttpMethod='HEAD')
-
-            ref_request_dict = {
-                'body': b'',
-                'url': 'https://s3.amazonaws.com/mybucket/mykey',
-                'headers': {},
-                'query_string': {},
-                'url_path': '/mybucket/mykey',
-                'method': 'HEAD',
-                'context': mock.ANY
-            }
-
-            cls_gen_presigned_url_mock.assert_called_with(
-                request_dict=ref_request_dict,
-                expires_in=3600,
-                operation_name='GetObject')
-
-            cls_gen_presigned_url_mock.reset_mock()
-
-            with pytest.raises(UnknownClientMethodError):
-                await client.generate_presigned_url('lalala')
-
-
 # From class TestGeneratePresignedPost
 @pytest.mark.moto
 @pytest.mark.asyncio
@@ -200,62 +235,3 @@ async def test_testsigner_generate_presigned_post(base_signer_setup_s3v4: dict):
         region_name='region_name', service_name='signing_name'
     )
     assert presigned_url['url'] == 'https://s3.amazonaws.com/mybucket'
-
-
-@pytest.mark.moto
-@pytest.mark.asyncio
-async def test_signers_generate_presigned_post():
-    with mock.patch('aiobotocore.signers.AioS3PostPresigner.generate_presigned_post') \
-            as cls_gen_presigned_url_mock:
-        session = aiobotocore.session.get_session()
-        async with session.create_client('s3', region_name='us-east-1',
-                                         aws_access_key_id='lalala',
-                                         aws_secret_access_key='lalala',
-                                         aws_session_token='lalala') as client:
-
-            await client.generate_presigned_post(
-                'somebucket',
-                'someprefix/key'
-            )
-
-            cls_gen_presigned_url_mock.assert_called_once()
-
-            cls_gen_presigned_url_mock.reset_mock()
-
-            await client.generate_presigned_post(
-                'somebucket',
-                'someprefix/${filename}',
-                {'some': 'fields'},
-                [{'acl': 'public-read'}]
-            )
-
-            cls_gen_presigned_url_mock.assert_called_once()
-
-            cls_gen_presigned_url_mock.reset_mock()
-
-            with pytest.raises(UnknownClientMethodError):
-                await client.generate_presigned_url('lalala')
-
-
-@pytest.mark.moto
-@pytest.mark.asyncio
-async def test_signers_generate_db_auth_token(rds_client):
-    hostname = 'prod-instance.us-east-1.rds.amazonaws.com'
-    port = 3306
-    username = 'someusername'
-    clock = datetime.datetime(2016, 11, 7, 17, 39, 33, tzinfo=timezone.utc)
-
-    with mock.patch('datetime.datetime') as dt:
-        dt.utcnow.return_value = clock
-        result = await aiobotocore.signers.generate_db_auth_token(
-            rds_client, hostname, port, username)
-
-        result2 = await rds_client.generate_db_auth_token(
-            hostname, port, username)
-
-    # A scheme needs to be appended to the beginning or urlsplit may fail
-    # on certain systems.
-    assert result.startswith(
-        'prod-instance.us-east-1.rds.amazonaws.com:3306/?AWSAccessKeyId=xxx&')
-    assert result2.startswith(
-        'prod-instance.us-east-1.rds.amazonaws.com:3306/?AWSAccessKeyId=xxx&')
