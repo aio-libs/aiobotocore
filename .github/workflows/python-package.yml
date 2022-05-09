@@ -35,7 +35,7 @@ jobs:
       run: |
         python -c "import sys; print(f'Python version: {sys.version}')"
         python -m pip install -U setuptools pip pipenv codecov
-        pipenv lock
+        pipenv lock --python ${{ matrix.python-version }}
         pipenv sync --dev
         pipenv check || true
         pipenv graph
