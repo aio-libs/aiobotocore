@@ -4,7 +4,8 @@ import pytest
 
 import aiobotocore.session
 from tests._helpers import AsyncExitStack
-''
+
+
 @pytest.mark.asyncio
 async def test_kinesis_stream_json_parser(exit_stack: AsyncExitStack):
     # unfortunately moto doesn't support kinesis register_stream_consumer +

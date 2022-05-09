@@ -98,6 +98,3 @@ async def test_eventstream_no_iter(s3_client):
     with pytest.raises(NotImplementedError):
         for _ in event_stream:
             pass
-
-
-
