@@ -2,23 +2,29 @@ import asyncio
 from contextlib import ExitStack
 import random
 import string
-import aiobotocore.session
-from aiobotocore.config import AioConfig
 from unittest.mock import patch
 from itertools import chain
 import tempfile
 import os
+import sys
 
 # Third Party
 import pytest
 import aiohttp
 
 from tests._helpers import AsyncExitStack
+import aiobotocore.session
+from aiobotocore.config import AioConfig
 
 
 host = '127.0.0.1'
 
 _PYCHARM_HOSTED = os.environ.get('PYCHARM_HOSTED') == '1'
+
+
+def pytest_cmdline_preparse(args):
+    if sys.version_info[:2] < (3, 8):
+        args[:] = ["--ignore", 'tests/python3.8'] + args
 
 
 @pytest.fixture(scope="session", params=[True, False],
@@ -537,4 +543,4 @@ async def exit_stack():
         yield es
 
 
-pytest_plugins = ['mock_server']
+pytest_plugins = ['tests.mock_server']

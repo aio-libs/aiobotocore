@@ -2,7 +2,7 @@ import asyncio
 
 import aiohttp.resolver
 
-from mock_server import AIOServer
+from tests.mock_server import AIOServer
 from aiobotocore.session import AioSession, get_session
 from aiobotocore.config import AioConfig
 from botocore.config import Config
