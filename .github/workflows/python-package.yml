@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.6, 3.8, 3.9]
+        python-version: [3.6] #, 3.8, 3.9]
       fail-fast: true
     timeout-minutes: 15
     steps:
@@ -34,8 +34,7 @@ jobs:
         COLOR: 'yes'
       run: |
         python -c "import sys; print(f'Python version: {sys.version}')"
-        python -m pip install -U setuptools pip
-        pip install -U pipenv codecov
+        python -m pip install -U setuptools pip pipenv codecov
         pipenv lock
         pipenv sync --dev
         pipenv check || true
