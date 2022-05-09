@@ -120,7 +120,7 @@ async def test_kinesis_stream_json_parser(exit_stack: AsyncExitStack):
         session.create_client('kinesis'))
     await kinesis_client.create_stream(StreamName=stream_name, ShardCount=1)
 
-    while (describe_response := (await kinesis_client.describe_stream(  # noqa: E231, E999, E251
+    while (describe_response := (await kinesis_client.describe_stream(  # noqa: E231, E999, E251, E501
             StreamName=stream_name))) and \
             describe_response['StreamDescription']['StreamStatus'] == 'CREATING':
         print("Waiting for stream creation")
@@ -142,7 +142,7 @@ async def test_kinesis_stream_json_parser(exit_stack: AsyncExitStack):
         )
         consumer_arn = register_response['Consumer']['ConsumerARN']
 
-        while (describe_response := (await kinesis_client.describe_stream_consumer(  # noqa: E231, E999, E251
+        while (describe_response := (await kinesis_client.describe_stream_consumer(  # noqa: E231, E999, E251, E501
                 StreamARN=stream_arn, ConsumerName=consumer_name,
                 ConsumerARN=consumer_arn))) and \
                 describe_response['ConsumerDescription'][
