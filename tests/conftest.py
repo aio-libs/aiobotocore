@@ -1,5 +1,5 @@
 import asyncio
-from contextlib import AsyncExitStack, ExitStack
+from contextlib import ExitStack
 import random
 import string
 import aiobotocore.session
@@ -12,6 +12,8 @@ import os
 # Third Party
 import pytest
 import aiohttp
+
+from tests._helpers import AsyncExitStack
 
 
 host = '127.0.0.1'

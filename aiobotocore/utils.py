@@ -1,7 +1,6 @@
 import asyncio
 import logging
 import json
-from contextlib import asynccontextmanager
 import inspect
 
 import aiohttp.client_exceptions
@@ -15,7 +14,7 @@ from botocore.exceptions import (
 )
 import botocore.awsrequest
 import aiobotocore.httpsession
-
+from aiobotocore._helpers import asynccontextmanager
 
 logger = logging.getLogger(__name__)
 RETRYABLE_HTTP_ERRORS = (aiohttp.client_exceptions.ClientError, asyncio.TimeoutError)

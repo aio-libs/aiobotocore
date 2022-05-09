@@ -1,5 +1,10 @@
 import inspect
 
+try:
+    from contextlib import asynccontextmanager
+except ImportError:
+    from async_generator import asynccontextmanager
+
 
 async def resolve_awaitable(obj):
     if inspect.isawaitable(obj):

@@ -5,12 +5,12 @@ from unittest import mock
 import itertools
 import unittest
 from typing import Union, List, Tuple
-from contextlib import asynccontextmanager
 
 from aiohttp.client_exceptions import ClientConnectionError
 from botocore.exceptions import ReadTimeoutError
 
 from aiobotocore import utils
+from aiobotocore._helpers import asynccontextmanager
 from aiobotocore.utils import AioInstanceMetadataFetcher
 from botocore.utils import MetadataRetrievalError, BadIMDSRequestError
 from tests.test_response import AsyncBytesIO

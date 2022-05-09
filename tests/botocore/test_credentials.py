@@ -10,11 +10,6 @@ import sys
 import tempfile
 import uuid
 
-try:
-    from contextlib import asynccontextmanager
-except ImportError:
-    from async_generator import asynccontextmanager
-
 from datetime import datetime, timedelta
 import json
 import subprocess
@@ -33,6 +28,7 @@ from botocore.utils import datetime2timestamp
 
 from aiobotocore.session import AioSession
 from aiobotocore import credentials
+from aiobotocore._helpers import asynccontextmanager
 
 from botocore.credentials import Credentials, JSONFileCache, ReadOnlyCredentials
 from botocore.configprovider import ConfigValueStore

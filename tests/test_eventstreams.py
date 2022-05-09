@@ -1,5 +1,5 @@
 import asyncio
-from contextlib import AsyncExitStack
+from tests._helpers import AsyncExitStack
 import sys
 
 import pytest

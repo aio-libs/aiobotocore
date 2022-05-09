@@ -14,6 +14,7 @@ pytest = "==6.2.4"
 pytest-cov = "==2.11.1"
 pytest-asyncio = "==0.14.0"
 pytest-xdist = "==2.2.1"
+async_exit_stack = {version = "*", markers="python_version < '3.7.0'"}
 
 # this is needed for test_patches
 dill = "==0.3.3"
