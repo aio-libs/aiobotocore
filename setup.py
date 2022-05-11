@@ -63,7 +63,7 @@ setup(
     url='https://github.com/aio-libs/aiobotocore',
     download_url='https://pypi.python.org/pypi/aiobotocore',
     license='Apache License 2.0',
-    packages=find_packages(),
+    packages=find_packages(include=['aiobotocore']),
     python_requires='>=3.6',
     install_requires=install_requires,
     extras_require=extras_require,

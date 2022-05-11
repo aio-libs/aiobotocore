@@ -1,5 +1,9 @@
 Changes
 -------
+2.3.3 (2022-05-09)
+^^^^^^^^^^^^^^^^^^
+* fix Test files appearing in distribution package
+
 2.3.2 (2022-05-08)
 ^^^^^^^^^^^^^^^^^^
 * fix 3.6 testing and and actually fix 3.6 support
