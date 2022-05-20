@@ -13,7 +13,7 @@ from multidict import MultiDict
 
 from botocore.httpsession import ProxyConfiguration, create_urllib3_context, \
     MAX_POOL_CONNECTIONS, InvalidProxiesConfigError, SSLError, \
-    EndpointConnectionError, ProxyConnectionError, \
+    EndpointConnectionError, ProxyConnectionError, ConnectTimeoutError, \
     ConnectionClosedError, HTTPClientError, ReadTimeoutError, logger, get_cert_path, \
     ensure_boolean, urlparse, mask_proxy_url
 import aiobotocore.awsrequest
@@ -205,10 +205,15 @@ class AIOHTTPSession:
                 request=request,
                 endpoint_url=request.url
             )
-        except (ServerTimeoutError, asyncio.TimeoutError) as e:
-            raise ReadTimeoutError(endpoint_url=request.url, error=e)
+        except ServerTimeoutError as e:
+            if str(e).lower().startswith('connect'):
+                raise ConnectTimeoutError(endpoint_url=request.url, error=e)
+            else:
+                raise ReadTimeoutError(endpoint_url=request.url, error=e)
         except (ClientConnectorError, ClientConnectionError, socket.gaierror) as e:
             raise EndpointConnectionError(endpoint_url=request.url, error=e)
+        except asyncio.TimeoutError as e:
+            raise ReadTimeoutError(endpoint_url=request.url, error=e)
         except Exception as e:
             message = 'Exception received when sending urllib3 HTTP request'
             logger.debug(message, exc_info=True)
