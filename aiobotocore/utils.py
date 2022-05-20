@@ -10,7 +10,7 @@ from botocore.utils import ContainerMetadataFetcher, InstanceMetadataFetcher, \
     resolve_imds_endpoint_mode, ReadTimeoutError, HTTPClientError, \
     DEFAULT_METADATA_SERVICE_TIMEOUT, METADATA_BASE_URL, os
 from botocore.exceptions import (
-    InvalidIMDSEndpointError, MetadataRetrievalError, ConnectTimeoutError,
+    InvalidIMDSEndpointError, MetadataRetrievalError,
 )
 import botocore.awsrequest
 import aiobotocore.httpsession
@@ -92,7 +92,7 @@ class AioIMDSFetcher(IMDSFetcher):
                         return None
                     elif response.status_code in (400,):
                         raise BadIMDSRequestError(request)
-                except (ReadTimeoutError, ConnectTimeoutError):
+                except ReadTimeoutError:
                     return None
                 except RETRYABLE_HTTP_ERRORS as e:
                     logger.debug(
