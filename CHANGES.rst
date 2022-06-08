@@ -1,6 +1,6 @@
 Changes
 -------
-2.3.4 (2022-05-20)
+2.3.4 (2022-06-07)
 ^^^^^^^^^^^^^^^^^^
 * fix connect timeout while getting IAM creds
 
