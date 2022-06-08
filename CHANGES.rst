@@ -1,12 +1,9 @@
 Changes
 -------
-2.3.4 (2022-06-07)
+2.3.3 (2022-06-07)
 ^^^^^^^^^^^^^^^^^^
 * fix connect timeout while getting IAM creds
-
-2.3.3 (2022-05-09)
-^^^^^^^^^^^^^^^^^^
-* fix Test files appearing in distribution package
+* fix test files appearing in distribution package
 
 2.3.2 (2022-05-08)
 ^^^^^^^^^^^^^^^^^^
