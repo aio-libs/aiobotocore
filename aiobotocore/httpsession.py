@@ -206,7 +206,10 @@ class AIOHTTPSession:
                 endpoint_url=request.url
             )
         except ServerTimeoutError as e:
-            raise ConnectTimeoutError(endpoint_url=request.url, error=e)
+            if str(e).lower().startswith('connect'):
+                raise ConnectTimeoutError(endpoint_url=request.url, error=e)
+            else:
+                raise ReadTimeoutError(endpoint_url=request.url, error=e)
         except (ClientConnectorError, ClientConnectionError, socket.gaierror) as e:
             raise EndpointConnectionError(endpoint_url=request.url, error=e)
         except asyncio.TimeoutError as e:
