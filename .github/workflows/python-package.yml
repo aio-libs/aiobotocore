@@ -34,7 +34,7 @@ jobs:
         COLOR: 'yes'
       run: |
         python -c "import sys; print(f'Python version: {sys.version}')"
-        python -m pip install -U setuptools pip pipenv codecov
+        python -m pip install -U setuptools pip pipenv codecov wheel
         pipenv lock --python ${{ matrix.python-version }}
         pipenv sync --dev
         pipenv check || true
@@ -78,7 +78,7 @@ jobs:
         python-version: 3.8
     - name: Make sdist
       run:
-        python setup.py sdist
+        python setup.py sdist bdist_wheel
     - name: Upload artifacts
       uses: actions/upload-artifact@v2
       with:
