@@ -4,7 +4,7 @@ from botocore.eventstream import EventStream, EventStreamBuffer, NoInitialRespon
 class AioEventStream(EventStream):
     async def _create_raw_event_generator(self):
         event_stream_buffer = EventStreamBuffer()
-        async for chunk, _ in self._raw_stream.iter_chunks():
+        async for chunk, _ in self._raw_stream.content.iter_chunks():
             event_stream_buffer.add_data(chunk)
             for event in event_stream_buffer:
                 yield event

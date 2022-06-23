@@ -1,5 +1,9 @@
 Changes
 -------
+2.3.4 (2022-06-23)
+^^^^^^^^^^^^^^^^^^
+* fix select_object_content
+
 2.3.3 (2022-06-07)
 ^^^^^^^^^^^^^^^^^^
 * fix connect timeout while getting IAM creds
