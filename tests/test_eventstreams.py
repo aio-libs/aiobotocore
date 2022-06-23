@@ -37,6 +37,7 @@ class FakeStreamReader(object):
 
     def __init__(self, chunks):
         self.chunks = chunks
+        self.content = self
 
     def iter_chunks(self):
         return self.ChunkedIterator(self.chunks)
