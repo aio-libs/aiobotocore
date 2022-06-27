@@ -69,15 +69,17 @@ jobs:
     needs: pre-deploy
     steps:
     - name: Checkout
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         submodules: true
     - name: Setup Python 3.8
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v3
       with:
         python-version: 3.8
-    - name: Make sdist
-      run:
+    - name: Make distributions (sdist and wheel)
+      run: |
+        python -c "import sys; print(f'Python version: {sys.version}')"
+        python -m pip install -U setuptools pip wheel
         python setup.py sdist bdist_wheel
     - name: Upload artifacts
       uses: actions/upload-artifact@v2
@@ -91,7 +93,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Setup Python 3.8
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v3
       with:
         python-version: 3.8
     - name: Install twine
