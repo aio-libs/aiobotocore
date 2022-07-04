@@ -11,7 +11,6 @@ install_requires = [
     'aiohttp>=3.3.1',
     'wrapt>=1.10.10',
     'aioitertools>=0.5.1',
-    "async_generator ; python_version<'3.7'",
 ]
 
 extras_require = {
@@ -50,7 +49,6 @@ setup(
         'Natural Language :: English',
         'License :: OSI Approved :: Apache Software License',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
         'Programming Language :: Python :: 3.9',
@@ -64,7 +62,7 @@ setup(
     download_url='https://pypi.python.org/pypi/aiobotocore',
     license='Apache License 2.0',
     packages=find_packages(include=['aiobotocore']),
-    python_requires='>=3.6',
+    python_requires='>=3.7',
     install_requires=install_requires,
     extras_require=extras_require,
     include_package_data=True,
