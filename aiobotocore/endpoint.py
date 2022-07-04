@@ -151,7 +151,7 @@ class AioEndpoint(Endpoint):
             )
         service_id = operation_model.service_model.service_id.hyphenize()
         await self._event_emitter.emit(
-            f'response-received.{service_id}.{operation_model.name}',
+            f"response-received.{service_id}.{operation_model.name}",
             **kwargs_to_emit,
         )
         return success_response, exception
@@ -170,9 +170,7 @@ class AioEndpoint(Endpoint):
                 },
             )
             service_id = operation_model.service_model.service_id.hyphenize()
-            event_name = 'before-send.{}.{}'.format(
-                service_id, operation_model.name
-            )
+            event_name = f"before-send.{service_id}.{operation_model.name}"
             responses = await self._event_emitter.emit(
                 event_name, request=request
             )
@@ -180,13 +178,12 @@ class AioEndpoint(Endpoint):
             if http_response is None:
                 http_response = await self._send(request)
         except HTTPClientError as e:
-            return None, e
+            return (None, e)
         except Exception as e:
             logger.debug(
                 "Exception received when sending HTTP request.", exc_info=True
             )
-            return None, e
-
+            return (None, e)
         # This returns the http_response and the parsed_data.
         response_dict = await convert_to_response_dict(
             http_response, operation_model
@@ -258,9 +255,7 @@ class AioEndpoint(Endpoint):
         caught_exception=None,
     ):
         service_id = operation_model.service_model.service_id.hyphenize()
-        event_name = 'needs-retry.{}.{}'.format(
-            service_id, operation_model.name
-        )
+        event_name = f"needs-retry.{service_id}.{operation_model.name}"
         responses = await self._event_emitter.emit(
             event_name,
             response=response,
@@ -277,7 +272,7 @@ class AioEndpoint(Endpoint):
             # Request needs to be retried, and we need to sleep
             # for the specified number of times.
             logger.debug(
-                "Response received to retry, sleeping for " "%s seconds",
+                "Response received to retry, sleeping for %s seconds",
                 handler_response,
             )
             await asyncio.sleep(handler_response)

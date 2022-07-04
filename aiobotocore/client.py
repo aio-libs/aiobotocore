@@ -206,7 +206,7 @@ class AioClientCreator(ClientCreator):
         )
         unique_id = 'retry-config-%s' % service_event_name
         client.meta.events.register(
-            'needs-retry.%s' % service_event_name, handler, unique_id=unique_id
+            f"needs-retry.{service_event_name}", handler, unique_id=unique_id
         )
 
     def _register_s3_events(
@@ -271,9 +271,9 @@ class AioClientCreator(ClientCreator):
 
 class AioBaseClient(BaseClient):
     async def _async_getattr(self, item):
-        event_name = 'getattr.{}.{}'.format(
-            self._service_model.service_id.hyphenize(), item
-        )
+        service_id = self._service_model.service_id.hyphenize()
+        event_name = f'getattr.{service_id}.{item}'
+
         handler, event_response = await self.meta.events.emit_until_response(
             event_name, client=self
         )
@@ -285,9 +285,7 @@ class AioBaseClient(BaseClient):
         # deferred attrgetter (See #803), it would resolve in hasattr always returning
         # true.  This ends up breaking ddtrace for example when it tries to set a pin.
         raise AttributeError(
-            "'{}' object has no attribute '{}'".format(
-                self.__class__.__name__, item
-            )
+            f"'{self.__class__.__name__}' object has no attribute '{item}'"
         )
 
     async def _make_api_call(self, operation_name, api_params):
@@ -399,20 +397,15 @@ class AioBaseClient(BaseClient):
         # parameters or return a new set of parameters to use.
         service_id = self._service_model.service_id.hyphenize()
         responses = await self.meta.events.emit(
-            'provide-client-params.{service_id}.{operation_name}'.format(
-                service_id=service_id, operation_name=operation_name
-            ),
+            f'provide-client-params.{service_id}.{operation_name}',
             params=api_params,
             model=operation_model,
             context=context,
         )
         api_params = first_non_none_response(responses, default=api_params)
 
-        event_name = 'before-parameter-build.{service_id}.{operation_name}'
         await self.meta.events.emit(
-            event_name.format(
-                service_id=service_id, operation_name=operation_name
-            ),
+            f'before-parameter-build.{service_id}.{operation_name}',
             params=api_params,
             model=operation_model,
             context=context,
@@ -462,11 +455,11 @@ class AioBaseClient(BaseClient):
             )
 
             # Rename the paginator class based on the type of paginator.
-            paginator_class_name = str(
-                '{}.Paginator.{}'.format(
-                    get_service_module_name(self.meta.service_model),
-                    actual_operation_name,
-                )
+            service_module_name = get_service_module_name(
+                self.meta.service_model
+            )
+            paginator_class_name = (
+                f"{service_module_name}.Paginator.{actual_operation_name}"
             )
 
             # Create the new paginator class

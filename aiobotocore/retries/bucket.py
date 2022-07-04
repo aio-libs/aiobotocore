@@ -73,6 +73,7 @@ class AsyncTokenBucket:
 
         If block is False, then this method will return True if capacity
         was successfully acquired, False otherwise.
+
         """
         async with self._new_fill_rate_condition:
             return await self._acquire(amount=amount, block=block)

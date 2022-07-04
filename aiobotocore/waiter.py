@@ -54,7 +54,8 @@ class AIOWaiter(Waiter):
                     # can just handle here by raising an exception.
                     raise WaiterError(
                         name=self.name,
-                        reason='An error occurred ({}): {}'.format(
+                        reason='An error occurred (%s): %s'
+                        % (
                             response['Error'].get('Code', 'Unknown'),
                             response['Error'].get('Message', 'Unknown'),
                         ),

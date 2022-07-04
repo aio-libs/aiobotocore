@@ -26,7 +26,7 @@ def register_retry_handler(client, max_attempts=DEFAULT_MAX_ATTEMPTS):
     service_id = client.meta.service_model.service_id
     service_event_name = service_id.hyphenize()
     client.meta.events.register(
-        'after-call.%s' % service_event_name, retry_quota.release_retry_quota
+        f'after-call.{service_event_name}', retry_quota.release_retry_quota
     )
 
     handler = AioRetryHandler(
@@ -60,7 +60,7 @@ class AioRetryHandler(RetryHandler):
             if self._retry_quota.acquire_retry_quota(context):
                 retry_delay = self._retry_policy.compute_retry_delay(context)
                 logger.debug(
-                    "Retry needed, retrying request after " "delay of: %s",
+                    "Retry needed, retrying request after delay of: %s",
                     retry_delay,
                 )
             else:
