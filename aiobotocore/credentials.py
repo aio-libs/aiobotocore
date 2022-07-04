@@ -12,6 +12,7 @@ from botocore import UNSIGNED
 from botocore.compat import compat_shell_split
 from botocore.config import Config
 from botocore.credentials import (
+    _DEFAULT_ADVISORY_REFRESH_TIMEOUT,
     AssumeRoleCredentialFetcher,
     AssumeRoleProvider,
     AssumeRoleWithWebIdentityProvider,
@@ -78,6 +79,7 @@ def create_credential_resolver(session, cache=None, region_name=None):
         'ec2_metadata_service_endpoint_mode': resolve_imds_endpoint_mode(
             session
         ),
+        'ec2_credential_refresh_window': _DEFAULT_ADVISORY_REFRESH_TIMEOUT,
     }
 
     if cache is None:
@@ -529,8 +531,8 @@ class AioProcessProvider(ProcessProvider):
             raise CredentialRetrievalError(
                 provider=self.METHOD,
                 error_msg=(
-                    "Unsupported version '%s' for credential process "
-                    "provider, supported versions: 1" % version
+                    f"Unsupported version '{version}' for credential process "
+                    f"provider, supported versions: 1"
                 ),
             )
         try:
@@ -543,7 +545,7 @@ class AioProcessProvider(ProcessProvider):
         except KeyError as e:
             raise CredentialRetrievalError(
                 provider=self.METHOD,
-                error_msg="Missing required key in response: %s" % e,
+                error_msg=f"Missing required key in response: {e}",
             )
 
 
