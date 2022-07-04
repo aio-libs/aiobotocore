@@ -1,0 +1,5 @@
+# You can configure git to automatically use this file with the following config:
+# git config --global blame.ignoreRevsFile .git-blame-ignore-revs
+
+# Apply codestyle across all codebase
+821a649c41e1a5295c7cbd9fd85d1a6d3596b94b
