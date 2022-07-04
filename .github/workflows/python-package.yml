@@ -29,9 +29,7 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
 #        cache: 'pipenv'
-    - name: Run unittests
-      env:
-        COLOR: 'yes'
+    - name: Download dependencies
       run: |
         python -c "import sys; print(f'Python version: {sys.version}')"
         python -m pip install -U setuptools pip pipenv codecov wheel
@@ -39,7 +37,15 @@ jobs:
         pipenv sync --dev
         pipenv check || true
         pipenv graph
-        make flake mototest
+    - name: Run flake
+      if: matrix.python-version != '3.7'
+      run: |
+        make flake
+    - name: Run unittests
+      env:
+        COLOR: 'yes'
+      run: |
+        make mototest
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v1.5.2
       with:
