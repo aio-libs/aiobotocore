@@ -1,6 +1,16 @@
-from botocore.parsers import ResponseParserFactory, RestXMLParser, \
-    RestJSONParser, JSONParser, QueryParser, EC2QueryParser, \
-    NoInitialResponseError, ResponseParserError, LOG, lowercase_dict
+from botocore.parsers import (
+    LOG,
+    EC2QueryParser,
+    JSONParser,
+    NoInitialResponseError,
+    QueryParser,
+    ResponseParserError,
+    ResponseParserFactory,
+    RestJSONParser,
+    RestXMLParser,
+    lowercase_dict,
+)
+
 from .eventstream import AioEventStream
 
 
@@ -31,7 +41,9 @@ class AioJSONParser(JSONParser):
         if shape is not None:
             event_name = shape.event_stream_name
             if event_name:
-                parsed = await self._handle_event_stream(response, shape, event_name)
+                parsed = await self._handle_event_stream(
+                    response, shape, event_name
+                )
             else:
                 parsed = self._handle_json_body(response['body'], shape)
         self._inject_response_metadata(parsed, response['headers'])

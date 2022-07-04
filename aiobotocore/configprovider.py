@@ -1,12 +1,13 @@
-from botocore.configprovider import os, SmartDefaultsConfigStoreFactory
+from botocore.configprovider import SmartDefaultsConfigStoreFactory, os
 
 
 class AioSmartDefaultsConfigStoreFactory(SmartDefaultsConfigStoreFactory):
     async def merge_smart_defaults(self, config_store, mode, region_name):
         if mode == 'auto':
             mode = await self.resolve_auto_mode(region_name)
-        default_configs = self._default_config_resolver.get_default_config_values(
-            mode)
+        default_configs = (
+            self._default_config_resolver.get_default_config_values(mode)
+        )
         for config_var in default_configs:
             config_value = default_configs[config_var]
             method = getattr(self, f'_set_{config_var}', None)
@@ -23,8 +24,7 @@ class AioSmartDefaultsConfigStoreFactory(SmartDefaultsConfigStoreFactory):
                 current_region = self._instance_metadata_region
             else:
                 try:
-                    current_region = \
-                        await self._imds_region_provider.provide()
+                    current_region = await self._imds_region_provider.provide()
                     self._instance_metadata_region = current_region
                 except Exception:
                     pass

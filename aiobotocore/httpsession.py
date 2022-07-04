@@ -1,37 +1,55 @@
 import asyncio
 import io
-import socket
 import os
+import socket
 from typing import Dict, Optional
 
 import aiohttp  # lgtm [py/import-and-import-from]
-from aiohttp import ClientSSLError, ClientConnectorError, ClientProxyConnectionError, \
-    ClientHttpProxyError, ServerTimeoutError, ServerDisconnectedError, \
-    ClientConnectionError
+from aiohttp import (
+    ClientConnectionError,
+    ClientConnectorError,
+    ClientHttpProxyError,
+    ClientProxyConnectionError,
+    ClientSSLError,
+    ServerDisconnectedError,
+    ServerTimeoutError,
+)
 from aiohttp.client import URL
+from botocore.httpsession import (
+    MAX_POOL_CONNECTIONS,
+    ConnectionClosedError,
+    ConnectTimeoutError,
+    EndpointConnectionError,
+    HTTPClientError,
+    InvalidProxiesConfigError,
+    ProxyConfiguration,
+    ProxyConnectionError,
+    ReadTimeoutError,
+    SSLError,
+    create_urllib3_context,
+    ensure_boolean,
+    get_cert_path,
+    logger,
+    mask_proxy_url,
+    urlparse,
+)
 from multidict import MultiDict
 
-from botocore.httpsession import ProxyConfiguration, create_urllib3_context, \
-    MAX_POOL_CONNECTIONS, InvalidProxiesConfigError, SSLError, \
-    EndpointConnectionError, ProxyConnectionError, ConnectTimeoutError, \
-    ConnectionClosedError, HTTPClientError, ReadTimeoutError, logger, get_cert_path, \
-    ensure_boolean, urlparse, mask_proxy_url
 import aiobotocore.awsrequest
-
-from aiobotocore._endpoint_helpers import _text, _IOBaseWrapper
+from aiobotocore._endpoint_helpers import _IOBaseWrapper, _text
 
 
 class AIOHTTPSession:
     def __init__(
-            self,
-            verify: bool = True,
-            proxies: Dict[str, str] = None,  # {scheme: url}
-            timeout: float = None,
-            max_pool_connections: int = MAX_POOL_CONNECTIONS,
-            socket_options=None,
-            client_cert=None,
-            proxies_config=None,
-            connector_args=None
+        self,
+        verify: bool = True,
+        proxies: Dict[str, str] = None,  # {scheme: url}
+        timeout: float = None,
+        max_pool_connections: int = MAX_POOL_CONNECTIONS,
+        socket_options=None,
+        client_cert=None,
+        proxies_config=None,
+        connector_args=None,
     ):
         # TODO: handle socket_options
         self._session: Optional[aiohttp.ClientSession] = None
@@ -45,8 +63,7 @@ class AIOHTTPSession:
             conn_timeout = read_timeout = timeout
 
         timeout = aiohttp.ClientTimeout(
-            sock_connect=conn_timeout,
-            sock_read=read_timeout
+            sock_connect=conn_timeout, sock_read=read_timeout
         )
 
         self._cert_file = None
@@ -105,7 +122,8 @@ class AIOHTTPSession:
             connector=self._connector,
             timeout=self._timeout,
             skip_auto_headers={'CONTENT-TYPE'},
-            auto_decompress=False)
+            auto_decompress=False,
+        )
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
@@ -143,7 +161,7 @@ class AIOHTTPSession:
                 context.load_cert_chain(proxy_cert)
 
             return context
-        except IOError as e:
+        except OSError as e:
             raise InvalidProxiesConfigError(error=e)
 
     async def send(self, request):
@@ -169,22 +187,24 @@ class AIOHTTPSession:
             headers['Accept-Encoding'] = 'identity'
 
             headers_ = MultiDict(
-                (z[0], _text(z[1], encoding='utf-8')) for z in headers.items())
+                (z[0], _text(z[1], encoding='utf-8')) for z in headers.items()
+            )
 
             if isinstance(data, io.IOBase):
                 data = _IOBaseWrapper(data)
 
             url = URL(url, encoded=True)
             response = await self._session.request(
-                request.method, url=url, headers=headers_, data=data, proxy=proxy_url,
-                proxy_headers=proxy_headers
+                request.method,
+                url=url,
+                headers=headers_,
+                data=data,
+                proxy=proxy_url,
+                proxy_headers=proxy_headers,
             )
 
             http_response = aiobotocore.awsrequest.AioAWSResponse(
-                str(response.url),
-                response.status,
-                response.headers,
-                response
+                str(response.url), response.status, response.headers, response
             )
 
             if not request.stream_output:
@@ -197,20 +217,27 @@ class AIOHTTPSession:
         except ClientSSLError as e:
             raise SSLError(endpoint_url=request.url, error=e)
         except (ClientProxyConnectionError, ClientHttpProxyError) as e:
-            raise ProxyConnectionError(proxy_url=mask_proxy_url(proxy_url), error=e)
-        except (ServerDisconnectedError, aiohttp.ClientPayloadError,
-                aiohttp.http_exceptions.BadStatusLine) as e:
+            raise ProxyConnectionError(
+                proxy_url=mask_proxy_url(proxy_url), error=e
+            )
+        except (
+            ServerDisconnectedError,
+            aiohttp.ClientPayloadError,
+            aiohttp.http_exceptions.BadStatusLine,
+        ) as e:
             raise ConnectionClosedError(
-                error=e,
-                request=request,
-                endpoint_url=request.url
+                error=e, request=request, endpoint_url=request.url
             )
         except ServerTimeoutError as e:
             if str(e).lower().startswith('connect'):
                 raise ConnectTimeoutError(endpoint_url=request.url, error=e)
             else:
                 raise ReadTimeoutError(endpoint_url=request.url, error=e)
-        except (ClientConnectorError, ClientConnectionError, socket.gaierror) as e:
+        except (
+            ClientConnectorError,
+            ClientConnectionError,
+            socket.gaierror,
+        ) as e:
             raise EndpointConnectionError(endpoint_url=request.url, error=e)
         except asyncio.TimeoutError as e:
             raise ReadTimeoutError(endpoint_url=request.url, error=e)

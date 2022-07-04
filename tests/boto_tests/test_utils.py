@@ -1,9 +1,9 @@
 import asyncio
-import pytest
-import json
 import itertools
-from typing import Union, List, Tuple
+import json
+from typing import List, Tuple, Union
 
+import pytest
 from botocore.exceptions import ReadTimeoutError
 from botocore.utils import BadIMDSRequestError
 
@@ -12,8 +12,11 @@ from aiobotocore._helpers import asynccontextmanager
 
 
 # From class TestContainerMetadataFetcher
-def fake_aiohttp_session(responses: Union[List[Tuple[Union[str, object], int]],
-                                          Tuple[Union[str, object], int]]):
+def fake_aiohttp_session(
+    responses: Union[
+        List[Tuple[Union[str, object], int]], Tuple[Union[str, object], int]
+    ]
+):
     """
     Dodgy shim class
     """
@@ -22,12 +25,12 @@ def fake_aiohttp_session(responses: Union[List[Tuple[Union[str, object], int]],
     else:
         data = iter(responses)
 
-    class FakeAioHttpSession(object):
+    class FakeAioHttpSession:
         @asynccontextmanager
         async def acquire(self):
             yield self
 
-        class FakeResponse(object):
+        class FakeResponse:
             def __init__(self, request, *args, **kwargs):
                 self.request = request
                 self.url = request.url
@@ -80,13 +83,15 @@ async def test_idmsfetcher_disabled():
 @pytest.mark.moto
 @pytest.mark.asyncio
 async def test_idmsfetcher_get_token_success():
-    session = fake_aiohttp_session([
-        ('blah', 200),
-    ])
+    session = fake_aiohttp_session(
+        [
+            ('blah', 200),
+        ]
+    )
 
-    fetcher = utils.AioIMDSFetcher(num_attempts=2,
-                                   session=session,
-                                   user_agent='test')
+    fetcher = utils.AioIMDSFetcher(
+        num_attempts=2, session=session, user_agent='test'
+    )
     response = await fetcher._fetch_metadata_token()
     assert response == 'blah'
 
@@ -94,13 +99,15 @@ async def test_idmsfetcher_get_token_success():
 @pytest.mark.moto
 @pytest.mark.asyncio
 async def test_idmsfetcher_get_token_not_found():
-    session = fake_aiohttp_session([
-        ('blah', 404),
-    ])
+    session = fake_aiohttp_session(
+        [
+            ('blah', 404),
+        ]
+    )
 
-    fetcher = utils.AioIMDSFetcher(num_attempts=2,
-                                   session=session,
-                                   user_agent='test')
+    fetcher = utils.AioIMDSFetcher(
+        num_attempts=2, session=session, user_agent='test'
+    )
     response = await fetcher._fetch_metadata_token()
     assert response is None
 
@@ -108,13 +115,15 @@ async def test_idmsfetcher_get_token_not_found():
 @pytest.mark.moto
 @pytest.mark.asyncio
 async def test_idmsfetcher_get_token_bad_request():
-    session = fake_aiohttp_session([
-        ('blah', 400),
-    ])
+    session = fake_aiohttp_session(
+        [
+            ('blah', 400),
+        ]
+    )
 
-    fetcher = utils.AioIMDSFetcher(num_attempts=2,
-                                   session=session,
-                                   user_agent='test')
+    fetcher = utils.AioIMDSFetcher(
+        num_attempts=2, session=session, user_agent='test'
+    )
     with pytest.raises(BadIMDSRequestError):
         await fetcher._fetch_metadata_token()
 
@@ -122,12 +131,13 @@ async def test_idmsfetcher_get_token_bad_request():
 @pytest.mark.moto
 @pytest.mark.asyncio
 async def test_idmsfetcher_get_token_timeout():
-    session = fake_aiohttp_session([
-        (ReadTimeoutError(endpoint_url='aaa'), 500),
-    ])
+    session = fake_aiohttp_session(
+        [
+            (ReadTimeoutError(endpoint_url='aaa'), 500),
+        ]
+    )
 
-    fetcher = utils.AioIMDSFetcher(num_attempts=2,
-                                   session=session)
+    fetcher = utils.AioIMDSFetcher(num_attempts=2, session=session)
 
     response = await fetcher._fetch_metadata_token()
     assert response is None
@@ -136,14 +146,15 @@ async def test_idmsfetcher_get_token_timeout():
 @pytest.mark.moto
 @pytest.mark.asyncio
 async def test_idmsfetcher_get_token_retry():
-    session = fake_aiohttp_session([
-        ('blah', 500),
-        ('blah', 500),
-        ('token', 200),
-    ])
+    session = fake_aiohttp_session(
+        [
+            ('blah', 500),
+            ('blah', 500),
+            ('token', 200),
+        ]
+    )
 
-    fetcher = utils.AioIMDSFetcher(num_attempts=3,
-                                   session=session)
+    fetcher = utils.AioIMDSFetcher(num_attempts=3, session=session)
 
     response = await fetcher._fetch_metadata_token()
     assert response == 'token'
@@ -152,22 +163,26 @@ async def test_idmsfetcher_get_token_retry():
 @pytest.mark.moto
 @pytest.mark.asyncio
 async def test_idmsfetcher_retry():
-    session = fake_aiohttp_session([
-        ('blah', 500),
-        ('data', 200),
-    ])
+    session = fake_aiohttp_session(
+        [
+            ('blah', 500),
+            ('data', 200),
+        ]
+    )
 
-    fetcher = utils.AioIMDSFetcher(num_attempts=2,
-                                   session=session,
-                                   user_agent='test')
+    fetcher = utils.AioIMDSFetcher(
+        num_attempts=2, session=session, user_agent='test'
+    )
     response = await fetcher._get_request('path', None, 'some_token')
 
     assert await response.text == 'data'
 
-    session = fake_aiohttp_session([
-        ('blah', 500),
-        ('data', 200),
-    ])
+    session = fake_aiohttp_session(
+        [
+            ('blah', 500),
+            ('data', 200),
+        ]
+    )
 
     fetcher = utils.AioIMDSFetcher(num_attempts=1, session=session)
     with pytest.raises(fetcher._RETRIES_EXCEEDED_ERROR_CLS):
@@ -177,12 +192,13 @@ async def test_idmsfetcher_retry():
 @pytest.mark.moto
 @pytest.mark.asyncio
 async def test_idmsfetcher_timeout():
-    session = fake_aiohttp_session([
-        (asyncio.TimeoutError(), 500),
-    ])
+    session = fake_aiohttp_session(
+        [
+            (asyncio.TimeoutError(), 500),
+        ]
+    )
 
-    fetcher = utils.AioIMDSFetcher(num_attempts=1,
-                                   session=session)
+    fetcher = utils.AioIMDSFetcher(num_attempts=1, session=session)
 
     with pytest.raises(fetcher._RETRIES_EXCEEDED_ERROR_CLS):
         await fetcher._get_request('path', None)

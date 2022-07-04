@@ -1,8 +1,15 @@
-from botocore.httpchecksum import logger, _CHECKSUM_CLS, base64, \
-    FlexibleChecksumError, _handle_streaming_response
+from botocore.httpchecksum import (
+    _CHECKSUM_CLS,
+    FlexibleChecksumError,
+    _handle_streaming_response,
+    base64,
+    logger,
+)
 
 
-async def handle_checksum_body(http_response, response, context, operation_model):
+async def handle_checksum_body(
+    http_response, response, context, operation_model
+):
     headers = response["headers"]
     checksum_context = context.get("checksum", {})
     algorithms = checksum_context.get("response_algorithms")
@@ -53,7 +60,10 @@ async def _handle_bytes_response(http_response, response, algorithm):
     if checksum.digest() != base64.b64decode(expected):
         error_msg = (
             "Expected checksum %s did not match calculated checksum: %s"
-            % (expected, checksum.b64digest(),)
+            % (
+                expected,
+                checksum.b64digest(),
+            )
         )
         raise FlexibleChecksumError(error_msg=error_msg)
     return body

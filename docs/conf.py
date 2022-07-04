@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 #
 # aiobotocore documentation build configuration file, created by
 # sphinx-quickstart on Sun Dec 11 17:08:38 2016.
@@ -37,12 +36,15 @@ _version_path = _docs_path / '../aiobotocore/__init__.py'
 
 with _version_path.open() as fp:
     try:
-        _version_info = re.search(r"^__version__ = '"
-                                  r"(?P<major>\d+)"
-                                  r"\.(?P<minor>\d+)"
-                                  r"\.(?P<patch>\d+)"
-                                  r"(?P<tag>.*)?'$",
-                                  fp.read(), re.M).groupdict()
+        _version_info = re.search(
+            r"^__version__ = '"
+            r"(?P<major>\d+)"
+            r"\.(?P<minor>\d+)"
+            r"\.(?P<patch>\d+)"
+            r"(?P<tag>.*)?'$",
+            fp.read(),
+            re.M,
+        ).groupdict()
     except IndexError:
         raise RuntimeError('Unable to determine version.')
 
@@ -54,7 +56,7 @@ extensions = [
     'sphinx.ext.intersphinx',
     'sphinx.ext.todo',
     'sphinx.ext.coverage',
-    'sphinx.ext.viewcode'
+    'sphinx.ext.viewcode',
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -112,7 +114,7 @@ html_theme = 'alabaster'
 # further.  For a list of options available for each theme, see the
 # documentation.
 #
-aiobotocore_desc = ('Async client for aws services using botocore and aiohttp')
+aiobotocore_desc = 'Async client for aws services using botocore and aiohttp'
 html_theme_options = {
     'description': aiobotocore_desc,
     'github_user': 'aio-libs',
@@ -139,15 +141,12 @@ latex_elements = {
     # The paper size ('letterpaper' or 'a4paper').
     #
     # 'papersize': 'letterpaper',
-
     # The font size ('10pt', '11pt' or '12pt').
     #
     # 'pointsize': '10pt',
-
     # Additional stuff for the LaTeX preamble.
     #
     # 'preamble': '',
-
     # Latex figure (float) alignment
     #
     # 'figure_align': 'htbp',
@@ -157,8 +156,13 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, 'aiobotocore.tex', 'aiobotocore Documentation',
-     'Nikolay Novik', 'manual'),
+    (
+        master_doc,
+        'aiobotocore.tex',
+        'aiobotocore Documentation',
+        'Nikolay Novik',
+        'manual',
+    ),
 ]
 
 
@@ -167,8 +171,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    (master_doc, 'aiobotocore', 'aiobotocore Documentation',
-     [author], 1)
+    (master_doc, 'aiobotocore', 'aiobotocore Documentation', [author], 1)
 ]
 
 
@@ -178,9 +181,15 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    (master_doc, 'aiobotocore', 'aiobotocore Documentation',
-     author, 'aiobotocore', aiobotocore_desc,
-     'Miscellaneous'),
+    (
+        master_doc,
+        'aiobotocore',
+        'aiobotocore Documentation',
+        author,
+        'aiobotocore',
+        aiobotocore_desc,
+        'Miscellaneous',
+    ),
 ]
 
 

@@ -1,4 +1,5 @@
 import time
+
 import pytest
 
 
@@ -30,13 +31,12 @@ async def test_put_pull_delete_test(sqs_client, sqs_queue_url):
         MessageBody='test_message_1',
         MessageAttributes={
             'attr1': {'DataType': 'String', 'StringValue': 'value1'}
-        }
+        },
     )
     pytest.aio.assert_status_code(response, 200)
 
     response = await sqs_client.receive_message(
-        QueueUrl=sqs_queue_url,
-        MessageAttributeNames=['attr1']
+        QueueUrl=sqs_queue_url, MessageAttributeNames=['attr1']
     )
     pytest.aio.assert_status_code(response, 200)
 
@@ -48,8 +48,7 @@ async def test_put_pull_delete_test(sqs_client, sqs_queue_url):
 
     receipt_handle = response['Messages'][0]['ReceiptHandle']
     response = await sqs_client.delete_message(
-        QueueUrl=sqs_queue_url,
-        ReceiptHandle=receipt_handle
+        QueueUrl=sqs_queue_url, ReceiptHandle=receipt_handle
     )
     pytest.aio.assert_status_code(response, 200)
     response = await sqs_client.receive_message(
@@ -64,8 +63,7 @@ async def test_put_pull_delete_test(sqs_client, sqs_queue_url):
 async def test_put_pull_wait(sqs_client, sqs_queue_url):
     start = time.perf_counter()
     response = await sqs_client.receive_message(
-        QueueUrl=sqs_queue_url,
-        WaitTimeSeconds=2
+        QueueUrl=sqs_queue_url, WaitTimeSeconds=2
     )
     end = time.perf_counter()
     pytest.aio.assert_status_code(response, 200)

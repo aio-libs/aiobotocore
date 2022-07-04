@@ -1,8 +1,9 @@
 import io
 
 import pytest
-from aiobotocore import response
 from botocore.exceptions import IncompleteReadError
+
+from aiobotocore import response
 
 
 # https://github.com/boto/botocore/blob/develop/tests/unit/test_response.py
@@ -182,6 +183,7 @@ async def test_streaming_line_abstruse_newline_standard():
 @pytest.mark.asyncio
 async def test_streaming_line_empty_body():
     stream = response.StreamingBody(
-        AsyncBytesIO(b''), content_length=0,
+        AsyncBytesIO(b''),
+        content_length=0,
     )
     await assert_lines(stream.iter_lines(), [])

@@ -46,10 +46,14 @@ def lambda_handler(event, context):
 async def test_run_lambda(iam_client, lambda_client, aws_lambda_zip):
     role_arn = await _get_role_arn(iam_client, 'test-iam-role')
     lambda_response = await lambda_client.create_function(
-        FunctionName='test-function', Runtime='python3.8',
-        Role=role_arn, Handler='lambda_function.lambda_handler',
-        Timeout=10, MemorySize=128, Publish=True,
-        Code={'ZipFile': aws_lambda_zip}
+        FunctionName='test-function',
+        Runtime='python3.8',
+        Role=role_arn,
+        Handler='lambda_function.lambda_handler',
+        Timeout=10,
+        MemorySize=128,
+        Publish=True,
+        Code={'ZipFile': aws_lambda_zip},
     )
     assert lambda_response['FunctionName'] == 'test-function'
 

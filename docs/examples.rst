@@ -35,4 +35,3 @@ DynamoDB
 
    examples/dynamo_db/insertions
    examples/dynamo_db/tables
-

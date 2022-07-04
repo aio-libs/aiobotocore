@@ -36,26 +36,32 @@ class AioConfig(botocore.client.Config):
             if k == 'use_dns_cache':
                 if not isinstance(v, bool):
                     raise ParamValidationError(
-                        report='{} value must be a boolean'.format(k))
+                        report=f'{k} value must be a boolean'
+                    )
             elif k in ['keepalive_timeout']:
                 if v is not None and not isinstance(v, (float, int)):
                     raise ParamValidationError(
-                        report='{} value must be a float/int or None'.format(k))
+                        report=f'{k} value must be a float/int or None'
+                    )
             elif k == 'force_close':
                 if not isinstance(v, bool):
                     raise ParamValidationError(
-                        report='{} value must be a boolean'.format(k))
+                        report=f'{k} value must be a boolean'
+                    )
             # limit is handled by max_pool_connections
             elif k == 'ssl_context':
                 import ssl
+
                 if not isinstance(v, ssl.SSLContext):
                     raise ParamValidationError(
-                        report='{} must be an SSLContext instance'.format(k))
+                        report=f'{k} must be an SSLContext instance'
+                    )
             elif k == "resolver":
                 from aiohttp.abc import AbstractResolver
+
                 if not isinstance(v, AbstractResolver):
                     raise ParamValidationError(
-                        report='{} must be an instance of a AbstractResolver'.format(k))
+                        report=f'{k} must be an instance of a AbstractResolver'
+                    )
             else:
-                raise ParamValidationError(
-                    report='invalid connector_arg:{}'.format(k))
+                raise ParamValidationError(report=f'invalid connector_arg:{k}')

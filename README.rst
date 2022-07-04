@@ -173,7 +173,7 @@ Enable type checking and code completion
 ----------------------------------------
 
 Install types-aiobotocore_ that contains type annotations for `aiobotocore`
-and all supported botocore_ services. 
+and all supported botocore_ services.
 
 .. code:: bash
 

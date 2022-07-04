@@ -3,8 +3,12 @@ import asyncio
 import aiohttp
 import aiohttp.client_exceptions
 import wrapt
-from botocore.response import ResponseStreamingError, IncompleteReadError, \
-    ReadTimeoutError
+from botocore.response import (
+    IncompleteReadError,
+    ReadTimeoutError,
+    ResponseStreamingError,
+)
+
 from aiobotocore import parsers
 
 
@@ -50,10 +54,13 @@ class StreamingBody(wrapt.ObjectProxy):
         """
         # botocore to aiohttp mapping
         try:
-            chunk = await self.__wrapped__.content.read(amt if amt is not None else -1)
+            chunk = await self.__wrapped__.content.read(
+                amt if amt is not None else -1
+            )
         except asyncio.TimeoutError as e:
-            raise AioReadTimeoutError(endpoint_url=self.__wrapped__.url,
-                                      error=e)
+            raise AioReadTimeoutError(
+                endpoint_url=self.__wrapped__.url, error=e
+            )
         except aiohttp.client_exceptions.ClientConnectionError as e:
             raise ResponseStreamingError(error=e)
 
@@ -71,13 +78,11 @@ class StreamingBody(wrapt.ObjectProxy):
         return lines
 
     def __aiter__(self):
-        """Return an iterator to yield 1k chunks from the raw stream.
-        """
+        """Return an iterator to yield 1k chunks from the raw stream."""
         return self.iter_chunks(self._DEFAULT_CHUNK_SIZE)
 
     async def __anext__(self):
-        """Return the next 1k chunk from the raw stream.
-        """
+        """Return the next 1k chunk from the raw stream."""
         current_chunk = await self.read(self._DEFAULT_CHUNK_SIZE)
         if current_chunk:
             return current_chunk
@@ -114,11 +119,14 @@ class StreamingBody(wrapt.ObjectProxy):
         # See: https://github.com/kennethreitz/requests/issues/1855
         # Basically, our http library doesn't do this for us, so we have
         # to do this ourself.
-        if self._self_content_length is not None and \
-                self._self_amount_read != int(self._self_content_length):
+        if (
+            self._self_content_length is not None
+            and self._self_amount_read != int(self._self_content_length)
+        ):
             raise IncompleteReadError(
                 actual_bytes=self._self_amount_read,
-                expected_bytes=int(self._self_content_length))
+                expected_bytes=int(self._self_content_length),
+            )
 
     def tell(self):
         return self._self_amount_read
@@ -137,15 +145,16 @@ async def get_response(operation_model, http_response):
         response_dict['body'] = await http_response.content
     elif operation_model.has_streaming_output:
         response_dict['body'] = StreamingBody(
-            http_response.raw, response_dict['headers'].get('content-length'))
+            http_response.raw, response_dict['headers'].get('content-length')
+        )
     else:
         response_dict['body'] = await http_response.content
 
     parser = parsers.create_parser(protocol)
     if asyncio.iscoroutinefunction(parser.parse):
         parsed = await parser.parse(
-            response_dict, operation_model.output_shape)
+            response_dict, operation_model.output_shape
+        )
     else:
-        parsed = parser.parse(
-            response_dict, operation_model.output_shape)
+        parsed = parser.parse(response_dict, operation_model.output_shape)
     return http_response, parsed

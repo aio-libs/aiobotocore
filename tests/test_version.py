@@ -1,31 +1,31 @@
 import ast
+import operator
+import re
 from datetime import datetime
 from itertools import chain
+from pathlib import Path
+from typing import NamedTuple, Optional
 
+import docutils.frontend
 import docutils.nodes
 import docutils.parsers.rst
 import docutils.utils
-import docutils.frontend
-import re
-import operator
-from pathlib import Path
-from packaging import version
-from typing import NamedTuple, Optional
-
-import aiobotocore
-import requests
 import pytest
-from pip._internal.req.constructors import install_req_from_line
+import requests
+from packaging import version
 from pip._internal.req import InstallRequirement
+from pip._internal.req.constructors import install_req_from_line
 from pip._vendor.packaging.specifiers import SpecifierSet
 
+import aiobotocore
 
 _root_path = Path(__file__).absolute().parent.parent
 
 
 # date can be YYYY-MM-DD or "TBD"
 _rst_ver_date_str_re = re.compile(
-    r'(?P<version>\d+\.\d+\.\d+) \((?P<date>\d{4}-\d{2}-\d{2}|TBD)\)')
+    r'(?P<version>\d+\.\d+\.\d+) \((?P<date>\d{4}-\d{2}-\d{2}|TBD)\)'
+)
 
 
 # from: https://stackoverflow.com/a/48719723/1241593
@@ -33,7 +33,8 @@ def _parse_rst(text: str) -> docutils.nodes.document:
     parser = docutils.parsers.rst.Parser()
     components = (docutils.parsers.rst.Parser,)
     settings = docutils.frontend.OptionParser(
-        components=components).get_default_values()
+        components=components
+    ).get_default_values()
     document = docutils.utils.new_document('<rst-doc>', settings=settings)
     parser.parse(text, document)
     return document
@@ -52,7 +53,7 @@ class VersionInfo(NamedTuple):
 
 
 def _get_boto_module_versions(
-        setup_content: str, ensure_plus_one_patch_range: bool = False
+    setup_content: str, ensure_plus_one_patch_range: bool = False
 ):
     parsed = ast.parse(setup_content)
     top_level_vars = {"install_requires", "requires", "extras_require"}
@@ -69,9 +70,9 @@ def _get_boto_module_versions(
     module_versions = dict()
 
     for ver in chain(
-            assignments.get("install_requires", []),
-            assignments.get("requires", []),
-            assignments.get("extras_require", {}).values()
+        assignments.get("install_requires", []),
+        assignments.get("requires", []),
+        assignments.get("extras_require", {}).values(),
     ):
         if isinstance(ver, str):
             ver: InstallRequirement = install_req_from_line(ver)
@@ -101,10 +102,12 @@ def _get_boto_module_versions(
                 assert False, f'unsupported operator: {spec.operator}'
 
         if ensure_plus_one_patch_range:
-            assert len(gte.release) == len(lt.release) == 3, \
-                f'{module} gte: {gte} diff len than {lt}'
-            assert lt.release == tuple(map(operator.add, gte.release, (0, 0, 1))),\
-                f'{module} gte: {gte} not one patch off from {lt}'
+            assert (
+                len(gte.release) == len(lt.release) == 3
+            ), f'{module} gte: {gte} diff len than {lt}'
+            assert lt.release == tuple(
+                map(operator.add, gte.release, (0, 0, 1))
+            ), f'{module} gte: {gte} not one patch off from {lt}'
 
         module_versions[module] = VersionInfo(
             gte.public if gte else None, ver.req.specifier
@@ -142,16 +145,20 @@ def test_release_versions():
     rst_prev_date = rst_prev_ver_groups['date']
 
     if rst_date == 'TBD':
-        assert rst_ver.is_prerelease, \
-            'Version must be prerelease if final release date not set'
+        assert (
+            rst_ver.is_prerelease
+        ), 'Version must be prerelease if final release date not set'
     else:
-        assert not rst_ver.is_prerelease, \
-            'Version must not be prerelease if release date set'
+        assert (
+            not rst_ver.is_prerelease
+        ), 'Version must not be prerelease if release date set'
 
         rst_date = datetime.strptime(rst_date, '%Y-%m-%d').date()
         rst_prev_date = datetime.strptime(rst_prev_date, '%Y-%m-%d').date()
 
-        assert rst_date > rst_prev_date, 'Current release must be after last release'
+        assert (
+            rst_date > rst_prev_date
+        ), 'Current release must be after last release'
 
     # get aioboto reqs
     with (_root_path / 'setup.py').open() as f:
@@ -161,17 +168,21 @@ def test_release_versions():
     # get awscli reqs
     awscli_resp = requests.get(
         f"https://raw.githubusercontent.com/aws/aws-cli/"
-        f"{aioboto_reqs['awscli'].least_version}/setup.py")
+        f"{aioboto_reqs['awscli'].least_version}/setup.py"
+    )
     awscli_reqs = _get_boto_module_versions(awscli_resp.text)
     assert awscli_reqs['botocore'].specifier_set.contains(
-        aioboto_reqs['botocore'].least_version)
+        aioboto_reqs['botocore'].least_version
+    )
 
     # get boto3 reqs
     boto3_resp = requests.get(
         f"https://raw.githubusercontent.com/boto/boto3/"
-        f"{aioboto_reqs['boto3'].least_version}/setup.py")
+        f"{aioboto_reqs['boto3'].least_version}/setup.py"
+    )
     boto3_reqs = _get_boto_module_versions(boto3_resp.text)
     assert boto3_reqs['botocore'].specifier_set.contains(
-        aioboto_reqs['botocore'].least_version)
+        aioboto_reqs['botocore'].least_version
+    )
 
     print()

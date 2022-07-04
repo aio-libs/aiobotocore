@@ -1,7 +1,7 @@
 import os
 import re
-from setuptools import setup, find_packages
 
+from setuptools import find_packages, setup
 
 # NOTE: If updating requirements make sure to also check Pipfile for any locks
 # NOTE: When updating botocore make sure to update awscli/boto3 versions below
@@ -26,15 +26,15 @@ def read(f):
 
 def read_version():
     regexp = re.compile(r"^__version__\W*=\W*'([\d.abrc]+)'")
-    init_py = os.path.join(os.path.dirname(__file__),
-                           'aiobotocore', '__init__.py')
+    init_py = os.path.join(
+        os.path.dirname(__file__), 'aiobotocore', '__init__.py'
+    )
     with open(init_py) as f:
         for line in f:
             match = regexp.match(line)
             if match is not None:
                 return match.group(1)
-        raise RuntimeError('Cannot find version in '
-                           'aiobotocore/__init__.py')
+        raise RuntimeError('Cannot find version in ' 'aiobotocore/__init__.py')
 
 
 setup(
@@ -67,5 +67,5 @@ setup(
     python_requires='>=3.6',
     install_requires=install_requires,
     extras_require=extras_require,
-    include_package_data=True
+    include_package_data=True,
 )
