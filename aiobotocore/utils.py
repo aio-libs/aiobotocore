@@ -82,7 +82,10 @@ class AioIMDSFetcher(IMDSFetcher):
     ):
         self._timeout = timeout
         self._num_attempts = num_attempts
+        if config is None:
+            config = {}
         self._base_url = self._select_base_url(base_url, config)
+        self._config = config
 
         if env is None:
             env = os.environ.copy()
@@ -368,10 +371,10 @@ class AioS3RegionRedirector(S3RegionRedirector):
         # we'll get a 400 Bad Request but we won't get a
         # body saying it's an "AuthorizationHeaderMalformed".
         is_special_head_object = (
-            error_code in ['301', '400'] and operation.name == 'HeadObject'
+            error_code in ('301', '400') and operation.name == 'HeadObject'
         )
         is_special_head_bucket = (
-            error_code in ['301', '400']
+            error_code in ('301', '400')
             and operation.name == 'HeadBucket'
             and 'x-amz-bucket-region'
             in response_metadata.get('HTTPHeaders', {})
@@ -381,7 +384,7 @@ class AioS3RegionRedirector(S3RegionRedirector):
         )
         is_redirect_status = response[0] is not None and response[
             0
-        ].status_code in [301, 302, 307]
+        ].status_code in (301, 302, 307)
         is_permanent_redirect = error_code == 'PermanentRedirect'
         if not any(
             [
