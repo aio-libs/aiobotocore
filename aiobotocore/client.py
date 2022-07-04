@@ -69,6 +69,9 @@ class AioClientCreator(ClientCreator):
         )
         service_client = cls(**client_args)
         self._register_retries(service_client)
+        self._register_eventbridge_events(
+            service_client, endpoint_bridge, endpoint_url
+        )
         self._register_s3_events(
             service_client,
             endpoint_bridge,
@@ -207,6 +210,13 @@ class AioClientCreator(ClientCreator):
         unique_id = 'retry-config-%s' % service_event_name
         client.meta.events.register(
             f"needs-retry.{service_event_name}", handler, unique_id=unique_id
+        )
+
+    def _register_eventbridge_events(
+        self, client, endpoint_bridge, endpoint_url
+    ):
+        super()._register_eventbridge_events(
+            client, endpoint_bridge, endpoint_url
         )
 
     def _register_s3_events(
