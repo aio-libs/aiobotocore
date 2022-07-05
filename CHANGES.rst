@@ -1,5 +1,11 @@
 Changes
 -------
+2.4.0 (2022-07-21)
+^^^^^^^^^^^^^^^^^^
+* bump to to botocore 1.27.0
+* adopt same codestyle as botocore for easier version bump
+* drop support for python 3.6
+
 2.3.4 (2022-06-23)
 ^^^^^^^^^^^^^^^^^^
 * fix select_object_content
