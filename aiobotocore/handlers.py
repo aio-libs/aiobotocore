@@ -1,5 +1,10 @@
-from botocore.handlers import _get_presigned_url_source_and_destination_regions, \
-    _get_cross_region_presigned_url, ETree, logger, XMLParseError
+from botocore.handlers import (
+    ETree,
+    XMLParseError,
+    _get_cross_region_presigned_url,
+    _get_presigned_url_source_and_destination_regions,
+    logger,
+)
 
 
 async def check_for_200_error(response, **kwargs):
@@ -24,9 +29,12 @@ async def check_for_200_error(response, **kwargs):
         return
     http_response, parsed = response
     if await _looks_like_special_case_error(http_response):
-        logger.debug("Error found for response with 200 status code, "
-                     "errors: %s, changing status code to "
-                     "500.", parsed)
+        logger.debug(
+            "Error found for response with 200 status code, "
+            "errors: %s, changing status code to "
+            "500.",
+            parsed,
+        )
         http_response.status_code = 500
 
 
@@ -34,8 +42,8 @@ async def _looks_like_special_case_error(http_response):
     if http_response.status_code == 200:
         try:
             parser = ETree.XMLParser(
-                target=ETree.TreeBuilder(),
-                encoding='utf-8')
+                target=ETree.TreeBuilder(), encoding='utf-8'
+            )
             parser.feed(await http_response.content)
             root = parser.close()
         except XMLParseError:
@@ -53,9 +61,11 @@ async def inject_presigned_url_ec2(params, request_signer, model, **kwargs):
     if 'PresignedUrl' in params['body']:
         return
     src, dest = _get_presigned_url_source_and_destination_regions(
-        request_signer, params['body'])
+        request_signer, params['body']
+    )
     url = await _get_cross_region_presigned_url(
-        request_signer, params, model, src, dest)
+        request_signer, params, model, src, dest
+    )
     params['body']['PresignedUrl'] = url
     # EC2 Requires that the destination region be sent over the wire in
     # addition to the source region.
@@ -70,7 +80,8 @@ async def inject_presigned_url_rds(params, request_signer, model, **kwargs):
         return
 
     src, dest = _get_presigned_url_source_and_destination_regions(
-        request_signer, params['body'])
+        request_signer, params['body']
+    )
 
     # Since SourceRegion isn't actually modeled for RDS, it needs to be
     # removed from the request params before we send the actual request.
@@ -80,7 +91,8 @@ async def inject_presigned_url_rds(params, request_signer, model, **kwargs):
         return
 
     url = await _get_cross_region_presigned_url(
-        request_signer, params, model, src, dest)
+        request_signer, params, model, src, dest
+    )
     params['body']['PreSignedUrl'] = url
 
 
@@ -93,9 +105,7 @@ async def parse_get_bucket_location(parsed, http_response, **kwargs):
     if http_response.raw is None:
         return
     response_body = await http_response.content
-    parser = ETree.XMLParser(
-        target=ETree.TreeBuilder(),
-        encoding='utf-8')
+    parser = ETree.XMLParser(target=ETree.TreeBuilder(), encoding='utf-8')
     parser.feed(response_body)
     root = parser.close()
     region = root.text

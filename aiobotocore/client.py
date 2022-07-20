@@ -1,54 +1,88 @@
 from botocore.awsrequest import prepare_request_dict
-from botocore.client import logger, PaginatorDocstring, ClientCreator, \
-    BaseClient, ClientEndpointBridge, S3ArnParamHandler, S3EndpointSetter, \
-    resolve_checksum_context, apply_request_checksum
+from botocore.client import (
+    BaseClient,
+    ClientCreator,
+    ClientEndpointBridge,
+    PaginatorDocstring,
+    S3ArnParamHandler,
+    S3EndpointSetter,
+    apply_request_checksum,
+    logger,
+    resolve_checksum_context,
+)
 from botocore.discovery import block_endpoint_discovery_required_operations
 from botocore.exceptions import OperationNotPageableError
 from botocore.history import get_global_history_recorder
+from botocore.hooks import first_non_none_response
 from botocore.utils import get_service_module_name
 from botocore.waiter import xform_name
-from botocore.hooks import first_non_none_response
 
-from .paginate import AioPaginator
-from .args import AioClientArgsCreator
-from .utils import AioS3RegionRedirector
-from .discovery import AioEndpointDiscoveryManager, AioEndpointDiscoveryHandler
-from .retries import adaptive
 from . import waiter
-from .retries import standard
-
+from .args import AioClientArgsCreator
+from .discovery import AioEndpointDiscoveryHandler, AioEndpointDiscoveryManager
+from .paginate import AioPaginator
+from .retries import adaptive, standard
+from .utils import AioS3RegionRedirector
 
 history_recorder = get_global_history_recorder()
 
 
 class AioClientCreator(ClientCreator):
-    async def create_client(self, service_name, region_name, is_secure=True,
-                            endpoint_url=None, verify=None,
-                            credentials=None, scoped_config=None,
-                            api_version=None,
-                            client_config=None):
+    async def create_client(
+        self,
+        service_name,
+        region_name,
+        is_secure=True,
+        endpoint_url=None,
+        verify=None,
+        credentials=None,
+        scoped_config=None,
+        api_version=None,
+        client_config=None,
+    ):
         responses = await self._event_emitter.emit(
-            'choose-service-name', service_name=service_name)
+            'choose-service-name', service_name=service_name
+        )
         service_name = first_non_none_response(responses, default=service_name)
         service_model = self._load_service_model(service_name, api_version)
         cls = await self._create_client_class(service_name, service_model)
         region_name, client_config = self._normalize_fips_region(
-            region_name, client_config)
+            region_name, client_config
+        )
         endpoint_bridge = ClientEndpointBridge(
-            self._endpoint_resolver, scoped_config, client_config,
+            self._endpoint_resolver,
+            scoped_config,
+            client_config,
             service_signing_name=service_model.metadata.get('signingName'),
-            config_store=self._config_store)
+            config_store=self._config_store,
+        )
         client_args = self._get_client_args(
-            service_model, region_name, is_secure, endpoint_url,
-            verify, credentials, scoped_config, client_config, endpoint_bridge)
+            service_model,
+            region_name,
+            is_secure,
+            endpoint_url,
+            verify,
+            credentials,
+            scoped_config,
+            client_config,
+            endpoint_bridge,
+        )
         service_client = cls(**client_args)
         self._register_retries(service_client)
         self._register_s3_events(
-            service_client, endpoint_bridge, endpoint_url, client_config,
-            scoped_config)
+            service_client,
+            endpoint_bridge,
+            endpoint_url,
+            client_config,
+            scoped_config,
+        )
         self._register_s3_control_events(
-            service_client, endpoint_bridge, endpoint_url, client_config,
-            scoped_config)
+            service_client,
+            endpoint_bridge,
+            endpoint_url,
+            client_config,
+            scoped_config,
+        )
         self._register_endpoint_discovery(
             service_client, endpoint_url, client_config
         )
@@ -63,7 +97,8 @@ class AioClientCreator(ClientCreator):
         await self._event_emitter.emit(
             'creating-client-class.%s' % service_id,
             class_attributes=class_attributes,
-            base_classes=bases)
+            base_classes=bases,
+        )
         class_name = get_service_module_name(service_model)
         cls = type(str(class_name), tuple(bases), class_attributes)
         return cls
@@ -82,17 +117,22 @@ class AioClientCreator(ClientCreator):
             enabled = config.endpoint_discovery_enabled
         elif self._config_store:
             enabled = self._config_store.get_config_variable(
-                'endpoint_discovery_enabled')
+                'endpoint_discovery_enabled'
+            )
 
         enabled = self._normalize_endpoint_discovery_config(enabled)
         if enabled and self._requires_endpoint_discovery(client, enabled):
             discover = enabled is True
-            manager = AioEndpointDiscoveryManager(client, always_discover=discover)
+            manager = AioEndpointDiscoveryManager(
+                client, always_discover=discover
+            )
             handler = AioEndpointDiscoveryHandler(manager)
             handler.register(events, service_id)
         else:
-            events.register('before-parameter-build',
-                            block_endpoint_discovery_required_operations)
+            events.register(
+                'before-parameter-build',
+                block_endpoint_discovery_required_operations,
+            )
 
     def _register_retries(self, client):
         # botocore retry handlers may block. We add our own implementation here.
@@ -151,23 +191,32 @@ class AioClientCreator(ClientCreator):
 
         retries = self._transform_legacy_retries(client.meta.config.retries)
         retry_config = self._retry_config_translator.build_retry_config(
-            endpoint_prefix, original_config.get('retry', {}),
+            endpoint_prefix,
+            original_config.get('retry', {}),
             original_config.get('definitions', {}),
-            retries
+            retries,
         )
 
-        logger.debug("Registering retry handlers for service: %s",
-                     client.meta.service_model.service_name)
+        logger.debug(
+            "Registering retry handlers for service: %s",
+            client.meta.service_model.service_name,
+        )
         handler = self._retry_handler_factory.create_retry_handler(
-            retry_config, endpoint_prefix)
+            retry_config, endpoint_prefix
+        )
         unique_id = 'retry-config-%s' % service_event_name
         client.meta.events.register(
-            'needs-retry.%s' % service_event_name, handler,
-            unique_id=unique_id
+            'needs-retry.%s' % service_event_name, handler, unique_id=unique_id
         )
 
-    def _register_s3_events(self, client, endpoint_bridge, endpoint_url,
-                            client_config, scoped_config):
+    def _register_s3_events(
+        self,
+        client,
+        endpoint_bridge,
+        endpoint_url,
+        client_config,
+        scoped_config,
+    ):
         if client.meta.service_model.service_name != 's3':
             return
         AioS3RegionRedirector(endpoint_bridge, client).register()
@@ -179,32 +228,55 @@ class AioClientCreator(ClientCreator):
             s3_config=client.meta.config.s3,
             endpoint_url=endpoint_url,
             partition=client.meta.partition,
-            use_fips_endpoint=use_fips_endpoint
+            use_fips_endpoint=use_fips_endpoint,
         ).register(client.meta.events)
         self._set_s3_presign_signature_version(
-            client.meta, client_config, scoped_config)
+            client.meta, client_config, scoped_config
+        )
 
-    def _get_client_args(self, service_model, region_name, is_secure,
-                         endpoint_url, verify, credentials,
-                         scoped_config, client_config, endpoint_bridge):
+    def _get_client_args(
+        self,
+        service_model,
+        region_name,
+        is_secure,
+        endpoint_url,
+        verify,
+        credentials,
+        scoped_config,
+        client_config,
+        endpoint_bridge,
+    ):
         # This is a near copy of ClientCreator. What's replaced
         # is ClientArgsCreator->AioClientArgsCreator
         args_creator = AioClientArgsCreator(
-            self._event_emitter, self._user_agent,
-            self._response_parser_factory, self._loader,
-            self._exceptions_factory, config_store=self._config_store)
+            self._event_emitter,
+            self._user_agent,
+            self._response_parser_factory,
+            self._loader,
+            self._exceptions_factory,
+            config_store=self._config_store,
+        )
         return args_creator.get_client_args(
-            service_model, region_name, is_secure, endpoint_url,
-            verify, credentials, scoped_config, client_config, endpoint_bridge)
+            service_model,
+            region_name,
+            is_secure,
+            endpoint_url,
+            verify,
+            credentials,
+            scoped_config,
+            client_config,
+            endpoint_bridge,
+        )
 
 
 class AioBaseClient(BaseClient):
     async def _async_getattr(self, item):
-        event_name = 'getattr.%s.%s' % (
+        event_name = 'getattr.{}.{}'.format(
             self._service_model.service_id.hyphenize(), item
         )
         handler, event_response = await self.meta.events.emit_until_response(
-            event_name, client=self)
+            event_name, client=self
+        )
 
         return event_response
 
@@ -213,19 +285,26 @@ class AioBaseClient(BaseClient):
         # deferred attrgetter (See #803), it would resolve in hasattr always returning
         # true.  This ends up breaking ddtrace for example when it tries to set a pin.
         raise AttributeError(
-            "'%s' object has no attribute '%s'" % (self.__class__.__name__, item))
+            "'{}' object has no attribute '{}'".format(
+                self.__class__.__name__, item
+            )
+        )
 
     async def _make_api_call(self, operation_name, api_params):
         operation_model = self._service_model.operation_model(operation_name)
         service_name = self._service_model.service_name
-        history_recorder.record('API_CALL', {
-            'service': service_name,
-            'operation': operation_name,
-            'params': api_params,
-        })
+        history_recorder.record(
+            'API_CALL',
+            {
+                'service': service_name,
+                'operation': operation_name,
+                'params': api_params,
+            },
+        )
         if operation_model.deprecated:
-            logger.debug('Warning: %s.%s() is deprecated',
-                         service_name, operation_name)
+            logger.debug(
+                'Warning: %s.%s() is deprecated', service_name, operation_name
+            )
         request_context = {
             'client_region': self.meta.region_name,
             'client_config': self.meta.config,
@@ -233,30 +312,37 @@ class AioBaseClient(BaseClient):
             'auth_type': operation_model.auth_type,
         }
         request_dict = await self._convert_to_request_dict(
-            api_params, operation_model, context=request_context)
+            api_params, operation_model, context=request_context
+        )
         resolve_checksum_context(request_dict, operation_model, api_params)
 
         service_id = self._service_model.service_id.hyphenize()
         handler, event_response = await self.meta.events.emit_until_response(
             'before-call.{service_id}.{operation_name}'.format(
-                service_id=service_id,
-                operation_name=operation_name),
-            model=operation_model, params=request_dict,
-            request_signer=self._request_signer, context=request_context)
+                service_id=service_id, operation_name=operation_name
+            ),
+            model=operation_model,
+            params=request_dict,
+            request_signer=self._request_signer,
+            context=request_context,
+        )
 
         if event_response is not None:
             http, parsed_response = event_response
         else:
             apply_request_checksum(request_dict)
             http, parsed_response = await self._make_request(
-                operation_model, request_dict, request_context)
+                operation_model, request_dict, request_context
+            )
 
         await self.meta.events.emit(
             'after-call.{service_id}.{operation_name}'.format(
-                service_id=service_id,
-                operation_name=operation_name),
-            http_response=http, parsed=parsed_response,
-            model=operation_model, context=request_context
+                service_id=service_id, operation_name=operation_name
+            ),
+            http_response=http,
+            parsed=parsed_response,
+            model=operation_model,
+            context=request_context,
         )
 
         if http.status_code >= 300:
@@ -266,29 +352,41 @@ class AioBaseClient(BaseClient):
         else:
             return parsed_response
 
-    async def _make_request(self, operation_model, request_dict, request_context):
+    async def _make_request(
+        self, operation_model, request_dict, request_context
+    ):
         try:
-            return await self._endpoint.make_request(operation_model, request_dict)
+            return await self._endpoint.make_request(
+                operation_model, request_dict
+            )
         except Exception as e:
             await self.meta.events.emit(
                 'after-call-error.{service_id}.{operation_name}'.format(
                     service_id=self._service_model.service_id.hyphenize(),
-                    operation_name=operation_model.name),
-                exception=e, context=request_context
+                    operation_name=operation_model.name,
+                ),
+                exception=e,
+                context=request_context,
             )
             raise
 
-    async def _convert_to_request_dict(self, api_params, operation_model,
-                                       context=None):
+    async def _convert_to_request_dict(
+        self, api_params, operation_model, context=None
+    ):
         api_params = await self._emit_api_params(
-            api_params, operation_model, context)
+            api_params, operation_model, context
+        )
         request_dict = self._serializer.serialize_to_request(
-            api_params, operation_model)
+            api_params, operation_model
+        )
         if not self._client_config.inject_host_prefix:
             request_dict.pop('host_prefix', None)
-        prepare_request_dict(request_dict, endpoint_url=self._endpoint.host,
-                             user_agent=self._client_config.user_agent,
-                             context=context)
+        prepare_request_dict(
+            request_dict,
+            endpoint_url=self._endpoint.host,
+            user_agent=self._client_config.user_agent,
+            context=context,
+        )
         return request_dict
 
     async def _emit_api_params(self, api_params, operation_model, context):
@@ -302,18 +400,23 @@ class AioBaseClient(BaseClient):
         service_id = self._service_model.service_id.hyphenize()
         responses = await self.meta.events.emit(
             'provide-client-params.{service_id}.{operation_name}'.format(
-                service_id=service_id,
-                operation_name=operation_name),
-            params=api_params, model=operation_model, context=context)
+                service_id=service_id, operation_name=operation_name
+            ),
+            params=api_params,
+            model=operation_model,
+            context=context,
+        )
         api_params = first_non_none_response(responses, default=api_params)
 
-        event_name = (
-            'before-parameter-build.{service_id}.{operation_name}')
+        event_name = 'before-parameter-build.{service_id}.{operation_name}'
         await self.meta.events.emit(
             event_name.format(
-                service_id=service_id,
-                operation_name=operation_name),
-            params=api_params, model=operation_model, context=context)
+                service_id=service_id, operation_name=operation_name
+            ),
+            params=api_params,
+            model=operation_model,
+            context=context,
+        )
         return api_params
 
     def get_paginator(self, operation_name):
@@ -347,30 +450,38 @@ class AioBaseClient(BaseClient):
                 return AioPaginator.paginate(self, **kwargs)
 
             paginator_config = self._cache['page_config'][
-                actual_operation_name]
+                actual_operation_name
+            ]
             # Add the docstring for the paginate method.
             paginate.__doc__ = PaginatorDocstring(
                 paginator_name=actual_operation_name,
                 event_emitter=self.meta.events,
                 service_model=self.meta.service_model,
                 paginator_config=paginator_config,
-                include_signature=False
+                include_signature=False,
             )
 
             # Rename the paginator class based on the type of paginator.
-            paginator_class_name = str('%s.Paginator.%s' % (
-                get_service_module_name(self.meta.service_model),
-                actual_operation_name))
+            paginator_class_name = str(
+                '{}.Paginator.{}'.format(
+                    get_service_module_name(self.meta.service_model),
+                    actual_operation_name,
+                )
+            )
 
             # Create the new paginator class
             documented_paginator_cls = type(
-                paginator_class_name, (AioPaginator,), {'paginate': paginate})
+                paginator_class_name, (AioPaginator,), {'paginate': paginate}
+            )
 
-            operation_model = self._service_model.operation_model(actual_operation_name)
+            operation_model = self._service_model.operation_model(
+                actual_operation_name
+            )
             paginator = documented_paginator_cls(
                 getattr(self, operation_name),
                 paginator_config,
-                operation_model)
+                operation_model,
+            )
             return paginator
 
     # NOTE: this method does not differ from botocore, however it's important to keep
@@ -396,7 +507,8 @@ class AioBaseClient(BaseClient):
             raise ValueError("Waiter does not exist: %s" % waiter_name)
 
         return waiter.create_waiter_with_client(
-            mapping[waiter_name], model, self)
+            mapping[waiter_name], model, self
+        )
 
     async def __aenter__(self):
         await self._endpoint.http_session.__aenter__()

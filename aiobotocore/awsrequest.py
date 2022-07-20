@@ -1,5 +1,5 @@
-from botocore.awsrequest import AWSResponse
 import botocore.utils
+from botocore.awsrequest import AWSResponse
 
 
 class AioAWSResponse(AWSResponse):
@@ -10,7 +10,7 @@ class AioAWSResponse(AWSResponse):
 
         if self._content is None:
             # NOTE: this will cache the data in self.raw
-            self._content = await self.raw.read() or bytes()
+            self._content = await self.raw.read() or b''
 
         return self._content
 

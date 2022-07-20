@@ -1,5 +1,6 @@
 import asyncio
 import uuid
+
 import pytest
 
 from aiobotocore.waiter import WaiterError
@@ -11,21 +12,15 @@ def dynamodb_table_def():
     return dict(
         TableName=table_name,
         AttributeDefinitions=[
-            {
-                'AttributeName': 'testKey',
-                'AttributeType': 'N'
-            },
+            {'AttributeName': 'testKey', 'AttributeType': 'N'},
         ],
         KeySchema=[
-            {
-                'AttributeName': 'testKey',
-                'KeyType': 'HASH'
-            },
+            {'AttributeName': 'testKey', 'KeyType': 'HASH'},
         ],
         ProvisionedThroughput={
             'ReadCapacityUnits': 1,
-            'WriteCapacityUnits': 1
-        }
+            'WriteCapacityUnits': 1,
+        },
     )
 
 
@@ -36,12 +31,7 @@ async def test_get_item(dynamodb_client, table_name, dynamodb_put_item):
     test_value = 'testValue'
     await dynamodb_put_item(test_value)
     response = await dynamodb_client.get_item(
-        TableName=table_name,
-        Key={
-            'testKey': {
-                'S': test_value
-            }
-        }
+        TableName=table_name, Key={'testKey': {'S': test_value}}
     )
     pytest.aio.assert_status_code(response, 200)
     assert response['Item']['testKey'] == {'S': test_value}
@@ -60,9 +50,7 @@ async def test_create_waiter(dynamodb_client, dynamodb_table_def):
     waiter = dynamodb_client.get_waiter('table_exists')
     await waiter.wait(TableName=table_name)
 
-    response = await dynamodb_client.describe_table(
-        TableName=table_name
-    )
+    response = await dynamodb_client.describe_table(TableName=table_name)
     assert response['Table']['TableStatus'] == 'ACTIVE'
 
 
@@ -88,14 +76,14 @@ async def test_batch_write_scan(dynamodb_client, table_name):
                             'testKey2': {'S': 'key4'},
                         }
                     }
-                }
+                },
             ]
         }
     )
     pytest.aio.assert_status_code(response, 200)
 
     response = await dynamodb_client.scan(TableName=table_name)
-    test_keys = sorted([item['testKey']['S'] for item in response['Items']])
+    test_keys = sorted(item['testKey']['S'] for item in response['Items'])
 
     assert response['Count'] == 2
     assert test_keys == ['key1', 'key3']
@@ -109,14 +97,10 @@ async def test_delete_table(dynamodb_client, dynamodb_table_def):
 
     await dynamodb_client.create_table(**dynamodb_table_def)
 
-    response = await dynamodb_client.describe_table(
-        TableName=table_name
-    )
+    response = await dynamodb_client.describe_table(TableName=table_name)
     assert response['Table']['TableStatus'] == 'ACTIVE'
 
-    response = await dynamodb_client.delete_table(
-        TableName=table_name
-    )
+    response = await dynamodb_client.delete_table(TableName=table_name)
     pytest.aio.assert_status_code(response, 200)
 
     response = await dynamodb_client.list_tables()
@@ -129,18 +113,19 @@ async def test_delete_table(dynamodb_client, dynamodb_table_def):
 async def test_waiter_table_exists_failure(dynamodb_client):
     waiter = dynamodb_client.get_waiter('table_exists')
     with pytest.raises(
-            WaiterError,
-            match='Waiter TableExists failed: Max attempts exceeded'):
+        WaiterError, match='Waiter TableExists failed: Max attempts exceeded'
+    ):
         await waiter.wait(
-            TableName='unknown',
-            WaiterConfig=dict(Delay=1, MaxAttempts=1))
+            TableName='unknown', WaiterConfig=dict(Delay=1, MaxAttempts=1)
+        )
 
 
 @pytest.mark.moto
 @pytest.mark.parametrize('signature_version', ['v4'])
 @pytest.mark.asyncio
-async def test_waiter_table_exists(event_loop, dynamodb_client,
-                                   dynamodb_table_def):
+async def test_waiter_table_exists(
+    event_loop, dynamodb_client, dynamodb_table_def
+):
     table_name = dynamodb_table_def['TableName']
 
     async def _create_table():
@@ -152,7 +137,7 @@ async def test_waiter_table_exists(event_loop, dynamodb_client,
 
     waiter = dynamodb_client.get_waiter('table_exists')
     await waiter.wait(
-        TableName=table_name,
-        WaiterConfig=dict(Delay=1, MaxAttempts=5))
+        TableName=table_name, WaiterConfig=dict(Delay=1, MaxAttempts=5)
+    )
 
     assert task.done()

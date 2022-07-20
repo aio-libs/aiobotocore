@@ -1,27 +1,27 @@
+import botocore.parsers
 import pytest
+
+from aiobotocore.eventstream import AioEventStream
+
 # TODO once Moto supports either S3 Select or Kinesis SubscribeToShard then
 # this can be tested against a real AWS API
-
-import botocore.parsers
-from aiobotocore.eventstream import AioEventStream
 
 
 TEST_STREAM_DATA = (
     b'\x00\x00\x00w\x00\x00\x00U5\xd1F\xcd\r:message-type\x07\x00\x05event\x0b:event-'
     b'type\x07\x00\x07Records\r:content-type\x07\x00\x18application/octet-stream{"hel'
     b'lo":"world"}\nF\x0e\x9a2',
-
     b'\x00\x00\x00\xce\x00\x00\x00C\xdc\xd2\x99\xf9\r:message-type\x07\x00\x05event'
     b'\x0b:event-type\x07\x00\x05Stats\r:content-type\x07\x00\x08text/xml<Stats xml'
     b'ns=""><BytesScanned>19</BytesScanned><BytesProcessed>19</BytesProcessed><Byte'
     b'sReturned>18</BytesReturned></Stats>\x92\xd0?\xa5\x00\x00\x008\x00\x00\x00(\xc1'
     b'\xc6\x84\xd4\r:message-type\x07\x00\x05event\x0b:event-type\x07\x00\x03End\xcf'
-    b'\x97\xd3\x92'
+    b'\x97\xd3\x92',
 )
 
 
-class FakeStreamReader(object):
-    class ChunkedIterator(object):
+class FakeStreamReader:
+    class ChunkedIterator:
         def __init__(self, chunks):
             self.iter = iter(chunks)
 
@@ -49,17 +49,13 @@ async def test_eventstream_chunking(s3_client):
     # These are the options passed to the EventStream class
     # during a normal run with botocore.
     operation_name = 'SelectObjectContent'
-    outputshape = (s3_client._service_model.operation_model(operation_name)
-                   .output_shape.members['Payload'])
+    outputshape = s3_client._service_model.operation_model(
+        operation_name
+    ).output_shape.members['Payload']
     parser = botocore.parsers.EventStreamXMLParser()
     sr = FakeStreamReader(TEST_STREAM_DATA)
 
-    event_stream = AioEventStream(
-        sr,
-        outputshape,
-        parser,
-        operation_name
-    )
+    event_stream = AioEventStream(sr, outputshape, parser, operation_name)
 
     events = []
     # {'Records': {'Payload': b'{"hello":"world"}\n'}}
@@ -84,17 +80,13 @@ async def test_eventstream_no_iter(s3_client):
     # These are the options passed to the EventStream class
     # during a normal run with botocore.
     operation_name = 'SelectObjectContent'
-    outputshape = (s3_client._service_model.operation_model(operation_name)
-                   .output_shape.members['Payload'])
+    outputshape = s3_client._service_model.operation_model(
+        operation_name
+    ).output_shape.members['Payload']
     parser = botocore.parsers.EventStreamXMLParser()
     sr = FakeStreamReader(TEST_STREAM_DATA)
 
-    event_stream = AioEventStream(
-        sr,
-        outputshape,
-        parser,
-        operation_name
-    )
+    event_stream = AioEventStream(sr, outputshape, parser, operation_name)
 
     with pytest.raises(NotImplementedError):
         for _ in event_stream:

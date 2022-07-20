@@ -1,16 +1,28 @@
-from botocore.retryhandler import CRC32Checker, logger, crc32, ChecksumError, \
-    create_retry_action_from_config, RetryHandler, MultiChecker, \
-    MaxAttemptsDecorator, _extract_retryable_exception, \
-    ServiceErrorCodeChecker, HTTPStatusCodeChecker, ExceptionRaiser
+from botocore.retryhandler import (
+    ChecksumError,
+    CRC32Checker,
+    ExceptionRaiser,
+    HTTPStatusCodeChecker,
+    MaxAttemptsDecorator,
+    MultiChecker,
+    RetryHandler,
+    ServiceErrorCodeChecker,
+    _extract_retryable_exception,
+    crc32,
+    create_retry_action_from_config,
+    logger,
+)
 
 from ._helpers import resolve_awaitable
 
 
 def create_retry_handler(config, operation_name=None):
     checker = create_checker_from_retry_config(
-        config, operation_name=operation_name)
+        config, operation_name=operation_name
+    )
     action = create_retry_action_from_config(
-        config, operation_name=operation_name)
+        config, operation_name=operation_name
+    )
     return AioRetryHandler(checker=checker, action=action)
 
 
@@ -32,7 +44,8 @@ def create_checker_from_retry_config(config, operation_name=None):
         for key in operation_policies:
             checkers.append(_create_single_checker(operation_policies[key]))
             retry_exception = _extract_retryable_exception(
-                operation_policies[key])
+                operation_policies[key]
+            )
             if retry_exception is not None:
                 retryable_exceptions.extend(retry_exception)
     if len(checkers) == 1:
@@ -41,14 +54,17 @@ def create_checker_from_retry_config(config, operation_name=None):
     else:
         multi_checker = AioMultiChecker(checkers)
         return AioMaxAttemptsDecorator(
-            multi_checker, max_attempts=max_attempts,
-            retryable_exceptions=tuple(retryable_exceptions))
+            multi_checker,
+            max_attempts=max_attempts,
+            retryable_exceptions=tuple(retryable_exceptions),
+        )
 
 
 def _create_single_checker(config):
     if 'response' in config['applies_when']:
         return _create_single_response_checker(
-            config['applies_when']['response'])
+            config['applies_when']['response']
+        )
     elif 'socket_errors' in config['applies_when']:
         return ExceptionRaiser()
 
@@ -57,10 +73,12 @@ def _create_single_response_checker(response):
     if 'service_error_code' in response:
         checker = ServiceErrorCodeChecker(
             status_code=response['http_status_code'],
-            error_code=response['service_error_code'])
+            error_code=response['service_error_code'],
+        )
     elif 'http_status_code' in response:
         checker = HTTPStatusCodeChecker(
-            status_code=response['http_status_code'])
+            status_code=response['http_status_code']
+        )
     elif 'crc32body' in response:
         checker = AioCRC32Checker(header=response['crc32body'])
     else:
@@ -80,7 +98,7 @@ class AioRetryHandler(RetryHandler):
         checker_kwargs = {
             'attempt_number': attempts,
             'response': response,
-            'caught_exception': caught_exception
+            'caught_exception': caught_exception,
         }
         if isinstance(self._checker, MaxAttemptsDecorator):
             retries_context = kwargs['request_dict']['context'].get('retries')
@@ -97,22 +115,28 @@ class AioRetryHandler(RetryHandler):
 
 
 class AioMaxAttemptsDecorator(MaxAttemptsDecorator):
-    async def _call(self, attempt_number, response, caught_exception,
-                    retries_context):
+    async def _call(
+        self, attempt_number, response, caught_exception, retries_context
+    ):
         if retries_context:
             retries_context['max'] = max(
                 retries_context.get('max', 0), self._max_attempts
             )
 
-        should_retry = await self._should_retry(attempt_number, response,
-                                                caught_exception)
+        should_retry = await self._should_retry(
+            attempt_number, response, caught_exception
+        )
         if should_retry:
             if attempt_number >= self._max_attempts:
                 # explicitly set MaxAttemptsReached
                 if response is not None and 'ResponseMetadata' in response[1]:
-                    response[1]['ResponseMetadata']['MaxAttemptsReached'] = True
-                logger.debug("Reached the maximum number of retry "
-                             "attempts: %s", attempt_number)
+                    response[1]['ResponseMetadata'][
+                        'MaxAttemptsReached'
+                    ] = True
+                logger.debug(
+                    "Reached the maximum number of retry " "attempts: %s",
+                    attempt_number,
+                )
                 return False
             else:
                 return should_retry
@@ -123,28 +147,32 @@ class AioMaxAttemptsDecorator(MaxAttemptsDecorator):
         return self._call(*args, **kwargs)
 
     async def _should_retry(self, attempt_number, response, caught_exception):
-        if self._retryable_exceptions and \
-                attempt_number < self._max_attempts:
+        if self._retryable_exceptions and attempt_number < self._max_attempts:
             try:
                 return await resolve_awaitable(
-                    self._checker(attempt_number, response, caught_exception))
+                    self._checker(attempt_number, response, caught_exception)
+                )
             except self._retryable_exceptions as e:
-                logger.debug("retry needed, retryable exception caught: %s",
-                             e, exc_info=True)
+                logger.debug(
+                    "retry needed, retryable exception caught: %s",
+                    e,
+                    exc_info=True,
+                )
                 return True
         else:
             # If we've exceeded the max attempts we just let the exception
             # propagate if one has occurred.
             return await resolve_awaitable(
-                self._checker(attempt_number, response, caught_exception))
+                self._checker(attempt_number, response, caught_exception)
+            )
 
 
 class AioMultiChecker(MultiChecker):
     async def _call(self, attempt_number, response, caught_exception):
         for checker in self._checkers:
             checker_response = await resolve_awaitable(
-                checker(attempt_number, response,
-                        caught_exception))
+                checker(attempt_number, response, caught_exception)
+            )
             if checker_response:
                 return checker_response
         return False
@@ -159,7 +187,8 @@ class AioCRC32Checker(CRC32Checker):
             return await self._check_response(attempt_number, response)
         elif caught_exception is not None:
             return self._check_caught_exception(
-                attempt_number, caught_exception)
+                attempt_number, caught_exception
+            )
         else:
             raise ValueError("Both response and caught_exception are None.")
 
@@ -170,14 +199,22 @@ class AioCRC32Checker(CRC32Checker):
         http_response = response[0]
         expected_crc = http_response.headers.get(self._header_name)
         if expected_crc is None:
-            logger.debug("crc32 check skipped, the %s header is not "
-                         "in the http response.", self._header_name)
+            logger.debug(
+                "crc32 check skipped, the %s header is not "
+                "in the http response.",
+                self._header_name,
+            )
         else:
-            actual_crc32 = crc32(await response[0].content) & 0xffffffff
+            actual_crc32 = crc32(await response[0].content) & 0xFFFFFFFF
             if not actual_crc32 == int(expected_crc):
                 logger.debug(
                     "retry needed: crc32 check failed, expected != actual: "
-                    "%s != %s", int(expected_crc), actual_crc32)
-                raise ChecksumError(checksum_type='crc32',
-                                    expected_checksum=int(expected_crc),
-                                    actual_checksum=actual_crc32)
+                    "%s != %s",
+                    int(expected_crc),
+                    actual_crc32,
+                )
+                raise ChecksumError(
+                    checksum_type='crc32',
+                    expected_checksum=int(expected_crc),
+                    actual_checksum=actual_crc32,
+                )

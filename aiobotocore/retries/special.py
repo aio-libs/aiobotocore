@@ -11,8 +11,12 @@ class AioRetryDDBChecksumError(RetryDDBChecksumError):
         checksum = context.http_response.headers.get(self._CHECKSUM_HEADER)
         if checksum is None:
             return False
-        actual_crc32 = crc32(await context.http_response.content) & 0xffffffff
+        actual_crc32 = crc32(await context.http_response.content) & 0xFFFFFFFF
         if actual_crc32 != int(checksum):
-            logger.debug("DynamoDB crc32 checksum does not match, "
-                         "expected: %s, actual: %s", checksum, actual_crc32)
+            logger.debug(
+                "DynamoDB crc32 checksum does not match, "
+                "expected: %s, actual: %s",
+                checksum,
+                actual_crc32,
+            )
             return True

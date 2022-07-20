@@ -1,4 +1,8 @@
-from botocore.eventstream import EventStream, EventStreamBuffer, NoInitialResponseError
+from botocore.eventstream import (
+    EventStream,
+    EventStreamBuffer,
+    NoInitialResponseError,
+)
 
 
 class AioEventStream(EventStream):

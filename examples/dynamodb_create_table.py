@@ -1,13 +1,15 @@
 # Boto should get credentials from ~/.aws/credentials or the environment
-import uuid
 import asyncio
+import uuid
 
 from aiobotocore.session import get_session
 
 
 async def go():
     session = get_session()
-    async with session.create_client('dynamodb', region_name='us-west-2') as client:
+    async with session.create_client(
+        'dynamodb', region_name='us-west-2'
+    ) as client:
         # Create random table name
         table_name = f'aiobotocore-{uuid.uuid4()}'
 
@@ -15,21 +17,15 @@ async def go():
         await client.create_table(
             TableName=table_name,
             AttributeDefinitions=[
-                {
-                    'AttributeName': 'testKey',
-                    'AttributeType': 'S'
-                },
+                {'AttributeName': 'testKey', 'AttributeType': 'S'},
             ],
             KeySchema=[
-                {
-                    'AttributeName': 'testKey',
-                    'KeyType': 'HASH'
-                },
+                {'AttributeName': 'testKey', 'KeyType': 'HASH'},
             ],
             ProvisionedThroughput={
                 'ReadCapacityUnits': 10,
-                'WriteCapacityUnits': 10
-            }
+                'WriteCapacityUnits': 10,
+            },
         )
 
         print("Waiting for table to be created...")

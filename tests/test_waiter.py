@@ -18,7 +18,8 @@ async def test_sqs(cloudformation_client):
 
     # Create stack
     resp = await cloudformation_client.create_stack(
-            StackName='my-stack', TemplateBody=cloudformation_template)
+        StackName='my-stack', TemplateBody=cloudformation_template
+    )
 
     assert resp['ResponseMetadata']['HTTPStatusCode'] == 200
 

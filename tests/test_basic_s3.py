@@ -1,11 +1,11 @@
 import asyncio
 from collections import defaultdict
 
-import pytest
 import aioitertools
+import botocore.retries.adaptive
+import pytest
 
 import aiobotocore.retries.adaptive
-import botocore.retries.adaptive
 from aiobotocore import httpsession
 
 
@@ -41,7 +41,9 @@ async def test_can_make_request_no_verify(s3_client):
 
 @pytest.mark.moto
 @pytest.mark.asyncio
-async def test_fail_proxy_request(aa_fail_proxy_config, s3_client, monkeypatch):
+async def test_fail_proxy_request(
+    aa_fail_proxy_config, s3_client, monkeypatch
+):
     # based on test_can_make_request
     with pytest.raises(httpsession.ProxyConnectionError):
         await s3_client.list_buckets()
@@ -67,8 +69,9 @@ async def test_can_get_bucket_location(s3_client, bucket_name):
 
 @pytest.mark.moto
 @pytest.mark.asyncio
-async def test_can_delete_urlencoded_object(s3_client, bucket_name,
-                                            create_object):
+async def test_can_delete_urlencoded_object(
+    s3_client, bucket_name, create_object
+):
     key_name = 'a+b/foo'
     await create_object(key_name=key_name)
     resp = await s3_client.list_objects(Bucket=bucket_name)
@@ -82,8 +85,7 @@ async def test_can_delete_urlencoded_object(s3_client, bucket_name,
     # assert len(subdir_contents) == 1
     # assert subdir_contents[0]['Key'] == 'a+b/foo'
 
-    response = await s3_client.delete_object(
-        Bucket=bucket_name, Key=key_name)
+    response = await s3_client.delete_object(Bucket=bucket_name, Key=key_name)
     pytest.aio.assert_status_code(response, 204)
 
 
@@ -106,14 +108,16 @@ async def test_can_paginate(s3_client, bucket_name, create_object):
 @pytest.mark.asyncio
 @pytest.mark.moto
 async def test_can_paginate_with_page_size(
-        s3_client, bucket_name, create_object):
+    s3_client, bucket_name, create_object
+):
     for i in range(5):
         key_name = 'key%s' % i
         await create_object(key_name)
 
     paginator = s3_client.get_paginator('list_objects')
-    pages = paginator.paginate(PaginationConfig={'PageSize': 1},
-                               Bucket=bucket_name)
+    pages = paginator.paginate(
+        PaginationConfig={'PageSize': 1}, Bucket=bucket_name
+    )
 
     responses = await fetch_all(pages)
     assert len(responses) == 5, responses
@@ -124,8 +128,7 @@ async def test_can_paginate_with_page_size(
 
 @pytest.mark.asyncio
 @pytest.mark.moto
-async def test_can_search_paginate(
-        s3_client, bucket_name, create_object):
+async def test_can_search_paginate(s3_client, bucket_name, create_object):
     keys = []
     for i in range(5):
         key_name = 'key%s' % i
@@ -148,7 +151,8 @@ async def test_can_paginate_iterator(s3_client, bucket_name, create_object):
     paginator = s3_client.get_paginator('list_objects')
     responses = []
     async for page in paginator.paginate(
-            PaginationConfig={'PageSize': 1}, Bucket=bucket_name):
+        PaginationConfig={'PageSize': 1}, Bucket=bucket_name
+    ):
         assert not asyncio.iscoroutine(page)
         responses.append(page)
     assert len(responses) == 5, responses
@@ -161,16 +165,15 @@ async def test_can_paginate_iterator(s3_client, bucket_name, create_object):
 @pytest.mark.moto
 async def test_result_key_iters(s3_client, bucket_name, create_object):
     for i in range(5):
-        key_name = 'key/%s/%s' % (i, i)
+        key_name = f'key/{i}/{i}'
         await create_object(key_name)
         key_name2 = 'key/%s' % i
         await create_object(key_name2)
 
     paginator = s3_client.get_paginator('list_objects')
-    generator = paginator.paginate(MaxKeys=2,
-                                   Prefix='key/',
-                                   Delimiter='/',
-                                   Bucket=bucket_name)
+    generator = paginator.paginate(
+        MaxKeys=2, Prefix='key/', Delimiter='/', Bucket=bucket_name
+    )
     iterators = generator.result_key_iters()
     response = defaultdict(list)
     key_names = [i.result_key for i in iterators]
@@ -202,27 +205,36 @@ async def test_can_get_and_put_object(s3_client, create_object, bucket_name):
 
 @pytest.mark.moto
 @pytest.mark.asyncio
-@pytest.mark.patch_attributes([dict(
-    target="aiobotocore.retries.adaptive.AsyncClientRateLimiter.on_sending_request",
-    side_effect=aiobotocore.retries.adaptive.AsyncClientRateLimiter.on_sending_request,
-    autospec=True
-), dict(
-    target="aiobotocore.retries.adaptive.AsyncClientRateLimiter.on_receiving_response",
-    side_effect=aiobotocore.retries.adaptive.AsyncClientRateLimiter.
-    on_receiving_response,
-    autospec=True
-), dict(
-    target="botocore.retries.adaptive.ClientRateLimiter.on_sending_request",
-    side_effect=botocore.retries.adaptive.ClientRateLimiter.on_sending_request,
-    autospec=True
-), dict(
-    target="botocore.retries.adaptive.ClientRateLimiter.on_receiving_response",
-    side_effect=botocore.retries.adaptive.ClientRateLimiter.on_receiving_response,
-    autospec=True
-)])
-@pytest.mark.config_kwargs(dict(retries={"max_attempts": 5, "mode": "adaptive"}))
-async def test_adaptive_retry(s3_client, config, create_object, bucket_name,
-                              patch_attributes):
+@pytest.mark.patch_attributes(
+    [
+        dict(
+            target="aiobotocore.retries.adaptive.AsyncClientRateLimiter.on_sending_request",
+            side_effect=aiobotocore.retries.adaptive.AsyncClientRateLimiter.on_sending_request,
+            autospec=True,
+        ),
+        dict(
+            target="aiobotocore.retries.adaptive.AsyncClientRateLimiter.on_receiving_response",
+            side_effect=aiobotocore.retries.adaptive.AsyncClientRateLimiter.on_receiving_response,
+            autospec=True,
+        ),
+        dict(
+            target="botocore.retries.adaptive.ClientRateLimiter.on_sending_request",
+            side_effect=botocore.retries.adaptive.ClientRateLimiter.on_sending_request,
+            autospec=True,
+        ),
+        dict(
+            target="botocore.retries.adaptive.ClientRateLimiter.on_receiving_response",
+            side_effect=botocore.retries.adaptive.ClientRateLimiter.on_receiving_response,
+            autospec=True,
+        ),
+    ]
+)
+@pytest.mark.config_kwargs(
+    dict(retries={"max_attempts": 5, "mode": "adaptive"})
+)
+async def test_adaptive_retry(
+    s3_client, config, create_object, bucket_name, patch_attributes
+):
     await create_object('foobarbaz', body='body contents')
 
     # Check that our async implementations were correctly called.
@@ -247,8 +259,9 @@ async def test_adaptive_retry(s3_client, config, create_object, bucket_name,
 
 @pytest.mark.moto
 @pytest.mark.asyncio
-async def test_get_object_stream_wrapper(s3_client, create_object,
-                                         bucket_name):
+async def test_get_object_stream_wrapper(
+    s3_client, create_object, bucket_name
+):
     await create_object('foobarbaz', body='body contents')
     response = await s3_client.get_object(Bucket=bucket_name, Key='foobarbaz')
     body = response['Body']
@@ -261,8 +274,9 @@ async def test_get_object_stream_wrapper(s3_client, create_object,
 
 @pytest.mark.moto
 @pytest.mark.asyncio
-async def test_get_object_stream_context(s3_client, create_object,
-                                         bucket_name):
+async def test_get_object_stream_context(
+    s3_client, create_object, bucket_name
+):
     await create_object('foobarbaz', body='body contents')
     response = await s3_client.get_object(Bucket=bucket_name, Key='foobarbaz')
     async with response['Body'] as stream:
@@ -272,7 +286,8 @@ async def test_get_object_stream_context(s3_client, create_object,
 @pytest.mark.asyncio
 @pytest.mark.moto
 async def test_paginate_max_items(
-        s3_client, create_multipart_upload, bucket_name):
+    s3_client, create_multipart_upload, bucket_name
+):
     await create_multipart_upload('foo/key1')
     await create_multipart_upload('foo/key1')
     await create_multipart_upload('foo/key1')
@@ -284,18 +299,27 @@ async def test_paginate_max_items(
 
     # Verify when we have MaxItems=None, we get back all 8 uploads.
     await pytest.aio.assert_num_uploads_found(
-        s3_client, bucket_name, 'list_multipart_uploads', max_items=None,
-        num_uploads=8)
+        s3_client,
+        bucket_name,
+        'list_multipart_uploads',
+        max_items=None,
+        num_uploads=8,
+    )
 
     # Verify when we have MaxItems=1, we get back 1 upload.
     await pytest.aio.assert_num_uploads_found(
-        s3_client, bucket_name, 'list_multipart_uploads', max_items=1,
-        num_uploads=1)
+        s3_client,
+        bucket_name,
+        'list_multipart_uploads',
+        max_items=1,
+        num_uploads=1,
+    )
 
     paginator = s3_client.get_paginator('list_multipart_uploads')
     # Works similar with build_full_result()
-    pages = paginator.paginate(PaginationConfig={'MaxItems': 1},
-                               Bucket=bucket_name)
+    pages = paginator.paginate(
+        PaginationConfig={'MaxItems': 1}, Bucket=bucket_name
+    )
     full_result = await pages.build_full_result()
     assert len(full_result['Uploads']) == 1
 
@@ -303,7 +327,8 @@ async def test_paginate_max_items(
 @pytest.mark.moto
 @pytest.mark.asyncio
 async def test_paginate_within_page_boundaries(
-        s3_client, create_object, bucket_name):
+    s3_client, create_object, bucket_name
+):
     await create_object('a')
     await create_object('b')
     await create_object('c')
@@ -311,26 +336,30 @@ async def test_paginate_within_page_boundaries(
     paginator = s3_client.get_paginator('list_objects')
     # First do it without a max keys so we're operating on a single page of
     # results.
-    pages = paginator.paginate(PaginationConfig={'MaxItems': 1},
-                               Bucket=bucket_name)
+    pages = paginator.paginate(
+        PaginationConfig={'MaxItems': 1}, Bucket=bucket_name
+    )
     first = await pages.build_full_result()
     t1 = first['NextToken']
 
     pages = paginator.paginate(
         PaginationConfig={'MaxItems': 1, 'StartingToken': t1},
-        Bucket=bucket_name)
+        Bucket=bucket_name,
+    )
     second = await pages.build_full_result()
     t2 = second['NextToken']
 
     pages = paginator.paginate(
         PaginationConfig={'MaxItems': 1, 'StartingToken': t2},
-        Bucket=bucket_name)
+        Bucket=bucket_name,
+    )
     third = await pages.build_full_result()
     t3 = third['NextToken']
 
     pages = paginator.paginate(
         PaginationConfig={'MaxItems': 1, 'StartingToken': t3},
-        Bucket=bucket_name)
+        Bucket=bucket_name,
+    )
     fourth = await pages.build_full_result()
 
     assert first['Contents'][-1]['Key'] == 'a'
@@ -343,7 +372,7 @@ async def test_paginate_within_page_boundaries(
 @pytest.mark.parametrize('mocking_test', [False])
 async def test_unicode_key_put_list(s3_client, bucket_name, create_object):
     # Verify we can upload a key with a unicode char and list it as well.
-    key_name = u'\u2713'
+    key_name = '\u2713'
     await create_object(key_name)
     parsed = await s3_client.list_objects(Bucket=bucket_name)
     assert len(parsed['Contents']) == 1
@@ -366,7 +395,8 @@ async def test_unicode_system_character(s3_client, bucket_name, create_object):
     assert parsed['Contents'][0]['Key'] == key_name
 
     parsed = await s3_client.list_objects(
-        Bucket=bucket_name, EncodingType='url')
+        Bucket=bucket_name, EncodingType='url'
+    )
     assert len(parsed['Contents']) == 1
     assert parsed['Contents'][0]['Key'] == 'foo%08'
 
@@ -398,9 +428,10 @@ async def test_copy_with_quoted_char(s3_client, create_object, bucket_name):
     await create_object(key_name=key_name)
 
     key_name2 = key_name + 'bar'
-    source = '%s/%s' % (bucket_name, key_name)
+    source = f'{bucket_name}/{key_name}'
     await s3_client.copy_object(
-        Bucket=bucket_name, Key=key_name2, CopySource=source)
+        Bucket=bucket_name, Key=key_name2, CopySource=source
+    )
 
     # Now verify we can retrieve the copied object.
     resp = await s3_client.get_object(Bucket=bucket_name, Key=key_name2)
@@ -417,8 +448,10 @@ async def test_copy_with_query_string(s3_client, create_object, bucket_name):
 
     key_name2 = key_name + 'bar'
     await s3_client.copy_object(
-        Bucket=bucket_name, Key=key_name2,
-        CopySource='%s/%s' % (bucket_name, key_name))
+        Bucket=bucket_name,
+        Key=key_name2,
+        CopySource=f'{bucket_name}/{key_name}',
+    )
 
     # Now verify we can retrieve the copied object.
     resp = await s3_client.get_object(Bucket=bucket_name, Key=key_name2)
@@ -435,8 +468,10 @@ async def test_can_copy_with_dict_form(s3_client, create_object, bucket_name):
 
     key_name2 = key_name + 'bar'
     await s3_client.copy_object(
-        Bucket=bucket_name, Key=key_name2,
-        CopySource={'Bucket': bucket_name, 'Key': key_name})
+        Bucket=bucket_name,
+        Key=key_name2,
+        CopySource={'Bucket': bucket_name, 'Key': key_name},
+    )
 
     # Now verify we can retrieve the copied object.
     resp = await s3_client.get_object(Bucket=bucket_name, Key=key_name2)
@@ -448,14 +483,20 @@ async def test_can_copy_with_dict_form(s3_client, create_object, bucket_name):
 @pytest.mark.moto
 @pytest.mark.asyncio
 async def test_can_copy_with_dict_form_with_version(
-        s3_client, create_object, bucket_name):
+    s3_client, create_object, bucket_name
+):
     key_name = 'a+b/foo?versionId=abcd'
     response = await create_object(key_name=key_name)
     key_name2 = key_name + 'bar'
     await s3_client.copy_object(
-        Bucket=bucket_name, Key=key_name2,
-        CopySource={'Bucket': bucket_name, 'Key': key_name,
-                    'VersionId': response["VersionId"]})
+        Bucket=bucket_name,
+        Key=key_name2,
+        CopySource={
+            'Bucket': bucket_name,
+            'Key': key_name,
+            'VersionId': response["VersionId"],
+        },
+    )
 
     # Now verify we can retrieve the copied object.
     resp = await s3_client.get_object(Bucket=bucket_name, Key=key_name2)
@@ -471,10 +512,12 @@ async def test_copy_with_s3_metadata(s3_client, create_object, bucket_name):
     await create_object(key_name=key_name)
     copied_key = 'copied.txt'
     parsed = await s3_client.copy_object(
-        Bucket=bucket_name, Key=copied_key,
-        CopySource='%s/%s' % (bucket_name, key_name),
+        Bucket=bucket_name,
+        Key=copied_key,
+        CopySource=f'{bucket_name}/{key_name}',
         MetadataDirective='REPLACE',
-        Metadata={"mykey": "myvalue", "mykey2": "myvalue2"})
+        Metadata={"mykey": "myvalue", "mykey2": "myvalue2"},
+    )
     pytest.aio.assert_status_code(parsed, 200)
 
 
@@ -484,15 +527,19 @@ async def test_copy_with_s3_metadata(s3_client, create_object, bucket_name):
 @pytest.mark.parametrize('mocking_test', [False])
 @pytest.mark.asyncio
 async def test_presign_with_existing_query_string_values(
-        s3_client, bucket_name, aio_session, create_object):
+    s3_client, bucket_name, aio_session, create_object
+):
     key_name = 'foo.txt'
     await create_object(key_name=key_name)
     content_disposition = 'attachment; filename=foo.txt;'
-    params = {'Bucket': bucket_name,
-              'Key': key_name,
-              'ResponseContentDisposition': content_disposition}
+    params = {
+        'Bucket': bucket_name,
+        'Key': key_name,
+        'ResponseContentDisposition': content_disposition,
+    }
     presigned_url = await s3_client.generate_presigned_url(
-        'get_object', Params=params)
+        'get_object', Params=params
+    )
     # Try to retrieve the object using the presigned url.
 
     async with aio_session.get(presigned_url) as resp:
@@ -506,16 +553,21 @@ async def test_presign_with_existing_query_string_values(
 # moto host will be localhost
 @pytest.mark.parametrize('mocking_test', [False])
 @pytest.mark.asyncio
-async def test_presign_sigv4(s3_client, bucket_name, aio_session,
-                             create_object):
+async def test_presign_sigv4(
+    s3_client, bucket_name, aio_session, create_object
+):
     key = 'myobject'
     await create_object(key_name=key)
     presigned_url = await s3_client.generate_presigned_url(
-        'get_object', Params={'Bucket': bucket_name, 'Key': key})
-    msg = "Host was suppose to be the us-east-1 endpoint, " \
-          "instead got: %s" % presigned_url
-    assert presigned_url.startswith('https://%s.s3.amazonaws.com/%s'
-                                    % (bucket_name, key)), msg
+        'get_object', Params={'Bucket': bucket_name, 'Key': key}
+    )
+    msg = (
+        "Host was suppose to be the us-east-1 endpoint, "
+        "instead got: %s" % presigned_url
+    )
+    assert presigned_url.startswith(
+        f'https://{bucket_name}.s3.amazonaws.com/{key}'
+    ), msg
 
     # Try to retrieve the object using the presigned url.
     async with aio_session.get(presigned_url) as resp:
@@ -526,13 +578,15 @@ async def test_presign_sigv4(s3_client, bucket_name, aio_session,
 @pytest.mark.parametrize('signature_version', ['s3v4'])
 @pytest.mark.parametrize('mocking_test', [False])
 @pytest.mark.asyncio
-async def test_can_follow_signed_url_redirect(alternative_s3_client,
-                                              create_object, bucket_name):
+async def test_can_follow_signed_url_redirect(
+    alternative_s3_client, create_object, bucket_name
+):
     await create_object('foobarbaz')
 
     # Simulate redirection by provide wrong endpoint intentionally
     resp = await alternative_s3_client.get_object(
-        Bucket=bucket_name, Key='foobarbaz')
+        Bucket=bucket_name, Key='foobarbaz'
+    )
     data = await resp['Body'].read()
     resp['Body'].close()
     assert data == b'foo'
@@ -543,7 +597,8 @@ async def test_can_follow_signed_url_redirect(alternative_s3_client,
 @pytest.mark.parametrize('mocking_test', [False])
 @pytest.mark.asyncio
 async def test_bucket_redirect(
-        s3_client, alternative_s3_client, region, create_bucket):
+    s3_client, alternative_s3_client, region, create_bucket
+):
     key = 'foobarbaz'
 
     # create bucket in alternative region
@@ -553,8 +608,9 @@ async def test_bucket_redirect(
     await s3_client.get_object(Bucket=bucket_name, Key=key)
 
     # This should not raise
-    await alternative_s3_client.put_object(Bucket=bucket_name, Key=key,
-                                           Body=b'')
+    await alternative_s3_client.put_object(
+        Bucket=bucket_name, Key=key, Body=b''
+    )
     await alternative_s3_client.get_object(Bucket=bucket_name, Key=key)
 
 
@@ -564,11 +620,16 @@ async def test_bucket_redirect(
 async def test_head_object_keys(s3_client, create_object, bucket_name):
     await create_object('foobarbaz')
 
-    resp = await s3_client.head_object(
-        Bucket=bucket_name, Key='foobarbaz')
+    resp = await s3_client.head_object(Bucket=bucket_name, Key='foobarbaz')
 
     # this is to ensure things like:
     # https://github.com/aio-libs/aiobotocore/issues/131 don't happen again
     assert set(resp.keys()) == {
-        'ETag', 'ContentType', 'Metadata', 'LastModified',
-        'ResponseMetadata', 'ContentLength', 'VersionId'}
+        'ETag',
+        'ContentType',
+        'Metadata',
+        'LastModified',
+        'ResponseMetadata',
+        'ContentLength',
+        'VersionId',
+    }

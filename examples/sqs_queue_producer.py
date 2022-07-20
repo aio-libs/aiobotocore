@@ -6,8 +6,9 @@ import asyncio
 import random
 import sys
 
-from aiobotocore.session import get_session
 import botocore.exceptions
+
+from aiobotocore.session import get_session
 
 QUEUE_NAME = 'test_queue12'
 
@@ -19,8 +20,10 @@ async def go():
         try:
             response = await client.get_queue_url(QueueName=QUEUE_NAME)
         except botocore.exceptions.ClientError as err:
-            if err.response['Error']['Code'] == \
-                    'AWS.SimpleQueueService.NonExistentQueue':
+            if (
+                err.response['Error']['Code']
+                == 'AWS.SimpleQueueService.NonExistentQueue'
+            ):
                 print(f"Queue {QUEUE_NAME} does not exist")
                 sys.exit(1)
             else:
@@ -35,8 +38,7 @@ async def go():
             try:
                 msg_body = f'Message #{msg_no}'
                 await client.send_message(
-                    QueueUrl=queue_url,
-                    MessageBody=msg_body
+                    QueueUrl=queue_url, MessageBody=msg_body
                 )
                 msg_no += 1
 

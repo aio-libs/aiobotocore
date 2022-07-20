@@ -1,46 +1,71 @@
 import asyncio
 import datetime
+import json
 import logging
 import subprocess
-import json
 from copy import deepcopy
-from typing import Optional
 from hashlib import sha1
+from typing import Optional
 
+import botocore.compat
+from botocore import UNSIGNED
+from botocore.compat import compat_shell_split
+from botocore.config import Config
+from botocore.credentials import (
+    AssumeRoleCredentialFetcher,
+    AssumeRoleProvider,
+    AssumeRoleWithWebIdentityProvider,
+    BaseAssumeRoleCredentialFetcher,
+    BotoProvider,
+    CachedCredentialFetcher,
+    CanonicalNameCredentialSourcer,
+    ConfigProvider,
+    ContainerMetadataFetcher,
+    ContainerProvider,
+    CredentialResolver,
+    Credentials,
+    EnvProvider,
+    InstanceMetadataProvider,
+    OriginalEC2Provider,
+    ProcessProvider,
+    ProfileProviderBuilder,
+    ReadOnlyCredentials,
+    RefreshableCredentials,
+    SharedCredentialProvider,
+    SSOProvider,
+    _get_client_creator,
+    _local_now,
+    _parse_if_needed,
+    _serialize_if_needed,
+    resolve_imds_endpoint_mode,
+)
+from botocore.exceptions import (
+    CredentialRetrievalError,
+    InvalidConfigError,
+    MetadataRetrievalError,
+    PartialCredentialsError,
+    RefreshWithMFAUnsupportedError,
+    UnauthorizedSSOTokenError,
+    UnknownCredentialError,
+)
+from botocore.utils import SSOTokenLoader
 from dateutil.tz import tzutc
 
-from botocore import UNSIGNED
-from botocore.config import Config
-import botocore.compat
-from botocore.credentials import EnvProvider, Credentials, RefreshableCredentials, \
-    ReadOnlyCredentials, ContainerProvider, ContainerMetadataFetcher, \
-    _parse_if_needed, InstanceMetadataProvider, _get_client_creator, \
-    ProfileProviderBuilder, ConfigProvider, SharedCredentialProvider, \
-    ProcessProvider, AssumeRoleWithWebIdentityProvider, _local_now, \
-    CachedCredentialFetcher, _serialize_if_needed, BaseAssumeRoleCredentialFetcher, \
-    AssumeRoleProvider, AssumeRoleCredentialFetcher, CredentialResolver, \
-    CanonicalNameCredentialSourcer, BotoProvider, OriginalEC2Provider, \
-    SSOProvider, resolve_imds_endpoint_mode
-from botocore.exceptions import UnauthorizedSSOTokenError
-from botocore.exceptions import MetadataRetrievalError, CredentialRetrievalError, \
-    InvalidConfigError, PartialCredentialsError, RefreshWithMFAUnsupportedError, \
-    UnknownCredentialError
-from botocore.compat import compat_shell_split
-from botocore.utils import SSOTokenLoader
-
-from aiobotocore.utils import AioContainerMetadataFetcher, AioInstanceMetadataFetcher
 from aiobotocore.config import AioConfig
-
+from aiobotocore.utils import (
+    AioContainerMetadataFetcher,
+    AioInstanceMetadataFetcher,
+)
 
 logger = logging.getLogger(__name__)
 
 
 def create_credential_resolver(session, cache=None, region_name=None):
     """Create a default credential resolver.
-        This creates a pre-configured credential resolver
-        that includes the default lookup chain for
-        credentials.
-        """
+    This creates a pre-configured credential resolver
+    that includes the default lookup chain for
+    credentials.
+    """
     profile_name = session.get_config_variable('profile') or 'default'
     metadata_timeout = session.get_config_variable('metadata_service_timeout')
     num_attempts = session.get_config_variable('metadata_service_num_attempts')
@@ -48,9 +73,11 @@ def create_credential_resolver(session, cache=None, region_name=None):
 
     imds_config = {
         'ec2_metadata_service_endpoint': session.get_config_variable(
-            'ec2_metadata_service_endpoint'),
+            'ec2_metadata_service_endpoint'
+        ),
         'ec2_metadata_service_endpoint_mode': resolve_imds_endpoint_mode(
-            session)
+            session
+        ),
     }
 
     if cache is None:
@@ -63,19 +90,21 @@ def create_credential_resolver(session, cache=None, region_name=None):
             timeout=metadata_timeout,
             num_attempts=num_attempts,
             user_agent=session.user_agent(),
-            config=imds_config)
+            config=imds_config,
+        )
     )
 
     profile_provider_builder = AioProfileProviderBuilder(
-        session, cache=cache, region_name=region_name)
+        session, cache=cache, region_name=region_name
+    )
     assume_role_provider = AioAssumeRoleProvider(
         load_config=lambda: session.full_config,
         client_creator=_get_client_creator(session, region_name),
         cache=cache,
         profile_name=profile_name,
-        credential_sourcer=AioCanonicalNameCredentialSourcer([
-            env_provider, container_provider, instance_metadata_provider
-        ]),
+        credential_sourcer=AioCanonicalNameCredentialSourcer(
+            [env_provider, container_provider, instance_metadata_provider]
+        ),
         profile_provider_builder=profile_provider_builder,
     )
 
@@ -112,8 +141,10 @@ def create_credential_resolver(session, cache=None, region_name=None):
         # EnvProvider does not return credentials, which is what we want
         # in this scenario.
         providers.remove(env_provider)
-        logger.debug('Skipping environment variable credential check'
-                     ' because profile name was explicitly set.')
+        logger.debug(
+            'Skipping environment variable credential check'
+            ' because profile name was explicitly set.'
+        )
 
     resolver = AioCredentialResolver(providers=providers)
     return resolver
@@ -144,7 +175,8 @@ class AioProfileProviderBuilder(ProfileProviderBuilder):
         return AioAssumeRoleWithWebIdentityProvider(
             load_config=lambda: self._session.full_config,
             client_creator=_get_client_creator(
-                self._session, self._region_name),
+                self._session, self._region_name
+            ),
             cache=self._cache,
             profile_name=profile_name,
             disable_env_vars=disable_env_vars,
@@ -178,11 +210,12 @@ def create_assume_role_refresher(client, params):
             'token': credentials['SessionToken'],
             'expiry_time': _serialize_if_needed(credentials['Expiration']),
         }
+
     return refresh
 
 
 def create_aio_mfa_serial_refresher(actual_refresh):
-    class _Refresher(object):
+    class _Refresher:
         def __init__(self, refresh):
             self._refresh = refresh
             self._has_been_called = False
@@ -201,33 +234,36 @@ def create_aio_mfa_serial_refresher(actual_refresh):
 
 class AioCredentials(Credentials):
     async def get_frozen_credentials(self):
-        return ReadOnlyCredentials(self.access_key,
-                                   self.secret_key,
-                                   self.token)
+        return ReadOnlyCredentials(
+            self.access_key, self.secret_key, self.token
+        )
 
     @classmethod
     def from_credentials(cls, obj: Optional[Credentials]):
         if obj is None:
             return None
-        return cls(
-            obj.access_key, obj.secret_key,
-            obj.token, obj.method)
+        return cls(obj.access_key, obj.secret_key, obj.token, obj.method)
 
 
 class AioRefreshableCredentials(RefreshableCredentials):
     def __init__(self, *args, **kwargs):
-        super(AioRefreshableCredentials, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self._refresh_lock = asyncio.Lock()
 
     @classmethod
-    def from_refreshable_credentials(cls, obj: Optional[RefreshableCredentials]):
+    def from_refreshable_credentials(
+        cls, obj: Optional[RefreshableCredentials]
+    ):
         if obj is None:
             return None
         return cls(  # Using interval values here to skip property calling .refresh()
-            obj._access_key, obj._secret_key,
-            obj._token, obj._expiry_time,
-            obj._refresh_using, obj.method,
-            obj._time_fetcher
+            obj._access_key,
+            obj._secret_key,
+            obj._token,
+            obj._expiry_time,
+            obj._refresh_using,
+            obj.method,
+            obj._time_fetcher,
         )
 
     # Redeclaring the properties so it doesnt call refresh
@@ -235,8 +271,10 @@ class AioRefreshableCredentials(RefreshableCredentials):
     @property
     def access_key(self):
         # TODO: this needs to be resolved
-        raise NotImplementedError("missing call to self._refresh. "
-                                  "Use get_frozen_credentials instead")
+        raise NotImplementedError(
+            "missing call to self._refresh. "
+            "Use get_frozen_credentials instead"
+        )
         return self._access_key
 
     @access_key.setter
@@ -246,8 +284,10 @@ class AioRefreshableCredentials(RefreshableCredentials):
     @property
     def secret_key(self):
         # TODO: this needs to be resolved
-        raise NotImplementedError("missing call to self._refresh. "
-                                  "Use get_frozen_credentials instead")
+        raise NotImplementedError(
+            "missing call to self._refresh. "
+            "Use get_frozen_credentials instead"
+        )
         return self._secret_key
 
     @secret_key.setter
@@ -257,8 +297,10 @@ class AioRefreshableCredentials(RefreshableCredentials):
     @property
     def token(self):
         # TODO: this needs to be resolved
-        raise NotImplementedError("missing call to self._refresh. "
-                                  "Use get_frozen_credentials instead")
+        raise NotImplementedError(
+            "missing call to self._refresh. "
+            "Use get_frozen_credentials instead"
+        )
         return self._token
 
     @token.setter
@@ -275,8 +317,11 @@ class AioRefreshableCredentials(RefreshableCredentials):
                 if not self.refresh_needed(self._advisory_refresh_timeout):
                     return
                 is_mandatory_refresh = self.refresh_needed(
-                    self._mandatory_refresh_timeout)
-                await self._protected_refresh(is_mandatory=is_mandatory_refresh)
+                    self._mandatory_refresh_timeout
+                )
+                await self._protected_refresh(
+                    is_mandatory=is_mandatory_refresh
+                )
                 return
         elif self.refresh_needed(self._mandatory_refresh_timeout):
             # If we're here, we absolutely need a refresh and the
@@ -292,9 +337,12 @@ class AioRefreshableCredentials(RefreshableCredentials):
             metadata = await self._refresh_using()
         except Exception:
             period_name = 'mandatory' if is_mandatory else 'advisory'
-            logger.warning("Refreshing temporary credentials failed "
-                           "during %s refresh period.",
-                           period_name, exc_info=True)
+            logger.warning(
+                "Refreshing temporary credentials failed "
+                "during %s refresh period.",
+                period_name,
+                exc_info=True,
+            )
             if is_mandatory:
                 # If this is a mandatory refresh, then
                 # all errors that occur when we attempt to refresh
@@ -306,10 +354,13 @@ class AioRefreshableCredentials(RefreshableCredentials):
             return
         self._set_from_data(metadata)
         self._frozen_credentials = ReadOnlyCredentials(
-            self._access_key, self._secret_key, self._token)
+            self._access_key, self._secret_key, self._token
+        )
         if self._is_expired():
-            msg = ("Credentials were refreshed, but the "
-                   "refreshed credentials are still expired.")
+            msg = (
+                "Credentials were refreshed, but the "
+                "refreshed credentials are still expired."
+            )
             logger.warning(msg)
             raise RuntimeError(msg)
 
@@ -333,9 +384,7 @@ class AioDeferredRefreshableCredentials(AioRefreshableCredentials):
     def refresh_needed(self, refresh_in=None):
         if self._frozen_credentials is None:
             return True
-        return super(AioDeferredRefreshableCredentials, self).refresh_needed(
-            refresh_in
-        )
+        return super().refresh_needed(refresh_in)
 
 
 class AioCachedCredentialFetcher(CachedCredentialFetcher):
@@ -368,13 +417,15 @@ class AioCachedCredentialFetcher(CachedCredentialFetcher):
         }
 
 
-class AioBaseAssumeRoleCredentialFetcher(BaseAssumeRoleCredentialFetcher,
-                                         AioCachedCredentialFetcher):
+class AioBaseAssumeRoleCredentialFetcher(
+    BaseAssumeRoleCredentialFetcher, AioCachedCredentialFetcher
+):
     pass
 
 
-class AioAssumeRoleCredentialFetcher(AssumeRoleCredentialFetcher,
-                                     AioBaseAssumeRoleCredentialFetcher):
+class AioAssumeRoleCredentialFetcher(
+    AssumeRoleCredentialFetcher, AioBaseAssumeRoleCredentialFetcher
+):
     async def _get_credentials(self):
         """Get credentials by calling assume role."""
         kwargs = self._assume_role_kwargs()
@@ -384,7 +435,9 @@ class AioAssumeRoleCredentialFetcher(AssumeRoleCredentialFetcher,
 
     async def _create_client(self):
         """Create an STS client using the source credentials."""
-        frozen_credentials = await self._source_credentials.get_frozen_credentials()
+        frozen_credentials = (
+            await self._source_credentials.get_frozen_credentials()
+        )
         return self._client_creator(
             'sts',
             aws_access_key_id=frozen_credentials.access_key,
@@ -394,16 +447,26 @@ class AioAssumeRoleCredentialFetcher(AssumeRoleCredentialFetcher,
 
 
 class AioAssumeRoleWithWebIdentityCredentialFetcher(
-        AioBaseAssumeRoleCredentialFetcher
+    AioBaseAssumeRoleCredentialFetcher
 ):
-    def __init__(self, client_creator, web_identity_token_loader, role_arn,
-                 extra_args=None, cache=None, expiry_window_seconds=None):
+    def __init__(
+        self,
+        client_creator,
+        web_identity_token_loader,
+        role_arn,
+        extra_args=None,
+        cache=None,
+        expiry_window_seconds=None,
+    ):
 
         self._web_identity_token_loader = web_identity_token_loader
 
-        super(AioAssumeRoleWithWebIdentityCredentialFetcher, self).__init__(
-            client_creator, role_arn, extra_args=extra_args,
-            cache=cache, expiry_window_seconds=expiry_window_seconds
+        super().__init__(
+            client_creator,
+            role_arn,
+            extra_args=extra_args,
+            cache=cache,
+            expiry_window_seconds=expiry_window_seconds,
         )
 
     async def _get_credentials(self):
@@ -426,7 +489,7 @@ class AioAssumeRoleWithWebIdentityCredentialFetcher(
 
 class AioProcessProvider(ProcessProvider):
     def __init__(self, *args, popen=asyncio.create_subprocess_exec, **kwargs):
-        super(AioProcessProvider, self).__init__(*args, **kwargs, popen=popen)
+        super().__init__(*args, **kwargs, popen=popen)
 
     async def load(self):
         credential_process = self._credential_process
@@ -438,34 +501,38 @@ class AioProcessProvider(ProcessProvider):
             return AioRefreshableCredentials.create_from_metadata(
                 creds_dict,
                 lambda: self._retrieve_credentials_using(credential_process),
-                self.METHOD
+                self.METHOD,
             )
 
         return AioCredentials(
             access_key=creds_dict['access_key'],
             secret_key=creds_dict['secret_key'],
             token=creds_dict.get('token'),
-            method=self.METHOD
+            method=self.METHOD,
         )
 
     async def _retrieve_credentials_using(self, credential_process):
         # We're not using shell=True, so we need to pass the
         # command and all arguments as a list.
         process_list = compat_shell_split(credential_process)
-        p = await self._popen(*process_list,
-                              stdout=subprocess.PIPE,
-                              stderr=subprocess.PIPE)
+        p = await self._popen(
+            *process_list, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+        )
         stdout, stderr = await p.communicate()
         if p.returncode != 0:
             raise CredentialRetrievalError(
-                provider=self.METHOD, error_msg=stderr.decode('utf-8'))
+                provider=self.METHOD, error_msg=stderr.decode('utf-8')
+            )
         parsed = botocore.compat.json.loads(stdout.decode('utf-8'))
         version = parsed.get('Version', '<Version key not provided>')
         if version != 1:
             raise CredentialRetrievalError(
                 provider=self.METHOD,
-                error_msg=("Unsupported version '%s' for credential process "
-                           "provider, supported versions: 1" % version))
+                error_msg=(
+                    "Unsupported version '%s' for credential process "
+                    "provider, supported versions: 1" % version
+                ),
+            )
         try:
             return {
                 'access_key': parsed['AccessKeyId'],
@@ -476,7 +543,7 @@ class AioProcessProvider(ProcessProvider):
         except KeyError as e:
             raise CredentialRetrievalError(
                 provider=self.METHOD,
-                error_msg="Missing required key in response: %s" % e
+                error_msg="Missing required key in response: %s" % e,
             )
 
 
@@ -486,8 +553,9 @@ class AioInstanceMetadataProvider(InstanceMetadataProvider):
         metadata = await fetcher.retrieve_iam_role_credentials()
         if not metadata:
             return None
-        logger.debug('Found credentials from IAM Role: %s',
-                     metadata['role_name'])
+        logger.debug(
+            'Found credentials from IAM Role: %s', metadata['role_name']
+        )
 
         creds = AioRefreshableCredentials.create_from_metadata(
             metadata,
@@ -503,8 +571,9 @@ class AioEnvProvider(EnvProvider):
         # so just convert the response to Aio variants
         result = super().load()
         if isinstance(result, RefreshableCredentials):
-            return AioRefreshableCredentials.\
-                from_refreshable_credentials(result)
+            return AioRefreshableCredentials.from_refreshable_credentials(
+                result
+            )
         elif isinstance(result, Credentials):
             return AioCredentials.from_credentials(result)
 
@@ -513,7 +582,7 @@ class AioEnvProvider(EnvProvider):
 
 class AioOriginalEC2Provider(OriginalEC2Provider):
     async def load(self):
-        result = super(AioOriginalEC2Provider, self).load()
+        result = super().load()
         if isinstance(result, Credentials):
             result = AioCredentials.from_credentials(result)
         return result
@@ -521,7 +590,7 @@ class AioOriginalEC2Provider(OriginalEC2Provider):
 
 class AioSharedCredentialProvider(SharedCredentialProvider):
     async def load(self):
-        result = super(AioSharedCredentialProvider, self).load()
+        result = super().load()
         if isinstance(result, Credentials):
             result = AioCredentials.from_credentials(result)
         return result
@@ -529,7 +598,7 @@ class AioSharedCredentialProvider(SharedCredentialProvider):
 
 class AioConfigProvider(ConfigProvider):
     async def load(self):
-        result = super(AioConfigProvider, self).load()
+        result = super().load()
         if isinstance(result, Credentials):
             result = AioCredentials.from_credentials(result)
         return result
@@ -537,7 +606,7 @@ class AioConfigProvider(ConfigProvider):
 
 class AioBotoProvider(BotoProvider):
     async def load(self):
-        result = super(AioBotoProvider, self).load()
+        result = super().load()
         if isinstance(result, Credentials):
             result = AioCredentials.from_credentials(result)
         return result
@@ -592,7 +661,7 @@ class AioAssumeRoleProvider(AssumeRoleProvider):
         return AioDeferredRefreshableCredentials(
             method=self.METHOD,
             refresh_using=refresher,
-            time_fetcher=_local_now
+            time_fetcher=_local_now,
         )
 
     async def _resolve_source_credentials(self, role_config, profile_name):
@@ -610,11 +679,14 @@ class AioAssumeRoleProvider(AssumeRoleProvider):
         profiles = self._loaded_config.get('profiles', {})
         profile = profiles[profile_name]
 
-        if self._has_static_credentials(profile) and \
-                not self._profile_provider_builder:
+        if (
+            self._has_static_credentials(profile)
+            and not self._profile_provider_builder
+        ):
             return self._resolve_static_credentials_from_profile(profile)
-        elif self._has_static_credentials(profile) or \
-                not self._has_assume_role_config_vars(profile):
+        elif self._has_static_credentials(
+            profile
+        ) or not self._has_assume_role_config_vars(profile):
             profile_providers = self._profile_provider_builder.providers(
                 profile_name=profile_name,
                 disable_env_vars=True,
@@ -637,23 +709,26 @@ class AioAssumeRoleProvider(AssumeRoleProvider):
             return AioCredentials(
                 access_key=profile['aws_access_key_id'],
                 secret_key=profile['aws_secret_access_key'],
-                token=profile.get('aws_session_token')
+                token=profile.get('aws_session_token'),
             )
         except KeyError as e:
             raise PartialCredentialsError(
-                provider=self.METHOD, cred_var=str(e))
+                provider=self.METHOD, cred_var=str(e)
+            )
 
-    async def _resolve_credentials_from_source(self, credential_source,
-                                               profile_name):
+    async def _resolve_credentials_from_source(
+        self, credential_source, profile_name
+    ):
         credentials = await self._credential_sourcer.source_credentials(
-            credential_source)
+            credential_source
+        )
         if credentials is None:
             raise CredentialRetrievalError(
                 provider=credential_source,
                 error_msg=(
                     'No credentials found in credential_source referenced '
                     'in profile %s' % profile_name
-                )
+                ),
             )
         return credentials
 
@@ -755,7 +830,7 @@ class AioCanonicalNameCredentialSourcer(CanonicalNameCredentialSourcer):
 
 class AioContainerProvider(ContainerProvider):
     def __init__(self, *args, **kwargs):
-        super(AioContainerProvider, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         # This will always run if no fetcher arg is provided
         if isinstance(self._fetcher, ContainerMetadataFetcher):
@@ -786,12 +861,15 @@ class AioContainerProvider(ContainerProvider):
         async def fetch_creds():
             try:
                 response = await self._fetcher.retrieve_full_uri(
-                    full_uri, headers=headers)
+                    full_uri, headers=headers
+                )
             except MetadataRetrievalError as e:
-                logger.debug("Error retrieving container metadata: %s", e,
-                             exc_info=True)
-                raise CredentialRetrievalError(provider=self.METHOD,
-                                               error_msg=str(e))
+                logger.debug(
+                    "Error retrieving container metadata: %s", e, exc_info=True
+                )
+                raise CredentialRetrievalError(
+                    provider=self.METHOD, error_msg=str(e)
+                )
             return {
                 'access_key': response['AccessKeyId'],
                 'secret_key': response['SecretAccessKey'],
@@ -827,18 +905,24 @@ class AioCredentialResolver(CredentialResolver):
 class AioSSOCredentialFetcher(AioCachedCredentialFetcher):
     _UTC_DATE_FORMAT = '%Y-%m-%dT%H:%M:%SZ'
 
-    def __init__(self, start_url, sso_region, role_name, account_id,
-                 client_creator, token_loader=None, cache=None,
-                 expiry_window_seconds=None):
+    def __init__(
+        self,
+        start_url,
+        sso_region,
+        role_name,
+        account_id,
+        client_creator,
+        token_loader=None,
+        cache=None,
+        expiry_window_seconds=None,
+    ):
         self._client_creator = client_creator
         self._sso_region = sso_region
         self._role_name = role_name
         self._account_id = account_id
         self._start_url = start_url
         self._token_loader = token_loader
-        super(AioSSOCredentialFetcher, self).__init__(
-            cache, expiry_window_seconds
-        )
+        super().__init__(cache, expiry_window_seconds)
 
     def _create_cache_key(self):
         args = {
@@ -881,8 +965,10 @@ class AioSSOCredentialFetcher(AioCachedCredentialFetcher):
                     'AccessKeyId': credentials['accessKeyId'],
                     'SecretAccessKey': credentials['secretAccessKey'],
                     'SessionToken': credentials['sessionToken'],
-                    'Expiration': self._parse_timestamp(credentials['expiration']),
-                }
+                    'Expiration': self._parse_timestamp(
+                        credentials['expiration']
+                    ),
+                },
             }
             return credentials
 

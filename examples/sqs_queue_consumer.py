@@ -5,8 +5,9 @@ aiobotocore SQS Consumer Example
 import asyncio
 import sys
 
-from aiobotocore.session import get_session
 import botocore.exceptions
+
+from aiobotocore.session import get_session
 
 QUEUE_NAME = 'test_queue12'
 
@@ -18,9 +19,11 @@ async def go():
         try:
             response = await client.get_queue_url(QueueName=QUEUE_NAME)
         except botocore.exceptions.ClientError as err:
-            if err.response['Error']['Code'] == \
-                    'AWS.SimpleQueueService.NonExistentQueue':
-                print("Queue {0} does not exist".format(QUEUE_NAME))
+            if (
+                err.response['Error']['Code']
+                == 'AWS.SimpleQueueService.NonExistentQueue'
+            ):
+                print(f"Queue {QUEUE_NAME} does not exist")
                 sys.exit(1)
             else:
                 raise
@@ -44,7 +47,7 @@ async def go():
                         # Need to remove msg from queue or else it'll reappear
                         await client.delete_message(
                             QueueUrl=queue_url,
-                            ReceiptHandle=msg['ReceiptHandle']
+                            ReceiptHandle=msg['ReceiptHandle'],
                         )
                 else:
                     print('No messages in queue')

@@ -1,21 +1,21 @@
 import asyncio
-from contextlib import ExitStack
+import os
 import random
 import string
-from unittest.mock import patch
-from itertools import chain
-import tempfile
-import os
 import sys
+import tempfile
+from contextlib import ExitStack
+from itertools import chain
+from unittest.mock import patch
+
+import aiohttp
 
 # Third Party
 import pytest
-import aiohttp
 
-from tests._helpers import AsyncExitStack
 import aiobotocore.session
 from aiobotocore.config import AioConfig
-
+from tests._helpers import AsyncExitStack
 
 host = '127.0.0.1'
 
@@ -27,8 +27,9 @@ def pytest_cmdline_preparse(args):
         args[:] = ["--ignore", 'tests/python3.8'] + args
 
 
-@pytest.fixture(scope="session", params=[True, False],
-                ids=['debug[true]', 'debug[false]'])
+@pytest.fixture(
+    scope="session", params=[True, False], ids=['debug[true]', 'debug[false]']
+)
 def debug(request):
     return request.param
 
@@ -56,12 +57,19 @@ def assert_status_code(response, status_code):
 
 
 async def assert_num_uploads_found(
-        s3_client, bucket_name, operation, num_uploads, *, max_items=None,
-        num_attempts=5):
+    s3_client,
+    bucket_name,
+    operation,
+    num_uploads,
+    *,
+    max_items=None,
+    num_attempts=5,
+):
     paginator = s3_client.get_paginator(operation)
     for _ in range(num_attempts):
-        pages = paginator.paginate(Bucket=bucket_name,
-                                   PaginationConfig={'MaxItems': max_items})
+        pages = paginator.paginate(
+            Bucket=bucket_name, PaginationConfig={'MaxItems': max_items}
+        )
         responses = []
         async for page in pages:
             responses.append(page)
@@ -78,8 +86,11 @@ async def assert_num_uploads_found(
             # Sleep and try again.
             await asyncio.sleep(2)
 
-        pytest.fail("Expected to see %s uploads, instead saw: %s" % (
-            num_uploads, amount_seen))
+        pytest.fail(
+            "Expected to see {} uploads, instead saw: {}".format(
+                num_uploads, amount_seen
+            )
+        )
 
 
 @pytest.fixture
@@ -137,9 +148,13 @@ def config(request, region, signature_version):
     if _PYCHARM_HOSTED:
         connect_timeout = read_timout = 180
 
-    return AioConfig(region_name=region, signature_version=signature_version,
-                     read_timeout=read_timout, connect_timeout=connect_timeout,
-                     **config_kwargs)
+    return AioConfig(
+        region_name=region,
+        signature_version=signature_version,
+        read_timeout=read_timout,
+        connect_timeout=connect_timeout,
+        **config_kwargs,
+    )
 
 
 @pytest.fixture
@@ -150,9 +165,11 @@ def mocking_test():
 
 
 def moto_config(endpoint_url):
-    kw = dict(endpoint_url=endpoint_url,
-              aws_secret_access_key="xxx",
-              aws_access_key_id="xxx")
+    kw = dict(
+        endpoint_url=endpoint_url,
+        aws_secret_access_key="xxx",
+        aws_access_key_id="xxx",
+    )
 
     return kw
 
@@ -196,127 +213,157 @@ def patch_attributes(request):
         yield
     else:
         with ExitStack() as stack:
-            yield [stack.enter_context(patch(**kwargs)) for kwargs in marker.args[0]]
+            yield [
+                stack.enter_context(patch(**kwargs))
+                for kwargs in marker.args[0]
+            ]
 
 
 @pytest.fixture
-async def s3_client(session, region, config, s3_server, mocking_test, s3_verify,
-                    patch_attributes):
+async def s3_client(
+    session,
+    region,
+    config,
+    s3_server,
+    mocking_test,
+    s3_verify,
+    patch_attributes,
+):
     # This depends on mock_attributes because we may want to test event listeners.
     # See the documentation of `mock_attributes` for details.
     kw = moto_config(s3_server) if mocking_test else {}
 
-    async with session.create_client('s3', region_name=region,
-                                     config=config, verify=s3_verify, **kw) as client:
+    async with session.create_client(
+        's3', region_name=region, config=config, verify=s3_verify, **kw
+    ) as client:
         yield client
 
 
 @pytest.fixture
-async def alternative_s3_client(session, alternative_region, signature_version,
-                                s3_server, mocking_test):
+async def alternative_s3_client(
+    session, alternative_region, signature_version, s3_server, mocking_test
+):
     kw = moto_config(s3_server) if mocking_test else {}
 
     config = AioConfig(
-        region_name=alternative_region, signature_version=signature_version,
-        read_timeout=5, connect_timeout=5)
+        region_name=alternative_region,
+        signature_version=signature_version,
+        read_timeout=5,
+        connect_timeout=5,
+    )
 
-    async with session.create_client('s3', region_name=alternative_region,
-                                     config=config, **kw) as client:
+    async with session.create_client(
+        's3', region_name=alternative_region, config=config, **kw
+    ) as client:
         yield client
 
 
 @pytest.fixture
-async def dynamodb_client(session, region, config, dynamodb2_server,
-                          mocking_test):
+async def dynamodb_client(
+    session, region, config, dynamodb2_server, mocking_test
+):
     kw = moto_config(dynamodb2_server) if mocking_test else {}
-    async with session.create_client('dynamodb', region_name=region,
-                                     config=config, **kw) as client:
+    async with session.create_client(
+        'dynamodb', region_name=region, config=config, **kw
+    ) as client:
         yield client
 
 
 @pytest.fixture
-async def cloudformation_client(session, region, config, cloudformation_server,
-                                mocking_test):
+async def cloudformation_client(
+    session, region, config, cloudformation_server, mocking_test
+):
     kw = moto_config(cloudformation_server) if mocking_test else {}
-    async with session.create_client('cloudformation', region_name=region,
-                                     config=config, **kw) as client:
+    async with session.create_client(
+        'cloudformation', region_name=region, config=config, **kw
+    ) as client:
         yield client
 
 
 @pytest.fixture
 async def sns_client(session, region, config, sns_server, mocking_test):
     kw = moto_config(sns_server) if mocking_test else {}
-    async with session.create_client('sns', region_name=region,
-                                     config=config, **kw) as client:
+    async with session.create_client(
+        'sns', region_name=region, config=config, **kw
+    ) as client:
         yield client
 
 
 @pytest.fixture
 async def sqs_client(session, region, config, sqs_server, mocking_test):
     kw = moto_config(sqs_server) if mocking_test else {}
-    async with session.create_client('sqs', region_name=region,
-                                     config=config, **kw) as client:
+    async with session.create_client(
+        'sqs', region_name=region, config=config, **kw
+    ) as client:
         yield client
 
 
 @pytest.fixture
 async def batch_client(session, region, config, batch_server, mocking_test):
     kw = moto_config(batch_server) if mocking_test else {}
-    async with session.create_client('batch', region_name=region,
-                                     config=config, **kw) as client:
+    async with session.create_client(
+        'batch', region_name=region, config=config, **kw
+    ) as client:
         yield client
 
 
 @pytest.fixture
 async def lambda_client(session, region, config, lambda_server, mocking_test):
     kw = moto_config(lambda_server) if mocking_test else {}
-    async with session.create_client('lambda', region_name=region,
-                                     config=config, **kw) as client:
+    async with session.create_client(
+        'lambda', region_name=region, config=config, **kw
+    ) as client:
         yield client
 
 
 @pytest.fixture
 async def iam_client(session, region, config, iam_server, mocking_test):
     kw = moto_config(iam_server) if mocking_test else {}
-    async with session.create_client('iam', region_name=region,
-                                     config=config, **kw) as client:
+    async with session.create_client(
+        'iam', region_name=region, config=config, **kw
+    ) as client:
         yield client
 
 
 @pytest.fixture
 async def rds_client(session, region, config, rds_server, mocking_test):
     kw = moto_config(rds_server) if mocking_test else {}
-    async with session.create_client('rds', region_name=region,
-                                     config=config, **kw) as client:
+    async with session.create_client(
+        'rds', region_name=region, config=config, **kw
+    ) as client:
         yield client
 
 
 @pytest.fixture
 async def ec2_client(session, region, config, ec2_server, mocking_test):
     kw = moto_config(ec2_server) if mocking_test else {}
-    async with session.create_client('ec2', region_name=region,
-                                     config=config, **kw) as client:
+    async with session.create_client(
+        'ec2', region_name=region, config=config, **kw
+    ) as client:
         yield client
 
 
 @pytest.fixture
-async def kinesis_client(session, region, config, kinesis_server, mocking_test):
+async def kinesis_client(
+    session, region, config, kinesis_server, mocking_test
+):
     kw = moto_config(kinesis_server) if mocking_test else {}
-    async with session.create_client('kinesis', region_name=region,
-                                     config=config, **kw) as client:
+    async with session.create_client(
+        'kinesis', region_name=region, config=config, **kw
+    ) as client:
         yield client
 
 
 async def recursive_delete(s3_client, bucket_name):
     # Recursively deletes a bucket and all of its contents.
     paginator = s3_client.get_paginator('list_object_versions')
-    async for n in paginator.paginate(
-            Bucket=bucket_name, Prefix=''):
+    async for n in paginator.paginate(Bucket=bucket_name, Prefix=''):
         for obj in chain(
-                n.get('Versions', []),
-                n.get('DeleteMarkers', []),
-                n.get('Contents', []),
-                n.get('CommonPrefixes', [])):
+            n.get('Versions', []),
+            n.get('DeleteMarkers', []),
+            n.get('Contents', []),
+            n.get('CommonPrefixes', []),
+        ):
             kwargs = dict(Bucket=bucket_name, Key=obj['Key'])
             if 'VersionId' in obj:
                 kwargs['VersionId'] = obj['VersionId']
@@ -356,7 +403,8 @@ async def create_bucket(s3_client):
         response = await s3_client.create_bucket(**bucket_kwargs)
         assert_status_code(response, 200)
         await s3_client.put_bucket_versioning(
-            Bucket=bucket_name, VersioningConfiguration={'Status': 'Enabled'})
+            Bucket=bucket_name, VersioningConfiguration={'Status': 'Enabled'}
+        )
         return bucket_name
 
     try:
@@ -370,9 +418,7 @@ async def create_table(dynamodb_client):
     _table_name = None
 
     async def _is_table_ready(table_name):
-        response = await dynamodb_client.describe_table(
-            TableName=table_name
-        )
+        response = await dynamodb_client.describe_table(TableName=table_name)
         return response['Table']['TableStatus'] == 'ACTIVE'
 
     async def _f(table_name=None):
@@ -383,20 +429,14 @@ async def create_table(dynamodb_client):
         table_kwargs = {
             'TableName': table_name,
             'AttributeDefinitions': [
-                {
-                    'AttributeName': 'testKey',
-                    'AttributeType': 'S'
-                },
+                {'AttributeName': 'testKey', 'AttributeType': 'S'},
             ],
             'KeySchema': [
-                {
-                    'AttributeName': 'testKey',
-                    'KeyType': 'HASH'
-                },
+                {'AttributeName': 'testKey', 'KeyType': 'HASH'},
             ],
             'ProvisionedThroughput': {
                 'ReadCapacityUnits': 1,
-                'WriteCapacityUnits': 1
+                'WriteCapacityUnits': 1,
             },
         }
 
@@ -414,9 +454,7 @@ async def create_table(dynamodb_client):
 
 
 async def delete_table(dynamodb_client, table_name):
-    response = await dynamodb_client.delete_table(
-        TableName=table_name
-    )
+    response = await dynamodb_client.delete_table(TableName=table_name)
     assert_status_code(response, 200)
 
 
@@ -429,10 +467,12 @@ def tempdir():
 @pytest.fixture
 def create_object(s3_client, bucket_name):
     async def _f(key_name, body='foo'):
-        r = await s3_client.put_object(Bucket=bucket_name, Key=key_name,
-                                       Body=body)
+        r = await s3_client.put_object(
+            Bucket=bucket_name, Key=key_name, Body=body
+        )
         assert_status_code(r, 200)
         return r
+
     return _f
 
 
@@ -447,13 +487,17 @@ def create_multipart_upload(request, s3_client, bucket_name, event_loop):
         _key_name = key_name
 
         parsed = await s3_client.create_multipart_upload(
-            Bucket=bucket_name, Key=key_name)
+            Bucket=bucket_name, Key=key_name
+        )
         upload_id = parsed['UploadId']
         return upload_id
 
     def fin():
-        event_loop.run_until_complete(s3_client.abort_multipart_upload(
-            UploadId=upload_id, Bucket=bucket_name, Key=_key_name))
+        event_loop.run_until_complete(
+            s3_client.abort_multipart_upload(
+                UploadId=upload_id, Bucket=bucket_name, Key=_key_name
+            )
+        )
 
     request.addfinalizer(fin)
     return _f
@@ -476,15 +520,10 @@ def pytest_configure():
 
 @pytest.fixture
 def dynamodb_put_item(dynamodb_client, table_name):
-
     async def _f(key_string_value):
         response = await dynamodb_client.put_item(
             TableName=table_name,
-            Item={
-                'testKey': {
-                    'S': key_string_value
-                }
-            },
+            Item={'testKey': {'S': key_string_value}},
         )
         assert_status_code(response, 200)
 
@@ -498,9 +537,7 @@ def topic_arn(region, create_topic, sns_client, event_loop):
 
 
 async def delete_topic(sns_client, topic_arn):
-    response = await sns_client.delete_topic(
-        TopicArn=topic_arn
-    )
+    response = await sns_client.delete_topic(TopicArn=topic_arn)
     assert_status_code(response, 200)
 
 
@@ -531,9 +568,7 @@ async def sqs_queue_url(sqs_client):
     try:
         yield queue_url
     finally:
-        response = await sqs_client.delete_queue(
-            QueueUrl=queue_url
-        )
+        response = await sqs_client.delete_queue(QueueUrl=queue_url)
         assert_status_code(response, 200)
 
 

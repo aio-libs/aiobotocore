@@ -1,13 +1,13 @@
 import asyncio
 
 import aiohttp.resolver
-
-from tests.mock_server import AIOServer
-from aiobotocore.session import AioSession, get_session
-from aiobotocore.config import AioConfig
+import pytest
 from botocore.config import Config
 from botocore.exceptions import ParamValidationError, ReadTimeoutError
-import pytest
+
+from aiobotocore.config import AioConfig
+from aiobotocore.session import AioSession, get_session
+from tests.mock_server import AIOServer
 
 
 # NOTE: this doesn't require moto but needs to be marked to run with coverage
@@ -49,9 +49,7 @@ def test_connector_args():
         AioConfig(connector_args)
 
     # Test valid configs:
-    AioConfig({
-        "resolver": aiohttp.resolver.DefaultResolver()
-    })
+    AioConfig({"resolver": aiohttp.resolver.DefaultResolver()})
     AioConfig({'keepalive_timeout': None})
 
     # test merge
@@ -67,13 +65,16 @@ def test_connector_args():
 @pytest.mark.asyncio
 async def test_connector_timeout():
     session = AioSession()
-    config = AioConfig(max_pool_connections=1, connect_timeout=1,
-                       retries={'max_attempts': 0})
-    async with AIOServer() as server, \
-            session.create_client('s3', config=config,
-                                  endpoint_url=server.endpoint_url,
-                                  aws_secret_access_key='xxx',
-                                  aws_access_key_id='xxx') as s3_client:
+    config = AioConfig(
+        max_pool_connections=1, connect_timeout=1, retries={'max_attempts': 0}
+    )
+    async with AIOServer() as server, session.create_client(
+        's3',
+        config=config,
+        endpoint_url=server.endpoint_url,
+        aws_secret_access_key='xxx',
+        aws_access_key_id='xxx',
+    ) as s3_client:
 
         async def get_and_wait():
             await s3_client.get_object(Bucket='foo', Key='bar')
@@ -97,13 +98,19 @@ async def test_connector_timeout():
 @pytest.mark.asyncio
 async def test_connector_timeout2():
     session = AioSession()
-    config = AioConfig(max_pool_connections=1, connect_timeout=1,
-                       read_timeout=1, retries={'max_attempts': 0})
-    async with AIOServer() as server, \
-            session.create_client('s3', config=config,
-                                  endpoint_url=server.endpoint_url,
-                                  aws_secret_access_key='xxx',
-                                  aws_access_key_id='xxx') as s3_client:
+    config = AioConfig(
+        max_pool_connections=1,
+        connect_timeout=1,
+        read_timeout=1,
+        retries={'max_attempts': 0},
+    )
+    async with AIOServer() as server, session.create_client(
+        's3',
+        config=config,
+        endpoint_url=server.endpoint_url,
+        aws_secret_access_key='xxx',
+        aws_access_key_id='xxx',
+    ) as s3_client:
 
         with pytest.raises(ReadTimeoutError):
             resp = await s3_client.get_object(Bucket='foo', Key='bar')

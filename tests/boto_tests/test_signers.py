@@ -1,7 +1,8 @@
 import datetime
 from datetime import timezone
-import pytest
 from unittest import mock
+
+import pytest
 
 import aiobotocore.credentials
 import aiobotocore.session
@@ -19,14 +20,18 @@ async def test_signers_generate_db_auth_token(rds_client):
     with mock.patch('datetime.datetime') as dt:
         dt.utcnow.return_value = clock
         result = await aiobotocore.signers.generate_db_auth_token(
-            rds_client, hostname, port, username)
+            rds_client, hostname, port, username
+        )
 
         result2 = await rds_client.generate_db_auth_token(
-            hostname, port, username)
+            hostname, port, username
+        )
 
     # A scheme needs to be appended to the beginning or urlsplit may fail
     # on certain systems.
     assert result.startswith(
-        'prod-instance.us-east-1.rds.amazonaws.com:3306/?AWSAccessKeyId=xxx&')
+        'prod-instance.us-east-1.rds.amazonaws.com:3306/?AWSAccessKeyId=xxx&'
+    )
     assert result2.startswith(
-        'prod-instance.us-east-1.rds.amazonaws.com:3306/?AWSAccessKeyId=xxx&')
+        'prod-instance.us-east-1.rds.amazonaws.com:3306/?AWSAccessKeyId=xxx&'
+    )

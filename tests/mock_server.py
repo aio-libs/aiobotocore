@@ -4,16 +4,15 @@ import multiprocessing
 # Third Party
 import aiohttp
 import aiohttp.web
-from aiohttp.web import StreamResponse
 import pytest
+from aiohttp.web import StreamResponse
 
 # aiobotocore
-from tests.moto_server import host, MotoService, get_free_tcp_port
-
+from tests.moto_server import MotoService, get_free_tcp_port, host
 
 _proxy_bypass = {
-  "http": None,
-  "https": None,
+    "http": None,
+    "https": None,
 }
 
 
@@ -26,6 +25,7 @@ class AIOServer(multiprocessing.Process):
     This is a mock AWS service which will 5 seconds before returning
     a response to test socket timeouts.
     """
+
     def __init__(self):
         super().__init__(target=self._run)
         self._loop = None
@@ -40,8 +40,9 @@ class AIOServer(multiprocessing.Process):
         app.router.add_route('*', '/{anything:.*}', self.stream_handler)
 
         try:
-            aiohttp.web.run_app(app, host=host, port=self._port,
-                                handle_signals=False)
+            aiohttp.web.run_app(
+                app, host=host, port=self._port, handle_signals=False
+            )
         except BaseException:
             pytest.fail('unable to start and connect to aiohttp server')
             raise
@@ -66,8 +67,9 @@ class AIOServer(multiprocessing.Process):
         # Without the Content-Type, most (all?) browsers will not render
         # partially downloaded content. Note, the response type is
         # StreamResponse not Response.
-        resp = StreamResponse(status=200, reason='OK',
-                              headers={'Content-Type': 'text/html'})
+        resp = StreamResponse(
+            status=200, reason='OK', headers={'Content-Type': 'text/html'}
+        )
 
         await resp.prepare(request)
         await asyncio.sleep(5)

@@ -1,7 +1,12 @@
 import inspect
 
-from botocore.discovery import EndpointDiscoveryHandler, EndpointDiscoveryManager, \
-    EndpointDiscoveryRefreshFailed, HTTPClientError, logger
+from botocore.discovery import (
+    EndpointDiscoveryHandler,
+    EndpointDiscoveryManager,
+    EndpointDiscoveryRefreshFailed,
+    HTTPClientError,
+    logger,
+)
 
 
 class AioEndpointDiscoveryManager(EndpointDiscoveryManager):

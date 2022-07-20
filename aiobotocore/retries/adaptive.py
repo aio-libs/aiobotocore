@@ -2,8 +2,7 @@
 import asyncio
 import logging
 
-from botocore.retries import throttling
-from botocore.retries import standard
+from botocore.retries import standard, throttling
 
 # The RateClocker from botocore uses a threading.Lock, but in a single-threaded asyncio
 # program, the lock will be acquired then released by the same coroutine without
@@ -12,14 +11,14 @@ from botocore.retries.adaptive import RateClocker
 
 from . import bucket
 
-
 logger = logging.getLogger(__name__)
 
 
 def register_retry_handler(client):
     clock = bucket.Clock()
-    rate_adjustor = throttling.CubicCalculator(starting_max_rate=0,
-                                               start_time=clock.current_time())
+    rate_adjustor = throttling.CubicCalculator(
+        starting_max_rate=0, start_time=clock.current_time()
+    )
     token_bucket = bucket.AsyncTokenBucket(max_rate=1, clock=clock)
     rate_clocker = RateClocker(clock)
     throttling_detector = standard.ThrottlingErrorDetector(
@@ -33,16 +32,19 @@ def register_retry_handler(client):
         clock=clock,
     )
     client.meta.events.register(
-        'before-send', limiter.on_sending_request,
+        'before-send',
+        limiter.on_sending_request,
     )
     client.meta.events.register(
-        'needs-retry', limiter.on_receiving_response,
+        'needs-retry',
+        limiter.on_receiving_response,
     )
     return limiter
 
 
 class AsyncClientRateLimiter:
     """An async reimplementation of ClientRateLimiter."""
+
     # Most of the code here comes directly from botocore. The main change is making the
     # callbacks async.
     # This doesn't inherits from the botocore ClientRateLimiter for two reasons:
@@ -51,8 +53,14 @@ class AsyncClientRateLimiter:
 
     _MAX_RATE_ADJUST_SCALE = 2.0
 
-    def __init__(self, rate_adjustor, rate_clocker, token_bucket,
-                 throttling_detector, clock):
+    def __init__(
+        self,
+        rate_adjustor,
+        rate_clocker,
+        token_bucket,
+        throttling_detector,
+        clock,
+    ):
         self._rate_adjustor = rate_adjustor
         self._rate_clocker = rate_clocker
         self._token_bucket = token_bucket
@@ -76,13 +84,20 @@ class AsyncClientRateLimiter:
                 if not self._enabled:
                     rate_to_use = measured_rate
                 else:
-                    rate_to_use = min(measured_rate, self._token_bucket.max_rate)
+                    rate_to_use = min(
+                        measured_rate, self._token_bucket.max_rate
+                    )
                 new_rate = self._rate_adjustor.error_received(
-                    rate_to_use, timestamp)
-                logger.debug("Throttling response received, new send rate: %s "
-                             "measured rate: %s, token bucket capacity "
-                             "available: %s", new_rate, measured_rate,
-                             self._token_bucket.available_capacity)
+                    rate_to_use, timestamp
+                )
+                logger.debug(
+                    "Throttling response received, new send rate: %s "
+                    "measured rate: %s, token bucket capacity "
+                    "available: %s",
+                    new_rate,
+                    measured_rate,
+                    self._token_bucket.available_capacity,
+                )
                 self._enabled = True
             await self._token_bucket.set_max_rate(
                 min(new_rate, self._MAX_RATE_ADJUST_SCALE * measured_rate)

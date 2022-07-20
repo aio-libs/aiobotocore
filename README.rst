@@ -173,7 +173,7 @@ Enable type checking and code completion
 ----------------------------------------
 
 Install types-aiobotocore_ that contains type annotations for `aiobotocore`
-and all supported botocore_ services. 
+and all supported botocore_ services.
 
 .. code:: bash
 
@@ -215,7 +215,7 @@ https://groups.google.com/forum/#!forum/aio-libs
 
 Requirements
 ------------
-* Python_ 3.6+
+* Python_ 3.7+
 * aiohttp_
 * botocore_
 

@@ -1,7 +1,7 @@
 import os
 import re
-from setuptools import setup, find_packages
 
+from setuptools import find_packages, setup
 
 # NOTE: If updating requirements make sure to also check Pipfile for any locks
 # NOTE: When updating botocore make sure to update awscli/boto3 versions below
@@ -11,7 +11,6 @@ install_requires = [
     'aiohttp>=3.3.1',
     'wrapt>=1.10.10',
     'aioitertools>=0.5.1',
-    "async_generator ; python_version<'3.7'",
 ]
 
 extras_require = {
@@ -26,15 +25,15 @@ def read(f):
 
 def read_version():
     regexp = re.compile(r"^__version__\W*=\W*'([\d.abrc]+)'")
-    init_py = os.path.join(os.path.dirname(__file__),
-                           'aiobotocore', '__init__.py')
+    init_py = os.path.join(
+        os.path.dirname(__file__), 'aiobotocore', '__init__.py'
+    )
     with open(init_py) as f:
         for line in f:
             match = regexp.match(line)
             if match is not None:
                 return match.group(1)
-        raise RuntimeError('Cannot find version in '
-                           'aiobotocore/__init__.py')
+        raise RuntimeError('Cannot find version in ' 'aiobotocore/__init__.py')
 
 
 setup(
@@ -50,7 +49,6 @@ setup(
         'Natural Language :: English',
         'License :: OSI Approved :: Apache Software License',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
         'Programming Language :: Python :: 3.9',
@@ -64,8 +62,8 @@ setup(
     download_url='https://pypi.python.org/pypi/aiobotocore',
     license='Apache License 2.0',
     packages=find_packages(include=['aiobotocore']),
-    python_requires='>=3.6',
+    python_requires='>=3.7',
     install_requires=install_requires,
     extras_require=extras_require,
-    include_package_data=True
+    include_package_data=True,
 )

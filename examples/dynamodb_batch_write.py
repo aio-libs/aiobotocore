@@ -16,8 +16,8 @@ def get_items(start_num, num_items):
     :rtype: list of dict
     """
     result = []
-    for i in range(start_num, start_num+num_items):
-        result.append({'pk': {'S': 'item{0}'.format(i)}})
+    for i in range(start_num, start_num + num_items):
+        result.append({'pk': {'S': f'item{i}'}})
     return result
 
 
@@ -44,7 +44,9 @@ def create_batch_write_structure(table_name, start_num, num_items):
 
 async def go():
     session = get_session()
-    async with session.create_client('dynamodb', region_name='us-west-2') as client:
+    async with session.create_client(
+        'dynamodb', region_name='us-west-2'
+    ) as client:
         table_name = 'test'
 
         print('Writing to dynamo')
@@ -91,8 +93,7 @@ async def go():
         print(f'Item "{final_item}" should exist')
 
         response = await client.get_item(
-            TableName=table_name,
-            Key={'pk': {'S': final_item}}
+            TableName=table_name, Key={'pk': {'S': final_item}}
         )
         print(f'Response: {response["Item"]}')
 

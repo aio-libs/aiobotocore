@@ -10,7 +10,7 @@
   * [ ] Detailed description of issue
   * [ ] Alternative methods considered (if any)
   * [ ] How issue is being resolved
-  * [ ] How issue can be reproduced 
+  * [ ] How issue can be reproduced
 * [ ] If this is providing a new feature  (can be provided via link to issue with these details):
   * [ ] Detailed description of new feature
   * [ ] Why needed

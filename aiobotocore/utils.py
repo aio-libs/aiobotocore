@@ -1,23 +1,40 @@
 import asyncio
-import logging
-import json
 import inspect
+import json
+import logging
 
 import aiohttp.client_exceptions
-from botocore.utils import ContainerMetadataFetcher, InstanceMetadataFetcher, \
-    IMDSFetcher, get_environ_proxies, BadIMDSRequestError, S3RegionRedirector, \
-    ClientError, InstanceMetadataRegionFetcher, IMDSRegionProvider, \
-    resolve_imds_endpoint_mode, ReadTimeoutError, HTTPClientError, \
-    DEFAULT_METADATA_SERVICE_TIMEOUT, METADATA_BASE_URL, os
-from botocore.exceptions import (
-    InvalidIMDSEndpointError, MetadataRetrievalError,
-)
 import botocore.awsrequest
+from botocore.exceptions import (
+    InvalidIMDSEndpointError,
+    MetadataRetrievalError,
+)
+from botocore.utils import (
+    DEFAULT_METADATA_SERVICE_TIMEOUT,
+    METADATA_BASE_URL,
+    BadIMDSRequestError,
+    ClientError,
+    ContainerMetadataFetcher,
+    HTTPClientError,
+    IMDSFetcher,
+    IMDSRegionProvider,
+    InstanceMetadataFetcher,
+    InstanceMetadataRegionFetcher,
+    ReadTimeoutError,
+    S3RegionRedirector,
+    get_environ_proxies,
+    os,
+    resolve_imds_endpoint_mode,
+)
+
 import aiobotocore.httpsession
 from aiobotocore._helpers import asynccontextmanager
 
 logger = logging.getLogger(__name__)
-RETRYABLE_HTTP_ERRORS = (aiohttp.client_exceptions.ClientError, asyncio.TimeoutError)
+RETRYABLE_HTTP_ERRORS = (
+    aiohttp.client_exceptions.ClientError,
+    asyncio.TimeoutError,
+)
 
 
 class _RefCountedSession(aiobotocore.httpsession.AIOHTTPSession):
@@ -53,9 +70,16 @@ class _RefCountedSession(aiobotocore.httpsession.AIOHTTPSession):
 
 
 class AioIMDSFetcher(IMDSFetcher):
-    def __init__(self, timeout=DEFAULT_METADATA_SERVICE_TIMEOUT,  # noqa: E501, lgtm [py/missing-call-to-init]
-                 num_attempts=1, base_url=METADATA_BASE_URL,
-                 env=None, user_agent=None, config=None, session=None):
+    def __init__(
+        self,
+        timeout=DEFAULT_METADATA_SERVICE_TIMEOUT,  # noqa: E501, lgtm [py/missing-call-to-init]
+        num_attempts=1,
+        base_url=METADATA_BASE_URL,
+        env=None,
+        user_agent=None,
+        config=None,
+        session=None,
+    ):
         self._timeout = timeout
         self._num_attempts = num_attempts
         self._base_url = self._select_base_url(base_url, config)
@@ -80,7 +104,8 @@ class AioIMDSFetcher(IMDSFetcher):
         self._add_user_agent(headers)
 
         request = botocore.awsrequest.AWSRequest(
-            method='PUT', url=url, headers=headers)
+            method='PUT', url=url, headers=headers
+        )
 
         async with self._session.acquire() as session:
             for i in range(self._num_attempts):
@@ -97,12 +122,19 @@ class AioIMDSFetcher(IMDSFetcher):
                 except RETRYABLE_HTTP_ERRORS as e:
                     logger.debug(
                         "Caught retryable HTTP exception while making metadata "
-                        "service request to %s: %s", url, e, exc_info=True)
+                        "service request to %s: %s",
+                        url,
+                        e,
+                        exc_info=True,
+                    )
                 except HTTPClientError as e:
                     error = e.kwargs.get('error')
-                    if error and getattr(error, 'errno', None) == 8 or \
-                            str(getattr(error, 'os_error', None)) == \
-                            'Domain name not found':  # threaded vs async resolver
+                    if (
+                        error
+                        and getattr(error, 'errno', None) == 8
+                        or str(getattr(error, 'os_error', None))
+                        == 'Domain name not found'
+                    ):  # threaded vs async resolver
                         raise InvalidIMDSEndpointError(endpoint=url, error=e)
                     else:
                         raise
@@ -123,7 +155,8 @@ class AioIMDSFetcher(IMDSFetcher):
             for i in range(self._num_attempts):
                 try:
                     request = botocore.awsrequest.AWSRequest(
-                        method='GET', url=url, headers=headers)
+                        method='GET', url=url, headers=headers
+                    )
                     response = await session.send(request.prepare())
                     should_retry = retry_func(response)
                     if inspect.isawaitable(should_retry):
@@ -134,14 +167,17 @@ class AioIMDSFetcher(IMDSFetcher):
                 except RETRYABLE_HTTP_ERRORS as e:
                     logger.debug(
                         "Caught retryable HTTP exception while making metadata "
-                        "service request to %s: %s", url, e, exc_info=True)
+                        "service request to %s: %s",
+                        url,
+                        e,
+                        exc_info=True,
+                    )
         raise self._RETRIES_EXCEEDED_ERROR_CLS()
 
     async def _default_retry(self, response):
-        return (
-                await self._is_non_ok_response(response) or
-                await self._is_empty(response)
-        )
+        return await self._is_non_ok_response(
+            response
+        ) or await self._is_empty(response)
 
     async def _is_non_ok_response(self, response):
         if response.status_code != 200:
@@ -155,14 +191,14 @@ class AioIMDSFetcher(IMDSFetcher):
             return True
         return False
 
-    async def _log_imds_response(self, response, reason_to_log, log_body=False):
+    async def _log_imds_response(
+        self, response, reason_to_log, log_body=False
+    ):
         statement = (
             "Metadata service returned %s response "
             "with status code of %s for url: %s"
         )
-        logger_args = [
-            reason_to_log, response.status_code, response.url
-        ]
+        logger_args = [reason_to_log, response.status_code, response.url]
         if log_body:
             statement += ", content body: %s"
             logger_args.append(await response.content)
@@ -185,29 +221,36 @@ class AioInstanceMetadataFetcher(AioIMDSFetcher, InstanceMetadataFetcher):
                 }
             else:
                 if 'Code' in credentials and 'Message' in credentials:
-                    logger.debug('Error response received when retrieving'
-                                 'credentials: %s.', credentials)
+                    logger.debug(
+                        'Error response received when retrieving'
+                        'credentials: %s.',
+                        credentials,
+                    )
                 return {}
         except self._RETRIES_EXCEEDED_ERROR_CLS:
-            logger.debug("Max number of attempts exceeded (%s) when "
-                         "attempting to retrieve data from metadata service.",
-                         self._num_attempts)
+            logger.debug(
+                "Max number of attempts exceeded (%s) when "
+                "attempting to retrieve data from metadata service.",
+                self._num_attempts,
+            )
         except BadIMDSRequestError as e:
             logger.debug("Bad IMDS request: %s", e.request)
         return {}
 
     async def _get_iam_role(self, token=None):
-        return await (await self._get_request(
-            url_path=self._URL_PATH,
-            retry_func=self._needs_retry_for_role_name,
-            token=token,
-        )).text
+        return await (
+            await self._get_request(
+                url_path=self._URL_PATH,
+                retry_func=self._needs_retry_for_role_name,
+                token=token,
+            )
+        ).text
 
     async def _get_credentials(self, role_name, token=None):
         r = await self._get_request(
             url_path=self._URL_PATH + role_name,
             retry_func=self._needs_retry_for_credentials,
-            token=token
+            token=token,
         )
         return json.loads(await r.text)
 
@@ -220,16 +263,15 @@ class AioInstanceMetadataFetcher(AioIMDSFetcher, InstanceMetadataFetcher):
             return True
 
     async def _needs_retry_for_role_name(self, response):
-        return (
-                await self._is_non_ok_response(response) or
-                await self._is_empty(response)
-        )
+        return await self._is_non_ok_response(
+            response
+        ) or await self._is_empty(response)
 
     async def _needs_retry_for_credentials(self, response):
         return (
-                await self._is_non_ok_response(response) or
-                await self._is_empty(response) or
-                await self._is_invalid_json(response)
+            await self._is_non_ok_response(response)
+            or await self._is_empty(response)
+            or await self._is_invalid_json(response)
         )
 
 
@@ -246,15 +288,18 @@ class AioIMDSRegionProvider(IMDSRegionProvider):
 
     def _create_fetcher(self):
         metadata_timeout = self._session.get_config_variable(
-            'metadata_service_timeout')
+            'metadata_service_timeout'
+        )
         metadata_num_attempts = self._session.get_config_variable(
-            'metadata_service_num_attempts')
+            'metadata_service_num_attempts'
+        )
         imds_config = {
             'ec2_metadata_service_endpoint': self._session.get_config_variable(
-                'ec2_metadata_service_endpoint'),
+                'ec2_metadata_service_endpoint'
+            ),
             'ec2_metadata_service_endpoint_mode': resolve_imds_endpoint_mode(
                 self._session
-            )
+            ),
         }
         fetcher = AioInstanceMetadataRegionFetcher(
             timeout=metadata_timeout,
@@ -266,15 +311,19 @@ class AioIMDSRegionProvider(IMDSRegionProvider):
         return fetcher
 
 
-class AioInstanceMetadataRegionFetcher(AioIMDSFetcher, InstanceMetadataRegionFetcher):
+class AioInstanceMetadataRegionFetcher(
+    AioIMDSFetcher, InstanceMetadataRegionFetcher
+):
     async def retrieve_region(self):
         try:
             region = await self._get_region()
             return region
         except self._RETRIES_EXCEEDED_ERROR_CLS:
-            logger.debug("Max number of attempts exceeded (%s) when "
-                         "attempting to retrieve data from metadata service.",
-                         self._num_attempts)
+            logger.debug(
+                "Max number of attempts exceeded (%s) when "
+                "attempting to retrieve data from metadata service.",
+                self._num_attempts,
+            )
         return None
 
     async def _get_region(self):
@@ -282,7 +331,7 @@ class AioInstanceMetadataRegionFetcher(AioIMDSFetcher, InstanceMetadataRegionFet
         response = await self._get_request(
             url_path=self._URL_PATH,
             retry_func=self._default_retry,
-            token=token
+            token=token,
         )
         availability_zone = await response.text
         region = availability_zone[:-1]
@@ -290,7 +339,9 @@ class AioInstanceMetadataRegionFetcher(AioIMDSFetcher, InstanceMetadataRegionFet
 
 
 class AioS3RegionRedirector(S3RegionRedirector):
-    async def redirect_from_error(self, request_dict, response, operation, **kwargs):
+    async def redirect_from_error(
+        self, request_dict, response, operation, **kwargs
+    ):
         if response is None:
             # This could be none if there was a ConnectionError or other
             # transport error.
@@ -304,7 +355,8 @@ class AioS3RegionRedirector(S3RegionRedirector):
 
         if request_dict.get('context', {}).get('s3_redirected'):
             logger.debug(
-                'S3 request was previously redirected, not redirecting.')
+                'S3 request was previously redirected, not redirecting.'
+            )
             return
 
         error = response[1].get('Error', {})
@@ -316,24 +368,30 @@ class AioS3RegionRedirector(S3RegionRedirector):
         # we'll get a 400 Bad Request but we won't get a
         # body saying it's an "AuthorizationHeaderMalformed".
         is_special_head_object = (
-            error_code in ['301', '400'] and
-            operation.name == 'HeadObject'
+            error_code in ['301', '400'] and operation.name == 'HeadObject'
         )
         is_special_head_bucket = (
-            error_code in ['301', '400'] and
-            operation.name == 'HeadBucket' and
-            'x-amz-bucket-region' in response_metadata.get('HTTPHeaders', {})
+            error_code in ['301', '400']
+            and operation.name == 'HeadBucket'
+            and 'x-amz-bucket-region'
+            in response_metadata.get('HTTPHeaders', {})
         )
         is_wrong_signing_region = (
-            error_code == 'AuthorizationHeaderMalformed' and
-            'Region' in error
+            error_code == 'AuthorizationHeaderMalformed' and 'Region' in error
         )
-        is_redirect_status = response[0] is not None and \
-            response[0].status_code in [301, 302, 307]
+        is_redirect_status = response[0] is not None and response[
+            0
+        ].status_code in [301, 302, 307]
         is_permanent_redirect = error_code == 'PermanentRedirect'
-        if not any([is_special_head_object, is_wrong_signing_region,
-                    is_permanent_redirect, is_special_head_bucket,
-                    is_redirect_status]):
+        if not any(
+            [
+                is_special_head_object,
+                is_wrong_signing_region,
+                is_permanent_redirect,
+                is_special_head_bucket,
+                is_redirect_status,
+            ]
+        ):
             return
 
         bucket = request_dict['context']['signing']['bucket']
@@ -344,21 +402,23 @@ class AioS3RegionRedirector(S3RegionRedirector):
             logger.debug(
                 "S3 client configured for region %s but the bucket %s is not "
                 "in that region and the proper region could not be "
-                "automatically determined." % (client_region, bucket))
+                "automatically determined." % (client_region, bucket)
+            )
             return
 
         logger.debug(
             "S3 client configured for region %s but the bucket %s is in region"
             " %s; Please configure the proper region to avoid multiple "
-            "unnecessary redirects and signing attempts." % (
-                client_region, bucket, new_region))
+            "unnecessary redirects and signing attempts."
+            % (client_region, bucket, new_region)
+        )
         endpoint = self._endpoint_resolver.resolve('s3', new_region)
         endpoint = endpoint['endpoint_url']
 
         signing_context = {
             'region': new_region,
             'bucket': bucket,
-            'endpoint': endpoint
+            'endpoint': endpoint,
         }
         request_dict['context']['signing'] = signing_context
 
@@ -394,11 +454,11 @@ class AioS3RegionRedirector(S3RegionRedirector):
 
 
 class AioContainerMetadataFetcher(ContainerMetadataFetcher):
-    def __init__(self, session=None, sleep=asyncio.sleep):  # noqa: E501, lgtm [py/missing-call-to-init]
+    def __init__(
+        self, session=None, sleep=asyncio.sleep
+    ):  # noqa: E501, lgtm [py/missing-call-to-init]
         if session is None:
-            session = _RefCountedSession(
-                timeout=self.TIMEOUT_SECONDS
-            )
+            session = _RefCountedSession(timeout=self.TIMEOUT_SECONDS)
         self._session = session
         self._sleep = sleep
 
@@ -426,10 +486,15 @@ class AioContainerMetadataFetcher(ContainerMetadataFetcher):
         while True:
             try:
                 return await self._get_response(
-                    full_url, headers, self.TIMEOUT_SECONDS)
+                    full_url, headers, self.TIMEOUT_SECONDS
+                )
             except MetadataRetrievalError as e:
-                logger.debug("Received error when attempting to retrieve "
-                             "container metadata: %s", e, exc_info=True)
+                logger.debug(
+                    "Received error when attempting to retrieve "
+                    "container metadata: %s",
+                    e,
+                    exc_info=True,
+                )
                 await self._sleep(self.SLEEP_TIME)
                 attempts += 1
                 if attempts >= self.RETRY_ATTEMPTS:
@@ -439,7 +504,9 @@ class AioContainerMetadataFetcher(ContainerMetadataFetcher):
         try:
             async with self._session.acquire() as session:
                 AWSRequest = botocore.awsrequest.AWSRequest
-                request = AWSRequest(method='GET', url=full_url, headers=headers)
+                request = AWSRequest(
+                    method='GET', url=full_url, headers=headers
+                )
                 response = await session.send(request.prepare())
                 response_text = (await response.content).decode('utf-8')
 
@@ -447,18 +514,19 @@ class AioContainerMetadataFetcher(ContainerMetadataFetcher):
                     raise MetadataRetrievalError(
                         error_msg=(
                             "Received non 200 response (%s) from ECS metadata: %s"
-                        ) % (response.status_code, response_text)
+                        )
+                        % (response.status_code, response_text)
                     )
                 try:
                     return json.loads(response_text)
                 except ValueError:
-                    error_msg = (
-                        "Unable to parse JSON returned from ECS metadata services"
-                    )
+                    error_msg = "Unable to parse JSON returned from ECS metadata services"
                     logger.debug('%s:%s', error_msg, response_text)
                     raise MetadataRetrievalError(error_msg=error_msg)
 
         except RETRYABLE_HTTP_ERRORS as e:
-            error_msg = ("Received error when attempting to retrieve "
-                         "ECS metadata: %s" % e)
+            error_msg = (
+                "Received error when attempting to retrieve "
+                "ECS metadata: %s" % e
+            )
             raise MetadataRetrievalError(error_msg=error_msg)

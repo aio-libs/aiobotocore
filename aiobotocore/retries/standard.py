@@ -1,10 +1,22 @@
-from botocore.retries.standard import RetryHandler, RetryPolicy, logger, \
-    StandardRetryConditions, OrRetryChecker, DEFAULT_MAX_ATTEMPTS, RetryQuotaChecker, \
-    quota, ExponentialBackoff, RetryEventAdapter, MaxAttemptsChecker, \
-    TransientRetryableChecker, ThrottledRetryableChecker, ModeledRetryableChecker, \
-    special
+from botocore.retries.standard import (
+    DEFAULT_MAX_ATTEMPTS,
+    ExponentialBackoff,
+    MaxAttemptsChecker,
+    ModeledRetryableChecker,
+    OrRetryChecker,
+    RetryEventAdapter,
+    RetryHandler,
+    RetryPolicy,
+    RetryQuotaChecker,
+    StandardRetryConditions,
+    ThrottledRetryableChecker,
+    TransientRetryableChecker,
+    logger,
+    quota,
+    special,
+)
 
-from .._helpers import resolve_awaitable, async_any
+from .._helpers import async_any, resolve_awaitable
 from .special import AioRetryDDBChecksumError
 
 
@@ -13,12 +25,15 @@ def register_retry_handler(client, max_attempts=DEFAULT_MAX_ATTEMPTS):
 
     service_id = client.meta.service_model.service_id
     service_event_name = service_id.hyphenize()
-    client.meta.events.register('after-call.%s' % service_event_name,
-                                retry_quota.release_retry_quota)
+    client.meta.events.register(
+        'after-call.%s' % service_event_name, retry_quota.release_retry_quota
+    )
 
     handler = AioRetryHandler(
         retry_policy=AioRetryPolicy(
-            retry_checker=AioStandardRetryConditions(max_attempts=max_attempts),
+            retry_checker=AioStandardRetryConditions(
+                max_attempts=max_attempts
+            ),
             retry_backoff=ExponentialBackoff(),
         ),
         retry_event_adapter=RetryEventAdapter(),
@@ -27,8 +42,9 @@ def register_retry_handler(client, max_attempts=DEFAULT_MAX_ATTEMPTS):
 
     unique_id = 'retry-config-%s' % service_event_name
     client.meta.events.register(
-        'needs-retry.%s' % service_event_name, handler.needs_retry,
-        unique_id=unique_id
+        'needs-retry.%s' % service_event_name,
+        handler.needs_retry,
+        unique_id=unique_id,
     )
     return handler
 
@@ -43,50 +59,59 @@ class AioRetryHandler(RetryHandler):
             # capacity in our retry quota.
             if self._retry_quota.acquire_retry_quota(context):
                 retry_delay = self._retry_policy.compute_retry_delay(context)
-                logger.debug("Retry needed, retrying request after "
-                             "delay of: %s", retry_delay)
+                logger.debug(
+                    "Retry needed, retrying request after " "delay of: %s",
+                    retry_delay,
+                )
             else:
-                logger.debug("Retry needed but retry quota reached, "
-                             "not retrying request.")
+                logger.debug(
+                    "Retry needed but retry quota reached, "
+                    "not retrying request."
+                )
         else:
             logger.debug("Not retrying request.")
-        self._retry_event_adapter.adapt_retry_response_from_context(
-            context)
+        self._retry_event_adapter.adapt_retry_response_from_context(context)
         return retry_delay
 
 
 class AioRetryPolicy(RetryPolicy):
     async def should_retry(self, context):
-        return await resolve_awaitable(self._retry_checker.is_retryable(context))
+        return await resolve_awaitable(
+            self._retry_checker.is_retryable(context)
+        )
 
 
 class AioStandardRetryConditions(StandardRetryConditions):
-    def __init__(self, max_attempts=DEFAULT_MAX_ATTEMPTS):  # noqa: E501, lgtm [py/missing-call-to-init]
+    def __init__(
+        self, max_attempts=DEFAULT_MAX_ATTEMPTS
+    ):  # noqa: E501, lgtm [py/missing-call-to-init]
         # Note: This class is for convenience so you can have the
         # standard retry condition in a single class.
         self._max_attempts_checker = MaxAttemptsChecker(max_attempts)
-        self._additional_checkers = AioOrRetryChecker([
-            TransientRetryableChecker(),
-            ThrottledRetryableChecker(),
-            ModeledRetryableChecker(),
-            AioOrRetryChecker([
-                special.RetryIDPCommunicationError(),
-                AioRetryDDBChecksumError(),
-            ])
-        ])
+        self._additional_checkers = AioOrRetryChecker(
+            [
+                TransientRetryableChecker(),
+                ThrottledRetryableChecker(),
+                ModeledRetryableChecker(),
+                AioOrRetryChecker(
+                    [
+                        special.RetryIDPCommunicationError(),
+                        AioRetryDDBChecksumError(),
+                    ]
+                ),
+            ]
+        )
 
     async def is_retryable(self, context):
-        return (
-            self._max_attempts_checker.is_retryable(context)
-            and await resolve_awaitable(
-                self._additional_checkers.is_retryable(context)
-            )
+        return self._max_attempts_checker.is_retryable(
+            context
+        ) and await resolve_awaitable(
+            self._additional_checkers.is_retryable(context)
         )
 
 
 class AioOrRetryChecker(OrRetryChecker):
     async def is_retryable(self, context):
         return await async_any(
-            checker.is_retryable(context)
-            for checker in self._checkers
+            checker.is_retryable(context) for checker in self._checkers
         )

@@ -2,11 +2,13 @@
 import asyncio
 
 from botocore.exceptions import CapacityNotAvailableError
+
 from botocore.retries.bucket import Clock as Clock  # reexport # noqa
 
 
 class AsyncTokenBucket:
     """A reimplementation of TokenBucket that doesn't block."""
+
     # Most of the code here is pulled straight up from botocore, with slight changes
     # to the interface to switch to async methods.
     # This class doesn't inherit from the botocore TokenBucket, as the interface is
@@ -52,8 +54,7 @@ class AsyncTokenBucket:
         # If we're scaling down, we also can't have a capacity that's
         # more than our max_capacity.
         self._current_capacity = min(
-            self._current_capacity,
-            self._max_capacity
+            self._current_capacity, self._max_capacity
         )
 
     @property

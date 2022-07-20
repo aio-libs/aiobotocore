@@ -1,10 +1,8 @@
-from botocore.exceptions import PaginationError
-from botocore.paginate import Paginator, PageIterator
-from botocore.utils import set_value_from_jmespath, merge_dicts
-from botocore.compat import six
-
-import jmespath
 import aioitertools
+import jmespath
+from botocore.exceptions import PaginationError
+from botocore.paginate import PageIterator, Paginator
+from botocore.utils import merge_dicts, set_value_from_jmespath
 
 
 class AioPageIterator(PageIterator):
@@ -14,7 +12,7 @@ class AioPageIterator(PageIterator):
     async def __anext__(self):
         current_kwargs = self._op_kwargs
         previous_next_token = None
-        next_token = dict((key, None) for key in self._input_token)
+        next_token = {key: None for key in self._input_token}
         if self._starting_token is not None:
             # If the starting token exists, populate the next_token with the
             # values inside it. This ensures that we have the service's
@@ -37,7 +35,8 @@ class AioPageIterator(PageIterator):
                 # to index into the retrieved page.
                 if self._starting_token is not None:
                     starting_truncation = self._handle_first_request(
-                        parsed, primary_result_key, starting_truncation)
+                        parsed, primary_result_key, starting_truncation
+                    )
                 first_request = False
                 self._record_non_aggregate_key_values(parsed)
             else:
@@ -57,8 +56,11 @@ class AioPageIterator(PageIterator):
 
             if truncate_amount > 0:
                 self._truncate_response(
-                    parsed, primary_result_key, truncate_amount,
-                    starting_truncation, next_token
+                    parsed,
+                    primary_result_key,
+                    truncate_amount,
+                    starting_truncation,
+                    next_token,
                 )
                 yield response
                 break
@@ -68,24 +70,32 @@ class AioPageIterator(PageIterator):
                 next_token = self._get_next_token(parsed)
                 if all(t is None for t in next_token.values()):
                     break
-                if self._max_items is not None and \
-                        total_items == self._max_items:
+                if (
+                    self._max_items is not None
+                    and total_items == self._max_items
+                ):
                     # We're on a page boundary so we can set the current
                     # next token to be the resume token.
                     self.resume_token = next_token
                     break
-                if previous_next_token is not None and \
-                        previous_next_token == next_token:
-                    message = ("The same next token was received "
-                               "twice: %s" % next_token)
+                if (
+                    previous_next_token is not None
+                    and previous_next_token == next_token
+                ):
+                    message = (
+                        "The same next token was received "
+                        "twice: %s" % next_token
+                    )
                     raise PaginationError(message=message)
                 self._inject_token_into_kwargs(current_kwargs, next_token)
                 previous_next_token = next_token
 
     def result_key_iters(self):
         teed_results = aioitertools.tee(self, len(self.result_keys))
-        return [ResultKeyIterator(i, result_key) for i, result_key
-                in zip(teed_results, self.result_keys)]
+        return [
+            ResultKeyIterator(i, result_key)
+            for i, result_key in zip(teed_results, self.result_keys)
+        ]
 
     async def build_full_result(self):
         complete_result = {}
@@ -116,17 +126,21 @@ class AioPageIterator(PageIterator):
                 if existing_value is None:
                     # Set the initial result
                     set_value_from_jmespath(
-                        complete_result, result_expression.expression,
-                        result_value)
+                        complete_result,
+                        result_expression.expression,
+                        result_value,
+                    )
                     continue
                 # Now both result_value and existing_value contain something
                 if isinstance(result_value, list):
                     existing_value.extend(result_value)
-                elif isinstance(result_value, (int, float, six.string_types)):
+                elif isinstance(result_value, (int, float, (str,))):
                     # Modify the existing result with the sum or concatenation
                     set_value_from_jmespath(
-                        complete_result, result_expression.expression,
-                        existing_value + result_value)
+                        complete_result,
+                        result_expression.expression,
+                        existing_value + result_value,
+                    )
         merge_dicts(complete_result, self.non_aggregate_part)
         if self.resume_token is not None:
             complete_result['NextToken'] = self.resume_token

@@ -1,8 +1,8 @@
-import aiohttp.http_exceptions
 import asyncio
+
+import aiohttp.http_exceptions
 import botocore.retryhandler
 import wrapt
-
 
 # Monkey patching: We need to insert the aiohttp exception equivalents
 # The only other way to do this would be to have another config file :(

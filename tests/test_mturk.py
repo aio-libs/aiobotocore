@@ -1,6 +1,5 @@
-from botocore.stub import Stubber, ANY
 import pytest
-
+from botocore.stub import ANY, Stubber
 
 _mturk_list_hits_response = {
     'NumResults': 0,
@@ -12,10 +11,10 @@ _mturk_list_hits_response = {
             'x-amzn-requestid': '00000000-4989-4ffc-85cd-aaaaaaaaaaaa',
             'content-type': 'application/x-amz-json-1.1',
             'content-length': '26',
-            'date': 'Thu, 04 Jun 2020 00:48:16 GMT'
+            'date': 'Thu, 04 Jun 2020 00:48:16 GMT',
         },
-        'RetryAttempts': 0
-    }
+        'RetryAttempts': 0,
+    },
 }
 
 
@@ -24,12 +23,17 @@ _mturk_list_hits_response = {
 # @pytest.mark.moto
 @pytest.mark.asyncio
 async def test_mturk_stubber(session):
-    async with session.create_client('mturk', region_name='us-east-1') as client:
+    async with session.create_client(
+        'mturk', region_name='us-east-1'
+    ) as client:
         with Stubber(client) as stubber:
-            stubber.add_response('list_hits_for_qualification_type',
-                                 _mturk_list_hits_response,
-                                 {'QualificationTypeId': ANY})
+            stubber.add_response(
+                'list_hits_for_qualification_type',
+                _mturk_list_hits_response,
+                {'QualificationTypeId': ANY},
+            )
 
             response = await client.list_hi_ts_for_qualification_type(
-                QualificationTypeId='string')
+                QualificationTypeId='string'
+            )
             assert response == _mturk_list_hits_response

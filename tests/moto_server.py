@@ -1,16 +1,15 @@
 import asyncio
 import functools
 import logging
+import os
 import socket
 import threading
 import time
-import os
 
 # Third Party
 import aiohttp
 import moto.server
 import werkzeug.serving
-
 
 host = '127.0.0.1'
 
@@ -30,7 +29,7 @@ def get_free_tcp_port(release_socket: bool = False):
 
 
 class MotoService:
-    """ Will Create MotoService.
+    """Will Create MotoService.
     Service is ref-counted so there will only be one per process. Real Service will
     be returned by `__aenter__`."""
 
@@ -53,7 +52,7 @@ class MotoService:
 
     @property
     def endpoint_url(self):
-        return 'http://{}:{}'.format(self._ip_address, self._port)
+        return f'http://{self._ip_address}:{self._port}'
 
     def __call__(self, func):
         async def wrapper(*args, **kwargs):
@@ -92,7 +91,8 @@ class MotoService:
 
     def _server_entry(self):
         self._main_app = moto.server.DomainDispatcherApplication(
-            moto.server.create_backend_app, service=self._service_name)
+            moto.server.create_backend_app, service=self._service_name
+        )
         self._main_app.debug = True
 
         if self._socket:
@@ -100,7 +100,8 @@ class MotoService:
             self._socket = None
 
         self._server = werkzeug.serving.make_server(
-            self._ip_address, self._port, self._main_app, True)
+            self._ip_address, self._port, self._main_app, True
+        )
         self._server.serve_forever()
 
     async def _start(self):
@@ -116,16 +117,16 @@ class MotoService:
 
                 try:
                     # we need to bypass the proxies due to monkeypatches
-                    async with session.get(self.endpoint_url + '/static',
-                                           timeout=_CONNECT_TIMEOUT):
+                    async with session.get(
+                        self.endpoint_url + '/static', timeout=_CONNECT_TIMEOUT
+                    ):
                         pass
                     break
                 except (asyncio.TimeoutError, aiohttp.ClientConnectionError):
                     await asyncio.sleep(0.5)
             else:
                 await self._stop()  # pytest.fail doesn't call stop_process
-                raise Exception("Can not start service: {}".format(
-                    self._service_name))
+                raise Exception(f"Can not start service: {self._service_name}")
 
     async def _stop(self):
         if self._server:
