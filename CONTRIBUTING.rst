@@ -60,19 +60,17 @@ botocore.
 
 How to Upgrade Botocore
 -----------------------
-aiobotocore's file names try to match the botocore files they functionally match.
+aiobotocore's file names, and ordering of functions in files try to match the botocore files they override.
 For the most part botocore classes are sub-classed with the majority of the
 botocore calls eventually called.
 
-The best way I've seen to upgrade botocore support is by downloading the sources
-of the release of botocore you're trying to upgrade to, and the version
-of botocore that aiobotocore is currently locked to and do a folder based file
-comparison (tools like DiffMerge are nice). You can then manually apply the
-relevant changes to their aiobotocore equivalent(s). In order to support a range
-of versions one would need validate the version each change was introduced and
-select the newest of these to the current version.  This is further complicated
-by the aiobotocore "extras" requirements which need to be updated to the
-versions that are compatible with the above changes.
+The best way I've seen to upgrade botocore support is by performing the following:
+
+1. Download sources of the release of botocore you're trying to upgrade to, and the version of botocore that aiobotocore is currently locked to (see setup.py) and do a folder based file comparison of the botocore folders (tools like DiffMerge are nice). 
+2. Manually apply the relevant changes to their aiobotocore equivalent(s). Note that sometimes new functions are added which will need to be overridden (like `__enter__` -> `__aenter__`)
+3. Update the "extras" in setup.py to the versions which match the botocore version you are targeting.
+4. Now do a directory diff between aiobotocore and your target version botocore directory to ensure the changes were propagated.
+
 
 See next section describing types of changes we must validate and support.
 
