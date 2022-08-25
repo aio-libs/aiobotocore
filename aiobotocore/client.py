@@ -69,6 +69,9 @@ class AioClientCreator(ClientCreator):
         )
         service_client = cls(**client_args)
         self._register_retries(service_client)
+        self._register_eventbridge_events(
+            service_client, endpoint_bridge, endpoint_url
+        )
         self._register_s3_events(
             service_client,
             endpoint_bridge,
@@ -102,37 +105,6 @@ class AioClientCreator(ClientCreator):
         class_name = get_service_module_name(service_model)
         cls = type(str(class_name), tuple(bases), class_attributes)
         return cls
-
-    def _register_endpoint_discovery(self, client, endpoint_url, config):
-        if endpoint_url is not None:
-            # Don't register any handlers in the case of a custom endpoint url
-            return
-        # Only attach handlers if the service supports discovery
-        if client.meta.service_model.endpoint_discovery_operation is None:
-            return
-        events = client.meta.events
-        service_id = client.meta.service_model.service_id.hyphenize()
-        enabled = False
-        if config and config.endpoint_discovery_enabled is not None:
-            enabled = config.endpoint_discovery_enabled
-        elif self._config_store:
-            enabled = self._config_store.get_config_variable(
-                'endpoint_discovery_enabled'
-            )
-
-        enabled = self._normalize_endpoint_discovery_config(enabled)
-        if enabled and self._requires_endpoint_discovery(client, enabled):
-            discover = enabled is True
-            manager = AioEndpointDiscoveryManager(
-                client, always_discover=discover
-            )
-            handler = AioEndpointDiscoveryHandler(manager)
-            handler.register(events, service_id)
-        else:
-            events.register(
-                'before-parameter-build',
-                block_endpoint_discovery_required_operations,
-            )
 
     def _register_retries(self, client):
         # botocore retry handlers may block. We add our own implementation here.
@@ -206,8 +178,39 @@ class AioClientCreator(ClientCreator):
         )
         unique_id = 'retry-config-%s' % service_event_name
         client.meta.events.register(
-            'needs-retry.%s' % service_event_name, handler, unique_id=unique_id
+            f"needs-retry.{service_event_name}", handler, unique_id=unique_id
         )
+
+    def _register_endpoint_discovery(self, client, endpoint_url, config):
+        if endpoint_url is not None:
+            # Don't register any handlers in the case of a custom endpoint url
+            return
+        # Only attach handlers if the service supports discovery
+        if client.meta.service_model.endpoint_discovery_operation is None:
+            return
+        events = client.meta.events
+        service_id = client.meta.service_model.service_id.hyphenize()
+        enabled = False
+        if config and config.endpoint_discovery_enabled is not None:
+            enabled = config.endpoint_discovery_enabled
+        elif self._config_store:
+            enabled = self._config_store.get_config_variable(
+                'endpoint_discovery_enabled'
+            )
+
+        enabled = self._normalize_endpoint_discovery_config(enabled)
+        if enabled and self._requires_endpoint_discovery(client, enabled):
+            discover = enabled is True
+            manager = AioEndpointDiscoveryManager(
+                client, always_discover=discover
+            )
+            handler = AioEndpointDiscoveryHandler(manager)
+            handler.register(events, service_id)
+        else:
+            events.register(
+                'before-parameter-build',
+                block_endpoint_discovery_required_operations,
+            )
 
     def _register_s3_events(
         self,
@@ -289,6 +292,10 @@ class AioBaseClient(BaseClient):
                 self.__class__.__name__, item
             )
         )
+
+    async def close(self):
+        """Closes underlying endpoint connections."""
+        await self._endpoint.close()
 
     async def _make_api_call(self, operation_name, api_params):
         operation_model = self._service_model.operation_model(operation_name)
@@ -399,20 +406,15 @@ class AioBaseClient(BaseClient):
         # parameters or return a new set of parameters to use.
         service_id = self._service_model.service_id.hyphenize()
         responses = await self.meta.events.emit(
-            'provide-client-params.{service_id}.{operation_name}'.format(
-                service_id=service_id, operation_name=operation_name
-            ),
+            f'provide-client-params.{service_id}.{operation_name}',
             params=api_params,
             model=operation_model,
             context=context,
         )
         api_params = first_non_none_response(responses, default=api_params)
 
-        event_name = 'before-parameter-build.{service_id}.{operation_name}'
         await self.meta.events.emit(
-            event_name.format(
-                service_id=service_id, operation_name=operation_name
-            ),
+            f'before-parameter-build.{service_id}.{operation_name}',
             params=api_params,
             model=operation_model,
             context=context,
@@ -462,11 +464,11 @@ class AioBaseClient(BaseClient):
             )
 
             # Rename the paginator class based on the type of paginator.
-            paginator_class_name = str(
-                '{}.Paginator.{}'.format(
-                    get_service_module_name(self.meta.service_model),
-                    actual_operation_name,
-                )
+            service_module_name = get_service_module_name(
+                self.meta.service_model
+            )
+            paginator_class_name = (
+                f"{service_module_name}.Paginator.{actual_operation_name}"
             )
 
             # Create the new paginator class
@@ -516,7 +518,3 @@ class AioBaseClient(BaseClient):
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         await self._endpoint.http_session.__aexit__(exc_type, exc_val, exc_tb)
-
-    async def close(self):
-        """Close all http connections."""
-        return await self._endpoint.http_session.close()

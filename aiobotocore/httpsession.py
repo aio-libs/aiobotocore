@@ -22,15 +22,18 @@ from botocore.httpsession import (
     EndpointConnectionError,
     HTTPClientError,
     InvalidProxiesConfigError,
+    LocationParseError,
     ProxyConfiguration,
     ProxyConnectionError,
     ReadTimeoutError,
     SSLError,
+    _is_ipaddress,
     create_urllib3_context,
     ensure_boolean,
     get_cert_path,
     logger,
     mask_proxy_url,
+    parse_url,
     urlparse,
 )
 from multidict import MultiDict
@@ -132,16 +135,14 @@ class AIOHTTPSession:
             self._session = None
             self._connector = None
 
-    async def close(self):
-        await self.__aexit__(None, None, None)
-
     def _get_ssl_context(self):
         ssl_context = create_urllib3_context()
         if self._cert_file:
             ssl_context.load_cert_chain(self._cert_file, self._key_file)
         return ssl_context
 
-    def _setup_proxy_ssl_context(self, proxies_settings):
+    def _setup_proxy_ssl_context(self, proxy_url):
+        proxies_settings = self._proxy_config.settings
         proxy_ca_bundle = proxies_settings.get('proxy_ca_bundle')
         proxy_cert = proxies_settings.get('proxy_client_cert')
         if proxy_ca_bundle is None and proxy_cert is None:
@@ -149,9 +150,11 @@ class AIOHTTPSession:
 
         context = self._get_ssl_context()
         try:
-            # urllib3 disables this by default but we need
-            # it for proper proxy tls negotiation.
-            context.check_hostname = True
+            url = parse_url(proxy_url)
+            # urllib3 disables this by default but we need it for proper
+            # proxy tls negotiation when proxy_url is not an IP Address
+            if not _is_ipaddress(url.host):
+                context.check_hostname = True
             if proxy_ca_bundle is not None:
                 context.load_verify_locations(cafile=proxy_ca_bundle)
 
@@ -161,14 +164,16 @@ class AIOHTTPSession:
                 context.load_cert_chain(proxy_cert)
 
             return context
-        except OSError as e:
+        except (OSError, LocationParseError) as e:
             raise InvalidProxiesConfigError(error=e)
 
-    async def send(self, request):
-        proxy_url = self._proxy_config.proxy_url_for(request.url)
-        proxy_headers = self._proxy_config.proxy_headers_for(request.url)
+    async def close(self):
+        await self.__aexit__(None, None, None)
 
+    async def send(self, request):
         try:
+            proxy_url = self._proxy_config.proxy_url_for(request.url)
+            proxy_headers = self._proxy_config.proxy_headers_for(request.url)
             url = request.url
             headers = request.headers
             data = request.body

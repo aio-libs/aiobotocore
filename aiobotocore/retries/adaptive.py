@@ -47,7 +47,7 @@ class AsyncClientRateLimiter:
 
     # Most of the code here comes directly from botocore. The main change is making the
     # callbacks async.
-    # This doesn't inherits from the botocore ClientRateLimiter for two reasons:
+    # This doesn't inherit from the botocore ClientRateLimiter for two reasons:
     # * the interface is slightly changed (methods are now async)
     # * we rewrote the entirety of the class anyway
 

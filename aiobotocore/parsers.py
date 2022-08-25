@@ -14,7 +14,17 @@ from botocore.parsers import (
 from .eventstream import AioEventStream
 
 
-class AioRestXMLParser(RestXMLParser):
+class AioResponseParserFactory(ResponseParserFactory):
+    def create_parser(self, protocol_name):
+        parser_cls = PROTOCOL_PARSERS[protocol_name]
+        return parser_cls(**self._defaults)
+
+
+def create_parser(protocol):
+    return AioResponseParserFactory().create_parser(protocol)
+
+
+class AioQueryParser(QueryParser):
     def _create_event_stream(self, response, shape):
         parser = self._event_stream_parser
         name = response['context'].get('operation_name')
@@ -22,13 +32,6 @@ class AioRestXMLParser(RestXMLParser):
 
 
 class AioEC2QueryParser(EC2QueryParser):
-    def _create_event_stream(self, response, shape):
-        parser = self._event_stream_parser
-        name = response['context'].get('operation_name')
-        return AioEventStream(response['body'], shape, parser, name)
-
-
-class AioQueryParser(QueryParser):
     def _create_event_stream(self, response, shape):
         parser = self._event_stream_parser
         name = response['context'].get('operation_name')
@@ -109,6 +112,13 @@ class AioRestJSONParser(RestJSONParser):
         return AioEventStream(response['body'], shape, parser, name)
 
 
+class AioRestXMLParser(RestXMLParser):
+    def _create_event_stream(self, response, shape):
+        parser = self._event_stream_parser
+        name = response['context'].get('operation_name')
+        return AioEventStream(response['body'], shape, parser, name)
+
+
 PROTOCOL_PARSERS = {
     'ec2': AioEC2QueryParser,
     'query': AioQueryParser,
@@ -116,13 +126,3 @@ PROTOCOL_PARSERS = {
     'rest-json': AioRestJSONParser,
     'rest-xml': AioRestXMLParser,
 }
-
-
-class AioResponseParserFactory(ResponseParserFactory):
-    def create_parser(self, protocol_name):
-        parser_cls = PROTOCOL_PARSERS[protocol_name]
-        return parser_cls(**self._defaults)
-
-
-def create_parser(protocol):
-    return AioResponseParserFactory().create_parser(protocol)

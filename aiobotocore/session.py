@@ -47,9 +47,9 @@ class AioSession(Session):
             session_vars, event_hooks, include_builtin_handlers, profile
         )
 
-    def _register_response_parser_factory(self):
-        self._components.register_component(
-            'response_parser_factory', AioResponseParserFactory()
+    def _create_credential_resolver(self):
+        return create_credential_resolver(
+            self, region_name=self._last_client_region_used
         )
 
     def _register_smart_defaults_factory(self):
@@ -65,6 +65,46 @@ class AioSession(Session):
         self._internal_components.lazy_register_component(
             'smart_defaults_factory', create_smart_defaults_factory
         )
+
+    def _register_response_parser_factory(self):
+        self._components.register_component(
+            'response_parser_factory', AioResponseParserFactory()
+        )
+
+    def set_credentials(self, access_key, secret_key, token=None):
+        self._credentials = AioCredentials(access_key, secret_key, token)
+
+    async def get_credentials(self):
+        if self._credentials is None:
+            self._credentials = await (
+                self._components.get_component(
+                    'credential_provider'
+                ).load_credentials()
+            )
+        return self._credentials
+
+    async def get_service_model(self, service_name, api_version=None):
+        service_description = await self.get_service_data(
+            service_name, api_version
+        )
+        return ServiceModel(service_description, service_name=service_name)
+
+    async def get_service_data(self, service_name, api_version=None):
+        """
+        Retrieve the fully merged data associated with a service.
+        """
+        data_path = service_name
+        service_data = self.get_component('data_loader').load_service_model(
+            data_path, type_name='service-2', api_version=api_version
+        )
+        service_id = EVENT_ALIASES.get(service_name, service_name)
+        await self._events.emit(
+            'service-data-loaded.%s' % service_id,
+            service_data=service_data,
+            service_name=service_name,
+            session=self,
+        )
+        return service_data
 
     def create_client(self, *args, **kwargs):
         return ClientCreatorContext(self._create_client(*args, **kwargs))
@@ -165,46 +205,6 @@ class AioSession(Session):
         if monitor is not None:
             monitor.register(client.meta.events)
         return client
-
-    def _create_credential_resolver(self):
-        return create_credential_resolver(
-            self, region_name=self._last_client_region_used
-        )
-
-    async def get_credentials(self):
-        if self._credentials is None:
-            self._credentials = await (
-                self._components.get_component(
-                    'credential_provider'
-                ).load_credentials()
-            )
-        return self._credentials
-
-    def set_credentials(self, access_key, secret_key, token=None):
-        self._credentials = AioCredentials(access_key, secret_key, token)
-
-    async def get_service_model(self, service_name, api_version=None):
-        service_description = await self.get_service_data(
-            service_name, api_version
-        )
-        return ServiceModel(service_description, service_name=service_name)
-
-    async def get_service_data(self, service_name, api_version=None):
-        """
-        Retrieve the fully merged data associated with a service.
-        """
-        data_path = service_name
-        service_data = self.get_component('data_loader').load_service_model(
-            data_path, type_name='service-2', api_version=api_version
-        )
-        service_id = EVENT_ALIASES.get(service_name, service_name)
-        await self._events.emit(
-            'service-data-loaded.%s' % service_id,
-            service_data=service_data,
-            service_name=service_name,
-            session=self,
-        )
-        return service_data
 
     async def get_available_regions(
         self, service_name, partition_name='aws', allow_non_regional=False

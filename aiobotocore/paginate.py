@@ -83,12 +83,22 @@ class AioPageIterator(PageIterator):
                     and previous_next_token == next_token
                 ):
                     message = (
-                        "The same next token was received "
-                        "twice: %s" % next_token
+                        f"The same next token was received "
+                        f"twice: {next_token}"
                     )
                     raise PaginationError(message=message)
                 self._inject_token_into_kwargs(current_kwargs, next_token)
                 previous_next_token = next_token
+
+    async def search(self, expression):
+        compiled = jmespath.compile(expression)
+        async for page in self:
+            results = compiled.search(page)
+            if isinstance(results, list):
+                for element in results:
+                    yield element  # unfortunately yield from not avail from async f
+            else:
+                yield results
 
     def result_key_iters(self):
         teed_results = aioitertools.tee(self, len(self.result_keys))
@@ -134,7 +144,7 @@ class AioPageIterator(PageIterator):
                 # Now both result_value and existing_value contain something
                 if isinstance(result_value, list):
                     existing_value.extend(result_value)
-                elif isinstance(result_value, (int, float, (str,))):
+                elif isinstance(result_value, (int, float, str)):
                     # Modify the existing result with the sum or concatenation
                     set_value_from_jmespath(
                         complete_result,
@@ -145,16 +155,6 @@ class AioPageIterator(PageIterator):
         if self.resume_token is not None:
             complete_result['NextToken'] = self.resume_token
         return complete_result
-
-    async def search(self, expression):
-        compiled = jmespath.compile(expression)
-        async for page in self:
-            results = compiled.search(page)
-            if isinstance(results, list):
-                for element in results:
-                    yield element
-            else:
-                yield results
 
 
 class AioPaginator(Paginator):
@@ -188,4 +188,4 @@ class ResultKeyIterator:
             if results is None:
                 results = []
             for result in results:
-                yield result
+                yield result  # yield from not avail from async func

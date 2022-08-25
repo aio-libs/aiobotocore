@@ -134,7 +134,7 @@ class AioMaxAttemptsDecorator(MaxAttemptsDecorator):
                         'MaxAttemptsReached'
                     ] = True
                 logger.debug(
-                    "Reached the maximum number of retry " "attempts: %s",
+                    "Reached the maximum number of retry attempts: %s",
                     attempt_number,
                 )
                 return False
