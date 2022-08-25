@@ -80,35 +80,6 @@ class AioRequestSigner(RequestSigner):
 
             auth.add_auth(request)
 
-    async def get_auth_instance(
-        self, signing_name, region_name, signature_version=None, **kwargs
-    ):
-        if signature_version is None:
-            signature_version = self._signature_version
-
-        cls = botocore.auth.AUTH_TYPE_MAPS.get(signature_version)
-        if cls is None:
-            raise UnknownSignatureVersionError(
-                signature_version=signature_version
-            )
-
-        frozen_credentials = None
-        if self._credentials is not None:
-            frozen_credentials = (
-                await self._credentials.get_frozen_credentials()
-            )
-        kwargs['credentials'] = frozen_credentials
-        if cls.REQUIRES_REGION:
-            if self._region_name is None:
-                raise botocore.exceptions.NoRegionError()
-            kwargs['region_name'] = region_name
-            kwargs['service_name'] = signing_name
-        auth = cls(**kwargs)
-        return auth
-
-    # Alias get_auth for backwards compatibility.
-    get_auth = get_auth_instance
-
     async def _choose_signer(self, operation_name, signing_type, context):
         signing_type_suffix_map = {
             'presign-post': '-presign-post',
@@ -144,6 +115,35 @@ class AioRequestSigner(RequestSigner):
                 signature_version += suffix
 
         return signature_version
+
+    async def get_auth_instance(
+        self, signing_name, region_name, signature_version=None, **kwargs
+    ):
+        if signature_version is None:
+            signature_version = self._signature_version
+
+        cls = botocore.auth.AUTH_TYPE_MAPS.get(signature_version)
+        if cls is None:
+            raise UnknownSignatureVersionError(
+                signature_version=signature_version
+            )
+
+        frozen_credentials = None
+        if self._credentials is not None:
+            frozen_credentials = (
+                await self._credentials.get_frozen_credentials()
+            )
+        kwargs['credentials'] = frozen_credentials
+        if cls.REQUIRES_REGION:
+            if self._region_name is None:
+                raise botocore.exceptions.NoRegionError()
+            kwargs['region_name'] = region_name
+            kwargs['service_name'] = signing_name
+        auth = cls(**kwargs)
+        return auth
+
+    # Alias get_auth for backwards compatibility.
+    get_auth = get_auth_instance
 
     async def generate_presigned_url(
         self,
@@ -227,6 +227,46 @@ async def generate_db_auth_token(
     return presigned_url[len(scheme) :]
 
 
+class AioS3PostPresigner(S3PostPresigner):
+    async def generate_presigned_post(
+        self,
+        request_dict,
+        fields=None,
+        conditions=None,
+        expires_in=3600,
+        region_name=None,
+    ):
+        if fields is None:
+            fields = {}
+
+        if conditions is None:
+            conditions = []
+
+        # Create the policy for the post.
+        policy = {}
+
+        # Create an expiration date for the policy
+        datetime_now = datetime.datetime.utcnow()
+        expire_date = datetime_now + datetime.timedelta(seconds=expires_in)
+        policy['expiration'] = expire_date.strftime(botocore.auth.ISO8601)
+
+        # Append all of the conditions that the user supplied.
+        policy['conditions'] = []
+        for condition in conditions:
+            policy['conditions'].append(condition)
+
+        # Store the policy and the fields in the request for signing
+        request = create_request_object(request_dict)
+        request.context['s3-presign-post-fields'] = fields
+        request.context['s3-presign-post-policy'] = policy
+
+        await self._request_signer.sign(
+            'PutObject', request, region_name, 'presign-post'
+        )
+        # Return the url and the fields for th form to post.
+        return {'url': request.url, 'fields': fields}
+
+
 def add_generate_presigned_url(class_attributes, **kwargs):
     class_attributes['generate_presigned_url'] = generate_presigned_url
 
@@ -294,46 +334,6 @@ async def generate_presigned_url(
         expires_in=expires_in,
         operation_name=operation_name,
     )
-
-
-class AioS3PostPresigner(S3PostPresigner):
-    async def generate_presigned_post(
-        self,
-        request_dict,
-        fields=None,
-        conditions=None,
-        expires_in=3600,
-        region_name=None,
-    ):
-        if fields is None:
-            fields = {}
-
-        if conditions is None:
-            conditions = []
-
-        # Create the policy for the post.
-        policy = {}
-
-        # Create an expiration date for the policy
-        datetime_now = datetime.datetime.utcnow()
-        expire_date = datetime_now + datetime.timedelta(seconds=expires_in)
-        policy['expiration'] = expire_date.strftime(botocore.auth.ISO8601)
-
-        # Append all of the conditions that the user supplied.
-        policy['conditions'] = []
-        for condition in conditions:
-            policy['conditions'].append(condition)
-
-        # Store the policy and the fields in the request for signing
-        request = create_request_object(request_dict)
-        request.context['s3-presign-post-fields'] = fields
-        request.context['s3-presign-post-policy'] = policy
-
-        await self._request_signer.sign(
-            'PutObject', request, region_name, 'presign-post'
-        )
-        # Return the url and the fields for th form to post.
-        return {'url': request.url, 'fields': fields}
 
 
 def add_generate_presigned_post(class_attributes, **kwargs):

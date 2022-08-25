@@ -118,7 +118,7 @@ class StreamingBody(wrapt.ObjectProxy):
     def _verify_content_length(self):
         # See: https://github.com/kennethreitz/requests/issues/1855
         # Basically, our http library doesn't do this for us, so we have
-        # to do this ourself.
+        # to do this our self.
         if (
             self._self_content_length is not None
             and self._self_amount_read != int(self._self_content_length)

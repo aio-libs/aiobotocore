@@ -104,7 +104,7 @@ async def s3_server():
 
 @pytest.fixture
 async def dynamodb2_server():
-    async with MotoService('dynamodb2') as svc:
+    async with MotoService('dynamodb') as svc:
         yield svc.endpoint_url
 
 

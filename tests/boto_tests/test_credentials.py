@@ -878,17 +878,6 @@ async def test_get_credentials(mock_session):
     assert creds is None
 
 
-@pytest.mark.moto
-@pytest.mark.asyncio
-async def test_from_aiocredentials_is_none():
-    creds = credentials.AioCredentials.from_credentials(None)
-    assert creds is None
-    creds = credentials.AioRefreshableCredentials.from_refreshable_credentials(
-        None
-    )
-    assert creds is None
-
-
 class Self:
     pass
 

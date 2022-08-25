@@ -6,13 +6,6 @@ from botocore.eventstream import (
 
 
 class AioEventStream(EventStream):
-    async def _create_raw_event_generator(self):
-        event_stream_buffer = EventStreamBuffer()
-        async for chunk, _ in self._raw_stream.content.iter_chunks():
-            event_stream_buffer.add_data(chunk)
-            for event in event_stream_buffer:
-                yield event
-
     def __iter__(self):
         raise NotImplementedError('Use async-for instead')
 
@@ -25,6 +18,13 @@ class AioEventStream(EventStream):
             if parsed_event:
                 yield parsed_event
 
+    async def _create_raw_event_generator(self):
+        event_stream_buffer = EventStreamBuffer()
+        async for chunk, _ in self._raw_stream.content.iter_chunks():
+            event_stream_buffer.add_data(chunk)
+            for event in event_stream_buffer:
+                yield event  # unfortunately no yield from async func support
+
     async def get_initial_response(self):
         try:
             async for event in self._event_generator:
@@ -36,3 +36,5 @@ class AioEventStream(EventStream):
         except StopIteration:
             pass
         raise NoInitialResponseError()
+
+    # self._raw_stream.close() is sync so no override needed

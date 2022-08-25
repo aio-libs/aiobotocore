@@ -13,7 +13,7 @@ flake8-isort = "== 4.1.1"
 black = "== 22.6.0"
 isort = "== 5.10.1"
 docker = '==5.0.0'
-moto = {extras = ["server","s3","sqs","lambda","dynamodb","cloudformation", "sns", "batch", "ec2", "rds"],version = "~=2.2.19"}
+moto = {extras = ["server","s3","sqs","lambda","dynamodb","cloudformation", "sns", "batch", "ec2", "rds"],version = "~=4.0.0"}
 pytest = "==6.2.4"
 pytest-cov = "==2.11.1"
 pytest-asyncio = "==0.14.0"
