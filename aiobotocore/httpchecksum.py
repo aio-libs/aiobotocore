@@ -1,10 +1,49 @@
+import inspect
+import io
+
 from botocore.httpchecksum import (
     _CHECKSUM_CLS,
+    AwsChunkedWrapper,
     FlexibleChecksumError,
+    _apply_request_header_checksum,
     _handle_streaming_response,
     base64,
+    conditionally_calculate_md5,
+    determine_content_length,
     logger,
 )
+
+
+class AioAwsChunkedWrapper(AwsChunkedWrapper):
+    async def _make_chunk(self):
+        # NOTE: Chunk size is not deterministic as read could return less. This
+        # means we cannot know the content length of the encoded aws-chunked
+        # stream ahead of time without ensuring a consistent chunk size
+
+        raw_chunk = self._raw.read(self._chunk_size)
+        if inspect.isawaitable(raw_chunk):
+            raw_chunk = await raw_chunk
+
+        hex_len = hex(len(raw_chunk))[2:].encode("ascii")
+        self._complete = not raw_chunk
+
+        if self._checksum:
+            self._checksum.update(raw_chunk)
+
+        if self._checksum and self._complete:
+            name = self._checksum_name.encode("ascii")
+            checksum = self._checksum.b64digest().encode("ascii")
+            return b"0\r\n%s:%s\r\n\r\n" % (name, checksum)
+
+        return b"%s\r\n%s\r\n" % (hex_len, raw_chunk)
+
+    def __aiter__(self):
+        return self
+
+    async def __anext__(self):
+        while not self._complete:
+            return await self._make_chunk()
+        raise StopAsyncIteration()
 
 
 async def handle_checksum_body(
@@ -67,3 +106,57 @@ async def _handle_bytes_response(http_response, response, algorithm):
         )
         raise FlexibleChecksumError(error_msg=error_msg)
     return body
+
+
+def apply_request_checksum(request):
+    checksum_context = request.get("context", {}).get("checksum", {})
+    algorithm = checksum_context.get("request_algorithm")
+
+    if not algorithm:
+        return
+
+    if algorithm == "conditional-md5":
+        # Special case to handle the http checksum required trait
+        conditionally_calculate_md5(request)
+    elif algorithm["in"] == "header":
+        _apply_request_header_checksum(request)
+    elif algorithm["in"] == "trailer":
+        _apply_request_trailer_checksum(request)
+    else:
+        raise FlexibleChecksumError(
+            error_msg="Unknown checksum variant: %s" % algorithm["in"]
+        )
+
+
+def _apply_request_trailer_checksum(request):
+    checksum_context = request.get("context", {}).get("checksum", {})
+    algorithm = checksum_context.get("request_algorithm")
+    location_name = algorithm["name"]
+    checksum_cls = _CHECKSUM_CLS.get(algorithm["algorithm"])
+
+    headers = request["headers"]
+    body = request["body"]
+
+    if location_name in headers:
+        # If the header is already set by the customer, skip calculation
+        return
+
+    # Cannot set this as aiohttp complains
+    headers["Transfer-Encoding"] = "chunked"
+    headers["Content-Encoding"] = "aws-chunked"
+    headers["X-Amz-Trailer"] = location_name
+
+    content_length = determine_content_length(body)
+    if content_length is not None:
+        # Send the decoded content length if we can determine it. Some
+        # services such as S3 may require the decoded content length
+        headers["X-Amz-Decoded-Content-Length"] = str(content_length)
+
+    if isinstance(body, (bytes, bytearray)):
+        body = io.BytesIO(body)
+
+    request["body"] = AioAwsChunkedWrapper(
+        body,
+        checksum_cls=checksum_cls,
+        checksum_name=location_name,
+    )

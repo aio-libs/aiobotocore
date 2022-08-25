@@ -53,7 +53,13 @@ from botocore.handlers import (
     parse_get_bucket_location,
 )
 from botocore.hooks import EventAliaser, HierarchicalEmitter
-from botocore.httpchecksum import _handle_bytes_response, handle_checksum_body
+from botocore.httpchecksum import (
+    AwsChunkedWrapper,
+    _apply_request_trailer_checksum,
+    _handle_bytes_response,
+    apply_request_checksum,
+    handle_checksum_body,
+)
 from botocore.httpsession import URLLib3Session
 from botocore.paginate import PageIterator, ResultKeyIterator
 from botocore.parsers import (
@@ -557,6 +563,14 @@ _API_DIGESTS = {
     # httpchecksum.py
     handle_checksum_body: {'4b9aeef18d816563624c66c57126d1ffa6fe1993'},
     _handle_bytes_response: {'0761c4590c6addbe8c674e40fca9f7dd375a184b'},
+    AwsChunkedWrapper._make_chunk: {
+        '097361692f0fd6c863a17dd695739629982ef7e4'
+    },
+    AwsChunkedWrapper.__iter__: {'261e26d1061655555fe3dcb2689d963e43f80fb0'},
+    apply_request_checksum: {'bcc044f0655f30769994efab72b29e76d73f7e39'},
+    _apply_request_trailer_checksum: {
+        '55c36eaf4701a379fcdbd78d0b7a831e5023a76e'
+    },
     # retryhandler.py
     retryhandler.create_retry_handler: {
         '8fee36ed89d789194585f56b8dd4f525985a5811'

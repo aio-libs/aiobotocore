@@ -1,4 +1,6 @@
 import asyncio
+import base64
+import hashlib
 from collections import defaultdict
 
 import aioitertools
@@ -633,3 +635,23 @@ async def test_head_object_keys(s3_client, create_object, bucket_name):
         'ContentLength',
         'VersionId',
     }
+
+
+@pytest.mark.xfail(
+    reason="SHA256 Checksums on streaming objects are only sent in trailers unsigned over HTTPS"
+)
+@pytest.mark.moto
+@pytest.mark.asyncio
+async def test_put_object_sha256(s3_client, bucket_name):
+    data = b'test1234'
+    digest = hashlib.sha256(data).digest()
+
+    resp = await s3_client.put_object(
+        Bucket=bucket_name,
+        Key='foobarbaz',
+        Body=data,
+        ChecksumAlgorithm='SHA256',
+    )
+    sha256_trailer_checksum = base64.b64decode(resp['ChecksumSHA256'])
+
+    assert digest == sha256_trailer_checksum

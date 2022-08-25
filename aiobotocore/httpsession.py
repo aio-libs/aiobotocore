@@ -191,6 +191,9 @@ class AIOHTTPSession:
             # https://github.com/boto/botocore/issues/1255
             headers['Accept-Encoding'] = 'identity'
 
+            # aiohttp complains if Transfer-Encoding header is set
+            headers.pop('Transfer-Encoding', '')
+
             headers_ = MultiDict(
                 (z[0], _text(z[1], encoding='utf-8')) for z in headers.items()
             )

@@ -6,7 +6,6 @@ from botocore.client import (
     PaginatorDocstring,
     S3ArnParamHandler,
     S3EndpointSetter,
-    apply_request_checksum,
     logger,
     resolve_checksum_context,
 )
@@ -20,6 +19,7 @@ from botocore.waiter import xform_name
 from . import waiter
 from .args import AioClientArgsCreator
 from .discovery import AioEndpointDiscoveryHandler, AioEndpointDiscoveryManager
+from .httpchecksum import apply_request_checksum
 from .paginate import AioPaginator
 from .retries import adaptive, standard
 from .utils import AioS3RegionRedirector
