@@ -1,0 +1,13 @@
+name: "Pre-commit"
+
+jobs:
+  pre-commit:
+    runs-on: ubuntu-20.04
+
+    steps:
+    - uses: actions/checkout@v3
+    - uses: actions/setup-python@v4
+    - name: Install
+      run: pip3 install pre-commit
+    - name: Run
+      run: pre-commit run --all-files
