@@ -38,7 +38,7 @@ class AioConfig(botocore.client.Config):
                     raise ParamValidationError(
                         report=f'{k} value must be a boolean'
                     )
-            elif k in ['keepalive_timeout']:
+            elif k == 'keepalive_timeout':
                 if v is not None and not isinstance(v, (float, int)):
                     raise ParamValidationError(
                         report=f'{k} value must be a float/int or None'
