@@ -66,7 +66,7 @@ botocore calls eventually called.
 
 The best way I've seen to upgrade botocore support is by performing the following:
 
-1. Download sources of the release of botocore you're trying to upgrade to, and the version of botocore that aiobotocore is currently locked to (see setup.py) and do a folder based file comparison of the botocore folders (tools like DiffMerge are nice). 
+1. Download sources of the release of botocore you're trying to upgrade to, and the version of botocore that aiobotocore is currently locked to (see setup.py) and do a folder based file comparison of the botocore folders (tools like DiffMerge are nice).
 2. Manually apply the relevant changes to their aiobotocore equivalent(s). Note that sometimes new functions are added which will need to be overridden (like `__enter__` -> `__aenter__`)
 3. Update the "extras" in setup.py to the versions which match the botocore version you are targeting.
 4. Now do a directory diff between aiobotocore and your target version botocore directory to ensure the changes were propagated.
