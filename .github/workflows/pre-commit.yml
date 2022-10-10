@@ -1,5 +1,8 @@
 name: "Pre-commit"
 
+on:
+  push: {}
+
 jobs:
   pre-commit:
     runs-on: ubuntu-20.04
