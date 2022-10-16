@@ -41,7 +41,7 @@ jobs:
     - name: Run unittests
       env:
         COLOR: 'yes'
-      run: make flake mototest
+      run: make mototest
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v1.5.2
       with:
