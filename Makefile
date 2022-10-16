@@ -29,16 +29,16 @@ mototest:
 	@echo "open file://`pwd`/htmlcov/index.html"
 
 clean:
-	rm -rf `find . -name __pycache__`
-	rm -rf `find . -name .pytest_cache`
-	rm -rf `find . -name *.egg-info`
-	rm -f `find . -type f -name '*.py[co]' `
-	rm -f `find . -type f -name '*~' `
-	rm -f `find . -type f -name '.*~' `
-	rm -f `find . -type f -name '@*' `
-	rm -f `find . -type f -name '#*#' `
-	rm -f `find . -type f -name '*.orig' `
-	rm -f `find . -type f -name '*.rej' `
+	find . -name __pycache__ -delete
+	find . -name .pytest_cache -delete
+	find . -name *.egg-info -delete
+	find . -type f -name '*.py[co]' -delete
+	find . -type f -name '*~' -delete
+	find . -type f -name '.*~' -delete
+	find . -type f -name '@*' -delete
+	find . -type f -name '#*#' -delete
+	find . -type f -name '*.orig' -delete
+	find . -type f -name '*.rej' -delete
 	rm -f .coverage*
 	rm -rf coverage
 	rm -rf coverage.xml
