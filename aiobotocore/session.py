@@ -167,6 +167,7 @@ class AioSession(Session):
             )
         else:
             credentials = await self.get_credentials()
+        auth_token = self.get_auth_token()
         endpoint_resolver = self._get_internal_component('endpoint_resolver')
         exceptions_factory = self._get_internal_component('exceptions_factory')
         config_store = self.get_component('config_store')
@@ -200,6 +201,7 @@ class AioSession(Session):
             scoped_config=self.get_scoped_config(),
             client_config=config,
             api_version=api_version,
+            auth_token=auth_token,
         )
         monitor = self._get_internal_component('monitor')
         if monitor is not None:
