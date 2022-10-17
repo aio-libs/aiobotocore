@@ -39,6 +39,7 @@ class AioClientCreator(ClientCreator):
         scoped_config=None,
         api_version=None,
         client_config=None,
+        auth_token=None,
     ):
         responses = await self._event_emitter.emit(
             'choose-service-name', service_name=service_name
@@ -66,6 +67,7 @@ class AioClientCreator(ClientCreator):
             scoped_config,
             client_config,
             endpoint_bridge,
+            auth_token,
         )
         service_client = cls(**client_args)
         self._register_retries(service_client)
@@ -248,6 +250,7 @@ class AioClientCreator(ClientCreator):
         scoped_config,
         client_config,
         endpoint_bridge,
+        auth_token,
     ):
         # This is a near copy of ClientCreator. What's replaced
         # is ClientArgsCreator->AioClientArgsCreator
@@ -269,6 +272,7 @@ class AioClientCreator(ClientCreator):
             scoped_config,
             client_config,
             endpoint_bridge,
+            auth_token,
         )
 
 

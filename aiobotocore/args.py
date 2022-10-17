@@ -23,6 +23,7 @@ class AioClientArgsCreator(ClientArgsCreator):
         scoped_config,
         client_config,
         endpoint_bridge,
+        auth_token=None,
     ):
         final_args = self.compute_client_args(
             service_model,
@@ -54,6 +55,7 @@ class AioClientArgsCreator(ClientArgsCreator):
             endpoint_config['signature_version'],
             credentials,
             event_emitter,
+            auth_token,
         )
 
         config_kwargs['s3'] = s3_config

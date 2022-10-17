@@ -1007,10 +1007,11 @@ class AioSSOCredentialFetcher(AioCachedCredentialFetcher):
             region_name=self._sso_region,
         )
         async with self._client_creator('sso', config=config) as client:
+            token_dict = self._token_loader(self._start_url)
             kwargs = {
                 'roleName': self._role_name,
                 'accountId': self._account_id,
-                'accessToken': self._token_loader(self._start_url),
+                'accessToken': token_dict['accessToken'],
             }
             try:
                 response = await client.get_role_credentials(**kwargs)

@@ -128,6 +128,13 @@ class AioRequestSigner(RequestSigner):
                 signature_version=signature_version
             )
 
+        if cls.REQUIRES_TOKEN is True:
+            frozen_token = None
+            if self._auth_token is not None:
+                frozen_token = self._auth_token.get_frozen_token()
+            auth = cls(frozen_token)
+            return auth
+
         frozen_credentials = None
         if self._credentials is not None:
             frozen_credentials = (
