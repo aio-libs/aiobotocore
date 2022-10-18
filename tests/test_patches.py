@@ -134,10 +134,10 @@ _AIOHTTP_DIGESTS = {
 _API_DIGESTS = {
     # args.py
     ClientArgsCreator.get_client_args: {
-        '5e5b18cb0b466d3acb2e0ecacbc8dc78de4022fc'
+        'd36a204689bff7d905f158f7fb2cdc849a17150d'
     },
     # client.py
-    ClientCreator.create_client: {'3af567fcde81899a3b722d9cafd6a5c78e8ea08c'},
+    ClientCreator.create_client: {'711cafef0bfe9bbe2a0b8f5f49bc87a515cfecaa'},
     ClientCreator._create_client_class: {
         'fcecaf8d4f2c1ac3c5d0eb50c573233ef86d641d'
     },
@@ -145,7 +145,7 @@ _API_DIGESTS = {
         '483c6c8e035810d1b76110fc1956de76943c2f18'
     },
     ClientCreator._get_client_args: {
-        'cc8da937425ba78f715304a82cec346dedb6292e'
+        '8b677241a10fbb7a4083e7d9f02b9ff8e5a5e22e'
     },
     ClientCreator._register_s3_events: {
         'e2ada7e2fcc23f62a414a9dc806a50c0fe6c135c'
@@ -210,7 +210,7 @@ _API_DIGESTS = {
     RefreshableCredentials.get_frozen_credentials: {
         'f661c84a8b759786e011f0b1e8a468a0c6294e36'
     },
-    SSOCredentialFetcher: {'ac0cc1f456392f844c7182af635ee87e9fe9cf02'},
+    SSOCredentialFetcher: {'3bf01bb215f61e714b77660863a030273ec2af40'},
     SSOProvider.load: {'f43d79e1520b2a7b7ef85cd537f41e19d4bce806'},
     CachedCredentialFetcher._get_credentials: {
         '02a7d13599d972e3f258d2b53f87eeda4cc3e3a4'
@@ -388,11 +388,11 @@ _API_DIGESTS = {
     StreamingBody: {'73cb1276dfb509331b964d3d5ed69e5efa008de5'},
     get_response: {'6515f43730b546419695c26d4bc0d198fde54b10'},
     # session.py
-    Session.__init__: {'d0d3b11d6feb4783d2a7399246ce02c58e2c34e7'},
+    Session.__init__: {'c796153d589ea6fe46a3a1afa2c460f06a1c37a2'},
     Session._register_response_parser_factory: {
         'bb8f7f3cc4d9ff9551f0875604747c4bb5030ff6'
     },
-    Session.create_client: {'a179ef6d370020181d99fcb6cb1279e948d72afa'},
+    Session.create_client: {'8b1bd136aba5d0e519816aca7354b3d1e2dee7ec'},
     Session._create_credential_resolver: {
         '87e98d201c72d06f7fbdb4ebee2dce1c09de0fb2'
     },
@@ -411,7 +411,7 @@ _API_DIGESTS = {
     RequestSigner.sign: {'d90346d5e066e89cd902c5c936f59b644ecde275'},
     RequestSigner.get_auth: {'4f8099bef30f9a72fa3bcaa1bd3d22c4fbd224a8'},
     RequestSigner.get_auth_instance: {
-        'c2c34a0f44cac8819c7e9b74ca52dc82a28a1a08'
+        '4f9be5feafd6c08ffd7bb8de3c9bc36bc02cbfc8'
     },
     RequestSigner._choose_signer: {'eb82bd279d8c6cb7c93f7330a45544f0dda73170'},
     RequestSigner.generate_presigned_url: {
