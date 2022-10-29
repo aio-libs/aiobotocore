@@ -1,5 +1,9 @@
 Changes
 -------
+2.5.1 (unreleased)
+^^^^^^^^^^^^^^^^^^
+* add support for Python 3.11
+
 2.5.0 (2023-03-06)
 ^^^^^^^^^^^^^^^^^^
 * bump botocore to 1.29.76 (thanks @jakob-keller #999)
