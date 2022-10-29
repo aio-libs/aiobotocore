@@ -31,7 +31,7 @@ Congratulations, you are ready to run the test suite::
 
 To run individual use following command::
 
-    $ py.test -sv tests/test_monitor.py -k test_name
+    $ pytest -sv tests/test_monitor.py -k test_name
 
 
 Reporting an Issue

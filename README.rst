@@ -165,7 +165,7 @@ Execute tests suite:
 
 ::
 
-    $ py.test -v tests
+    $ pytest -v tests
 
 
 
