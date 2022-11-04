@@ -31,8 +31,7 @@ jobs:
     - name: Download dependencies
       run: |
         python -c "import sys; print(f'Python version: {sys.version}')"
-        curl -sSL https://install.python-poetry.org/ | python -
-        python -m pip install -U setuptools pip codecov wheel
+        python -m pip install -U poetry setuptools pip codecov wheel
         poetry install --with=dev --extras boto3
         poetry check
     - name: Run flake
