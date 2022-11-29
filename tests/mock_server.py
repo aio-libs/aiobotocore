@@ -102,8 +102,6 @@ async def s3_server(server_scheme):
         yield svc.endpoint_url
 
 
-# TODO: figure out how to parameterize this
-
 @pytest.fixture
 async def dynamodb2_server(server_scheme):
     async with MotoService('dynamodb', ssl=server_scheme == 'https') as svc:
