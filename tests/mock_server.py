@@ -110,7 +110,9 @@ async def dynamodb2_server(server_scheme):
 
 @pytest.fixture
 async def cloudformation_server(server_scheme):
-    async with MotoService('cloudformation', ssl=server_scheme == 'https') as svc:
+    async with MotoService(
+        'cloudformation', ssl=server_scheme == 'https'
+    ) as svc:
         yield svc.endpoint_url
 
 

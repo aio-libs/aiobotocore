@@ -49,7 +49,9 @@ class MotoService:
         self._refcount = None
         self._ip_address = host
         self._server = None
-        self._ssl_ctx = werkzeug.serving.generate_adhoc_ssl_context() if ssl else None
+        self._ssl_ctx = (
+            werkzeug.serving.generate_adhoc_ssl_context() if ssl else None
+        )
         self._schema = 'http' if not self._ssl_ctx else 'https'
 
     @property
@@ -102,7 +104,11 @@ class MotoService:
             self._socket = None
 
         self._server = werkzeug.serving.make_server(
-            self._ip_address, self._port, self._main_app, True, ssl_context=self._ssl_ctx
+            self._ip_address,
+            self._port,
+            self._main_app,
+            True,
+            ssl_context=self._ssl_ctx,
         )
         self._server.serve_forever()
 
@@ -120,7 +126,9 @@ class MotoService:
                 try:
                     # we need to bypass the proxies due to monkeypatches
                     async with session.get(
-                        self.endpoint_url + '/static', timeout=_CONNECT_TIMEOUT, verify_ssl=False
+                        self.endpoint_url + '/static',
+                        timeout=_CONNECT_TIMEOUT,
+                        verify_ssl=False,
                     ):
                         pass
                     break
