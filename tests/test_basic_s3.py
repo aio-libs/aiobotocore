@@ -638,13 +638,15 @@ async def test_head_object_keys(s3_client, create_object, bucket_name):
 
 
 @pytest.mark.xfail(
-    reason="SHA256 Checksums on streaming objects are only sent in trailers unsigned over HTTPS"
+    reason="moto does not yet support Checksum: https://github.com/spulec/moto/issues/5719"
 )
+@pytest.mark.parametrize('server_scheme', ['https'])
+@pytest.mark.parametrize('s3_verify', [False])
 @pytest.mark.moto
 @pytest.mark.asyncio
 async def test_put_object_sha256(s3_client, bucket_name):
     data = b'test1234'
-    digest = hashlib.sha256(data).digest()
+    digest = hashlib.sha256(data).digest().hex()
 
     resp = await s3_client.put_object(
         Bucket=bucket_name,

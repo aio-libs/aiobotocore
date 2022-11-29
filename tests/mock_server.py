@@ -97,66 +97,68 @@ class AIOServer(multiprocessing.Process):
 
 
 @pytest.fixture
-async def s3_server():
-    async with MotoService('s3') as svc:
+async def s3_server(server_scheme):
+    async with MotoService('s3', ssl=server_scheme == 'https') as svc:
+        yield svc.endpoint_url
+
+
+# TODO: figure out how to parameterize this
+
+@pytest.fixture
+async def dynamodb2_server(server_scheme):
+    async with MotoService('dynamodb', ssl=server_scheme == 'https') as svc:
         yield svc.endpoint_url
 
 
 @pytest.fixture
-async def dynamodb2_server():
-    async with MotoService('dynamodb') as svc:
+async def cloudformation_server(server_scheme):
+    async with MotoService('cloudformation', ssl=server_scheme == 'https') as svc:
         yield svc.endpoint_url
 
 
 @pytest.fixture
-async def cloudformation_server():
-    async with MotoService('cloudformation') as svc:
+async def sns_server(server_scheme):
+    async with MotoService('sns', ssl=server_scheme == 'https') as svc:
         yield svc.endpoint_url
 
 
 @pytest.fixture
-async def sns_server():
-    async with MotoService('sns') as svc:
+async def sqs_server(server_scheme):
+    async with MotoService('sqs', ssl=server_scheme == 'https') as svc:
         yield svc.endpoint_url
 
 
 @pytest.fixture
-async def sqs_server():
-    async with MotoService('sqs') as svc:
+async def batch_server(server_scheme):
+    async with MotoService('batch', ssl=server_scheme == 'https') as svc:
         yield svc.endpoint_url
 
 
 @pytest.fixture
-async def batch_server():
-    async with MotoService('batch') as svc:
+async def lambda_server(server_scheme):
+    async with MotoService('lambda', ssl=server_scheme == 'https') as svc:
         yield svc.endpoint_url
 
 
 @pytest.fixture
-async def lambda_server():
-    async with MotoService('lambda') as svc:
+async def iam_server(server_scheme):
+    async with MotoService('iam', ssl=server_scheme == 'https') as svc:
         yield svc.endpoint_url
 
 
 @pytest.fixture
-async def iam_server():
-    async with MotoService('iam') as svc:
+async def rds_server(server_scheme):
+    async with MotoService('rds', ssl=server_scheme == 'https') as svc:
         yield svc.endpoint_url
 
 
 @pytest.fixture
-async def rds_server():
-    async with MotoService('rds') as svc:
+async def ec2_server(server_scheme):
+    async with MotoService('ec2', ssl=server_scheme == 'https') as svc:
         yield svc.endpoint_url
 
 
 @pytest.fixture
-async def ec2_server():
-    async with MotoService('ec2') as svc:
-        yield svc.endpoint_url
-
-
-@pytest.fixture
-async def kinesis_server():
-    async with MotoService('kinesis') as svc:
+async def kinesis_server(server_scheme):
+    async with MotoService('kinesis', ssl=server_scheme == 'https') as svc:
         yield svc.endpoint_url

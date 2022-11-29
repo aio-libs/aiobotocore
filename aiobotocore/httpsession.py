@@ -36,7 +36,7 @@ from botocore.httpsession import (
     parse_url,
     urlparse,
 )
-from multidict import MultiDict
+from multidict import CIMultiDict
 
 import aiobotocore.awsrequest
 from aiobotocore._endpoint_helpers import _IOBaseWrapper, _text
@@ -188,15 +188,18 @@ class AIOHTTPSession:
                 host = urlparse(request.url).hostname
                 proxy_headers['host'] = host
 
-            # https://github.com/boto/botocore/issues/1255
-            headers['Accept-Encoding'] = 'identity'
-
-            # aiohttp complains if Transfer-Encoding header is set
-            headers.pop('Transfer-Encoding', '')
-
-            headers_ = MultiDict(
+            headers_ = CIMultiDict(
                 (z[0], _text(z[1], encoding='utf-8')) for z in headers.items()
             )
+
+            # https://github.com/boto/botocore/issues/1255
+            headers_['Accept-Encoding'] = 'identity'
+
+            chunked = None
+            if headers_.get('Transfer-Encoding', '').lower() == 'chunked':
+                # aiohttp wants chunking as a param, and not a header
+                headers_.pop('Transfer-Encoding', '')
+                chunked = True
 
             if isinstance(data, io.IOBase):
                 data = _IOBaseWrapper(data)
@@ -205,6 +208,7 @@ class AIOHTTPSession:
             response = await self._session.request(
                 request.method,
                 url=url,
+                chunked=chunked,
                 headers=headers_,
                 data=data,
                 proxy=proxy_url,

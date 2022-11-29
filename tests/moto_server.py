@@ -35,7 +35,7 @@ class MotoService:
 
     _services = dict()  # {name: instance}
 
-    def __init__(self, service_name: str, port: int = None):
+    def __init__(self, service_name: str, port: int = None, ssl: bool = False):
         self._service_name = service_name
 
         if port:
@@ -49,10 +49,12 @@ class MotoService:
         self._refcount = None
         self._ip_address = host
         self._server = None
+        self._ssl_ctx = werkzeug.serving.generate_adhoc_ssl_context() if ssl else None
+        self._schema = 'http' if not self._ssl_ctx else 'https'
 
     @property
     def endpoint_url(self):
-        return f'http://{self._ip_address}:{self._port}'
+        return f'{self._schema}://{self._ip_address}:{self._port}'
 
     def __call__(self, func):
         async def wrapper(*args, **kwargs):
@@ -100,7 +102,7 @@ class MotoService:
             self._socket = None
 
         self._server = werkzeug.serving.make_server(
-            self._ip_address, self._port, self._main_app, True
+            self._ip_address, self._port, self._main_app, True, ssl_context=self._ssl_ctx
         )
         self._server.serve_forever()
 
@@ -118,7 +120,7 @@ class MotoService:
                 try:
                     # we need to bypass the proxies due to monkeypatches
                     async with session.get(
-                        self.endpoint_url + '/static', timeout=_CONNECT_TIMEOUT
+                        self.endpoint_url + '/static', timeout=_CONNECT_TIMEOUT, verify_ssl=False
                     ):
                         pass
                     break

@@ -1,4 +1,3 @@
-import inspect
 import io
 
 from botocore.httpchecksum import (
@@ -13,6 +12,8 @@ from botocore.httpchecksum import (
     logger,
 )
 
+from aiobotocore._helpers import resolve_awaitable
+
 
 class AioAwsChunkedWrapper(AwsChunkedWrapper):
     async def _make_chunk(self):
@@ -20,10 +21,7 @@ class AioAwsChunkedWrapper(AwsChunkedWrapper):
         # means we cannot know the content length of the encoded aws-chunked
         # stream ahead of time without ensuring a consistent chunk size
 
-        raw_chunk = self._raw.read(self._chunk_size)
-        if inspect.isawaitable(raw_chunk):
-            raw_chunk = await raw_chunk
-
+        raw_chunk = await resolve_awaitable(self._raw.read(self._chunk_size))
         hex_len = hex(len(raw_chunk))[2:].encode("ascii")
         self._complete = not raw_chunk
 
