@@ -1,4 +1,6 @@
 import asyncio
+import base64
+import hashlib
 from collections import defaultdict
 
 import aioitertools
@@ -633,3 +635,25 @@ async def test_head_object_keys(s3_client, create_object, bucket_name):
         'ContentLength',
         'VersionId',
     }
+
+
+@pytest.mark.xfail(
+    reason="moto does not yet support Checksum: https://github.com/spulec/moto/issues/5719"
+)
+@pytest.mark.parametrize('server_scheme', ['https'])
+@pytest.mark.parametrize('s3_verify', [False])
+@pytest.mark.moto
+@pytest.mark.asyncio
+async def test_put_object_sha256(s3_client, bucket_name):
+    data = b'test1234'
+    digest = hashlib.sha256(data).digest().hex()
+
+    resp = await s3_client.put_object(
+        Bucket=bucket_name,
+        Key='foobarbaz',
+        Body=data,
+        ChecksumAlgorithm='SHA256',
+    )
+    sha256_trailer_checksum = base64.b64decode(resp['ChecksumSHA256'])
+
+    assert digest == sha256_trailer_checksum

@@ -132,6 +132,11 @@ def signature_version():
 
 
 @pytest.fixture
+def server_scheme():
+    return 'http'
+
+
+@pytest.fixture
 def s3_verify():
     return None
 
