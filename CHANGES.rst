@@ -1,5 +1,9 @@
 Changes
 -------
+2.4.1 (2022-11-28)
+^^^^^^^^^^^^^^^^^^
+* Adds support for checksums in streamed request trailers (thanks @terrycain #962)
+
 2.4.0 (2022-08-25)
 ^^^^^^^^^^^^^^^^^^
 * bump botocore to 1.27.59
