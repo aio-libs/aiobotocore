@@ -3,7 +3,6 @@ import inspect
 import json
 import logging
 
-import aiohttp.client_exceptions
 import botocore.awsrequest
 from botocore.exceptions import (
     InvalidIMDSEndpointError,
@@ -25,16 +24,14 @@ from botocore.utils import (
     get_environ_proxies,
     os,
     resolve_imds_endpoint_mode,
+    RETRYABLE_HTTP_ERRORS
 )
 
 import aiobotocore.httpsession
 from aiobotocore._helpers import asynccontextmanager
 
+
 logger = logging.getLogger(__name__)
-RETRYABLE_HTTP_ERRORS = (
-    aiohttp.client_exceptions.ClientError,
-    asyncio.TimeoutError,
-)
 
 
 class _RefCountedSession(aiobotocore.httpsession.AIOHTTPSession):

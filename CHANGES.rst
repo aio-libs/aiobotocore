@@ -1,5 +1,9 @@
 Changes
 -------
+2.4.2 (2022-12-22)
+^^^^^^^^^^^^^^^^^^
+* fix retries (#988)
+
 2.4.1 (2022-11-28)
 ^^^^^^^^^^^^^^^^^^
 * Adds support for checksums in streamed request trailers (thanks @terrycain #962)
