@@ -1,4 +1,3 @@
-import asyncio
 import itertools
 import json
 from typing import List, Tuple, Union
@@ -194,7 +193,7 @@ async def test_idmsfetcher_retry():
 async def test_idmsfetcher_timeout():
     session = fake_aiohttp_session(
         [
-            (asyncio.TimeoutError(), 500),
+            (ReadTimeoutError(endpoint_url='url'), 500),
         ]
     )
 

@@ -1,10 +1,13 @@
-import asyncio
 import json
 import unittest
 from unittest import mock
 
 import pytest
-from aiohttp.client_exceptions import ClientConnectionError
+from botocore.exceptions import (
+    ConnectionClosedError,
+    ConnectTimeoutError,
+    ReadTimeoutError,
+)
 from botocore.utils import MetadataRetrievalError
 
 from aiobotocore import utils
@@ -146,7 +149,7 @@ class TestInstanceMetadataFetcher(unittest.IsolatedAsyncioTestCase):
     async def test_http_connection_error_for_role_name_is_retried(self):
         # Connection related errors should be retried
         self.add_get_token_imds_response(token='token')
-        self.add_imds_connection_error(ClientConnectionError(''))
+        self.add_imds_connection_error(ConnectionClosedError(endpoint_url=''))
         self.add_get_role_name_imds_response()
         self.add_get_credentials_imds_response()
         result = await AioInstanceMetadataFetcher(
@@ -190,7 +193,7 @@ class TestInstanceMetadataFetcher(unittest.IsolatedAsyncioTestCase):
         self.add_get_token_imds_response(token='token')
         self.add_get_role_name_imds_response()
         # Connection related errors should be retried
-        self.add_imds_connection_error(ClientConnectionError(''))
+        self.add_imds_connection_error(ConnectionClosedError(endpoint_url=''))
         self.add_get_credentials_imds_response()
         result = await AioInstanceMetadataFetcher(
             num_attempts=2
@@ -333,7 +336,7 @@ class TestInstanceMetadataFetcher(unittest.IsolatedAsyncioTestCase):
     @pytest.mark.asyncio
     async def test_metadata_token_not_supported_timeout(self):
         user_agent = 'my-user-agent'
-        self.add_imds_connection_error(asyncio.TimeoutError('url'))
+        self.add_imds_connection_error(ReadTimeoutError(endpoint_url='url'))
         self.add_get_role_name_imds_response()
         self.add_get_credentials_imds_response()
 
@@ -349,7 +352,7 @@ class TestInstanceMetadataFetcher(unittest.IsolatedAsyncioTestCase):
     @pytest.mark.asyncio
     async def test_token_not_supported_exhaust_retries(self):
         user_agent = 'my-user-agent'
-        self.add_imds_connection_error(asyncio.TimeoutError('url'))
+        self.add_imds_connection_error(ConnectTimeoutError(endpoint_url='url'))
         self.add_get_role_name_imds_response()
         self.add_get_credentials_imds_response()
 
