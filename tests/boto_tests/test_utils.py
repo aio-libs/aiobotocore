@@ -194,7 +194,7 @@ async def test_idmsfetcher_retry():
 async def test_idmsfetcher_timeout():
     session = fake_aiohttp_session(
         [
-            (asyncio.TimeoutError(), 500),
+            (ReadTimeoutError(endpoint_url='url'), 500),
         ]
     )
 
