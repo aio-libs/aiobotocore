@@ -1,21 +1,13 @@
-import ast
-import operator
 import re
 from datetime import datetime
-from itertools import chain
 from pathlib import Path
-from typing import NamedTuple, Optional
 
 import docutils.frontend
 import docutils.nodes
 import docutils.parsers.rst
 import docutils.utils
 import pytest
-import requests
 from packaging import version
-from pip._internal.req import InstallRequirement
-from pip._internal.req.constructors import install_req_from_line
-from pip._vendor.packaging.specifiers import SpecifierSet
 
 import aiobotocore
 
@@ -38,82 +30,6 @@ def _parse_rst(text: str) -> docutils.nodes.document:
     document = docutils.utils.new_document('<rst-doc>', settings=settings)
     parser.parse(text, document)
     return document
-
-
-def _get_assign_target_name(node: ast.Assign):
-    assert len(node.targets) == 1
-    target = node.targets[0]
-    assert isinstance(target, ast.Name)
-    return target.id
-
-
-class VersionInfo(NamedTuple):
-    least_version: str
-    specifier_set: SpecifierSet
-
-
-def _get_boto_module_versions(
-    setup_content: str, ensure_plus_one_patch_range: bool = False
-):
-    parsed = ast.parse(setup_content)
-    top_level_vars = {"install_requires", "requires", "extras_require"}
-    assignments = dict()
-    for node in parsed.body:
-        if isinstance(node, ast.Assign):
-            target_name = _get_assign_target_name(node)
-            if target_name not in top_level_vars:
-                continue
-
-            value = ast.literal_eval(node.value)
-            assignments[target_name] = value
-
-    module_versions = dict()
-
-    for ver in chain(
-        assignments.get("install_requires", []),
-        assignments.get("requires", []),
-        assignments.get("extras_require", {}).values(),
-    ):
-        if isinstance(ver, str):
-            ver: InstallRequirement = install_req_from_line(ver)
-        elif isinstance(ver, list):
-            assert len(ver) == 1
-            ver: InstallRequirement = install_req_from_line(ver[0])
-        else:
-            assert False, f'Unsupported ver: {ver}'
-
-        module = ver.req.name
-        if module not in {'botocore', 'awscli', 'boto3'}:
-            continue
-
-        # NOTE: don't support complex versioning yet as requirements are unknown
-        gte = lt = eq = None  # type: Optional[version.Version]
-        for spec in ver.req.specifier:
-            if spec.operator == '>=':
-                assert gte is None
-                gte = version.parse(spec.version)
-            elif spec.operator == '<':
-                assert lt is None
-                lt = version.parse(spec.version)
-            elif spec.operator == '==':
-                assert eq is None
-                eq = version.parse(spec.version)
-            else:
-                assert False, f'unsupported operator: {spec.operator}'
-
-        if ensure_plus_one_patch_range:
-            assert (
-                len(gte.release) == len(lt.release) == 3
-            ), f'{module} gte: {gte} diff len than {lt}'
-            assert lt.release == tuple(
-                map(operator.add, gte.release, (0, 0, 1))
-            ), f'{module} gte: {gte} not one patch off from {lt}'
-
-        module_versions[module] = VersionInfo(
-            gte.public if gte else None, ver.req.specifier
-        )
-
-    return module_versions
 
 
 @pytest.mark.moto
@@ -159,30 +75,3 @@ def test_release_versions():
         assert (
             rst_date > rst_prev_date
         ), 'Current release must be after last release'
-
-    # get aioboto reqs
-    with (_root_path / 'setup.py').open() as f:
-        content = f.read()
-        aioboto_reqs = _get_boto_module_versions(content, True)
-
-    # get awscli reqs
-    awscli_resp = requests.get(
-        f"https://raw.githubusercontent.com/aws/aws-cli/"
-        f"{aioboto_reqs['awscli'].least_version}/setup.py"
-    )
-    awscli_reqs = _get_boto_module_versions(awscli_resp.text)
-    assert awscli_reqs['botocore'].specifier_set.contains(
-        aioboto_reqs['botocore'].least_version
-    )
-
-    # get boto3 reqs
-    boto3_resp = requests.get(
-        f"https://raw.githubusercontent.com/boto/boto3/"
-        f"{aioboto_reqs['boto3'].least_version}/setup.py"
-    )
-    boto3_reqs = _get_boto_module_versions(boto3_resp.text)
-    assert boto3_reqs['botocore'].specifier_set.contains(
-        aioboto_reqs['botocore'].least_version
-    )
-
-    print()
