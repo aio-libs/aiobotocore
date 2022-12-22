@@ -24,7 +24,7 @@ from botocore.utils import (
     get_environ_proxies,
     os,
     resolve_imds_endpoint_mode,
-    RETRYABLE_HTTP_ERRORS
+    RETRYABLE_HTTP_ERRORS,
 )
 
 import aiobotocore.httpsession
