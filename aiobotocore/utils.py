@@ -11,6 +11,7 @@ from botocore.exceptions import (
 from botocore.utils import (
     DEFAULT_METADATA_SERVICE_TIMEOUT,
     METADATA_BASE_URL,
+    RETRYABLE_HTTP_ERRORS,
     BadIMDSRequestError,
     ClientError,
     ContainerMetadataFetcher,
@@ -24,12 +25,10 @@ from botocore.utils import (
     get_environ_proxies,
     os,
     resolve_imds_endpoint_mode,
-    RETRYABLE_HTTP_ERRORS,
 )
 
 import aiobotocore.httpsession
 from aiobotocore._helpers import asynccontextmanager
-
 
 logger = logging.getLogger(__name__)
 
