@@ -229,7 +229,7 @@ Requirements
 .. _mypy: http://mypy-lang.org/
 
 awscli & boto3
-------
+--------------
 
 awscli and boto3 depend on a single version, or a narrow range of versions, of botocore.
 However, aiobotocore only supports a specific range of botocore versions. To ensure you

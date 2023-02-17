@@ -22,6 +22,7 @@ For example, using *virtualenvwrapper* commands could look like::
 
 After that, please install libraries required for development::
 
+    $ pipenv lock
     $ pipenv sync --dev
 
 Congratulations, you are ready to run the test suite::
