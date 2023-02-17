@@ -9,18 +9,18 @@ Running Tests
 Thanks for your interest in contributing to ``aiobotocore``, there are multiple
 ways and places you can contribute.
 
-Fist of all just clone repository::
+First of all, clone the repository::
 
     $ git clone git@github.com:aio-libs/aiobotocore.git
 
-Create virtualenv with at least python3.5 (older version are not supported).
-For example using *virtualenvwrapper* commands could look like::
+Create virtualenv with at least python3.5 (older versions are not supported).
+For example, using *virtualenvwrapper* commands could look like::
 
    $ cd aiobotocore
    $ mkvirtualenv --python=`which python3.5` aiobotocore
 
 
-After that please install libraries required for development::
+After that, please install libraries required for development::
 
     $ pipenv sync --dev
 
