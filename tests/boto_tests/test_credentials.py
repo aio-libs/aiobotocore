@@ -917,7 +917,7 @@ async def ssl_credential_fetcher_setup():
         self.now_timestamp = 1222172800000
 
         self.loader = mock.Mock(spec=SSOTokenLoader)
-        self.loader.return_value = self.access_token
+        self.loader.return_value = {'accessToken': self.access_token}
         self.fetcher = AioSSOCredentialFetcher(
             self.start_url,
             self.sso_region,

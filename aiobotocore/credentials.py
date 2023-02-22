@@ -53,6 +53,7 @@ from botocore.credentials import (
 from dateutil.tz import tzutc
 
 from aiobotocore.config import AioConfig
+from aiobotocore.tokens import AioSSOTokenProvider
 from aiobotocore.utils import (
     AioContainerMetadataFetcher,
     AioInstanceMetadataFetcher,
@@ -191,6 +192,11 @@ class AioProfileProviderBuilder(ProfileProviderBuilder):
             profile_name=profile_name,
             cache=self._cache,
             token_cache=self._sso_token_cache,
+            token_provider=AioSSOTokenProvider(
+                self._session,
+                cache=self._sso_token_cache,
+                profile_name=profile_name,
+            ),
         )
 
 
@@ -537,7 +543,7 @@ class AioInstanceMetadataProvider(InstanceMetadataProvider):
         metadata = await fetcher.retrieve_iam_role_credentials()
         if not metadata:
             return None
-        logger.debug(
+        logger.info(
             'Found credentials from IAM Role: %s', metadata['role_name']
         )
 
@@ -974,6 +980,8 @@ class AioSSOCredentialFetcher(AioCachedCredentialFetcher):
         token_loader=None,
         cache=None,
         expiry_window_seconds=None,
+        token_provider=None,
+        sso_session_name=None,
     ):
         self._client_creator = client_creator
         self._sso_region = sso_region
@@ -981,14 +989,19 @@ class AioSSOCredentialFetcher(AioCachedCredentialFetcher):
         self._account_id = account_id
         self._start_url = start_url
         self._token_loader = token_loader
+        self._token_provider = token_provider
+        self._sso_session_name = sso_session_name
         super().__init__(cache, expiry_window_seconds)
 
     def _create_cache_key(self):
         args = {
-            'startUrl': self._start_url,
             'roleName': self._role_name,
             'accountId': self._account_id,
         }
+        if self._sso_session_name:
+            args['sessionName'] = self._sso_session_name
+        else:
+            args['startUrl'] = self._start_url
 
         args = json.dumps(args, sort_keys=True, separators=(',', ':'))
         argument_hash = sha1(args.encode('utf-8')).hexdigest()
@@ -1007,10 +1020,16 @@ class AioSSOCredentialFetcher(AioCachedCredentialFetcher):
             region_name=self._sso_region,
         )
         async with self._client_creator('sso', config=config) as client:
+            if self._token_provider:
+                initial_token_data = self._token_provider.load_token()
+                token = (await initial_token_data.get_frozen_token()).token
+            else:
+                token = self._token_loader(self._start_url)['accessToken']
+
             kwargs = {
                 'roleName': self._role_name,
                 'accountId': self._account_id,
-                'accessToken': self._token_loader(self._start_url),
+                'accessToken': token,
             }
             try:
                 response = await client.get_role_credentials(**kwargs)
@@ -1038,15 +1057,20 @@ class AioSSOProvider(SSOProvider):
         if not sso_config:
             return None
 
-        sso_fetcher = AioSSOCredentialFetcher(
-            sso_config['sso_start_url'],
-            sso_config['sso_region'],
-            sso_config['sso_role_name'],
-            sso_config['sso_account_id'],
-            self._client_creator,
-            token_loader=SSOTokenLoader(cache=self._token_cache),
-            cache=self.cache,
-        )
+        fetcher_kwargs = {
+            'start_url': sso_config['sso_start_url'],
+            'sso_region': sso_config['sso_region'],
+            'role_name': sso_config['sso_role_name'],
+            'account_id': sso_config['sso_account_id'],
+            'client_creator': self._client_creator,
+            'token_loader': SSOTokenLoader(cache=self._token_cache),
+            'cache': self.cache,
+        }
+        if 'sso_session' in sso_config:
+            fetcher_kwargs['sso_session_name'] = sso_config['sso_session']
+            fetcher_kwargs['token_provider'] = self._token_provider
+
+        sso_fetcher = AioSSOCredentialFetcher(**fetcher_kwargs)
 
         return AioDeferredRefreshableCredentials(
             method=self.METHOD,
