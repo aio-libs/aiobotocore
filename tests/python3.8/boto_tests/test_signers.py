@@ -88,12 +88,13 @@ async def test_signers_generate_presigned_urls():
 
             ref_request_dict = {
                 'body': b'',
-                'url': 'https://s3.amazonaws.com/mybucket/mykey',
+                'url': 'https://mybucket.s3.amazonaws.com/mykey',
                 'headers': {},
                 'query_string': {},
-                'url_path': '/mybucket/mykey',
+                'url_path': '/mykey',
                 'method': 'HEAD',
                 'context': mock.ANY,
+                'auth_path': '/mybucket/mykey',
             }
 
             cls_gen_presigned_url_mock.assert_called_with(

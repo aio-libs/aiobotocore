@@ -4,13 +4,11 @@ from botocore.client import (
     ClientCreator,
     ClientEndpointBridge,
     PaginatorDocstring,
-    S3ArnParamHandler,
-    S3EndpointSetter,
     logger,
     resolve_checksum_context,
 )
 from botocore.discovery import block_endpoint_discovery_required_operations
-from botocore.exceptions import OperationNotPageableError
+from botocore.exceptions import OperationNotPageableError, UnknownServiceError
 from botocore.history import get_global_history_recorder
 from botocore.hooks import first_non_none_response
 from botocore.utils import get_service_module_name
@@ -22,7 +20,7 @@ from .discovery import AioEndpointDiscoveryHandler, AioEndpointDiscoveryManager
 from .httpchecksum import apply_request_checksum
 from .paginate import AioPaginator
 from .retries import adaptive, standard
-from .utils import AioS3RegionRedirector
+from .utils import AioS3RegionRedirectorv2
 
 history_recorder = get_global_history_recorder()
 
@@ -39,12 +37,27 @@ class AioClientCreator(ClientCreator):
         scoped_config=None,
         api_version=None,
         client_config=None,
+        auth_token=None,
     ):
         responses = await self._event_emitter.emit(
             'choose-service-name', service_name=service_name
         )
         service_name = first_non_none_response(responses, default=service_name)
         service_model = self._load_service_model(service_name, api_version)
+        try:
+            endpoints_ruleset_data = self._load_service_endpoints_ruleset(
+                service_name, api_version
+            )
+            partition_data = self._loader.load_data('partitions')
+        except UnknownServiceError:
+            endpoints_ruleset_data = None
+            partition_data = None
+            logger.info(
+                'No endpoints ruleset found for service %s, falling back to '
+                'legacy endpoint routing.',
+                service_name,
+            )
+
         cls = await self._create_client_class(service_name, service_model)
         region_name, client_config = self._normalize_fips_region(
             region_name, client_config
@@ -55,6 +68,9 @@ class AioClientCreator(ClientCreator):
             client_config,
             service_signing_name=service_model.metadata.get('signingName'),
             config_store=self._config_store,
+            service_signature_version=service_model.metadata.get(
+                'signatureVersion'
+            ),
         )
         client_args = self._get_client_args(
             service_model,
@@ -66,26 +82,20 @@ class AioClientCreator(ClientCreator):
             scoped_config,
             client_config,
             endpoint_bridge,
+            auth_token,
+            endpoints_ruleset_data,
+            partition_data,
         )
         service_client = cls(**client_args)
         self._register_retries(service_client)
-        self._register_eventbridge_events(
-            service_client, endpoint_bridge, endpoint_url
-        )
         self._register_s3_events(
-            service_client,
-            endpoint_bridge,
-            endpoint_url,
-            client_config,
-            scoped_config,
+            client=service_client,
+            endpoint_bridge=None,
+            endpoint_url=None,
+            client_config=client_config,
+            scoped_config=scoped_config,
         )
-        self._register_s3_control_events(
-            service_client,
-            endpoint_bridge,
-            endpoint_url,
-            client_config,
-            scoped_config,
-        )
+        self._register_s3_control_events(client=service_client)
         self._register_endpoint_discovery(
             service_client, endpoint_url, client_config
         )
@@ -222,17 +232,7 @@ class AioClientCreator(ClientCreator):
     ):
         if client.meta.service_model.service_name != 's3':
             return
-        AioS3RegionRedirector(endpoint_bridge, client).register()
-        S3ArnParamHandler().register(client.meta.events)
-        use_fips_endpoint = client.meta.config.use_fips_endpoint
-        S3EndpointSetter(
-            endpoint_resolver=self._endpoint_resolver,
-            region=client.meta.region_name,
-            s3_config=client.meta.config.s3,
-            endpoint_url=endpoint_url,
-            partition=client.meta.partition,
-            use_fips_endpoint=use_fips_endpoint,
-        ).register(client.meta.events)
+        AioS3RegionRedirectorv2(None, client).register()
         self._set_s3_presign_signature_version(
             client.meta, client_config, scoped_config
         )
@@ -248,6 +248,9 @@ class AioClientCreator(ClientCreator):
         scoped_config,
         client_config,
         endpoint_bridge,
+        auth_token,
+        endpoints_ruleset_data,
+        partition_data,
     ):
         # This is a near copy of ClientCreator. What's replaced
         # is ClientArgsCreator->AioClientArgsCreator
@@ -269,6 +272,9 @@ class AioClientCreator(ClientCreator):
             scoped_config,
             client_config,
             endpoint_bridge,
+            auth_token,
+            endpoints_ruleset_data,
+            partition_data,
         )
 
 
@@ -318,8 +324,15 @@ class AioBaseClient(BaseClient):
             'has_streaming_input': operation_model.has_streaming_input,
             'auth_type': operation_model.auth_type,
         }
+        endpoint_url, additional_headers = await self._resolve_endpoint_ruleset(  # noqa: BLK100
+            operation_model, api_params, request_context
+        )
         request_dict = await self._convert_to_request_dict(
-            api_params, operation_model, context=request_context
+            api_params=api_params,
+            operation_model=operation_model,
+            endpoint_url=endpoint_url,
+            context=request_context,
+            headers=additional_headers,
         )
         resolve_checksum_context(request_dict, operation_model, api_params)
 
@@ -378,7 +391,13 @@ class AioBaseClient(BaseClient):
             raise
 
     async def _convert_to_request_dict(
-        self, api_params, operation_model, context=None
+        self,
+        api_params,
+        operation_model,
+        endpoint_url,
+        context=None,
+        headers=None,
+        set_user_agent_header=True,
     ):
         api_params = await self._emit_api_params(
             api_params, operation_model, context
@@ -388,10 +407,16 @@ class AioBaseClient(BaseClient):
         )
         if not self._client_config.inject_host_prefix:
             request_dict.pop('host_prefix', None)
+        if headers is not None:
+            request_dict['headers'].update(headers)
+        if set_user_agent_header:
+            user_agent = self._client_config.user_agent
+        else:
+            user_agent = None
         prepare_request_dict(
             request_dict,
-            endpoint_url=self._endpoint.host,
-            user_agent=self._client_config.user_agent,
+            endpoint_url=endpoint_url,
+            user_agent=user_agent,
             context=context,
         )
         return request_dict
@@ -420,6 +445,56 @@ class AioBaseClient(BaseClient):
             context=context,
         )
         return api_params
+
+    async def _resolve_endpoint_ruleset(
+        self,
+        operation_model,
+        params,
+        request_context,
+        ignore_signing_region=False,
+    ):
+        """Returns endpoint URL and list of additional headers returned from
+        EndpointRulesetResolver for the given operation and params. If the
+        ruleset resolver is not available, for example because the service has
+        no endpoints ruleset file, the legacy endpoint resolver's value is
+        returned.
+
+        Use ignore_signing_region for generating presigned URLs or any other
+        situtation where the signing region information from the ruleset
+        resolver should be ignored.
+
+        Returns tuple of URL and headers dictionary. Additionally, the
+        request_context dict is modified in place with any signing information
+        returned from the ruleset resolver.
+        """
+        if self._ruleset_resolver is None:
+            endpoint_url = self.meta.endpoint_url
+            additional_headers = {}
+        else:
+            endpoint_info = await self._ruleset_resolver.construct_endpoint(
+                operation_model=operation_model,
+                call_args=params,
+                request_context=request_context,
+            )
+            endpoint_url = endpoint_info.url
+            additional_headers = endpoint_info.headers
+            # If authSchemes is present, overwrite default auth type and
+            # signing context derived from service model.
+            auth_schemes = endpoint_info.properties.get('authSchemes')
+            if auth_schemes is not None:
+                auth_info = self._ruleset_resolver.auth_schemes_to_signing_ctx(
+                    auth_schemes
+                )
+                auth_type, signing_context = auth_info
+                request_context['auth_type'] = auth_type
+                if 'region' in signing_context and ignore_signing_region:
+                    del signing_context['region']
+                if 'signing' in request_context:
+                    request_context['signing'].update(signing_context)
+                else:
+                    request_context['signing'] = signing_context
+
+        return endpoint_url, additional_headers
 
     def get_paginator(self, operation_name):
         """Create a paginator for an operation.

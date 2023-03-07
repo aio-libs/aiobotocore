@@ -6,6 +6,7 @@ from botocore.args import ClientArgsCreator
 
 from .config import AioConfig
 from .endpoint import AioEndpointCreator
+from .regions import AioEndpointRulesetResolver
 from .signers import AioRequestSigner
 
 
@@ -23,6 +24,9 @@ class AioClientArgsCreator(ClientArgsCreator):
         scoped_config,
         client_config,
         endpoint_bridge,
+        auth_token=None,
+        endpoints_ruleset_data=None,
+        partition_data=None,
     ):
         final_args = self.compute_client_args(
             service_model,
@@ -54,6 +58,7 @@ class AioClientArgsCreator(ClientArgsCreator):
             endpoint_config['signature_version'],
             credentials,
             event_emitter,
+            auth_token,
         )
 
         config_kwargs['s3'] = s3_config
@@ -86,6 +91,21 @@ class AioClientArgsCreator(ClientArgsCreator):
             protocol, parameter_validation
         )
         response_parser = botocore.parsers.create_parser(protocol)
+
+        ruleset_resolver = self._build_endpoint_resolver(
+            endpoints_ruleset_data,
+            partition_data,
+            client_config,
+            service_model,
+            endpoint_region_name,
+            region_name,
+            endpoint_url,
+            endpoint,
+            is_secure,
+            endpoint_bridge,
+            event_emitter,
+        )
+
         return {
             'serializer': serializer,
             'endpoint': endpoint,
@@ -97,4 +117,67 @@ class AioClientArgsCreator(ClientArgsCreator):
             'client_config': new_config,
             'partition': partition,
             'exceptions_factory': self._exceptions_factory,
+            'endpoint_ruleset_resolver': ruleset_resolver,
         }
+
+    def _build_endpoint_resolver(
+        self,
+        endpoints_ruleset_data,
+        partition_data,
+        client_config,
+        service_model,
+        endpoint_region_name,
+        region_name,
+        endpoint_url,
+        endpoint,
+        is_secure,
+        endpoint_bridge,
+        event_emitter,
+    ):
+        if endpoints_ruleset_data is None:
+            return None
+
+        # The legacy EndpointResolver is global to the session, but
+        # EndpointRulesetResolver is service-specific. Builtins for
+        # EndpointRulesetResolver must not be derived from the legacy
+        # endpoint resolver's output, including final_args, s3_config,
+        # etc.
+        s3_config_raw = self.compute_s3_config(client_config) or {}
+        service_name_raw = service_model.endpoint_prefix
+        # Maintain complex logic for s3 and sts endpoints for backwards
+        # compatibility.
+        if service_name_raw in ['s3', 'sts'] or region_name is None:
+            eprv2_region_name = endpoint_region_name
+        else:
+            eprv2_region_name = region_name
+        resolver_builtins = self.compute_endpoint_resolver_builtin_defaults(
+            region_name=eprv2_region_name,
+            service_name=service_name_raw,
+            s3_config=s3_config_raw,
+            endpoint_bridge=endpoint_bridge,
+            client_endpoint_url=endpoint_url,
+            legacy_endpoint_url=endpoint.host,
+        )
+        # botocore does not support client context parameters generically
+        # for every service. Instead, the s3 config section entries are
+        # available as client context parameters. In the future, endpoint
+        # rulesets of services other than s3/s3control may require client
+        # context parameters.
+        client_context = (
+            s3_config_raw if self._is_s3_service(service_name_raw) else {}
+        )
+        sig_version = (
+            client_config.signature_version
+            if client_config is not None
+            else None
+        )
+        return AioEndpointRulesetResolver(
+            endpoint_ruleset_data=endpoints_ruleset_data,
+            partition_data=partition_data,
+            service_model=service_model,
+            builtins=resolver_builtins,
+            client_context=client_context,
+            event_emitter=event_emitter,
+            use_ssl=is_secure,
+            requested_auth_scheme=sig_version,
+        )
