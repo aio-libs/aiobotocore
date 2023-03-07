@@ -228,11 +228,15 @@ Requirements
 .. _pyright: https://github.com/microsoft/pyright
 .. _mypy: http://mypy-lang.org/
 
-awscli
-------
+awscli & boto3
+--------------
 
-awscli depends on a single version of botocore, however aiobotocore only supports a
-specific range of botocore versions. To ensure you install the latest version of
-awscli that your specific combination or aiobotocore and botocore can support use::
+awscli and boto3 depend on a single version, or a narrow range of versions, of botocore.
+However, aiobotocore only supports a specific range of botocore versions. To ensure you
+install the latest version of awscli and boto3 that your specific combination or
+aiobotocore and botocore can support use::
 
-    pip install -U aiobotocore[awscli]
+    pip install -U 'aiobotocore[awscli,boto3]'
+
+If you only need awscli and not boto3 (or vice versa) you can just install one extra or
+the other.

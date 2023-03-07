@@ -33,7 +33,7 @@ async def test_mturk_stubber(session):
                 {'QualificationTypeId': ANY},
             )
 
-            response = await client.list_hi_ts_for_qualification_type(
+            response = await client.list_hits_for_qualification_type(
                 QualificationTypeId='string'
             )
             assert response == _mturk_list_hits_response

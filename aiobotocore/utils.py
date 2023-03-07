@@ -12,6 +12,7 @@ from botocore.utils import (
     DEFAULT_METADATA_SERVICE_TIMEOUT,
     METADATA_BASE_URL,
     RETRYABLE_HTTP_ERRORS,
+    ArnParser,
     BadIMDSRequestError,
     ClientError,
     ContainerMetadataFetcher,
@@ -22,6 +23,7 @@ from botocore.utils import (
     InstanceMetadataRegionFetcher,
     ReadTimeoutError,
     S3RegionRedirector,
+    S3RegionRedirectorv2,
     get_environ_proxies,
     os,
     resolve_imds_endpoint_mode,
@@ -336,6 +338,154 @@ class AioInstanceMetadataRegionFetcher(
         )
         availability_zone = await response.text
         region = availability_zone[:-1]
+        return region
+
+
+class AioS3RegionRedirectorv2(S3RegionRedirectorv2):
+    async def redirect_from_error(
+        self,
+        request_dict,
+        response,
+        operation,
+        **kwargs,
+    ):
+        """
+        An S3 request sent to the wrong region will return an error that
+        contains the endpoint the request should be sent to. This handler
+        will add the redirect information to the signing context and then
+        redirect the request.
+        """
+        if response is None:
+            # This could be none if there was a ConnectionError or other
+            # transport error.
+            return
+
+        redirect_ctx = request_dict.get('context', {}).get('s3_redirect', {})
+        if ArnParser.is_arn(redirect_ctx.get('bucket')):
+            logger.debug(
+                'S3 request was previously for an Accesspoint ARN, not '
+                'redirecting.'
+            )
+            return
+
+        if redirect_ctx.get('redirected'):
+            logger.debug(
+                'S3 request was previously redirected, not redirecting.'
+            )
+            return
+
+        error = response[1].get('Error', {})
+        error_code = error.get('Code')
+        response_metadata = response[1].get('ResponseMetadata', {})
+
+        # We have to account for 400 responses because
+        # if we sign a Head* request with the wrong region,
+        # we'll get a 400 Bad Request but we won't get a
+        # body saying it's an "AuthorizationHeaderMalformed".
+        is_special_head_object = (
+            error_code in ('301', '400') and operation.name == 'HeadObject'
+        )
+        is_special_head_bucket = (
+            error_code in ('301', '400')
+            and operation.name == 'HeadBucket'
+            and 'x-amz-bucket-region'
+            in response_metadata.get('HTTPHeaders', {})
+        )
+        is_wrong_signing_region = (
+            error_code == 'AuthorizationHeaderMalformed' and 'Region' in error
+        )
+        is_redirect_status = response[0] is not None and response[
+            0
+        ].status_code in (301, 302, 307)
+        is_permanent_redirect = error_code == 'PermanentRedirect'
+        if not any(
+            [
+                is_special_head_object,
+                is_wrong_signing_region,
+                is_permanent_redirect,
+                is_special_head_bucket,
+                is_redirect_status,
+            ]
+        ):
+            return
+
+        bucket = request_dict['context']['s3_redirect']['bucket']
+        client_region = request_dict['context'].get('client_region')
+        new_region = await self.get_bucket_region(bucket, response)
+
+        if new_region is None:
+            logger.debug(
+                "S3 client configured for region %s but the bucket %s is not "
+                "in that region and the proper region could not be "
+                "automatically determined." % (client_region, bucket)
+            )
+            return
+
+        logger.debug(
+            "S3 client configured for region %s but the bucket %s is in region"
+            " %s; Please configure the proper region to avoid multiple "
+            "unnecessary redirects and signing attempts."
+            % (client_region, bucket, new_region)
+        )
+        # Adding the new region to _cache will make construct_endpoint() to
+        # use the new region as value for the AWS::Region builtin parameter.
+        self._cache[bucket] = new_region
+
+        # Re-resolve endpoint with new region and modify request_dict with
+        # the new URL, auth scheme, and signing context.
+        ep_resolver = self._client._ruleset_resolver
+        ep_info = await ep_resolver.construct_endpoint(
+            operation_model=operation,
+            call_args=request_dict['context']['s3_redirect']['params'],
+            request_context=request_dict['context'],
+        )
+        request_dict['url'] = self.set_request_url(
+            request_dict['url'], ep_info.url
+        )
+        request_dict['context']['s3_redirect']['redirected'] = True
+        auth_schemes = ep_info.properties.get('authSchemes')
+        if auth_schemes is not None:
+            auth_info = ep_resolver.auth_schemes_to_signing_ctx(auth_schemes)
+            auth_type, signing_context = auth_info
+            request_dict['context']['auth_type'] = auth_type
+            request_dict['context']['signing'] = {
+                **request_dict['context'].get('signing', {}),
+                **signing_context,
+            }
+
+        # Return 0 so it doesn't wait to retry
+        return 0
+
+    async def get_bucket_region(self, bucket, response):
+        """
+        There are multiple potential sources for the new region to redirect to,
+        but they aren't all universally available for use. This will try to
+        find region from response elements, but will fall back to calling
+        HEAD on the bucket if all else fails.
+        :param bucket: The bucket to find the region for. This is necessary if
+            the region is not available in the error response.
+        :param response: A response representing a service request that failed
+            due to incorrect region configuration.
+        """
+        # First try to source the region from the headers.
+        service_response = response[1]
+        response_headers = service_response['ResponseMetadata']['HTTPHeaders']
+        if 'x-amz-bucket-region' in response_headers:
+            return response_headers['x-amz-bucket-region']
+
+        # Next, check the error body
+        region = service_response.get('Error', {}).get('Region', None)
+        if region is not None:
+            return region
+
+        # Finally, HEAD the bucket. No other choice sadly.
+        try:
+            response = await self._client.head_bucket(Bucket=bucket)
+            headers = response['ResponseMetadata']['HTTPHeaders']
+        except ClientError as e:
+            headers = e.response['ResponseMetadata']['HTTPHeaders']
+
+        region = headers.get('x-amz-bucket-region', None)
         return region
 
 
