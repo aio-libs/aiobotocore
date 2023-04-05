@@ -1,7 +1,12 @@
 import io
+import os
+from unittest.mock import patch
 
+import boto3
 import pytest
+import s3fs
 from botocore.exceptions import IncompleteReadError
+from moto import mock_s3
 
 from aiobotocore import response
 
@@ -187,3 +192,44 @@ async def test_streaming_line_empty_body():
         content_length=0,
     )
     await assert_lines(stream.iter_lines(), [])
+
+
+@pytest.fixture
+def aws_credentials():
+    """Mocked AWS Credentials for moto."""
+    os.environ["AWS_ACCESS_KEY_ID"] = "testing"
+    os.environ["AWS_SECRET_ACCESS_KEY"] = "testing"
+    os.environ["AWS_SECURITY_TOKEN"] = "testing"
+    os.environ["AWS_SESSION_TOKEN"] = "testing"
+
+
+@pytest.fixture
+def s3(aws_credentials):
+    with mock_s3():
+        conn = boto3.resource("s3")
+        conn.create_bucket(Bucket='testbucket')
+        yield conn
+
+
+def test_moto_ok(s3):
+    for i in range(3):
+        s3.Bucket('testbucket').put_object(
+            Key=f'glob_{i}.txt', Body=f"test glob file {i}"
+        )
+    path = 's3://testbucket/glob_*.txt'
+    fs = s3fs.S3FileSystem()
+    files = fs.glob(path)
+    assert len(files) == 3
+
+
+@patch('s3fs.core.aiobotocore.endpoint.isawaitable', return_value=True)
+def test_moto_fail(mock_inspect, s3):
+    with pytest.raises(TypeError) as e:
+        for i in range(3):
+            s3.Bucket('testbucket').put_object(
+                Key=f'glob_{i}.txt', Body=f"test glob file {i}"
+            )
+        path = 's3://testbucket/glob_*.txt'
+        fs = s3fs.S3FileSystem()
+        fs.glob(path)
+    assert "can't be used in 'await' expression" in str(e)
