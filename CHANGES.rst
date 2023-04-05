@@ -1,5 +1,9 @@
 Changes
 -------
+2.5.1 (2023-04-05)
+^^^^^^^^^^^^^^^^^^
+* integrate moto
+
 2.5.0 (2023-03-06)
 ^^^^^^^^^^^^^^^^^^
 * bump botocore to 1.29.76 (thanks @jakob-keller #999)
