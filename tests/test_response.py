@@ -1,12 +1,10 @@
 import io
-import os
 from unittest.mock import patch
 
-import boto3
 import pytest
-import s3fs
 from botocore.exceptions import IncompleteReadError
-from moto import mock_s3
+from moto.core.botocore_stubber import MockRawResponse
+from urllib3.response import HTTPHeaderDict
 
 from aiobotocore import response
 
@@ -194,42 +192,38 @@ async def test_streaming_line_empty_body():
     await assert_lines(stream.iter_lines(), [])
 
 
-@pytest.fixture
-def aws_credentials():
-    """Mocked AWS Credentials for moto."""
-    os.environ["AWS_ACCESS_KEY_ID"] = "testing"
-    os.environ["AWS_SECRET_ACCESS_KEY"] = "testing"
-    os.environ["AWS_SECURITY_TOKEN"] = "testing"
-    os.environ["AWS_SESSION_TOKEN"] = "testing"
-
-
-@pytest.fixture
-def s3(aws_credentials):
-    with mock_s3():
-        conn = boto3.resource("s3")
-        conn.create_bucket(Bucket='testbucket')
-        yield conn
-
-
-@patch('s3fs.core.aiobotocore.endpoint.isawaitable', return_value=True)
-def test_moto_fail(mock_inspect, s3):
+@patch('aiobotocore.endpoint.isawaitable', return_value=True)
+@pytest.mark.asyncio
+@pytest.mark.moto
+async def test_moto_fail(mock_awaitable, moto_client):
     with pytest.raises(TypeError) as e:
-        for i in range(3):
-            s3.Bucket('testbucket').put_object(
-                Key=f'glob_{i}.txt', Body=f"test glob file {i}"
-            )
-        path = 's3://testbucket/glob_*.txt'
-        fs = s3fs.S3FileSystem()
-        fs.glob(path)
-    assert "can't be used in 'await' expression" in str(e)
+        await moto_client.create_bucket(Bucket='testbucket')
+        assert "can't be used in 'await' expression" in str(e)
 
 
-def test_moto_ok(s3):
-    for i in range(3):
-        s3.Bucket('testbucket').put_object(
-            Key=f'glob_{i}.txt', Body=f"test glob file {i}"
-        )
-    path = 's3://testbucket/glob_*.txt'
-    fs = s3fs.S3FileSystem()
-    files = fs.glob(path)
-    assert len(files) == 3
+@patch('aiobotocore.endpoint.convert_to_response_dict')
+@pytest.mark.asyncio
+@pytest.mark.moto
+async def test_moto_mockrawresponse(mock_response_dict, moto_client):
+    mock_response_dict.return_value = {
+        'status_code': 200,
+        'context': {'operation_name': 'CreateBucket'},
+        'headers': HTTPHeaderDict(
+            {
+                'x-amzn-requestid': 'waEAf9728rSOyzXaRaiURPOBgJVY206J3ZEhRXEdhhxH5ZFY1TnU'
+            }
+        ),
+        'body': b'<CreateBucketResponse xmlns="http://s3.amazonaws.com/doc/2006-03-01">'
+        b'<CreateBucketResponse><Bucket>testbucket</Bucket>'
+        b'</CreateBucketResponse></CreateBucketResponse>',
+    }
+    await moto_client.create_bucket(Bucket='testbucket')
+    args, kwargs = mock_response_dict.call_args
+    assert isinstance(args[0].raw, MockRawResponse)
+
+
+@pytest.mark.asyncio
+@pytest.mark.moto
+async def test_moto_ok(moto_client):
+    response = await moto_client.create_bucket(Bucket='testbucket')
+    assert response['ResponseMetadata']['HTTPStatusCode'] == 200

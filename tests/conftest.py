@@ -12,6 +12,7 @@ import aiohttp
 
 # Third Party
 import pytest
+from moto import mock_s3
 
 import aiobotocore.session
 from aiobotocore.config import AioConfig
@@ -581,6 +582,13 @@ async def sqs_queue_url(sqs_client):
 async def exit_stack():
     async with AsyncExitStack() as es:
         yield es
+
+
+@pytest.fixture
+async def moto_client(session):
+    with mock_s3():
+        async with session.create_client('s3') as client:
+            yield client
 
 
 pytest_plugins = ['tests.mock_server']
