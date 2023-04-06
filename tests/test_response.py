@@ -195,10 +195,19 @@ async def test_streaming_line_empty_body():
 @patch('aiobotocore.endpoint.isawaitable', return_value=True)
 @pytest.mark.asyncio
 @pytest.mark.moto
-async def test_moto_fail(mock_awaitable, moto_client):
+async def test_moto_fail_await(mock_awaitable, moto_client):
     with pytest.raises(TypeError) as e:
         await moto_client.create_bucket(Bucket='testbucket')
         assert "can't be used in 'await' expression" in str(e)
+
+
+@patch('aiobotocore.endpoint.isinstance', return_value=False)
+@pytest.mark.asyncio
+@pytest.mark.moto
+async def test_moto_fail_raw_headers(mock_isinstance, moto_client):
+    with pytest.raises(AttributeError) as e:
+        await moto_client.create_bucket(Bucket='testbucket')
+    assert "object has no attribute 'raw_headers" in str(e)
 
 
 @patch('aiobotocore.endpoint.convert_to_response_dict')
