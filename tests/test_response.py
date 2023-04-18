@@ -1,9 +1,13 @@
 import io
+from unittest.mock import patch
 
 import pytest
+from botocore.awsrequest import AWSResponse
 from botocore.exceptions import IncompleteReadError
+from moto.core.botocore_stubber import MockRawResponse
 
 from aiobotocore import response
+from aiobotocore.endpoint import convert_to_response_dict
 
 
 # https://github.com/boto/botocore/blob/develop/tests/unit/test_response.py
@@ -187,3 +191,88 @@ async def test_streaming_line_empty_body():
         content_length=0,
     )
     await assert_lines(stream.iter_lines(), [])
+
+
+@pytest.mark.moto
+@pytest.mark.asyncio
+async def test_convert_to_response_dict_non_awaitable_ok():
+    class MockOperationalModel:
+        def name(self):
+            return 'test'
+
+        @property
+        def has_streaming_output(self):
+            return False
+
+        @property
+        def has_event_stream_output(self):
+            return False
+
+    url = 'https://testbucket.s3.amazonaws.com/'
+    status = 200
+    headers = {
+        'x-amzn-requestid': '0n32brAiyTp2t9rdLgFtTmvlh4ZoPpIf62mizOK0W9Nt9lZr5XRL'
+    }
+    body = (
+        b'<CreateBucketResponse xmlns="http://s3.amazonaws.com/doc/2006-03-01">'
+        b'<CreateBucketResponse><Bucket>testbucket</Bucket>'
+        b'</CreateBucketResponse></CreateBucketResponse>'
+    )
+
+    raw = MockRawResponse(body)
+    encoded_headers = [
+        (
+            str(header).encode(encoding='utf-8'),
+            str(value).encode(encoding='utf-8'),
+        )
+        for header, value in headers.items()
+    ]
+    raw.raw_headers = encoded_headers
+
+    operational_model = MockOperationalModel()
+    response = AWSResponse(url, status, headers, raw)
+
+    response = await convert_to_response_dict(response, operational_model)
+    assert response['body'] == body
+
+
+@patch('aiobotocore.endpoint.isawaitable', return_value=True)
+@pytest.mark.moto
+@pytest.mark.asyncio
+async def test_convert_to_response_dict_non_awaitable_fail(mock_awaitable):
+    class MockOperationalModel:
+        def name(self):
+            return 'test'
+
+        @property
+        def has_streaming_output(self):
+            return False
+
+        @property
+        def has_event_stream_output(self):
+            return False
+
+    url = 'https://testbucket.s3.amazonaws.com/'
+    status = 200
+    headers = {
+        'x-amzn-requestid': '0n32brAiyTp2t9rdLgFtTmvlh4ZoPpIf62mizOK0W9Nt9lZr5XRL'
+    }
+    body = (
+        b'<CreateBucketResponse xmlns="http://s3.amazonaws.com/doc/2006-03-01">'
+        b'<CreateBucketResponse><Bucket>testbucket</Bucket>'
+        b'</CreateBucketResponse></CreateBucketResponse>'
+    )
+    raw = MockRawResponse(body)
+    encoded_headers = [
+        (
+            str(header).encode(encoding='utf-8'),
+            str(value).encode(encoding='utf-8'),
+        )
+        for header, value in headers.items()
+    ]
+    raw.raw_headers = encoded_headers
+    operational_model = MockOperationalModel()
+    response = AWSResponse(url, status, headers, raw)
+    with pytest.raises(TypeError) as e:
+        await convert_to_response_dict(response, operational_model)
+    assert "can't be used in 'await' expression" in str(e)

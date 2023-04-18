@@ -1,4 +1,5 @@
 import asyncio
+from inspect import isawaitable
 
 from botocore.endpoint import (
     DEFAULT_TIMEOUT,
@@ -53,14 +54,20 @@ async def convert_to_response_dict(http_response, operation_model):
         },
     }
     if response_dict['status_code'] >= 300:
-        response_dict['body'] = await http_response.content
+        if isawaitable(http_response.content):
+            response_dict['body'] = await http_response.content
+        else:
+            response_dict['body'] = http_response.content
     elif operation_model.has_event_stream_output:
         response_dict['body'] = http_response.raw
     elif operation_model.has_streaming_output:
         length = response_dict['headers'].get('content-length')
         response_dict['body'] = StreamingBody(http_response.raw, length)
     else:
-        response_dict['body'] = await http_response.content
+        if isawaitable(http_response.content):
+            response_dict['body'] = await http_response.content
+        else:
+            response_dict['body'] = http_response.content
     return response_dict
 
 
