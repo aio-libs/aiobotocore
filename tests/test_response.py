@@ -236,7 +236,7 @@ async def test_convert_to_response_dict_non_awaitable_ok():
     assert response['body'] == body
 
 
-@patch('aiobotocore.endpoint.isawaitable', return_value=True)
+@patch('aiobotocore._helpers.inspect.isawaitable', return_value=True)
 @pytest.mark.moto
 @pytest.mark.asyncio
 async def test_convert_to_response_dict_non_awaitable_fail(mock_awaitable):
