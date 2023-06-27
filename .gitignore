@@ -61,5 +61,3 @@ target/
 *.iml
 # rope
 .ropeproject
-
-Pipfile.lock

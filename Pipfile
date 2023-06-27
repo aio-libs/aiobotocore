@@ -4,7 +4,7 @@ url = "https://pypi.org/simple"
 verify_ssl = true
 
 [dev-packages]
-codecov = "==2.1.11"
+codecov = "==2.1.13"
 coverage = "==5.5"
 flake8 = "==3.9.0"
 flake8-formatter-abspath = "==1.0.1"

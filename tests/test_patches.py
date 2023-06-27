@@ -178,10 +178,10 @@ _API_DIGESTS = {
     ClientCreator._register_legacy_retries: {
         '000b2f2a122602e2e741ec2e89308dc2e2b67329'
     },
-    BaseClient._make_api_call: {'bac0b84ebf6276a0c7510095ff168e6fe86a64f6'},
+    BaseClient._make_api_call: {'eba7540893a631a00ebfc3c287026ee6db993e09'},
     BaseClient._make_request: {'cfd8bbf19ea132134717cdf9c460694ddacdbf58'},
     BaseClient._convert_to_request_dict: {
-        '2e423ea67f8773c1a1a64bc516d5102555f4f61a'
+        '899c223cacbe17be646a33882ecd65aa02290b9b'
     },
     BaseClient._emit_api_params: {'abd67874dae8d5cd2788412e4699398cb915a119'},
     BaseClient._resolve_endpoint_ruleset: {
@@ -192,7 +192,7 @@ _API_DIGESTS = {
     BaseClient.__getattr__: {'3ec17f468f50789fa633d6041f40b66a2f593e77'},
     # config.py
     Config.merge: {'c3dd8c3ffe0da86953ceba4a35267dfb79c6a2c8'},
-    Config: {'90f26fb2f264c0424d60f035494402eac69de269'},
+    Config: {'c22f76d2e45e575d99ae130cdba8ea31cb7f4cdc'},
     # credentials.py
     create_mfa_serial_refresher: {'9b5e98782fcacdcea5899a6d0d29d1b9de348bb0'},
     Credentials.get_frozen_credentials: {
@@ -450,12 +450,12 @@ _API_DIGESTS = {
         '417682868eacc10bf4c65f3dfbdba7d20d9250db'
     },
     add_generate_presigned_url: {'5820f74ac46b004eb79e00eea1adc467bcf4defe'},
-    generate_presigned_url: {'4bbb8eea8ebdd3d49a3c9739a990eb219ed12cc4'},
+    generate_presigned_url: {'48f6745f8a37cfba04b3b2f6fb3910210b4a7201'},
     S3PostPresigner.generate_presigned_post: {
         '269efc9af054a2fd2728d5b0a27db82c48053d7f'
     },
     add_generate_presigned_post: {'e30360f2bd893fabf47f5cdb04b0de420ccd414d'},
-    generate_presigned_post: {'1b48275e09e9c1f872a1d16e74d7e40f34cfaf90'},
+    generate_presigned_post: {'eedf40b48c63f6772ed05e3f335c8193d187f503'},
     add_generate_db_auth_token: {'f61014e6fac4b5c7ee7ac2d2bec15fb16fa9fbe5'},
     generate_db_auth_token: {'1f37e1e5982d8528841ce6b79f229b3e23a18959'},
     # tokens.py
@@ -580,7 +580,7 @@ _API_DIGESTS = {
     # retries/adaptive.py
     # See comments in AsyncTokenBucket: we completely replace the ClientRateLimiter
     # implementation from botocore.
-    adaptive.ClientRateLimiter: {'e9d99c7921170815f0eaf5c2848765cd6ed90177'},
+    adaptive.ClientRateLimiter: {'9dbf36d36614a4a2e2719ca7e4382aa4694caae3'},
     adaptive.register_retry_handler: {
         '96c073719a3d5d41d1ca7ae5f7e31bbb431c75b3'
     },
@@ -610,9 +610,9 @@ _API_DIGESTS = {
     # retries/bucket.py
     # See comments in AsyncTokenBucket: we completely replace the TokenBucket
     # implementation from botocore.
-    TokenBucket: {'bddbf15ba4c2f04cb7fe04992168fa0e839047e5'},
+    TokenBucket: {'ce932001b13e256d1a2cc625094989fff087d484'},
     # awsresponse.py
-    AWSResponse.content: {'1d74998e3e0abe52b52c251a1eae4971e65b1053'},
+    AWSResponse.content: {'307a4eb1d46360ef808a876d7d00cbbde6198eb1'},
     AWSResponse.text: {'a724100ba9f6d51b333b8fe470fac46376d5044a'},
     # httpchecksum.py
     handle_checksum_body: {'4b9aeef18d816563624c66c57126d1ffa6fe1993'},

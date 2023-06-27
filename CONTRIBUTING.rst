@@ -71,7 +71,7 @@ The best way I've seen to upgrade botocore support is by performing the followin
 2. Manually apply the relevant changes to their aiobotocore equivalent(s). Note that sometimes new functions are added which will need to be overridden (like `__enter__` -> `__aenter__`)
 3. Update the "extras" in setup.py to the versions which match the botocore version you are targeting.
 4. Now do a directory diff between aiobotocore and your target version botocore directory to ensure the changes were propagated.
-
+5. Re-lock pipfile and check-in lockfile (pipenv lock)
 
 See next section describing types of changes we must validate and support.
 
