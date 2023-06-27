@@ -329,9 +329,11 @@ class AioBaseClient(BaseClient):
             operation_model=operation_model,
             context=request_context,
         )
-        endpoint_url, additional_headers = await self._resolve_endpoint_ruleset(  # noqa: BLK100
+        # fmt: off
+        endpoint_url, additional_headers = await self._resolve_endpoint_ruleset(
             operation_model, api_params, request_context
         )
+        # fmt: on
         request_dict = await self._convert_to_request_dict(
             api_params=api_params,
             operation_model=operation_model,
