@@ -61,3 +61,6 @@ target/
 *.iml
 # rope
 .ropeproject
+
+# we can't check in lock-file because it needs to be generated per python version
+Pipfile.lock
