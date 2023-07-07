@@ -324,9 +324,16 @@ class AioBaseClient(BaseClient):
             'has_streaming_input': operation_model.has_streaming_input,
             'auth_type': operation_model.auth_type,
         }
-        endpoint_url, additional_headers = await self._resolve_endpoint_ruleset(  # noqa: BLK100
+        api_params = await self._emit_api_params(
+            api_params=api_params,
+            operation_model=operation_model,
+            context=request_context,
+        )
+        # fmt: off
+        endpoint_url, additional_headers = await self._resolve_endpoint_ruleset(
             operation_model, api_params, request_context
         )
+        # fmt: on
         request_dict = await self._convert_to_request_dict(
             api_params=api_params,
             operation_model=operation_model,
@@ -399,9 +406,6 @@ class AioBaseClient(BaseClient):
         headers=None,
         set_user_agent_header=True,
     ):
-        api_params = await self._emit_api_params(
-            api_params, operation_model, context
-        )
         request_dict = self._serializer.serialize_to_request(
             api_params, operation_model
         )
