@@ -15,7 +15,7 @@ class AioConfig(botocore.client.Config):
 
         if 'keepalive_timeout' not in self.connector_args:
             # AWS has a 20 second idle timeout:
-            # https://forums.aws.amazon.com/message.jspa?messageID=215367
+            #   https://web.archive.org/web/20150926192339/https://forums.aws.amazon.com/message.jspa?messageID=215367
             # and aiohttp default timeout is 30s so we set it to something
             # reasonable here
             self.connector_args['keepalive_timeout'] = 12
