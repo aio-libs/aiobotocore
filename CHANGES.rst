@@ -1,6 +1,6 @@
 Changes
 -------
-2.5.3 (unreleased)
+2.5.3 (TBD)
 ^^^^^^^^^^^^^^^^^^
 * add more support for Python 3.11
 
