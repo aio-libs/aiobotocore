@@ -24,7 +24,7 @@ _root_path = Path(__file__).absolute().parent.parent
 
 # date can be YYYY-MM-DD or "TBD"
 _rst_ver_date_str_re = re.compile(
-    r'(?P<version>\d+\.\d+\.\d+) \((?P<date>\d{4}-\d{2}-\d{2}|TBD)\)'
+    r'(?P<version>\d+\.\d+\.\d+(\.dev\d+)?) \((?P<date>\d{4}-\d{2}-\d{2}|TBD)\)'
 )
 
 
