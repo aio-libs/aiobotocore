@@ -438,7 +438,10 @@ class AioAssumeRoleCredentialFetcher(
         )
 
 
-class AioAssumeRoleWithWebIdentityCredentialFetcher(AioBaseAssumeRoleCredentialFetcher):
+# black: # fmt: skip (ing) this line triggers internal black error
+class AioAssumeRoleWithWebIdentityCredentialFetcher(
+    AioBaseAssumeRoleCredentialFetcher
+):
     def __init__(
         self,
         client_creator,
