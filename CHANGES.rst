@@ -2,7 +2,7 @@ Changes
 -------
 2.5.3 (unreleased)
 ^^^^^^^^^^^^^^^^^^
-* add support for Python 3.11
+* add more support for Python 3.11
 
 2.5.2 (2023-07-06)
 ^^^^^^^^^^^^^^^^^^
