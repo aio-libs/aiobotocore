@@ -72,7 +72,6 @@ The best way I've seen to upgrade botocore support is by performing the followin
 3. Update the "extras" in setup.py to the versions which match the botocore version you are targeting.
 4. Now do a directory diff between aiobotocore and your target version botocore directory to ensure the changes were propagated.
 
-
 See next section describing types of changes we must validate and support.
 
 Hashes of Botocore Code (important)
