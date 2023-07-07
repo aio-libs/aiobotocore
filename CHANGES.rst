@@ -1,5 +1,9 @@
 Changes
 -------
+2.5.3 (TBD)
+^^^^^^^^^^^^^^^^^^
+* add more support for Python 3.11
+
 2.5.2 (2023-07-06)
 ^^^^^^^^^^^^^^^^^^
 * fix issue #1020
