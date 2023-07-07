@@ -52,6 +52,7 @@ from botocore.credentials import (
 )
 from dateutil.tz import tzutc
 
+from aiobotocore._helpers import resolve_awaitable
 from aiobotocore.config import AioConfig
 from aiobotocore.tokens import AioSSOTokenProvider
 from aiobotocore.utils import (
@@ -324,7 +325,8 @@ class AioRefreshableCredentials(RefreshableCredentials):
 
     async def _protected_refresh(self, is_mandatory):
         try:
-            metadata = await self._refresh_using()
+            # AioEnvProvider._create_credentials_fetcher is not and does not need async
+            metadata = await resolve_awaitable(self._refresh_using())
         except Exception:
             period_name = 'mandatory' if is_mandatory else 'advisory'
             logger.warning(
@@ -436,6 +438,7 @@ class AioAssumeRoleCredentialFetcher(
         )
 
 
+# black: # fmt: skip (ing) this line triggers internal black error
 class AioAssumeRoleWithWebIdentityCredentialFetcher(
     AioBaseAssumeRoleCredentialFetcher
 ):

@@ -80,7 +80,7 @@ class AIOHTTPSession:
         self._connector_args = connector_args
         if self._connector_args is None:
             # AWS has a 20 second idle timeout:
-            #   https://forums.aws.amazon.com/message.jspa?messageID=215367
+            #   https://web.archive.org/web/20150926192339/https://forums.aws.amazon.com/message.jspa?messageID=215367
             # aiohttp default timeout is 30s so set something reasonable here
             self._connector_args = dict(keepalive_timeout=12)
 
