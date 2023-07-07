@@ -1,6 +1,6 @@
 Changes
 -------
-2.5.3 (TBD)
+2.5.3.dev0 (TBD)
 ^^^^^^^^^^^^^^^^^^
 * add more support for Python 3.11
 
