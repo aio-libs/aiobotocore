@@ -7,6 +7,7 @@ from botocore.client import (
     logger,
     resolve_checksum_context,
 )
+from botocore.compress import maybe_compress_request
 from botocore.discovery import block_endpoint_discovery_required_operations
 from botocore.exceptions import OperationNotPageableError, UnknownServiceError
 from botocore.history import get_global_history_recorder
@@ -261,6 +262,7 @@ class AioClientCreator(ClientCreator):
             self._loader,
             self._exceptions_factory,
             config_store=self._config_store,
+            user_agent_creator=self._user_agent_creator,
         )
         return args_creator.get_client_args(
             service_model,
@@ -357,6 +359,9 @@ class AioBaseClient(BaseClient):
         if event_response is not None:
             http, parsed_response = event_response
         else:
+            maybe_compress_request(
+                self.meta.config, request_dict, operation_model
+            )
             apply_request_checksum(request_dict)
             http, parsed_response = await self._make_request(
                 operation_model, request_dict, request_context
@@ -414,7 +419,7 @@ class AioBaseClient(BaseClient):
         if headers is not None:
             request_dict['headers'].update(headers)
         if set_user_agent_header:
-            user_agent = self._client_config.user_agent
+            user_agent = self._user_agent_creator.to_string()
         else:
             user_agent = None
         prepare_request_dict(

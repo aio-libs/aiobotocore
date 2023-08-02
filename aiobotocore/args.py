@@ -46,6 +46,7 @@ class AioClientArgsCreator(ClientArgsCreator):
         s3_config = final_args['s3_config']
         partition = endpoint_config['metadata'].get('partition', None)
         socket_options = final_args['socket_options']
+        configured_endpoint_url = final_args['configured_endpoint_url']
 
         signing_region = endpoint_config['signing_region']
         endpoint_region_name = endpoint_config['region_name']
@@ -99,12 +100,19 @@ class AioClientArgsCreator(ClientArgsCreator):
             service_model,
             endpoint_region_name,
             region_name,
-            endpoint_url,
+            configured_endpoint_url,
             endpoint,
             is_secure,
             endpoint_bridge,
             event_emitter,
         )
+
+        # Copy the session's user agent factory and adds client configuration.
+        client_ua_creator = self._session_ua_creator.with_client_config(
+            new_config
+        )
+        supplied_ua = client_config.user_agent if client_config else None
+        new_config._supplied_user_agent = supplied_ua
 
         return {
             'serializer': serializer,
@@ -118,6 +126,7 @@ class AioClientArgsCreator(ClientArgsCreator):
             'partition': partition,
             'exceptions_factory': self._exceptions_factory,
             'endpoint_ruleset_resolver': ruleset_resolver,
+            'user_agent_creator': client_ua_creator,
         }
 
     def _build_endpoint_resolver(
