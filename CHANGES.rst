@@ -1,7 +1,7 @@
 Changes
 -------
-2.5.4 (2023-08-07
-^^^^^^^^^^^^^^^^^
+2.5.4 (2023-08-07)
+^^^^^^^^^^^^^^^^^^
 * fix __aenter__ attribute error introduced in refresh bugfix (#1031)
 
 2.5.3 (2023-08-06)
