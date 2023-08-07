@@ -26,5 +26,5 @@ dill = "==0.3.3"
 Pygments = "*"
 
 [packages]
-aiohttp = "==3.7.4.post0"
+aiohttp = "==3.8.5"
 aiobotocore = {editable = true,extras = ["awscli", "boto3"],path = "."}
