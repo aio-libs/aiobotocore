@@ -1,9 +1,11 @@
 Changes
 -------
-2.5.3 (TBD)
+2.5.3
 ^^^^^^^^^^^^^^^^^^
 * add more support for Python 3.11
 * bump botocore to 1.31.17
+* add waiter.wait return
+* fix SSO token refresh bug #1025
 
 2.5.2 (2023-07-06)
 ^^^^^^^^^^^^^^^^^^
