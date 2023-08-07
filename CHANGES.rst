@@ -1,5 +1,9 @@
 Changes
 -------
+2.5.4 (2023-08-07
+^^^^^^^^^^^^^^^^^^
+* fix bug introduced in refresh bugfix
+
 2.5.3 (2023-08-06)
 ^^^^^^^^^^^^^^^^^^
 * add more support for Python 3.11
