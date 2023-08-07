@@ -3,6 +3,7 @@ Changes
 2.5.3 (TBD)
 ^^^^^^^^^^^^^^^^^^
 * add more support for Python 3.11
+* bump botocore to 1.31.17
 
 2.5.2 (2023-07-06)
 ^^^^^^^^^^^^^^^^^^

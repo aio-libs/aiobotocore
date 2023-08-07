@@ -174,16 +174,28 @@ class AioSession(Session):
         auth_token = self.get_auth_token()
         endpoint_resolver = self._get_internal_component('endpoint_resolver')
         exceptions_factory = self._get_internal_component('exceptions_factory')
-        config_store = self.get_component('config_store')
+        config_store = copy.copy(self.get_component('config_store'))
+        user_agent_creator = self.get_component('user_agent_creator')
+        # Session configuration values for the user agent string are applied
+        # just before each client creation because they may have been modified
+        # at any time between session creation and client creation.
+        user_agent_creator.set_session_config(
+            session_user_agent_name=self.user_agent_name,
+            session_user_agent_version=self.user_agent_version,
+            session_user_agent_extra=self.user_agent_extra,
+        )
         defaults_mode = self._resolve_defaults_mode(config, config_store)
         if defaults_mode != 'legacy':
             smart_defaults_factory = self._get_internal_component(
                 'smart_defaults_factory'
             )
-            config_store = copy.deepcopy(config_store)
             await smart_defaults_factory.merge_smart_defaults(
                 config_store, defaults_mode, region_name
             )
+        self._add_configured_endpoint_provider(
+            client_name=service_name,
+            config_store=config_store,
+        )
         client_creator = AioClientCreator(
             loader,
             endpoint_resolver,
@@ -194,6 +206,7 @@ class AioSession(Session):
             response_parser_factory,
             exceptions_factory,
             config_store,
+            user_agent_creator=user_agent_creator,
         )
         client = await client_creator.create_client(
             service_name=service_name,

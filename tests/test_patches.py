@@ -147,7 +147,7 @@ _AIOHTTP_DIGESTS = {
 _API_DIGESTS = {
     # args.py
     ClientArgsCreator.get_client_args: {
-        '63f26e3225338f285b98a4fe9bdcd1057a0f61b2'
+        '2dc13a6f32c470bc415a2cfc1f82cf569b1a5196'
     },
     ClientArgsCreator._build_endpoint_resolver: {
         '9aa226b8d6f09f7270633b8cc35bc82a15386ee4'
@@ -161,7 +161,7 @@ _API_DIGESTS = {
         '483c6c8e035810d1b76110fc1956de76943c2f18'
     },
     ClientCreator._get_client_args: {
-        '86edebe5bc72e89e75c593e8f4bf2a3c358f1d8f'
+        'd5e19b1e62f64a745de842963c2472825a66e854'
     },
     ClientCreator._register_s3_events: {
         '5659a5312caeb3ea97d663d837d6d201f08824f2'
@@ -178,10 +178,10 @@ _API_DIGESTS = {
     ClientCreator._register_legacy_retries: {
         '000b2f2a122602e2e741ec2e89308dc2e2b67329'
     },
-    BaseClient._make_api_call: {'eba7540893a631a00ebfc3c287026ee6db993e09'},
+    BaseClient._make_api_call: {'ea961baa7ea0b1a9b8318a3638b970e38ba4ac76'},
     BaseClient._make_request: {'cfd8bbf19ea132134717cdf9c460694ddacdbf58'},
     BaseClient._convert_to_request_dict: {
-        '899c223cacbe17be646a33882ecd65aa02290b9b'
+        '5e0a374926b6ee1a8715963ab551e126506e7fc9'
     },
     BaseClient._emit_api_params: {'abd67874dae8d5cd2788412e4699398cb915a119'},
     BaseClient._resolve_endpoint_ruleset: {
@@ -192,7 +192,7 @@ _API_DIGESTS = {
     BaseClient.__getattr__: {'3ec17f468f50789fa633d6041f40b66a2f593e77'},
     # config.py
     Config.merge: {'c3dd8c3ffe0da86953ceba4a35267dfb79c6a2c8'},
-    Config: {'c22f76d2e45e575d99ae130cdba8ea31cb7f4cdc'},
+    Config: {'4153fcb2ddf68b86f3774da1016b9cbfa1659b0b'},
     # credentials.py
     create_mfa_serial_refresher: {'9b5e98782fcacdcea5899a6d0d29d1b9de348bb0'},
     Credentials.get_frozen_credentials: {
@@ -421,7 +421,7 @@ _API_DIGESTS = {
     Session._register_response_parser_factory: {
         'bb8f7f3cc4d9ff9551f0875604747c4bb5030ff6'
     },
-    Session.create_client: {'8b1bd136aba5d0e519816aca7354b3d1e2dee7ec'},
+    Session.create_client: {'a821ae3870f33b65b1ea7cd347ca0497ed306ccd'},
     Session._create_token_resolver: {
         '142df7a219db0dd9c96fd81dc9e84a764a2fe5fb'
     },
