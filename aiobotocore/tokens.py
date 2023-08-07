@@ -83,12 +83,13 @@ class AioDeferredRefreshableToken(DeferredRefreshableToken):
 
 class AioSSOTokenProvider(SSOTokenProvider):
     async def _attempt_create_token(self, token):
-        response = await self._client.create_token(
-            grantType=self._GRANT_TYPE,
-            clientId=token["clientId"],
-            clientSecret=token["clientSecret"],
-            refreshToken=token["refreshToken"],
-        )
+        async with self._client as client:
+            response = await client.create_token(
+                grantType=self._GRANT_TYPE,
+                clientId=token["clientId"],
+                clientSecret=token["clientSecret"],
+                refreshToken=token["refreshToken"],
+            )
         expires_in = timedelta(seconds=response["expiresIn"])
         new_token = {
             "startUrl": self._sso_config["sso_start_url"],

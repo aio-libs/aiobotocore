@@ -296,7 +296,9 @@ async def test_sso_token_provider_refresh(test_case):
         token_cache[cache_key] = cached_token
 
     mock_session = _create_mock_session(config)
-    mock_sso_oidc = mock.Mock()
+    mock_sso_oidc = mock.AsyncMock()
+    mock_sso_oidc.__aenter__.return_value = mock_sso_oidc
+    mock_sso_oidc.__aexit__.return_value = None
     mock_session.create_client.return_value = mock_sso_oidc
 
     refresh_response = test_case.pop("refreshResponse", None)

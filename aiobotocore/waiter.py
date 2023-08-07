@@ -46,7 +46,7 @@ def create_waiter_with_client(waiter_name, waiter_model, client):
     # Waiter.wait method. This is needed to attach a docstring to the
     # method.
     async def wait(self, **kwargs):
-        await AIOWaiter.wait(self, **kwargs)
+        return await AIOWaiter.wait(self, **kwargs)
 
     wait.__doc__ = WaiterDocstring(
         waiter_name=waiter_name,
@@ -118,7 +118,7 @@ class AIOWaiter(Waiter):
                 logger.debug(
                     "Waiting complete, waiter matched the " "success state."
                 )
-                return
+                return response
             if current_state == 'failure':
                 reason = 'Waiter encountered a terminal failure state: %s' % (
                     acceptor.explanation

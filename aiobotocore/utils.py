@@ -480,7 +480,8 @@ class AioS3RegionRedirectorv2(S3RegionRedirectorv2):
 
         # Finally, HEAD the bucket. No other choice sadly.
         try:
-            response = await self._client.head_bucket(Bucket=bucket)
+            async with self._client as client:
+                response = await client.head_bucket(Bucket=bucket)
             headers = response['ResponseMetadata']['HTTPHeaders']
         except ClientError as e:
             headers = e.response['ResponseMetadata']['HTTPHeaders']
@@ -595,7 +596,8 @@ class AioS3RegionRedirector(S3RegionRedirector):
 
         # Finally, HEAD the bucket. No other choice sadly.
         try:
-            response = await self._client.head_bucket(Bucket=bucket)
+            async with self._client as client:
+                response = await client.head_bucket(Bucket=bucket)
             headers = response['ResponseMetadata']['HTTPHeaders']
         except ClientError as e:
             headers = e.response['ResponseMetadata']['HTTPHeaders']
