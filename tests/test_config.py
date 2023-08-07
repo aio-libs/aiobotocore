@@ -12,7 +12,8 @@ from tests.mock_server import AIOServer
 
 # NOTE: this doesn't require moto but needs to be marked to run with coverage
 @pytest.mark.moto
-def test_connector_args():
+@pytest.mark.asyncio
+async def test_connector_args():
     with pytest.raises(ParamValidationError):
         # wrong type
         connector_args = dict(use_dns_cache=1)

@@ -1,6 +1,6 @@
 Changes
 -------
-2.5.3
+2.5.3 (2023-08-06)
 ^^^^^^^^^^^^^^^^^^
 * add more support for Python 3.11
 * bump botocore to 1.31.17
