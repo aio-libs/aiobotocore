@@ -145,7 +145,7 @@ def test_release_versions():
     rst_prev_date = rst_prev_ver_groups['date']
 
     if rst_date == 'TBD':
-        # TODO: we can't pipenv lock if we're a prerelease version
+        # TODO: we can now lock if we're a prerelease version
         pass
         # assert (
         #     rst_ver.is_prerelease

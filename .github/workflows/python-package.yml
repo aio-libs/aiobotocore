@@ -32,17 +32,14 @@ jobs:
       uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.python-version }}
-#        cache: 'pipenv'
     - name: Lock and sync dependencies
       env:
         AIOHTTP_VERSION: ${{ matrix.aiohttp-version }}
       run: |
         python -c "import sys; print(f'Python version: {sys.version}')"
-        python -m pip install -U setuptools pip pipenv codecov wheel
-        pipenv lock --python ${{ matrix.python-version }}
-        pipenv sync --dev
-        pipenv check || true
-        pipenv graph
+        python -m pip install -U setuptools pip codecov wheel pip-tools
+        pip-compile requirements-dev.in
+        pip-sync
     - name: Run flake
       if: matrix.python-version == '3.11'
       run: |

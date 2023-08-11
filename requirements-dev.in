@@ -1,0 +1,24 @@
+codecov~=2.1.13
+coverage~=7.2.7
+flake8~=3.9.0
+flake8-formatter-abspath~=1.0.1
+flake8-black~=0.3.3
+flake8-isort~= 4.1.1
+black~=22.6.0
+isort~= 5.10.1
+docker~=5.0.0
+moto[server,s3,sqs,lambda,dynamodb,cloudformation,sns,batch,ec2,rds]~=4.0.0
+pytest~=6.2.4
+pytest-cov~=4.1.0
+pytest-asyncio~=0.14.0
+pytest-xdist~=2.2.1
+
+# this is needed for test_patches
+dill~=0.3.3
+
+# this is needed when running setup.py check -rms
+Pygments
+
+aiohttp==${AIOHTTP_VERSION}
+
+-e .[awscli,boto3]
