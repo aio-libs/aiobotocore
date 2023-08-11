@@ -18,8 +18,8 @@ jobs:
       matrix:
         python-version: ['3.8', '3.9', '3.10', '3.11']
         include:
-          - aiohttp-version: '3.7.4.post0'
-          - aiohttp-version: '3.8.5'
+          - aiohttp-version: '==3.7.4.post0'
+          - aiohttp-version: '<4.0.0'
             python-version: '3.11'
       fail-fast: true
     timeout-minutes: 15
@@ -38,8 +38,8 @@ jobs:
       run: |
         python -c "import sys; print(f'Python version: {sys.version}')"
         python -m pip install -U setuptools pip codecov wheel pip-tools
-        pip-compile --resolver=backtracking requirements-dev.in
-        pip-sync requirements-dev.txt
+        time pip-compile requirements-dev.in
+        tim pip-sync requirements-dev.txt
     - name: Run flake
       if: matrix.python-version == '3.11'
       run: |

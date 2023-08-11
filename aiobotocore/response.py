@@ -22,7 +22,6 @@ class StreamingBody(wrapt.ObjectProxy):
     This provides a few additional conveniences that do not exist
     in the urllib3 model:
 
-        * Set the timeout on the socket (i.e read() timeouts)
         * Auto validation of content length, if the amount of bytes
           we read does not match the content length, an exception
           is raised.

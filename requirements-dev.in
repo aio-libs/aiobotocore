@@ -19,6 +19,6 @@ dill~=0.3.3
 # this is needed when running setup.py check -rms
 Pygments
 
-aiohttp==${AIOHTTP_VERSION}
+aiohttp${AIOHTTP_VERSION}
 
 -e .[awscli,boto3]
