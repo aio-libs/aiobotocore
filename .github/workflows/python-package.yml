@@ -44,7 +44,7 @@ jobs:
         pipenv check || true
         pipenv graph
     - name: Run flake
-      if: matrix.python-version = '3.11'
+      if: matrix.python-version == '3.11'
       run: |
         make flake
     - name: Run unittests
@@ -53,7 +53,7 @@ jobs:
       run: |
         make mototest
     - name: Upload coverage to Codecov
-      if: matrix.python-version = '3.11'
+      if: matrix.python-version == '3.11'
       uses: codecov/codecov-action@v3.1.1
       with:
         token: ${{ secrets.CODECOV_TOKEN }} # not required for public repos
