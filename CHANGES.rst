@@ -1,5 +1,9 @@
 Changes
 -------
+2.6.0 (2023-08-11)
+^^^^^^^^^^^^^^^^^^
+* bump aiohttp minimum version
+
 2.5.4 (2023-08-07)
 ^^^^^^^^^^^^^^^^^^
 * fix __aenter__ attribute error introduced in refresh bugfix (#1031)
