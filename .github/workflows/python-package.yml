@@ -38,7 +38,7 @@ jobs:
       run: |
         python -c "import sys; print(f'Python version: {sys.version}')"
         python -m pip install -U setuptools pip codecov wheel pip-tools
-        pip-compile requirements-dev.in
+        pip-compile --resolver=backtracking requirements-dev.in
         pip-sync requirements-dev.txt
     - name: Run flake
       if: matrix.python-version == '3.11'
