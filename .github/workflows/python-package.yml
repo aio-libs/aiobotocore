@@ -12,11 +12,15 @@ on:
 
 jobs:
   test:
-    name: Test ${{ matrix.python-version }}
+    name: Test Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
         python-version: ['3.7', '3.8', '3.9', '3.10', '3.11']
+        include:
+          - aiohttp-version: '3.7.4.post0'
+          - aiohttp-version: '3.8.5'
+            python-version: '3.11'
       fail-fast: true
     timeout-minutes: 15
     steps:
@@ -29,7 +33,9 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
 #        cache: 'pipenv'
-    - name: Download dependencies
+    - name: Lock and sync dependencies
+      env:
+        AIOHTTP_VERSION: ${{ matrix.aiohttp-version }}
       run: |
         python -c "import sys; print(f'Python version: {sys.version}')"
         python -m pip install -U setuptools pip pipenv codecov wheel
@@ -38,7 +44,7 @@ jobs:
         pipenv check || true
         pipenv graph
     - name: Run flake
-      if: matrix.python-version != '3.7'
+      if: matrix.python-version = '3.11'
       run: |
         make flake
     - name: Run unittests
@@ -47,6 +53,7 @@ jobs:
       run: |
         make mototest
     - name: Upload coverage to Codecov
+      if: matrix.python-version = '3.11'
       uses: codecov/codecov-action@v3.1.1
       with:
         token: ${{ secrets.CODECOV_TOKEN }} # not required for public repos
