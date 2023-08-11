@@ -2,7 +2,7 @@ Changes
 -------
 2.6.0 (2023-08-11)
 ^^^^^^^^^^^^^^^^^^
-* bump aiohttp minimum version
+* bump aiohttp minimum version to 3.7.4.post0
 * drop python 3.7 support (EOL)
 
 2.5.4 (2023-08-07)
