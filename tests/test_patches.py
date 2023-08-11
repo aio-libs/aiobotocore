@@ -1,10 +1,7 @@
 import hashlib
-from itertools import chain
 
-import aiohttp
 import botocore
 import pytest
-from aiohttp.client import ClientResponse
 from botocore import retryhandler
 from botocore.args import ClientArgsCreator
 from botocore.awsrequest import AWSResponse
@@ -114,16 +111,6 @@ from dill.source import getsource
 # 2) If our minimum botocore version needs to be updated
 # 3) If we need to replace the below hash (not backwards compatible) or add
 #    to the set
-
-# The follow is for our monkeypatches for read_timeout:
-#    github.com/aio-libs/aiobotocore/pull/248
-_AIOHTTP_DIGESTS = {
-    # for using _body
-    ClientResponse: {
-        'e178726065b609c69a1c02e8bb78f22efce90792',
-        '225e8033bfcff8cccbc2e975d7bd0c7993f14366',
-    },
-}
 
 # These are guards to our main patches
 
@@ -672,14 +659,10 @@ def test_protocol_parsers():
 # NOTE: this doesn't require moto but needs to be marked to run with coverage
 @pytest.mark.moto
 def test_patches():
-    print(
-        "Botocore version: {} aiohttp version: {}".format(
-            botocore.__version__, aiohttp.__version__
-        )
-    )
+    print(f"Botocore version: {botocore.__version__}")
 
     success = True
-    for obj, digests in chain(_AIOHTTP_DIGESTS.items(), _API_DIGESTS.items()):
+    for obj, digests in _API_DIGESTS.items():
 
         try:
             source = getsource(obj)

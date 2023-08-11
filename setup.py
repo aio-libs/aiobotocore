@@ -8,7 +8,7 @@ from setuptools import find_packages, setup
 install_requires = [
     # pegged to also match items in `extras_require`
     'botocore>=1.31.17,<1.31.18',
-    'aiohttp>=3.3.1,<4.0.0',
+    'aiohttp>=3.7.4.post0,<4.0.0',
     'wrapt>=1.10.10, <2.0.0',
     'aioitertools>=0.5.1,<1.0.0',
 ]
@@ -49,7 +49,6 @@ setup(
         'Natural Language :: English',
         'License :: OSI Approved :: Apache Software License',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
         'Programming Language :: Python :: 3.9',
         'Programming Language :: Python :: 3.10',

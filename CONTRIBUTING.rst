@@ -13,17 +13,17 @@ First of all, clone the repository::
 
     $ git clone git@github.com:aio-libs/aiobotocore.git
 
-Create virtualenv with at least python3.5 (older versions are not supported).
+Create virtualenv with at least python3.8 (older versions are not supported).
 For example, using *virtualenvwrapper* commands could look like::
 
    $ cd aiobotocore
-   $ mkvirtualenv --python=`which python3.5` aiobotocore
+   $ mkvirtualenv --python=`which python3.8` aiobotocore
 
 
 After that, please install libraries required for development::
 
-    $ pipenv lock
-    $ pipenv sync --dev
+    $ pip-compile requirements-dev.in
+    $ pip-sync requirements-dev.txt
 
 Congratulations, you are ready to run the test suite::
 
