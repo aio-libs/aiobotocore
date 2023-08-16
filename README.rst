@@ -215,7 +215,7 @@ https://groups.google.com/forum/#!forum/aio-libs
 
 Requirements
 ------------
-* Python_ 3.7+
+* Python_ 3.8+
 * aiohttp_
 * botocore_
 
