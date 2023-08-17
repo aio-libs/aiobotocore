@@ -10,18 +10,21 @@ on:
       - 'master'
       - '[0-9].[0-9]+.[0-9]+'
 
+env:
+  FORCE_COLOR: 1
+
 jobs:
   test:
     name: Test Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ['3.8', '3.9', '3.10', '3.11']
+        python-version: ['3.8', '3.9', '3.10', '3.11', '3.12']
         include:
           - aiohttp-version: '==3.7.4.post0'
           - aiohttp-version: '<4.0.0'
             python-version: '3.11'
-      fail-fast: true
+      fail-fast: false
     timeout-minutes: 15
     steps:
     - name: Checkout
@@ -32,6 +35,7 @@ jobs:
       uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.python-version }}
+        allow-prereleases: true
     - name: Lock and sync dependencies
       env:
         AIOHTTP_VERSION: ${{ matrix.aiohttp-version }}
@@ -51,7 +55,7 @@ jobs:
         make mototest
     - name: Upload coverage to Codecov
       if: matrix.python-version == '3.11'
-      uses: codecov/codecov-action@v3.1.1
+      uses: codecov/codecov-action@v3.1.4
       with:
         token: ${{ secrets.CODECOV_TOKEN }} # not required for public repos
         files: ./coverage.xml

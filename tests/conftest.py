@@ -2,7 +2,6 @@ import asyncio
 import os
 import random
 import string
-import sys
 import tempfile
 from contextlib import ExitStack
 from itertools import chain
@@ -20,11 +19,6 @@ from tests._helpers import AsyncExitStack
 host = '127.0.0.1'
 
 _PYCHARM_HOSTED = os.environ.get('PYCHARM_HOSTED') == '1'
-
-
-def pytest_cmdline_preparse(args):
-    if sys.version_info[:2] < (3, 8):
-        args[:] = ["--ignore", 'tests/python3.8'] + args
 
 
 @pytest.fixture(
