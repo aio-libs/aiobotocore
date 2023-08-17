@@ -1,7 +1,7 @@
 Changes
 -------
 
-2.7.0 (unreleased)
+2.7.0 (2023-08-17)
 ^^^^^^^^^^^^^^^^^^
 * add support for Python 3.12
 * drop more Python 3.7 support (EOL)
