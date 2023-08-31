@@ -33,7 +33,7 @@ def read_version():
             match = regexp.match(line)
             if match is not None:
                 return match.group(1)
-        raise RuntimeError('Cannot find version in ' 'aiobotocore/__init__.py')
+        raise RuntimeError('Cannot find version in aiobotocore/__init__.py')
 
 
 setup(
