@@ -165,7 +165,7 @@ def test_release_versions():
     # get aioboto reqs
     with (_root_path / 'setup.py').open() as f:
         content = f.read()
-        aioboto_reqs = _get_boto_module_versions(content, True)
+        aioboto_reqs = _get_boto_module_versions(content, False)
 
     # get awscli reqs
     awscli_resp = requests.get(

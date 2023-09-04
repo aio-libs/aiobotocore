@@ -1,6 +1,10 @@
 Changes
 -------
 
+2.7.1 (2023-10-09)
+^^^^^^^^^^^^^^^^^^
+* relax botocore dependency specification
+
 2.7.0 (2023-08-17)
 ^^^^^^^^^^^^^^^^^^
 * add support for Python 3.12
