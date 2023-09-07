@@ -2,7 +2,7 @@ import hashlib
 
 import botocore
 import pytest
-from botocore import retryhandler
+from botocore import retryhandler, stub
 from botocore.args import ClientArgsCreator
 from botocore.awsrequest import AWSResponse
 from botocore.client import BaseClient, ClientCreator, Config
@@ -650,6 +650,9 @@ _API_DIGESTS = {
     retryhandler.CRC32Checker._check_response: {
         '3ee7afd0bb1a3bf53934d77e44f619962c52b0c9'
     },
+    stub.Stubber: {
+        'bccf23c3733cc656b909f5130cba80dbc9540b05'
+    }
 }
 
 
