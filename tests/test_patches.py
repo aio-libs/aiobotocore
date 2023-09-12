@@ -650,9 +650,7 @@ _API_DIGESTS = {
     retryhandler.CRC32Checker._check_response: {
         '3ee7afd0bb1a3bf53934d77e44f619962c52b0c9'
     },
-    stub.Stubber: {
-        'bccf23c3733cc656b909f5130cba80dbc9540b05'
-    }
+    stub.Stubber: {'bccf23c3733cc656b909f5130cba80dbc9540b05'},
 }
 
 
