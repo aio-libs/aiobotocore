@@ -1,6 +1,10 @@
 Changes
 -------
 
+2.7.1 (TBD)
+^^^^^^^^^^^^^^^^^^
+* bump botocore to 1.31.17
+
 2.7.0 (2023-08-17)
 ^^^^^^^^^^^^^^^^^^
 * add support for Python 3.12
