@@ -9,7 +9,7 @@ class AioStubber(Stubber):
             raise ValueError(
                 "Client %s does not have method: %s"
                 % (self.client.meta.service_model.service_name, method)
-            )
+            )  # pragma: no cover
 
         # Create a successful http response
         http_response = AioAWSResponse(None, 200, {}, None)

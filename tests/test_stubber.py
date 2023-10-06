@@ -47,14 +47,21 @@ async def test_add_client_error():
     ) as s3_client:
         stubber = AioStubber(s3_client)
         operation_name = 'put_object'
-        service_error_code = 'NoSuchBucket'
-        service_message = 'The specified bucket does not exist.'
-        http_status_code = 404
+        service_error_code = 'InvalidObjectState'
+        service_message = 'Object is in invalid state'
+        http_status_code = 400
+        service_error_meta = {"AdditionalInfo": "value"}
+        response_meta = {"AdditionalResponseInfo": "value"}
+        modeled_fields = {'StorageClass': 'foo', 'AccessTier': 'bar'}
+
         stubber.add_client_error(
             operation_name,
             service_error_code,
             service_message,
             http_status_code,
+            service_error_meta,
+            response_meta=response_meta,
+            modeled_fields=modeled_fields,
         )
 
         assert len(stubber._queue) == 1
