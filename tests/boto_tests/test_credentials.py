@@ -1253,10 +1253,14 @@ def _add_get_role_credentials_response(self):
     )
 
 
-def test_load_sso_credentials_without_cache(self):
-    self._add_get_role_credentials_response()
+@pytest.mark.moto
+@pytest.mark.asyncio
+async def test_load_sso_credentials_without_cache(sso_provider_setup):
+    self = sso_provider_setup
+    _add_get_role_credentials_response(self)
     with self.stubber:
-        credentials = self.provider.load()
+        credentials = await self.provider.load()
+        credentials = await credentials.get_frozen_credentials()
         self.assertEqual(credentials.access_key, 'foo')
         self.assertEqual(credentials.secret_key, 'bar')
         self.assertEqual(credentials.token, 'baz')
