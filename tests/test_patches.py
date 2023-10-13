@@ -558,7 +558,10 @@ _API_DIGESTS = {
         '86946722d10a72b593483fca0abf30100c609178'
     },
     # httpsession.py
-    URLLib3Session: {'c72094afb3aa62db0ade9be09be72ec7a2c3d80a'},
+    URLLib3Session: {
+        'c72094afb3aa62db0ade9be09be72ec7a2c3d80a',
+        '1c418944abceb3a3d76c2c22348b4a39280d27ef',
+    },
     EndpointDiscoveryHandler.discover_endpoint: {
         'd87eff9008356a6aaa9b7078f23ba7a9ff0c7a60'
     },

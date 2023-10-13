@@ -1,7 +1,7 @@
 Changes
 -------
 
-2.7.1 (2023-10-09)
+2.7.1 (2023-10-17)
 ^^^^^^^^^^^^^^^^^^
 * relax botocore dependency specification
 
