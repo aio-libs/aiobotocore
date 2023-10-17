@@ -179,7 +179,11 @@ _API_DIGESTS = {
     BaseClient.__getattr__: {'3ec17f468f50789fa633d6041f40b66a2f593e77'},
     # config.py
     Config.merge: {'c3dd8c3ffe0da86953ceba4a35267dfb79c6a2c8'},
-    Config: {'4153fcb2ddf68b86f3774da1016b9cbfa1659b0b'},
+    Config: {
+        '4153fcb2ddf68b86f3774da1016b9cbfa1659b0b',
+        'c6b76ca9e061c4fee99be96fb716a49043eb1806',
+        'ef03037bbe22945d5aa83bf39854e758f1b0c768',
+    },
     # credentials.py
     create_mfa_serial_refresher: {'9b5e98782fcacdcea5899a6d0d29d1b9de348bb0'},
     Credentials.get_frozen_credentials: {
@@ -554,7 +558,10 @@ _API_DIGESTS = {
         '86946722d10a72b593483fca0abf30100c609178'
     },
     # httpsession.py
-    URLLib3Session: {'c72094afb3aa62db0ade9be09be72ec7a2c3d80a'},
+    URLLib3Session: {
+        'c72094afb3aa62db0ade9be09be72ec7a2c3d80a',
+        '1c418944abceb3a3d76c2c22348b4a39280d27ef',
+    },
     EndpointDiscoveryHandler.discover_endpoint: {
         'd87eff9008356a6aaa9b7078f23ba7a9ff0c7a60'
     },
