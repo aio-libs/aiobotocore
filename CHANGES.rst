@@ -1,14 +1,11 @@
 Changes
 -------
 
-2.7.1 (2023-10-17)
-^^^^^^^^^^^^^^^^^^
-* relax botocore dependency specification
-
-2.7.0 (2023-08-17)
+2.7.0 (2023-10-17)
 ^^^^^^^^^^^^^^^^^^
 * add support for Python 3.12
 * drop more Python 3.7 support (EOL)
+* relax botocore dependency specification
 
 2.6.0 (2023-08-11)
 ^^^^^^^^^^^^^^^^^^
