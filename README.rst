@@ -151,21 +151,32 @@ If a service is not listed here and you could do with some tests or examples fee
 Run Tests
 ---------
 
+There are two set of tests, those that can be mocked through `moto <https://github.com/getmoto/moto>`_ running in docker, and those that require running against a personal amazon key. The CI only runs the moto tests.
+
+To run the moto tests:
+
+::
+
+    $ make mototest
+
+To run the non-moto tests:
+
 Make sure you have development requirements installed and your amazon key and
 secret accessible via environment variables:
 
 ::
 
-    $ cd aiobotocore
+    $ pip install pip-tools
+    $ pip-compile requirements-dev.txt
+    $ pip-sync requirements-dev.txt
     $ export AWS_ACCESS_KEY_ID=xxx
     $ export AWS_SECRET_ACCESS_KEY=xxx
-    $ pip-sync requirements-dev.txt
 
 Execute tests suite:
 
 ::
 
-    $ pytest -v tests
+    $ make test
 
 
 
