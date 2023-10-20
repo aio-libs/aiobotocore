@@ -1,6 +1,10 @@
 Changes
 -------
 
+2.7.1 (2023-10-19)
+^^^^^^^^^^^^^^^^^^
+* added AioStubber that return AioAWSResponse()
+
 2.7.0 (2023-10-17)
 ^^^^^^^^^^^^^^^^^^
 * add support for Python 3.12
