@@ -3,7 +3,7 @@
 FLAGS=
 
 flake: checkrst
-	python -m flake8 --format=abspath
+	python -m flake8
 
 test: flake
 	python -Wd -m pytest -s -vv $(FLAGS) ./tests/
