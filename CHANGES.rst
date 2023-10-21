@@ -1,10 +1,11 @@
 Changes
 -------
 
-2.8.0 (2023-10-24)
+2.8.0 (2023-10-25)
 ^^^^^^^^^^^^^^^^^^
 * add AioStubber that returns AioAWSResponse()
 * remove confusing `aiobotocore.session.Session` symbol
+* relax botocore dependency specification
 
 2.7.0 (2023-10-17)
 ^^^^^^^^^^^^^^^^^^
