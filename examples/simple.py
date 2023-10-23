@@ -7,7 +7,6 @@ AWS_SECRET_ACCESS_KEY = "xxx"
 
 
 async def go():
-
     bucket = 'dataintake'
     filename = 'dummy.bin'
     folder = 'aiobotocore'

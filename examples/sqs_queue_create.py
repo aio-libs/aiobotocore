@@ -7,7 +7,6 @@ from aiobotocore.session import get_session
 async def go():
     session = get_session()
     async with session.create_client('sqs', region_name='us-west-2') as client:
-
         print('Creating test_queue1')
         response = await client.create_queue(QueueName='test_queue1')
         queue_url = response['QueueUrl']

@@ -112,7 +112,6 @@ async def test_connector_timeout2():
         aws_secret_access_key='xxx',
         aws_access_key_id='xxx',
     ) as s3_client:
-
         with pytest.raises(ReadTimeoutError):
             resp = await s3_client.get_object(Bucket='foo', Key='bar')
             await resp["Body"].read()

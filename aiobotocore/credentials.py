@@ -438,7 +438,6 @@ class AioAssumeRoleCredentialFetcher(
         )
 
 
-# black: # fmt: skip (ing) this line triggers internal black error
 class AioAssumeRoleWithWebIdentityCredentialFetcher(
     AioBaseAssumeRoleCredentialFetcher
 ):
@@ -451,7 +450,6 @@ class AioAssumeRoleWithWebIdentityCredentialFetcher(
         cache=None,
         expiry_window_seconds=None,
     ):
-
         self._web_identity_token_loader = web_identity_token_loader
 
         super().__init__(

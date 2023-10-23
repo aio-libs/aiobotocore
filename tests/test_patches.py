@@ -671,7 +671,6 @@ def test_patches():
 
     success = True
     for obj, digests in _API_DIGESTS.items():
-
         try:
             source = getsource(obj)
         except TypeError:
