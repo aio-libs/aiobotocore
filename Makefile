@@ -2,10 +2,10 @@
 
 FLAGS=
 
-flake: checkrst
-	python -m flake8
+pre-commit flake: checkrst
+	pre-commit run --all
 
-test: flake
+test: pre-commit
 	python -Wd -m pytest -s -vv $(FLAGS) ./tests/
 
 vtest:
@@ -14,7 +14,7 @@ vtest:
 checkrst:
 	python setup.py check -rms
 
-cov cover coverage: flake
+cov cover coverage: pre-commit
 	python -Wd -m pytest -s -vv --cov-report term --cov-report html --cov aiobotocore ./tests
 	@echo "open file://`pwd`/htmlcov/index.html"
 
@@ -48,4 +48,4 @@ doc:
 	make -C docs html
 	@echo "open file://`pwd`/docs/_build/html/index.html"
 
-.PHONY: all flake test vtest cov clean doc
+.PHONY: all pre-commit test vtest cov clean doc
