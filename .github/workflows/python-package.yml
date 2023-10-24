@@ -44,10 +44,10 @@ jobs:
         python -m pip install -U setuptools pip codecov wheel pip-tools
         time pip-compile requirements-dev.in
         time pip-sync requirements-dev.txt
-    - name: Run flake
+    - name: Run pre-commit hooks
       if: matrix.python-version == '3.11'
       run: |
-        make flake
+        make pre-commit
     - name: Run unittests
       env:
         COLOR: 'yes'

@@ -465,7 +465,6 @@ async def test_assumerolecredprovider_assume_role_no_cache(
 async def test_assumerolecredprovider_mfa(
     credential_provider, assumerolecredprovider_config_loader
 ):
-
     fake_config = {
         'profiles': {
             'development': {
@@ -525,7 +524,6 @@ async def test_assumerolecredprovider_mfa(
 async def test_assumerolecredprovider_mfa_cannot_refresh_credentials(
     credential_provider, assumerolecredprovider_config_loader
 ):
-
     fake_config = {
         'profiles': {
             'development': {

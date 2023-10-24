@@ -87,7 +87,9 @@ def _get_boto_module_versions(
             continue
 
         # NOTE: don't support complex versioning yet as requirements are unknown
-        gte = lt = eq = None  # type: Optional[version.Version]
+        gte: Optional[version.Version] = None
+        lt: Optional[version.Version] = None
+        eq: Optional[version.Version] = None
         for spec in ver.req.specifier:
             if spec.operator == '>=':
                 assert gte is None

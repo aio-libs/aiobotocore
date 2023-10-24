@@ -32,7 +32,6 @@ class ClientCreatorContext:
 
 
 class AioSession(Session):
-
     # noinspection PyMissingConstructor
     def __init__(
         self,
@@ -80,11 +79,9 @@ class AioSession(Session):
 
     async def get_credentials(self):
         if self._credentials is None:
-            self._credentials = await (
-                self._components.get_component(
-                    'credential_provider'
-                ).load_credentials()
-            )
+            self._credentials = await self._components.get_component(
+                'credential_provider'
+            ).load_credentials()
         return self._credentials
 
     async def get_service_model(self, service_name, api_version=None):
@@ -126,7 +123,6 @@ class AioSession(Session):
         aws_session_token=None,
         config=None,
     ):
-
         default_client_config = self.get_default_client_config()
         # If a config is provided and a default config is set, then
         # use the config resulting from merging the two.

@@ -78,7 +78,6 @@ async def test_signers_generate_presigned_urls():
             aws_secret_access_key='lalala',
             aws_session_token='lalala',
         ) as client:
-
             # Uses HEAD as it covers more lines :)
             await client.generate_presigned_url(
                 'get_object',
@@ -123,7 +122,6 @@ async def test_signers_generate_presigned_post():
             aws_secret_access_key='lalala',
             aws_session_token='lalala',
         ) as client:
-
             await client.generate_presigned_post(
                 'somebucket', 'someprefix/key'
             )
