@@ -1,12 +1,8 @@
 from botocore import UNSIGNED, translate
 from botocore.exceptions import PartialCredentialsError
-from botocore.session import (
-    EVENT_ALIASES,
-    ServiceModel,
-    Session,
-    UnknownServiceError,
-    copy,
-)
+from botocore.session import EVENT_ALIASES, ServiceModel
+from botocore.session import Session as _SyncSession
+from botocore.session import UnknownServiceError, copy
 
 from . import retryhandler
 from .client import AioBaseClient, AioClientCreator
@@ -31,7 +27,7 @@ class ClientCreatorContext:
         await self._client.__aexit__(exc_type, exc_val, exc_tb)
 
 
-class AioSession(Session):
+class AioSession(_SyncSession):
     # noinspection PyMissingConstructor
     def __init__(
         self,
