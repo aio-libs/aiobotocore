@@ -119,7 +119,7 @@ class MotoService:
         async with aiohttp.ClientSession() as session:
             start = time.time()
 
-            while time.time() - start < 10:
+            while time.time() - start < 20:
                 if not self._thread.is_alive():
                     break
 
