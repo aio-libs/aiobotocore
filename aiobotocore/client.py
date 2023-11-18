@@ -378,7 +378,10 @@ class AioBaseClient(BaseClient):
         )
 
         if http.status_code >= 300:
-            error_code = parsed_response.get("Error", {}).get("Code")
+            error_info = parsed_response.get("Error", {})
+            error_code = error_info.get("QueryErrorCode") or error_info.get(
+                "Code"
+            )
             error_class = self.exceptions.from_code(error_code)
             raise error_class(parsed_response, operation_name)
         else:
@@ -469,7 +472,7 @@ class AioBaseClient(BaseClient):
         returned.
 
         Use ignore_signing_region for generating presigned URLs or any other
-        situtation where the signing region information from the ruleset
+        situation where the signing region information from the ruleset
         resolver should be ignored.
 
         Returns tuple of URL and headers dictionary. Additionally, the

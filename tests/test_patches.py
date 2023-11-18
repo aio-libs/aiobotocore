@@ -137,7 +137,7 @@ _API_DIGESTS = {
         '2dc13a6f32c470bc415a2cfc1f82cf569b1a5196'
     },
     ClientArgsCreator._build_endpoint_resolver: {
-        '9aa226b8d6f09f7270633b8cc35bc82a15386ee4'
+        '0f80192233321ae4a55d95b68f5b8a68f3ad18e6',
     },
     # client.py
     ClientCreator.create_client: {'ef5bef8f4b2887143165e72554fd85c36af7e822'},
@@ -165,14 +165,16 @@ _API_DIGESTS = {
     ClientCreator._register_legacy_retries: {
         '000b2f2a122602e2e741ec2e89308dc2e2b67329'
     },
-    BaseClient._make_api_call: {'ea961baa7ea0b1a9b8318a3638b970e38ba4ac76'},
+    BaseClient._make_api_call: {
+        '1ac2e166cc8e5020224a808d2ccdfda18e6bdbf2',
+    },
     BaseClient._make_request: {'cfd8bbf19ea132134717cdf9c460694ddacdbf58'},
     BaseClient._convert_to_request_dict: {
         '5e0a374926b6ee1a8715963ab551e126506e7fc9'
     },
     BaseClient._emit_api_params: {'abd67874dae8d5cd2788412e4699398cb915a119'},
     BaseClient._resolve_endpoint_ruleset: {
-        'e8e7fe581a2e4ff1a75d1ee923c0ed2c6a0d9c9d'
+        '3206a73ae79601c42f8a5ae1d7e0e903a2495acb',
     },
     BaseClient.get_paginator: {'3531d5988aaaf0fbb3885044ccee1a693ec2608b'},
     BaseClient.get_waiter: {'44f0473d993d49ac7502984a7ccee3240b088404'},
@@ -180,9 +182,7 @@ _API_DIGESTS = {
     # config.py
     Config.merge: {'c3dd8c3ffe0da86953ceba4a35267dfb79c6a2c8'},
     Config: {
-        '4153fcb2ddf68b86f3774da1016b9cbfa1659b0b',
-        'c6b76ca9e061c4fee99be96fb716a49043eb1806',
-        'ef03037bbe22945d5aa83bf39854e758f1b0c768',
+        '9154efda503c21ab9aa048214ddca7aa637e2ff9',
     },
     # credentials.py
     create_mfa_serial_refresher: {'9b5e98782fcacdcea5899a6d0d29d1b9de348bb0'},
@@ -479,13 +479,13 @@ _API_DIGESTS = {
         '2c7080f7d6ee5a3dacc1b690945c045dba1b1d21'
     },
     ContainerMetadataFetcher.retrieve_uri: {
-        '4ee8aa704cf0a378d68ef9a7b375a1aa8840b000'
+        '9067ffe122e6fcff4a7f4dd2b7f5b3de5e1ea4ec',
     },
     ContainerMetadataFetcher._retrieve_credentials: {
         'b00694931af86ef1a9305ad29328030ee366cea9'
     },
     ContainerMetadataFetcher._get_response: {
-        '4dc84054db957f2c1fb2fb1b01eb462bd57b1a64'
+        'b2c2fe2d74ce1894168e8e052c4e97cc70539b1a',
     },
     IMDSFetcher.__init__: {'e7e62b79f6a9e4cb14120e61c4516f0a61148100'},
     IMDSFetcher._get_request: {'7f8ad4724ac08300a0c55e307bfeb5abc0579d26'},
@@ -559,7 +559,6 @@ _API_DIGESTS = {
     },
     # httpsession.py
     URLLib3Session: {
-        'c72094afb3aa62db0ade9be09be72ec7a2c3d80a',
         '1c418944abceb3a3d76c2c22348b4a39280d27ef',
     },
     EndpointDiscoveryHandler.discover_endpoint: {
@@ -609,7 +608,9 @@ _API_DIGESTS = {
     AWSResponse.content: {'307a4eb1d46360ef808a876d7d00cbbde6198eb1'},
     AWSResponse.text: {'a724100ba9f6d51b333b8fe470fac46376d5044a'},
     # httpchecksum.py
-    handle_checksum_body: {'4b9aeef18d816563624c66c57126d1ffa6fe1993'},
+    handle_checksum_body: {
+        '898cee7a7a5e5a02af7e0e65dcbb8122257b85df',
+    },
     _handle_bytes_response: {'0761c4590c6addbe8c674e40fca9f7dd375a184b'},
     AwsChunkedWrapper._make_chunk: {
         '097361692f0fd6c863a17dd695739629982ef7e4'
@@ -639,7 +640,7 @@ _API_DIGESTS = {
         '24b442126f0ff730be0ae64dc7158929d4d2fca7'
     },
     retryhandler.MaxAttemptsDecorator._should_retry: {
-        '8ba8bcec27974861ec35a7d91ce96db1c04833fe'
+        '581273f875bb779a9ff796df8c8597ec551abf97',
     },
     retryhandler.MultiChecker.__call__: {
         'e8302c52e1bbbb129b6f505633a4bc4ae1e5a34f'

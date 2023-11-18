@@ -620,7 +620,7 @@ class AioContainerMetadataFetcher(ContainerMetadataFetcher):
         return await self._retrieve_credentials(full_url, headers)
 
     async def retrieve_uri(self, relative_uri):
-        """Retrieve JSON metadata from ECS metadata.
+        """Retrieve JSON metadata from container metadata.
 
         :type relative_uri: str
         :param relative_uri: A relative URI, e.g "/foo/bar?id=123"
@@ -666,20 +666,20 @@ class AioContainerMetadataFetcher(ContainerMetadataFetcher):
                 if response.status_code != 200:
                     raise MetadataRetrievalError(
                         error_msg=(
-                            "Received non 200 response (%s) from ECS metadata: %s"
+                            f"Received non 200 response {response.status_code} "
+                            f"from container metadata: {response_text}"
                         )
-                        % (response.status_code, response_text)
                     )
                 try:
                     return json.loads(response_text)
                 except ValueError:
-                    error_msg = "Unable to parse JSON returned from ECS metadata services"
+                    error_msg = "Unable to parse JSON returned from container metadata services"
                     logger.debug('%s:%s', error_msg, response_text)
                     raise MetadataRetrievalError(error_msg=error_msg)
 
         except RETRYABLE_HTTP_ERRORS as e:
             error_msg = (
                 "Received error when attempting to retrieve "
-                "ECS metadata: %s" % e
+                f"container metadata: {e}"
             )
             raise MetadataRetrievalError(error_msg=error_msg)
