@@ -87,8 +87,10 @@ class AioIMDSFetcher(IMDSFetcher):
 
         if env is None:
             env = os.environ.copy()
-        self._disabled = env.get('AWS_EC2_METADATA_DISABLED', 'false').lower()
-        self._disabled = self._disabled == 'true'
+        self._disabled = (
+            env.get('AWS_EC2_METADATA_DISABLED', 'false').lower() == 'true'
+        )
+        self._imds_v1_disabled = config.get('ec2_metadata_v1_disabled')
         self._user_agent = user_agent
 
         self._session = session or _RefCountedSession(
@@ -144,6 +146,8 @@ class AioIMDSFetcher(IMDSFetcher):
 
     async def _get_request(self, url_path, retry_func, token=None):
         self._assert_enabled()
+        if not token:
+            self._assert_v1_enabled()
         if retry_func is None:
             retry_func = self._default_retry
         url = self._construct_url(url_path)
@@ -302,6 +306,9 @@ class AioIMDSRegionProvider(IMDSRegionProvider):
             ),
             'ec2_metadata_service_endpoint_mode': resolve_imds_endpoint_mode(
                 self._session
+            ),
+            'ec2_metadata_v1_disabled': self._session.get_config_variable(
+                'ec2_metadata_v1_disabled'
             ),
         }
         fetcher = AioInstanceMetadataRegionFetcher(

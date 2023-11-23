@@ -1,7 +1,7 @@
 Changes
 -------
 
-2.8.0 (2023-11-18)
+2.8.0 (2023-11-28)
 ^^^^^^^^^^^^^^^^^^
 * add AioStubber that returns AioAWSResponse()
 * remove confusing `aiobotocore.session.Session` symbol

@@ -317,7 +317,9 @@ _API_DIGESTS = {
     },
     BotoProvider.load: {'e84ebfe3d6698dc4683f0f6699d4a9907c87bebb'},
     OriginalEC2Provider.load: {'dc58cd1c79d177105b183a2d20e1154e6f8f0733'},
-    create_credential_resolver: {'f3501ad2330afe5e1ef4e71c7537f94885c73821'},
+    create_credential_resolver: {
+        'fe797afd33126be87f86e44ab20475d50d727a4e',
+    },
     get_credentials: {'ff0c735a388ac8dd7fe300a32c1e36cdf33c0f56'},
     # configprovider.py
     SmartDefaultsConfigStoreFactory.merge_smart_defaults: {
@@ -487,8 +489,12 @@ _API_DIGESTS = {
     ContainerMetadataFetcher._get_response: {
         'b2c2fe2d74ce1894168e8e052c4e97cc70539b1a',
     },
-    IMDSFetcher.__init__: {'e7e62b79f6a9e4cb14120e61c4516f0a61148100'},
-    IMDSFetcher._get_request: {'7f8ad4724ac08300a0c55e307bfeb5abc0579d26'},
+    IMDSFetcher.__init__: {
+        '50ea982d3b94d7301d39480f827cfc1502800cb4',
+    },
+    IMDSFetcher._get_request: {
+        '118354ef768da5a7402d5d2bf6f55b4fbb2525e4',
+    },
     IMDSFetcher._fetch_metadata_token: {
         '12225b35a73130632038785a8c2e6fbaaf9de1f4'
     },
@@ -541,7 +547,7 @@ _API_DIGESTS = {
         '4631ced79cff143de5d3fdf03cd69720778f141b'
     },
     IMDSRegionProvider._create_fetcher: {
-        '7031d7cdaea0244a5d860f2f8f6c013e25578123'
+        '18da52c786a20d91615258a8127b566688ecbb39',
     },
     # waiter.py
     NormalizedOperationMethod.__call__: {
