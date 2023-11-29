@@ -627,6 +627,7 @@ async def test_head_object_keys(s3_client, create_object, bucket_name):
     # this is to ensure things like:
     # https://github.com/aio-libs/aiobotocore/issues/131 don't happen again
     assert set(resp.keys()) == {
+        'AcceptRanges',
         'ETag',
         'ContentType',
         'Metadata',

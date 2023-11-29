@@ -87,8 +87,10 @@ class AioIMDSFetcher(IMDSFetcher):
 
         if env is None:
             env = os.environ.copy()
-        self._disabled = env.get('AWS_EC2_METADATA_DISABLED', 'false').lower()
-        self._disabled = self._disabled == 'true'
+        self._disabled = (
+            env.get('AWS_EC2_METADATA_DISABLED', 'false').lower() == 'true'
+        )
+        self._imds_v1_disabled = config.get('ec2_metadata_v1_disabled')
         self._user_agent = user_agent
 
         self._session = session or _RefCountedSession(
@@ -144,6 +146,8 @@ class AioIMDSFetcher(IMDSFetcher):
 
     async def _get_request(self, url_path, retry_func, token=None):
         self._assert_enabled()
+        if not token:
+            self._assert_v1_enabled()
         if retry_func is None:
             retry_func = self._default_retry
         url = self._construct_url(url_path)
@@ -302,6 +306,9 @@ class AioIMDSRegionProvider(IMDSRegionProvider):
             ),
             'ec2_metadata_service_endpoint_mode': resolve_imds_endpoint_mode(
                 self._session
+            ),
+            'ec2_metadata_v1_disabled': self._session.get_config_variable(
+                'ec2_metadata_v1_disabled'
             ),
         }
         fetcher = AioInstanceMetadataRegionFetcher(
@@ -620,7 +627,7 @@ class AioContainerMetadataFetcher(ContainerMetadataFetcher):
         return await self._retrieve_credentials(full_url, headers)
 
     async def retrieve_uri(self, relative_uri):
-        """Retrieve JSON metadata from ECS metadata.
+        """Retrieve JSON metadata from container metadata.
 
         :type relative_uri: str
         :param relative_uri: A relative URI, e.g "/foo/bar?id=123"
@@ -666,20 +673,20 @@ class AioContainerMetadataFetcher(ContainerMetadataFetcher):
                 if response.status_code != 200:
                     raise MetadataRetrievalError(
                         error_msg=(
-                            "Received non 200 response (%s) from ECS metadata: %s"
+                            f"Received non 200 response {response.status_code} "
+                            f"from container metadata: {response_text}"
                         )
-                        % (response.status_code, response_text)
                     )
                 try:
                     return json.loads(response_text)
                 except ValueError:
-                    error_msg = "Unable to parse JSON returned from ECS metadata services"
+                    error_msg = "Unable to parse JSON returned from container metadata services"
                     logger.debug('%s:%s', error_msg, response_text)
                     raise MetadataRetrievalError(error_msg=error_msg)
 
         except RETRYABLE_HTTP_ERRORS as e:
             error_msg = (
                 "Received error when attempting to retrieve "
-                "ECS metadata: %s" % e
+                f"container metadata: {e}"
             )
             raise MetadataRetrievalError(error_msg=error_msg)
