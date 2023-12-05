@@ -27,7 +27,7 @@ async def go():
         # getting s3 object properties of file we just uploaded
         resp = await client.get_object_acl(Bucket=bucket, Key=key)
         print(resp)
-        
+
         resp = await client.get_object(Bucket=bucket, Key=key)
         async with resp['Body'] as stream:
             await stream.read()  # if you do not read the stream the connection cannot be re-used and will be dropped
@@ -36,7 +36,6 @@ async def go():
         This is to ensure the connection is returned to the pool as soon as possible.
         Otherwise the connection will be released after it is GC'd
         """
-        
 
         # delete object from s3
         resp = await client.delete_object(Bucket=bucket, Key=key)
