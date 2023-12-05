@@ -27,6 +27,22 @@ async def go():
         # getting s3 object properties of file we just uploaded
         resp = await client.get_object_acl(Bucket=bucket, Key=key)
         print(resp)
+        
+        try:
+            resp = await client.get_object(Bucket=bucket, Key=key)
+            print(resp)
+        finally:
+            """
+            Required step if you use AsyncContextStack way.
+            https://github.com/aio-libs/aiobotocore#context-manager-examples
+            
+            If you don't do this, the connections will not be closed
+            and eventually the pool of available connections will be empty
+            after a few requests.
+            All connections in aiohttp connection pool will be open.
+            """
+            resp["Body"].close() ##  Closes the aiohttp unreleased connection. 
+        
 
         # delete object from s3
         resp = await client.delete_object(Bucket=bucket, Key=key)
