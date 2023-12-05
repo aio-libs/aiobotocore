@@ -1,4 +1,5 @@
 import asyncio
+import functools
 import inspect
 import json
 import logging
@@ -17,11 +18,14 @@ from botocore.utils import (
     ClientError,
     ContainerMetadataFetcher,
     HTTPClientError,
+    IdentityCache,
     IMDSFetcher,
     IMDSRegionProvider,
     InstanceMetadataFetcher,
     InstanceMetadataRegionFetcher,
     ReadTimeoutError,
+    S3ExpressIdentityCache,
+    S3ExpressIdentityResolver,
     S3RegionRedirector,
     S3RegionRedirectorv2,
     get_environ_proxies,
@@ -346,6 +350,72 @@ class AioInstanceMetadataRegionFetcher(
         availability_zone = await response.text
         region = availability_zone[:-1]
         return region
+
+
+class AioIdentityCache(IdentityCache):
+    async def get_credentials(self, **kwargs):
+        callback = self.build_refresh_callback(**kwargs)
+        metadata = await callback()
+        credential_entry = self._credential_cls.create_from_metadata(
+            metadata=metadata,
+            refresh_using=callback,
+            method=self.METHOD,
+            advisory_timeout=45,
+            mandatory_timeout=10,
+        )
+        return credential_entry
+
+
+class AioS3ExpressIdentityCache(AioIdentityCache, S3ExpressIdentityCache):
+    @functools.cached_property
+    def _aio_credential_cache(self):
+        """Substitutes upstream credential cache."""
+        return {}
+
+    async def get_credentials(self, bucket):
+        # upstream uses `@functools.lru_cache(maxsize=100)` to cache credentials.
+        # This is incompatible with async code.
+        # We need to implement custom caching logic.
+
+        if (credentials := self._aio_credential_cache.get(bucket)) is None:
+            # cache miss -> get credentials asynchronously
+            credentials = await super().get_credentials(bucket=bucket)
+
+            # upstream cache is bounded at 100 entries
+            if len(self._aio_credential_cache) >= 100:
+                # drop oldest entry from cache (deviates from lru_cache logic)
+                self._aio_credential_cache.pop(
+                    next(iter(self._aio_credential_cache)),
+                )
+
+            self._aio_credential_cache[bucket] = credentials
+
+        return credentials
+
+    def build_refresh_callback(self, bucket):
+        async def refresher():
+            response = await self._client.create_session(Bucket=bucket)
+            creds = response['Credentials']
+            expiration = self._serialize_if_needed(
+                creds['Expiration'], iso=True
+            )
+            return {
+                "access_key": creds['AccessKeyId'],
+                "secret_key": creds['SecretAccessKey'],
+                "token": creds['SessionToken'],
+                "expiry_time": expiration,
+            }
+
+        return refresher
+
+
+class AioS3ExpressIdentityResolver(S3ExpressIdentityResolver):
+    def __init__(self, client, credential_cls, cache=None):
+        super().__init__(client, credential_cls, cache)
+
+        if cache is None:
+            cache = AioS3ExpressIdentityCache(self._client, credential_cls)
+        self._cache = cache
 
 
 class AioS3RegionRedirectorv2(S3RegionRedirectorv2):

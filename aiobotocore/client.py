@@ -17,11 +17,12 @@ from botocore.waiter import xform_name
 
 from . import waiter
 from .args import AioClientArgsCreator
+from .credentials import AioRefreshableCredentials
 from .discovery import AioEndpointDiscoveryHandler, AioEndpointDiscoveryManager
 from .httpchecksum import apply_request_checksum
 from .paginate import AioPaginator
 from .retries import adaptive, standard
-from .utils import AioS3RegionRedirectorv2
+from .utils import AioS3ExpressIdentityResolver, AioS3RegionRedirectorv2
 
 history_recorder = get_global_history_recorder()
 
@@ -96,6 +97,7 @@ class AioClientCreator(ClientCreator):
             client_config=client_config,
             scoped_config=scoped_config,
         )
+        self._register_s3express_events(client=service_client)
         self._register_s3_control_events(client=service_client)
         self._register_endpoint_discovery(
             service_client, endpoint_url, client_config
@@ -223,6 +225,20 @@ class AioClientCreator(ClientCreator):
                 block_endpoint_discovery_required_operations,
             )
 
+    def _register_s3express_events(
+        self,
+        client,
+        endpoint_bridge=None,
+        endpoint_url=None,
+        client_config=None,
+        scoped_config=None,
+    ):
+        if client.meta.service_model.service_name != 's3':
+            return
+        AioS3ExpressIdentityResolver(
+            client, AioRefreshableCredentials
+        ).register()
+
     def _register_s3_events(
         self,
         client,
@@ -331,11 +347,17 @@ class AioBaseClient(BaseClient):
             operation_model=operation_model,
             context=request_context,
         )
-        # fmt: off
-        endpoint_url, additional_headers = await self._resolve_endpoint_ruleset(
+        (
+            endpoint_url,
+            additional_headers,
+            properties,
+        ) = await self._resolve_endpoint_ruleset(
             operation_model, api_params, request_context
         )
-        # fmt: on
+        if properties:
+            # Pass arbitrary endpoint info with the Request
+            # for use during construction.
+            request_context['endpoint_properties'] = properties
         request_dict = await self._convert_to_request_dict(
             api_params=api_params,
             operation_model=operation_model,
@@ -482,6 +504,7 @@ class AioBaseClient(BaseClient):
         if self._ruleset_resolver is None:
             endpoint_url = self.meta.endpoint_url
             additional_headers = {}
+            endpoint_properties = {}
         else:
             endpoint_info = await self._ruleset_resolver.construct_endpoint(
                 operation_model=operation_model,
@@ -490,6 +513,7 @@ class AioBaseClient(BaseClient):
             )
             endpoint_url = endpoint_info.url
             additional_headers = endpoint_info.headers
+            endpoint_properties = endpoint_info.properties
             # If authSchemes is present, overwrite default auth type and
             # signing context derived from service model.
             auth_schemes = endpoint_info.properties.get('authSchemes')
@@ -506,7 +530,7 @@ class AioBaseClient(BaseClient):
                 else:
                     request_context['signing'] = signing_context
 
-        return endpoint_url, additional_headers
+        return endpoint_url, additional_headers, endpoint_properties
 
     def get_paginator(self, operation_name):
         """Create a paginator for an operation.

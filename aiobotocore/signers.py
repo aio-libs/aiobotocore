@@ -69,6 +69,12 @@ class AioRequestSigner(RequestSigner):
                 kwargs['region_name'] = signing_context['region']
             if signing_context.get('signing_name'):
                 kwargs['signing_name'] = signing_context['signing_name']
+            if signing_context.get('identity_cache') is not None:
+                self._resolve_identity_cache(
+                    kwargs,
+                    signing_context['identity_cache'],
+                    signing_context['cache_key'],
+                )
             try:
                 auth = await self.get_auth_instance(**kwargs)
             except UnknownSignatureVersionError as e:
@@ -141,11 +147,16 @@ class AioRequestSigner(RequestSigner):
             auth = cls(frozen_token)
             return auth
 
+        credentials = self._credentials
+        if getattr(cls, "REQUIRES_IDENTITY_CACHE", None) is True:
+            cache = kwargs["identity_cache"]
+            key = kwargs["cache_key"]
+            credentials = await cache.get_credentials(key)
+            del kwargs["cache_key"]
+
         frozen_credentials = None
-        if self._credentials is not None:
-            frozen_credentials = (
-                await self._credentials.get_frozen_credentials()
-            )
+        if credentials is not None:
+            frozen_credentials = await credentials.get_frozen_credentials()
         kwargs['credentials'] = frozen_credentials
         if cls.REQUIRES_REGION:
             if self._region_name is None:
@@ -331,7 +342,11 @@ async def generate_presigned_url(
         context=context,
     )
     bucket_is_arn = ArnParser.is_arn(params.get('Bucket', ''))
-    endpoint_url, additional_headers = await self._resolve_endpoint_ruleset(
+    (
+        endpoint_url,
+        additional_headers,
+        properties,
+    ) = await self._resolve_endpoint_ruleset(
         operation_model,
         params,
         context,
@@ -396,7 +411,11 @@ async def generate_presigned_post(
         context=context,
     )
     bucket_is_arn = ArnParser.is_arn(params.get('Bucket', ''))
-    endpoint_url, additional_headers = await self._resolve_endpoint_ruleset(
+    (
+        endpoint_url,
+        additional_headers,
+        properties,
+    ) = await self._resolve_endpoint_ruleset(
         operation_model,
         params,
         context,
