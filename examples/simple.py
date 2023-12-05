@@ -28,20 +28,14 @@ async def go():
         resp = await client.get_object_acl(Bucket=bucket, Key=key)
         print(resp)
         
-        try:
-            resp = await client.get_object(Bucket=bucket, Key=key)
+        resp = await client.get_object(Bucket=bucket, Key=key)
+        async with resp['Body'] as stream:
+            await stream.read()  # if you do not read the stream the connection cannot be re-used and will be dropped
             print(resp)
-        finally:
-            """
-            Required step if you use AsyncContextStack way.
-            https://github.com/aio-libs/aiobotocore#context-manager-examples
-            
-            If you don't do this, the connections will not be closed
-            and eventually the pool of available connections will be empty
-            after a few requests.
-            All connections in aiohttp connection pool will be open.
-            """
-            resp["Body"].close() ##  Closes the aiohttp unreleased connection. 
+        """
+        This is to ensure the connection is returned to the pool as soon as possible.
+        Otherwise the connection will be released after it is GC'd
+        """
         
 
         # delete object from s3
