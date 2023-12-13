@@ -1,6 +1,10 @@
 Changes
 -------
 
+2.9.0 (2023-12-12)
+^^^^^^^^^^^^^^^^^^
+* bump botocore dependency specification
+
 2.8.0 (2023-11-28)
 ^^^^^^^^^^^^^^^^^^
 * add AioStubber that returns AioAWSResponse()

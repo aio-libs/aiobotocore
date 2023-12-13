@@ -91,10 +91,13 @@ from botocore.tokens import (
 )
 from botocore.utils import (
     ContainerMetadataFetcher,
+    IdentityCache,
     IMDSFetcher,
     IMDSRegionProvider,
     InstanceMetadataFetcher,
     InstanceMetadataRegionFetcher,
+    S3ExpressIdentityCache,
+    S3ExpressIdentityResolver,
     S3RegionRedirector,
     S3RegionRedirectorv2,
 )
@@ -140,7 +143,9 @@ _API_DIGESTS = {
         '0f80192233321ae4a55d95b68f5b8a68f3ad18e6',
     },
     # client.py
-    ClientCreator.create_client: {'ef5bef8f4b2887143165e72554fd85c36af7e822'},
+    ClientCreator.create_client: {
+        'eeb7c4730ac86aec37de53b2be0779490b05f50b',
+    },
     ClientCreator._create_client_class: {
         'fcecaf8d4f2c1ac3c5d0eb50c573233ef86d641d'
     },
@@ -149,6 +154,9 @@ _API_DIGESTS = {
     },
     ClientCreator._get_client_args: {
         'd5e19b1e62f64a745de842963c2472825a66e854'
+    },
+    ClientCreator._register_s3express_events: {
+        '716c1549989eef6bbd048bf4f134c1b4659e124a',
     },
     ClientCreator._register_s3_events: {
         '5659a5312caeb3ea97d663d837d6d201f08824f2'
@@ -166,7 +174,7 @@ _API_DIGESTS = {
         '000b2f2a122602e2e741ec2e89308dc2e2b67329'
     },
     BaseClient._make_api_call: {
-        '1ac2e166cc8e5020224a808d2ccdfda18e6bdbf2',
+        '2cb11088d36a89cf9f5c41508bce908acbde24c4',
     },
     BaseClient._make_request: {'cfd8bbf19ea132134717cdf9c460694ddacdbf58'},
     BaseClient._convert_to_request_dict: {
@@ -174,7 +182,7 @@ _API_DIGESTS = {
     },
     BaseClient._emit_api_params: {'abd67874dae8d5cd2788412e4699398cb915a119'},
     BaseClient._resolve_endpoint_ruleset: {
-        '3206a73ae79601c42f8a5ae1d7e0e903a2495acb',
+        'f09731451ff6ba0645dc82e5c7948dfbf781e025',
     },
     BaseClient.get_paginator: {'3531d5988aaaf0fbb3885044ccee1a693ec2608b'},
     BaseClient.get_waiter: {'44f0473d993d49ac7502984a7ccee3240b088404'},
@@ -190,7 +198,7 @@ _API_DIGESTS = {
         'eb247f2884aee311bdabba3435e749c3b8589100'
     },
     RefreshableCredentials.__init__: {
-        '1a6b83fc845f05feab117ce4fab73b13baed6e3b'
+        '25ee814f47e5ce617f57e893ae158e5fd6d358ea',
     },
     # We've overridden some properties
     RefreshableCredentials.__dict__['access_key'].fset: {
@@ -433,22 +441,28 @@ _API_DIGESTS = {
     },
     # signers.py
     RequestSigner.handler: {'371909df136a0964ef7469a63d25149176c2b442'},
-    RequestSigner.sign: {'d90346d5e066e89cd902c5c936f59b644ecde275'},
+    RequestSigner.sign: {
+        '8b6ca96055e5546a6572ad790d5af74a23bc0b52',
+    },
     RequestSigner.get_auth: {'4f8099bef30f9a72fa3bcaa1bd3d22c4fbd224a8'},
     RequestSigner.get_auth_instance: {
-        '4f9be5feafd6c08ffd7bb8de3c9bc36bc02cbfc8'
+        'dcd41ea686506dcf056d8252ccf73acd501efd2b',
     },
     RequestSigner._choose_signer: {'bd0e9784029b8aa182b5aec73910d94cb67c36b0'},
     RequestSigner.generate_presigned_url: {
         '417682868eacc10bf4c65f3dfbdba7d20d9250db'
     },
     add_generate_presigned_url: {'5820f74ac46b004eb79e00eea1adc467bcf4defe'},
-    generate_presigned_url: {'48f6745f8a37cfba04b3b2f6fb3910210b4a7201'},
+    generate_presigned_url: {
+        'd03631d6810e2453b8874bc76619927b694a4207',
+    },
     S3PostPresigner.generate_presigned_post: {
         '269efc9af054a2fd2728d5b0a27db82c48053d7f'
     },
     add_generate_presigned_post: {'e30360f2bd893fabf47f5cdb04b0de420ccd414d'},
-    generate_presigned_post: {'eedf40b48c63f6772ed05e3f335c8193d187f503'},
+    generate_presigned_post: {
+        'a3a834a08be2cf76c20ea137ba6b28e7a12f58ed',
+    },
     add_generate_db_auth_token: {'f61014e6fac4b5c7ee7ac2d2bec15fb16fa9fbe5'},
     generate_db_auth_token: {'1f37e1e5982d8528841ce6b79f229b3e23a18959'},
     # tokens.py
@@ -548,6 +562,18 @@ _API_DIGESTS = {
     },
     IMDSRegionProvider._create_fetcher: {
         '18da52c786a20d91615258a8127b566688ecbb39',
+    },
+    IdentityCache.get_credentials: {
+        'baf98c4caaddfa0594745eb490c327c65cff8920',
+    },
+    S3ExpressIdentityCache.get_credentials.__wrapped__: {
+        '71f2ae5e0ea32e9bbac6f318cba963700e23b9a0',
+    },
+    S3ExpressIdentityCache.build_refresh_callback: {
+        '0e833cc5e30b76fa13e8caf5c024fe2a21c10f22',
+    },
+    S3ExpressIdentityResolver.__init__: {
+        '148a10274d3268dd42df05d3bcfb98c668f01086',
     },
     # waiter.py
     NormalizedOperationMethod.__call__: {
