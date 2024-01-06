@@ -184,8 +184,14 @@ _API_DIGESTS = {
     BaseClient._resolve_endpoint_ruleset: {
         'f09731451ff6ba0645dc82e5c7948dfbf781e025',
     },
-    BaseClient.get_paginator: {'3531d5988aaaf0fbb3885044ccee1a693ec2608b'},
-    BaseClient.get_waiter: {'44f0473d993d49ac7502984a7ccee3240b088404'},
+    BaseClient.get_paginator: {
+        '3531d5988aaaf0fbb3885044ccee1a693ec2608b',
+        '1c38079de68ccd43a5a06e36b1a47ec62233a7c2',
+    },
+    BaseClient.get_waiter: {
+        '44f0473d993d49ac7502984a7ccee3240b088404',
+        '4a4aeabe53af25d3737204187a31f930230864b4',
+    },
     BaseClient.__getattr__: {'3ec17f468f50789fa633d6041f40b66a2f593e77'},
     # config.py
     Config.merge: {'c3dd8c3ffe0da86953ceba4a35267dfb79c6a2c8'},
