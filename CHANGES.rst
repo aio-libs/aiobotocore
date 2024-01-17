@@ -1,6 +1,10 @@
 Changes
 -------
 
+2.9.1 (2024-01-17)
+^^^^^^^^^^^^^^^^^^
+* fix race condition in S3 Express identity cache #1072
+
 2.9.0 (2023-12-12)
 ^^^^^^^^^^^^^^^^^^
 * bump botocore dependency specification
