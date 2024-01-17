@@ -167,8 +167,7 @@ secret accessible via environment variables:
 ::
 
     $ pip install pip-tools
-    $ pip-compile requirements-dev.txt
-    $ pip-sync requirements-dev.txt
+    $ ./build_and_sync_requirements.sh
     $ export AWS_ACCESS_KEY_ID=xxx
     $ export AWS_SECRET_ACCESS_KEY=xxx
 
