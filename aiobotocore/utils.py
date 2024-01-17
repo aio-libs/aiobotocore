@@ -1,8 +1,9 @@
 import asyncio
-import functools
 import inspect
 import json
 import logging
+
+from async_lru import alru_cache
 
 import botocore.awsrequest
 from botocore.exceptions import (
@@ -367,30 +368,9 @@ class AioIdentityCache(IdentityCache):
 
 
 class AioS3ExpressIdentityCache(AioIdentityCache, S3ExpressIdentityCache):
-    @functools.cached_property
-    def _aio_credential_cache(self):
-        """Substitutes upstream credential cache."""
-        return {}
-
+    @alru_cache(maxsize=100)
     async def get_credentials(self, bucket):
-        # upstream uses `@functools.lru_cache(maxsize=100)` to cache credentials.
-        # This is incompatible with async code.
-        # We need to implement custom caching logic.
-
-        if (credentials := self._aio_credential_cache.get(bucket)) is None:
-            # cache miss -> get credentials asynchronously
-            credentials = await super().get_credentials(bucket=bucket)
-
-            # upstream cache is bounded at 100 entries
-            if len(self._aio_credential_cache) >= 100:
-                # drop oldest entry from cache (deviates from lru_cache logic)
-                self._aio_credential_cache.pop(
-                    next(iter(self._aio_credential_cache)),
-                )
-
-            self._aio_credential_cache[bucket] = credentials
-
-        return credentials
+        return await super().get_credentials(bucket=bucket)
 
     def build_refresh_callback(self, bucket):
         async def refresher():
