@@ -2,6 +2,10 @@
 
 set -xeo pipefail
 
+# This creates a hash from all the files that are used to generate the compiled
+# requirements file and then uses that hash to name the output file. This ensures
+# that the compiled requirements file always matches sources used to generate it.
+
 function cleanup() {
     trap - EXIT SIGINT SIGTERM
     if [ -f "${scratch_file}" ] ; then
@@ -23,4 +27,4 @@ if [ ! -f "${REQUIREMENTS_OUT_FILE}" ] ; then
 		time pip-compile requirements-dev.in -o "${REQUIREMENTS_OUT_FILE}"
 fi
 
-	time pip-sync "${REQUIREMENTS_OUT_FILE}"
+time pip-sync "${REQUIREMENTS_OUT_FILE}"
