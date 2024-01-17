@@ -1,6 +1,0 @@
-# pegged to also match items in `extras_require`
-botocore>=1.33.2,<1.33.14
-aiohttp>=3.7.4.post0,<4.0.0
-wrapt>=1.10.10, <2.0.0
-aioitertools>=0.5.1,<1.0.0
-async-lru~=2.0

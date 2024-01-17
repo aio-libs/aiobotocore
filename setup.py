@@ -1,32 +1,38 @@
+import os
 import re
-from pathlib import Path
+
 from setuptools import find_packages, setup
 
-_this_dir = Path(__file__).parent
+# NOTE: If updating requirements make sure to also check Pipfile for any locks
+# NOTE: When updating botocore make sure to update awscli/boto3 versions below
+install_requires = [
+    # pegged to also match items in `extras_require`
+    'botocore>=1.33.2,<1.33.14',
+    'aiohttp>=3.7.4.post0,<4.0.0',
+    'wrapt>=1.10.10, <2.0.0',
+    'aioitertools>=0.5.1,<1.0.0',
+]
 
-# NOTE: When updating botocore make sure to update install-requires.txt
 extras_require = {
     'awscli': ['awscli>=1.31.2,<1.31.14'],
     'boto3': ['boto3>=1.33.2,<1.33.14'],
 }
 
 
-def read(file_name: str):
-    return (_this_dir / file_name).read_text().strip()
-
-
-def read_requirements(file_name: str):
-    return [line.strip() for line in read(file_name).splitlines() if line]
+def read(f):
+    return open(os.path.join(os.path.dirname(__file__), f)).read().strip()
 
 
 def read_version():
     regexp = re.compile(r"^__version__\W*=\W*'([\d.abrc]+)'")
-
-    with (_this_dir / 'aiobotocore' / '__init__.py').open() as f:
+    init_py = os.path.join(
+        os.path.dirname(__file__), 'aiobotocore', '__init__.py'
+    )
+    with open(init_py) as f:
         for line in f:
-            if match := regexp.match(line):
+            match = regexp.match(line)
+            if match is not None:
                 return match.group(1)
-
         raise RuntimeError('Cannot find version in aiobotocore/__init__.py')
 
 
@@ -58,7 +64,7 @@ setup(
     license='Apache License 2.0',
     packages=find_packages(include=['aiobotocore']),
     python_requires='>=3.8',
-    install_requires=read_requirements('install-requires.txt'),
+    install_requires=install_requires,
     extras_require=extras_require,
     include_package_data=True,
 )

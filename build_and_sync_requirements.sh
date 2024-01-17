@@ -14,7 +14,9 @@ trap cleanup EXIT SIGINT SIGTERM
 scratch_file=$(mktemp)
 
 envsubst < requirements-dev.in > ${scratch_file}
-SHA_SUM=$(sha1sum ${scratch_file} install-requires.txt | head -c 40)
+
+# also hash setup.py as it has the install_requires and extras
+SHA_SUM=$(sha1sum ${scratch_file} setup.py | head -c 40)
 REQUIREMENTS_OUT_FILE=$(echo requirements-dev-python${PYTHON_VERSION}-${SHA_SUM}.txt)
 
 if [ ! -f "${REQUIREMENTS_OUT_FILE}" ] ; then
