@@ -96,7 +96,7 @@ jobs:
         python -m pip install -U setuptools pip wheel
         python setup.py sdist bdist_wheel
     - name: Upload artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: dist
         path: dist
