@@ -1,10 +1,12 @@
-from botocore import UNSIGNED, translate
+from botocore import UNSIGNED
+from botocore import __version__ as botocore_version
+from botocore import translate
 from botocore.exceptions import PartialCredentialsError
 from botocore.session import EVENT_ALIASES, ServiceModel
 from botocore.session import Session as _SyncSession
 from botocore.session import UnknownServiceError, copy
 
-from . import retryhandler
+from . import __version__, retryhandler
 from .client import AioBaseClient, AioClientCreator
 from .configprovider import AioSmartDefaultsConfigStoreFactory
 from .credentials import AioCredentials, create_credential_resolver
@@ -42,6 +44,16 @@ class AioSession(_SyncSession):
         super().__init__(
             session_vars, event_hooks, include_builtin_handlers, profile
         )
+
+        self._set_user_agent_for_session()
+
+    def _set_user_agent_for_session(self):
+        # Mimic approach taken by AWS's aws-cli project
+        # https://github.com/aws/aws-cli/blob/b862122c76a3f280ff34e93c9dcafaf964e7bf9b/awscli/clidriver.py#L84
+
+        self.user_agent_name = 'aiobotocore'
+        self.user_agent_version = __version__
+        self.user_agent_extra = 'botocore/%s' % botocore_version
 
     def _create_token_resolver(self):
         return create_token_resolver(self)

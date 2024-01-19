@@ -1,6 +1,10 @@
 Changes
 -------
 
+2.11.0 (2024-01-19)
+^^^^^^^^^^^^^^^^^^^
+* send project-specific `User-Agent` HTTP header #853
+
 2.10.0 (2024-01-18)
 ^^^^^^^^^^^^^^^^^^^
 * bump botocore dependency specification
