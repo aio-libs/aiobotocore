@@ -3,7 +3,7 @@ import logging
 import pytest
 from _pytest.logging import LogCaptureFixture
 
-from aiobotocore import httpsession
+from aiobotocore import __version__, httpsession
 from aiobotocore.config import AioConfig
 from aiobotocore.session import AioSession
 
@@ -52,3 +52,10 @@ async def test_retry(
             await client.get_object(Bucket='foo', Key='bar')
 
         assert 'sleeping for' in caplog.text
+
+
+@pytest.mark.moto
+async def test_set_user_agent_for_session(session: AioSession):
+    assert session.user_agent_name == "aiobotocore"
+    assert session.user_agent_version == __version__
+    assert session.user_agent_extra.startswith("botocore/")
