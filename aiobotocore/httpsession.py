@@ -55,7 +55,8 @@ class AIOHTTPSession:
         connector_args=None,
     ):
         # TODO: handle socket_options
-        self._session: Optional[aiohttp.ClientSession] = None
+        # keep track of sessions by proxy url (if any)
+        self._sessions: Dict[Optional[str], aiohttp.ClientSession] = {}
         self._verify = verify
         self._proxy_config = ProxyConfiguration(
             proxies=proxies, proxies_settings=proxies_config
@@ -93,53 +94,23 @@ class AIOHTTPSession:
         # it also pools by host so we don't need a manager, and can pass proxy via
         # request so don't need proxy manager
 
-        ssl_context = None
-        if bool(verify):
-            if proxies:
-                proxies_settings = self._proxy_config.settings
-                ssl_context = self._setup_proxy_ssl_context(proxies_settings)
-                # TODO: add support for
-                #    proxies_settings.get('proxy_use_forwarding_for_https')
-            else:
-                ssl_context = self._get_ssl_context()
-
-                # inline self._setup_ssl_cert
-                ca_certs = get_cert_path(verify)
-                if ca_certs:
-                    ssl_context.load_verify_locations(ca_certs, None, None)
-
-        self._create_connector = lambda: aiohttp.TCPConnector(
-            limit=max_pool_connections,
-            verify_ssl=bool(verify),
-            ssl=ssl_context,
-            **self._connector_args
-        )
-        self._connector = None
-
     async def __aenter__(self):
-        assert not self._session and not self._connector
+        assert not self._sessions
 
-        self._connector = self._create_connector()
-
-        self._session = aiohttp.ClientSession(
-            connector=self._connector,
-            timeout=self._timeout,
-            skip_auto_headers={'CONTENT-TYPE'},
-            auto_decompress=False,
-        )
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        if self._session:
-            await self._session.__aexit__(exc_type, exc_val, exc_tb)
-            self._session = None
-            self._connector = None
+        if sessions := tuple(self._sessions.values()):
+            self._sessions.clear()
+            await asyncio.gather(
+                *(
+                    session.__aexit__(exc_type, exc_val, exc_tb)
+                    for session in sessions
+                ),
+            )
 
     def _get_ssl_context(self):
-        ssl_context = create_urllib3_context()
-        if self._cert_file:
-            ssl_context.load_cert_chain(self._cert_file, self._key_file)
-        return ssl_context
+        return create_urllib3_context()
 
     def _setup_proxy_ssl_context(self, proxy_url):
         proxies_settings = self._proxy_config.settings
@@ -166,6 +137,35 @@ class AIOHTTPSession:
             return context
         except (OSError, LocationParseError) as e:
             raise InvalidProxiesConfigError(error=e)
+
+    def _create_connector(self, proxy_url):
+        ssl_context = None
+        if bool(self._verify):
+            if proxy_url:
+                ssl_context = self._setup_proxy_ssl_context(proxy_url)
+                # TODO: add support for
+                #    proxies_settings.get('proxy_use_forwarding_for_https')
+            else:
+                ssl_context = self._get_ssl_context()
+
+            if ssl_context:
+                if self._cert_file:
+                    ssl_context.load_cert_chain(
+                        self._cert_file,
+                        self._key_file,
+                    )
+
+                # inline self._setup_ssl_cert
+                ca_certs = get_cert_path(self._verify)
+                if ca_certs:
+                    ssl_context.load_verify_locations(ca_certs, None, None)
+
+        return aiohttp.TCPConnector(
+            limit=self._max_pool_connections,
+            verify_ssl=bool(self._verify),
+            ssl=ssl_context,
+            **self._connector_args,
+        )
 
     async def close(self):
         await self.__aexit__(None, None, None)
@@ -205,7 +205,18 @@ class AIOHTTPSession:
                 data = _IOBaseWrapper(data)
 
             url = URL(url, encoded=True)
-            response = await self._session.request(
+
+            session = self._sessions.get(proxy_url)
+            if session is None:
+                connector = self._create_connector(proxy_url)
+                self._sessions[proxy_url] = session = aiohttp.ClientSession(
+                    connector=connector,
+                    timeout=self._timeout,
+                    skip_auto_headers={'CONTENT-TYPE'},
+                    auto_decompress=False,
+                )
+
+            response = await session.request(
                 request.method,
                 url=url,
                 chunked=chunked,
