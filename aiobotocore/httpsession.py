@@ -166,8 +166,7 @@ class AIOHTTPSession:
 
         return aiohttp.TCPConnector(
             limit=self._max_pool_connections,
-            verify_ssl=bool(self._verify),
-            ssl=ssl_context,
+            ssl=ssl_context or False,
             **self._connector_args,
         )
 
