@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 import io
 import os
 import socket
@@ -54,6 +55,8 @@ class AIOHTTPSession:
         proxies_config=None,
         connector_args=None,
     ):
+        self._exit_stack = contextlib.AsyncExitStack()
+
         # TODO: handle socket_options
         # keep track of sessions by proxy url (if any)
         self._sessions: Dict[Optional[str], aiohttp.ClientSession] = {}
@@ -100,14 +103,8 @@ class AIOHTTPSession:
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        if sessions := tuple(self._sessions.values()):
-            self._sessions.clear()
-            await asyncio.gather(
-                *(
-                    session.__aexit__(exc_type, exc_val, exc_tb)
-                    for session in sessions
-                ),
-            )
+        self._sessions.clear()
+        await self._exit_stack.aclose()
 
     def _get_ssl_context(self):
         return create_urllib3_context()
@@ -206,14 +203,17 @@ class AIOHTTPSession:
 
             url = URL(url, encoded=True)
 
-            session = self._sessions.get(proxy_url)
-            if session is None:
+            if not (session := self._sessions.get(proxy_url)):
                 connector = self._create_connector(proxy_url)
-                self._sessions[proxy_url] = session = aiohttp.ClientSession(
-                    connector=connector,
-                    timeout=self._timeout,
-                    skip_auto_headers={'CONTENT-TYPE'},
-                    auto_decompress=False,
+                self._sessions[
+                    proxy_url
+                ] = session = await self._exit_stack.enter_async_context(
+                    aiohttp.ClientSession(
+                        connector=connector,
+                        timeout=self._timeout,
+                        skip_auto_headers={'CONTENT-TYPE'},
+                        auto_decompress=False,
+                    ),
                 )
 
             response = await session.request(
