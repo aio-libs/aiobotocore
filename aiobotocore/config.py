@@ -3,13 +3,18 @@ import copy
 import botocore.client
 from botocore.exceptions import ParamValidationError
 
+from aiobotocore.httpsession import AIOHTTPSession, HttpxSession
+
 
 class AioConfig(botocore.client.Config):
-    def __init__(self, connector_args=None, **kwargs):
+    def __init__(
+        self, connector_args=None, http_session_cls=AIOHTTPSession, **kwargs
+    ):
         super().__init__(**kwargs)
 
-        self._validate_connector_args(connector_args)
+        self._validate_connector_args(connector_args, http_session_cls)
         self.connector_args = copy.copy(connector_args)
+        self.http_session_cls = http_session_cls
         if not self.connector_args:
             self.connector_args = dict()
 
@@ -27,13 +32,17 @@ class AioConfig(botocore.client.Config):
         return AioConfig(self.connector_args, **config_options)
 
     @staticmethod
-    def _validate_connector_args(connector_args):
+    def _validate_connector_args(connector_args, http_session_cls):
         if connector_args is None:
             return
 
         for k, v in connector_args.items():
             # verify_ssl is handled by verify parameter to create_client
             if k == 'use_dns_cache':
+                if http_session_cls is HttpxSession:
+                    raise ParamValidationError(
+                        report='Httpx does not support dns caching. https://github.com/encode/httpx/discussions/2211'
+                    )
                 if not isinstance(v, bool):
                     raise ParamValidationError(
                         report=f'{k} value must be a boolean'
@@ -44,6 +53,10 @@ class AioConfig(botocore.client.Config):
                         report=f'{k} value must be a float/int or None'
                     )
             elif k == 'force_close':
+                if http_session_cls is HttpxSession:
+                    raise ParamValidationError(
+                        report=f'Httpx backend does not currently support {k}.'
+                    )
                 if not isinstance(v, bool):
                     raise ParamValidationError(
                         report=f'{k} value must be a boolean'
@@ -59,6 +72,10 @@ class AioConfig(botocore.client.Config):
             elif k == "resolver":
                 from aiohttp.abc import AbstractResolver
 
+                if http_session_cls is HttpxSession:
+                    raise ParamValidationError(
+                        report=f'Httpx backend does not support {k}.'
+                    )
                 if not isinstance(v, AbstractResolver):
                     raise ParamValidationError(
                         report=f'{k} must be an instance of a AbstractResolver'
