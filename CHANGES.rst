@@ -1,5 +1,10 @@
 Changes
 -------
+
+2.14.0 (2024-08-06)
+^^^^^^^^^^^^^^^^^^^
+* leverage aiohttp internal handling of `chunked` argument
+
 2.13.2 (2024-07-18)
 ^^^^^^^^^^^^^^^^^^^
 * fix for #1125 due to missing patch of StreamingChecksumBody
