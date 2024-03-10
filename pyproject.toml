@@ -16,3 +16,8 @@ src_paths = ["aiobotocore", "tests"]
 [tool.black]
 line-length = 79
 skip_string_normalization = true
+
+# unfortunately we can't generate hashes since pip-tools doesn't support that param
+# if any modules are editable :( https://github.com/pypa/pip/issues/4995
+#[tool.pip-tools]
+#generate-hashes = true

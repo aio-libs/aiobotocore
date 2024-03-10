@@ -1,12 +1,10 @@
 # Some simple testing tasks (sorry, UNIX only).
 
-FLAGS=
-
 pre-commit flake: checkrst
 	pre-commit run --all
 
 test: pre-commit
-	python -Wd -m pytest -s -vv $(FLAGS) ./tests/
+	python -Wd -m pytest -s -vv ./tests/
 
 vtest:
 	python -Wd -X tracemalloc=5 -X faulthandler -m pytest -s -vv $(FLAGS) ./tests/
@@ -43,6 +41,7 @@ clean:
 	rm -rf build
 	rm -rf cover
 	rm -rf dist
+	rm -rf requirements-dev-*.txt
 
 doc:
 	make -C docs html

@@ -39,11 +39,11 @@ jobs:
     - name: Lock and sync dependencies
       env:
         AIOHTTP_VERSION: ${{ matrix.aiohttp-version }}
+        PYTHON_VERSION: ${{ matrix.python-version }}
       run: |
         python -c "import sys; print(f'Python version: {sys.version}')"
         python -m pip install -U setuptools pip codecov wheel pip-tools
-        time pip-compile requirements-dev.in
-        time pip-sync requirements-dev.txt
+        ./build_and_sync_requirements.sh
     - name: Run pre-commit hooks
       if: matrix.python-version == '3.11'
       run: |
