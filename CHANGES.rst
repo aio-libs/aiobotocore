@@ -1,6 +1,10 @@
 Changes
 -------
 
+2.12.3 (2024-04-02)
+^^^^^^^^^^^^^^^^^^^
+* relax botocore dependency specification
+
 2.12.2 (2024-04-01)
 ^^^^^^^^^^^^^^^^^^^
 * expose configuration of ``http_session_cls`` in ``AioConfig``
