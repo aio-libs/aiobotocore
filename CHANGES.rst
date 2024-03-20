@@ -1,6 +1,14 @@
 Changes
 -------
 
+2.12.1 (2024-03-04)
+^^^^^^^^^^^^^^^^^^^
+* fix use of proxies #1070
+
+2.12.0 (2024-02-28)
+^^^^^^^^^^^^^^^^^^^
+* bump botocore dependency specification
+
 2.11.2 (2024-02-02)
 ^^^^^^^^^^^^^^^^^^^
 * bump botocore dependency specification
