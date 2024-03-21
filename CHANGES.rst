@@ -1,6 +1,10 @@
 Changes
 -------
 
+2.12.2 (2024-03-21)
+^^^^^^^^^^^^^^^^^^^
+* relax botocore dependency specification
+
 2.12.1 (2024-03-04)
 ^^^^^^^^^^^^^^^^^^^
 * fix use of proxies #1070
