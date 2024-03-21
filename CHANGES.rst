@@ -1,6 +1,10 @@
 Changes
 -------
 
+2.13.0 (2024-03-05)
+^^^^^^^^^^^^^^^^^^^
+* leverage aiohttp internal handling of `chunked` argument
+
 2.12.1 (2024-03-04)
 ^^^^^^^^^^^^^^^^^^^
 * fix use of proxies #1070
