@@ -3,12 +3,15 @@ import copy
 import botocore.client
 from botocore.exceptions import ParamValidationError
 
-from aiobotocore.httpsession import AIOHTTPSession
+from aiobotocore.endpoint import DEFAULT_HTTP_SESSION_CLS
 
 
 class AioConfig(botocore.client.Config):
     def __init__(
-        self, connector_args=None, http_session_cls=AIOHTTPSession, **kwargs
+        self,
+        connector_args=None,
+        http_session_cls=DEFAULT_HTTP_SESSION_CLS,
+        **kwargs,
     ):
         super().__init__(**kwargs)
 
