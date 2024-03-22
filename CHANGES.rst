@@ -1,6 +1,10 @@
 Changes
 -------
 
+xxx
+^^^^^^^^^^^^^^^^^^^
+* expose configuration of ``http_session_cls`` in ``AioConfig``
+
 2.12.1 (2024-03-04)
 ^^^^^^^^^^^^^^^^^^^
 * fix use of proxies #1070

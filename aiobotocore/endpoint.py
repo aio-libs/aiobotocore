@@ -19,6 +19,8 @@ from aiobotocore.httpchecksum import handle_checksum_body
 from aiobotocore.httpsession import AIOHTTPSession
 from aiobotocore.response import StreamingBody
 
+DEFAULT_HTTP_SESSION_CLS = AIOHTTPSession
+
 
 async def convert_to_response_dict(http_response, operation_model):
     """Convert an HTTP response object to a request dict.
@@ -295,7 +297,7 @@ class AioEndpointCreator(EndpointCreator):
         response_parser_factory=None,
         timeout=DEFAULT_TIMEOUT,
         max_pool_connections=MAX_POOL_CONNECTIONS,
-        http_session_cls=AIOHTTPSession,
+        http_session_cls=DEFAULT_HTTP_SESSION_CLS,
         proxies=None,
         socket_options=None,
         client_cert=None,
