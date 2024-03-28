@@ -1,6 +1,10 @@
 Changes
 -------
 
+2.13.0 (2024-03-05)
+^^^^^^^^^^^^^^^^^^^
+* address breaking change introduced in `aiohttp==3.9.2` #882
+
 2.12.1 (2024-03-04)
 ^^^^^^^^^^^^^^^^^^^
 * fix use of proxies #1070

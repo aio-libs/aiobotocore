@@ -21,7 +21,7 @@ jobs:
       matrix:
         python-version: ['3.8', '3.9', '3.10', '3.11', '3.12']
         include:
-          - aiohttp-version: '==3.7.4.post0'
+          - aiohttp-version: '==3.9.2'
           - aiohttp-version: '<4.0.0'
             python-version: '3.11'
       fail-fast: false
