@@ -16,6 +16,7 @@ install_requires = [
 extras_require = {
     'awscli': ['awscli>=1.32.41,<1.32.52'],
     'boto3': ['boto3>=1.34.41,<1.34.52'],
+    'httpx': ['httpx'],
 }
 
 
@@ -39,7 +40,7 @@ def read_version():
 setup(
     name='aiobotocore',
     version=read_version(),
-    description='Async client for aws services using botocore and aiohttp',
+    description='Async client for aws services using botocore and aiohttp/httpx',
     long_description='\n\n'.join((read('README.rst'), read('CHANGES.rst'))),
     long_description_content_type='text/x-rst',
     classifiers=[

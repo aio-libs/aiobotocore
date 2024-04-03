@@ -1,6 +1,7 @@
 # Some simple testing tasks (sorry, UNIX only).
 
-# ?= conditional assign, so users can pass options on the CLI instead of manually editing this file
+# ?= is conditional assign, so users can pass options on the CLI instead of manually editing this file
+HTTP_BACKEND?='all'
 FLAGS?=
 
 pre-commit flake: checkrst
@@ -23,7 +24,7 @@ cov cover coverage: pre-commit
 mototest:
 	docker pull alpine
 	docker pull lambci/lambda:python3.8
-	BOTO_CONFIG=/dev/null python -Wd -X tracemalloc=5 -X faulthandler -m pytest -vv -m moto -n auto --cov-report term --cov-report html --cov-report xml --cov=aiobotocore --cov=tests --log-cli-level=DEBUG $(FLAGS) aiobotocore tests
+	BOTO_CONFIG=/dev/null python -Wd -X tracemalloc=5 -X faulthandler -m pytest -vv -m moto -n auto --cov-report term --cov-report html --cov-report xml --cov=aiobotocore --cov=tests --log-cli-level=DEBUG --http-backend=$(HTTP_BACKEND) $(FLAGS) aiobotocore tests
 	@echo "open file://`pwd`/htmlcov/index.html"
 
 clean:
