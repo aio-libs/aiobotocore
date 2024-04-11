@@ -1,7 +1,7 @@
 Changes
 -------
 
-2.12.3 (2024-04-02)
+2.12.3 (2024-04-11)
 ^^^^^^^^^^^^^^^^^^^
 * relax botocore dependency specification
 
