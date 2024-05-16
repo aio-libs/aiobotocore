@@ -253,6 +253,9 @@ class AioClientCreator(ClientCreator):
         self._set_s3_presign_signature_version(
             client.meta, client_config, scoped_config
         )
+        client.meta.events.register(
+            'before-parameter-build.s3', self._inject_s3_input_parameters
+        )
 
     def _get_client_args(
         self,

@@ -159,7 +159,7 @@ _API_DIGESTS = {
         '716c1549989eef6bbd048bf4f134c1b4659e124a',
     },
     ClientCreator._register_s3_events: {
-        '5659a5312caeb3ea97d663d837d6d201f08824f2'
+        '4ab15da7cb36fa795f64154581a970b0966fdf50',
     },
     ClientCreator._register_retries: {
         '16d3064142e5f9e45b0094bbfabf7be30183f255'
@@ -446,11 +446,11 @@ _API_DIGESTS = {
     # signers.py
     RequestSigner.handler: {'371909df136a0964ef7469a63d25149176c2b442'},
     RequestSigner.sign: {
-        '8b6ca96055e5546a6572ad790d5af74a23bc0b52',
+        '2f1f45a6fcfcca1be2c5e292c9e1b80453e7fa57',
     },
     RequestSigner.get_auth: {'4f8099bef30f9a72fa3bcaa1bd3d22c4fbd224a8'},
     RequestSigner.get_auth_instance: {
-        'dcd41ea686506dcf056d8252ccf73acd501efd2b',
+        'b78756b9d4f7a5bce9630195d761bab557677225',
     },
     RequestSigner._choose_signer: {'bd0e9784029b8aa182b5aec73910d94cb67c36b0'},
     RequestSigner.generate_presigned_url: {
