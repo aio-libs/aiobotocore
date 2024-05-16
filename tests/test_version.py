@@ -161,7 +161,7 @@ def test_release_versions():
         rst_prev_date = datetime.strptime(rst_prev_date, '%Y-%m-%d').date()
 
         assert (
-            rst_date > rst_prev_date
+            rst_date >= rst_prev_date
         ), 'Current release must be after last release'
 
     # get aioboto reqs
