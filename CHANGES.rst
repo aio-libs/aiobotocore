@@ -1,7 +1,7 @@
 Changes
 -------
 
-2.13.0 (2024-05-17)
+2.13.0 (2024-05-16)
 ^^^^^^^^^^^^^^^^^^^
 * address breaking change introduced in `aiohttp==3.9.2` #882
 
