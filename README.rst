@@ -12,8 +12,9 @@ aiobotocore
 .. image:: https://badges.gitter.im/Join%20Chat.svg
     :target: https://gitter.im/aio-libs/aiobotocore
     :alt: Chat on Gitter
-
-
+.. image:: https://assets.piptrends.com/get-last-month-downloads-badge/aiobotocore.svg
+    :target: https://piptrends.com/package/aiobotocore
+    :alt: aiobotocore Downloads Last Month by pip Trends
 
 Async client for amazon services using botocore_ and aiohttp_/asyncio_.
 
