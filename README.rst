@@ -1,7 +1,7 @@
 aiobotocore
 ===========
-.. image:: https://travis-ci.com/aio-libs/aiobotocore.svg?branch=master
-    :target: https://travis-ci.com/aio-libs/aiobotocore
+.. image:: https://github.com/aio-libs/aiobotocore/actions/workflows/python-package.yml/badge.svg?branch=master
+    :target: https://github.com/aio-libs/aiobotocore/actions/workflows/python-package.yml
 .. image:: https://codecov.io/gh/aio-libs/aiobotocore/branch/master/graph/badge.svg
     :target: https://codecov.io/gh/aio-libs/aiobotocore
 .. image:: https://readthedocs.org/projects/aiobotocore/badge/?version=latest
