@@ -1,20 +1,31 @@
 aiobotocore
 ===========
-.. image:: https://github.com/aio-libs/aiobotocore/actions/workflows/python-package.yml/badge.svg?branch=master
+.. |ci badge| image:: https://github.com/aio-libs/aiobotocore/actions/workflows/python-package.yml/badge.svg?branch=master
     :target: https://github.com/aio-libs/aiobotocore/actions/workflows/python-package.yml
-.. image:: https://codecov.io/gh/aio-libs/aiobotocore/branch/master/graph/badge.svg
+    :alt: CI status of master branch
+.. |coverage badge| image:: https://codecov.io/gh/aio-libs/aiobotocore/branch/master/graph/badge.svg
     :target: https://codecov.io/gh/aio-libs/aiobotocore
-.. image:: https://readthedocs.org/projects/aiobotocore/badge/?version=latest
+    :alt: Coverage status on master branch
+.. |docs badge| image:: https://readthedocs.org/projects/aiobotocore/badge/?version=latest
     :target: https://aiobotocore.readthedocs.io/en/latest/?badge=latest
     :alt: Documentation Status
-.. image:: https://img.shields.io/pypi/v/aiobotocore.svg
+.. |pypi badge| image:: https://img.shields.io/pypi/v/aiobotocore.svg
     :target: https://pypi.python.org/pypi/aiobotocore
-.. image:: https://badges.gitter.im/Join%20Chat.svg
+    :alt: Latest version on pypi
+.. |gitter badge| image:: https://badges.gitter.im/Join%20Chat.svg
     :target: https://gitter.im/aio-libs/aiobotocore
     :alt: Chat on Gitter
-.. image:: https://assets.piptrends.com/get-last-month-downloads-badge/aiobotocore.svg
-    :target: https://piptrends.com/package/aiobotocore
-    :alt: aiobotocore Downloads Last Month by pip Trends
+.. |pypi downloads badge| image:: https://img.shields.io/pypi/dm/aiobotocore.svg?label=PyPI%20downloads
+    :target: https://pypi.org/project/aiobotocore/
+    :alt: Downloads Last Month
+.. |conda badge| image:: https://img.shields.io/conda/dn/conda-forge/aiobotocore.svg?label=Conda%20downloads
+    :target: https://anaconda.org/conda-forge/aiobotocore
+    :alt: Conda downloads
+.. |stackoverflow badge| image:: https://img.shields.io/badge/stackoverflow-Ask%20questions-blue.svg
+    :target: https://stackoverflow.com/questions/tagged/aiobotocore
+    :alt: Stack Overflow
+
+|ci badge| |coverage badge| |docs badge| |pypi badge| |gitter badge| |pypi downloads badge| |conda badge| |stackoverflow badge|
 
 Async client for amazon services using botocore_ and aiohttp_/asyncio_.
 
