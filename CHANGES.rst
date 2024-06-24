@@ -1,7 +1,7 @@
 Changes
 -------
 
-2.13.1 (2024-06-21)
+2.13.1 (2024-06-24)
 ^^^^^^^^^^^^^^^^^^^
 * bump botocore dependency specification
 
