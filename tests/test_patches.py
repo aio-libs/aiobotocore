@@ -56,6 +56,7 @@ from botocore.httpchecksum import (
     _handle_bytes_response,
     apply_request_checksum,
     handle_checksum_body,
+    StreamingChecksumBody,
 )
 from botocore.httpsession import URLLib3Session
 from botocore.paginate import PageIterator, ResultKeyIterator
@@ -646,6 +647,9 @@ _API_DIGESTS = {
     # httpchecksum.py
     handle_checksum_body: {
         '898cee7a7a5e5a02af7e0e65dcbb8122257b85df',
+    },
+    StreamingChecksumBody: {
+        '2c6eb22268d46abae261ce386eb2deabbc3a0dcd',
     },
     _handle_bytes_response: {'0761c4590c6addbe8c674e40fca9f7dd375a184b'},
     AwsChunkedWrapper._make_chunk: {
