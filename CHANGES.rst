@@ -1,5 +1,8 @@
 Changes
 -------
+2.13.2 (2024-07-18)
+^^^^^^^^^^^^^^^^^^^
+* fix for #1125 due to missing patch of StreamingChecksumBody
 
 2.13.1 (2024-06-24)
 ^^^^^^^^^^^^^^^^^^^

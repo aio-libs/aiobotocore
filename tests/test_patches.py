@@ -52,8 +52,10 @@ from botocore.handlers import (
 from botocore.hooks import EventAliaser, HierarchicalEmitter
 from botocore.httpchecksum import (
     AwsChunkedWrapper,
+    StreamingChecksumBody,
     _apply_request_trailer_checksum,
     _handle_bytes_response,
+    _handle_streaming_response,
     apply_request_checksum,
     handle_checksum_body,
 )
@@ -646,6 +648,10 @@ _API_DIGESTS = {
     # httpchecksum.py
     handle_checksum_body: {
         '898cee7a7a5e5a02af7e0e65dcbb8122257b85df',
+    },
+    _handle_streaming_response: {'7ce971e012f9d4b04889f0af83f67281ed6a9e6e'},
+    StreamingChecksumBody: {
+        '2c6eb22268d46abae261ce386eb2deabbc3a0dcd',
     },
     _handle_bytes_response: {'0761c4590c6addbe8c674e40fca9f7dd375a184b'},
     AwsChunkedWrapper._make_chunk: {
