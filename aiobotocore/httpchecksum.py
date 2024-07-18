@@ -5,7 +5,6 @@ from botocore.httpchecksum import (
     AwsChunkedWrapper,
     FlexibleChecksumError,
     _apply_request_header_checksum,
-    _handle_streaming_response,
     base64,
     conditionally_calculate_md5,
     determine_content_length,
@@ -13,6 +12,7 @@ from botocore.httpchecksum import (
 )
 
 from aiobotocore._helpers import resolve_awaitable
+from aiobotocore.response import StreamingBody
 
 
 class AioAwsChunkedWrapper(AwsChunkedWrapper):
@@ -42,6 +42,30 @@ class AioAwsChunkedWrapper(AwsChunkedWrapper):
         while not self._complete:
             return await self._make_chunk()
         raise StopAsyncIteration()
+
+
+# unfortunately we can't inherit from botocore's StreamingChecksumBody due to
+# subclassing
+class StreamingChecksumBody(StreamingBody):
+    def __init__(self, raw_stream, content_length, checksum, expected):
+        super().__init__(raw_stream, content_length)
+        self._checksum = checksum
+        self._expected = expected
+
+    async def read(self, amt=None):
+        chunk = await super().read(amt=amt)
+        self._checksum.update(chunk)
+        if amt is None or (not chunk and amt > 0):
+            self._validate_checksum()
+        return chunk
+
+    def _validate_checksum(self):
+        if self._checksum.digest() != base64.b64decode(self._expected):
+            error_msg = (
+                f"Expected checksum {self._expected} did not match calculated "
+                f"checksum: {self._checksum.b64digest()}"
+            )
+            raise FlexibleChecksumError(error_msg=error_msg)
 
 
 async def handle_checksum_body(
@@ -84,6 +108,17 @@ async def handle_checksum_body(
     logger.info(
         f'Skipping checksum validation. Response did not contain one of the '
         f'following algorithms: {algorithms}.'
+    )
+
+
+def _handle_streaming_response(http_response, response, algorithm):
+    checksum_cls = _CHECKSUM_CLS.get(algorithm)
+    header_name = "x-amz-checksum-%s" % algorithm
+    return StreamingChecksumBody(
+        http_response.raw,
+        response["headers"].get("content-length"),
+        checksum_cls(),
+        response["headers"][header_name],
     )
 
 
