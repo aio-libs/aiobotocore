@@ -52,11 +52,11 @@ from botocore.handlers import (
 from botocore.hooks import EventAliaser, HierarchicalEmitter
 from botocore.httpchecksum import (
     AwsChunkedWrapper,
+    StreamingChecksumBody,
     _apply_request_trailer_checksum,
     _handle_bytes_response,
     apply_request_checksum,
     handle_checksum_body,
-    StreamingChecksumBody,
 )
 from botocore.httpsession import URLLib3Session
 from botocore.paginate import PageIterator, ResultKeyIterator
