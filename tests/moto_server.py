@@ -35,9 +35,7 @@ class MotoService:
 
     _services = dict()  # {name: instance}
 
-    def __init__(self, service_name: str, port: int = None, ssl: bool = False):
-        self._service_name = service_name
-
+    def __init__(self, port: int = None, ssl: bool = False):
         if port:
             self._socket = None
             self._port = port
@@ -46,7 +44,7 @@ class MotoService:
 
         self._thread = None
         self._logger = logging.getLogger('MotoService')
-        self._refcount = None
+        self._refcount = 0
         self._ip_address = host
         self._server = None
         self._ssl_ctx = (
@@ -72,14 +70,12 @@ class MotoService:
         return wrapper
 
     async def __aenter__(self):
-        svc = self._services.get(self._service_name)
-        if svc is None:
-            self._services[self._service_name] = self
+        if self._refcount == 0:
             self._refcount = 1
             await self._start()
             return self
         else:
-            svc._refcount += 1
+            self._refcount += 1
             return svc
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
@@ -90,13 +86,15 @@ class MotoService:
             self._socket = None
 
         if self._refcount == 0:
-            del self._services[self._service_name]
             await self._stop()
 
     def _server_entry(self):
-        self._main_app = moto.server.DomainDispatcherApplication(
-            moto.server.create_backend_app, service=self._service_name
-        )
+        try:
+            self._main_app = moto.server.DomainDispatcherApplication(
+                moto.server.create_backend_app
+            )
+        except BaseException as exc:
+            raise
         self._main_app.debug = True
 
         if self._socket:
@@ -136,7 +134,7 @@ class MotoService:
                     await asyncio.sleep(0.5)
             else:
                 await self._stop()  # pytest.fail doesn't call stop_process
-                raise Exception(f"Can not start service: {self._service_name}")
+                raise Exception("Can not start moto service")
 
     async def _stop(self):
         if self._server:
