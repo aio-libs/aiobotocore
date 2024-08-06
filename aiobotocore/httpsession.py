@@ -135,13 +135,6 @@ class AIOHTTPSession:
         except (OSError, LocationParseError) as e:
             raise InvalidProxiesConfigError(error=e)
 
-    def _chunked(self, headers):
-        transfer_encoding = headers.get('Transfer-Encoding', '')
-        if chunked := transfer_encoding.lower() == 'chunked':
-            # aiohttp wants chunking as a param, and not a header
-            del headers['Transfer-Encoding']
-        return chunked or None
-
     def _create_connector(self, proxy_url):
         ssl_context = None
         if bool(self._verify):
@@ -222,7 +215,6 @@ class AIOHTTPSession:
             response = await session.request(
                 request.method,
                 url=url,
-                chunked=self._chunked(headers_),
                 headers=headers_,
                 data=data,
                 proxy=proxy_url,
