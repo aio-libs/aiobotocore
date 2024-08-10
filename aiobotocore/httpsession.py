@@ -173,9 +173,9 @@ class AIOHTTPSession:
     async def _get_session(self, proxy_url):
         if not (session := self._sessions.get(proxy_url)):
             connector = self._create_connector(proxy_url)
-            self._sessions[
-                proxy_url
-            ] = session = await self._exit_stack.enter_async_context(
+            self._sessions[proxy_url] = (
+                session
+            ) = await self._exit_stack.enter_async_context(
                 aiohttp.ClientSession(
                     connector=connector,
                     timeout=self._timeout,

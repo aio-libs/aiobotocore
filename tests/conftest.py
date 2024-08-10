@@ -80,9 +80,7 @@ async def assert_num_uploads_found(
             await asyncio.sleep(2)
 
         pytest.fail(
-            "Expected to see {} uploads, instead saw: {}".format(
-                num_uploads, amount_seen
-            )
+            f"Expected to see {num_uploads} uploads, instead saw: {amount_seen}"
         )
 
 
