@@ -62,7 +62,6 @@ jobs:
         flags: unittests # optional
         name: codecov-umbrella # optional
         fail_ci_if_error: true # optional (default = false)
-        path_to_write_report: ./codecov_report.txt
         verbose: true # optional (default = false)
 
 
