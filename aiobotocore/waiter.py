@@ -63,7 +63,9 @@ def create_waiter_with_client(waiter_name, waiter_model, client):
     )
 
     # Create the new waiter class
-    documented_waiter_cls = type(waiter_class_name, (Waiter,), {'wait': wait})
+    documented_waiter_cls = type(
+        waiter_class_name, (AIOWaiter,), {'wait': wait}
+    )
 
     # Return an instance of the new waiter class.
     return documented_waiter_cls(
