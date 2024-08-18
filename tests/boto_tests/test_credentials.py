@@ -864,9 +864,7 @@ async def test_createcredentialresolver(mock_session):
     assert isinstance(resolver, credentials.AioCredentialResolver)
 
 
-# Disabled on travis as we cant easily disable the tests properly and
-#  travis has an IAM role which can't be applied to the mock session
-# @pytest.mark.moto
+@pytest.mark.moto
 @pytest.mark.asyncio
 async def test_get_credentials(mock_session):
     session = mock_session()
