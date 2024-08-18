@@ -5,7 +5,7 @@ from aiobotocore.session import AioSession
 
 @pytest.mark.parametrize(
     'defaults_mode,retry_mode',
-    [('legacy', 'legacy'), ('standard', 'standard')],
+    [('legacy', 'legacy'), ('standard', 'standard'), ('auto', 'standard')],
 )
 @pytest.mark.moto
 @pytest.mark.asyncio
