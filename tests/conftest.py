@@ -3,7 +3,7 @@ import os
 import random
 import string
 import tempfile
-from contextlib import ExitStack
+from contextlib import AsyncExitStack, ExitStack
 from itertools import chain
 from unittest.mock import patch
 
@@ -14,7 +14,6 @@ import pytest
 
 import aiobotocore.session
 from aiobotocore.config import AioConfig
-from tests._helpers import AsyncExitStack
 
 host = '127.0.0.1'
 
