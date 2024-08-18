@@ -8,6 +8,7 @@ import os
 import sys
 import tempfile
 import uuid
+from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 from functools import partial
 from typing import Optional
@@ -31,7 +32,6 @@ from botocore.utils import (
 from dateutil.tz import tzlocal, tzutc
 
 from aiobotocore import credentials
-from aiobotocore._helpers import asynccontextmanager
 from aiobotocore.credentials import (
     AioAssumeRoleProvider,
     AioCanonicalNameCredentialSourcer,
