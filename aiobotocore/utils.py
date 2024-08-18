@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 import functools
 import inspect
 import json
@@ -34,7 +35,6 @@ from botocore.utils import (
 )
 
 import aiobotocore.httpsession
-from aiobotocore._helpers import asynccontextmanager
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +45,7 @@ class _RefCountedSession(aiobotocore.httpsession.AIOHTTPSession):
         self.__ref_count = 0
         self.__lock = None
 
-    @asynccontextmanager
+    @contextlib.asynccontextmanager
     async def acquire(self):
         if not self.__lock:
             self.__lock = asyncio.Lock()
