@@ -9,4 +9,5 @@ async def test_invalid_endpoint_url(session, region):
         async with session.create_client(
             'ec2', region_name=region, endpoint_url=endpoint_url
         ):
-            raise AssertionError  # should not succeed in entering client context
+            # should not succeed in entering client context
+            assert False  # pragma: no cover
