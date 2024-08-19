@@ -111,7 +111,7 @@ class AioClientCreator(ClientCreator):
         bases = [AioBaseClient]
         service_id = service_model.service_id.hyphenize()
         await self._event_emitter.emit(
-            'creating-client-class.%s' % service_id,
+            f'creating-client-class.{service_id}',
             class_attributes=class_attributes,
             base_classes=bases,
         )
@@ -189,7 +189,7 @@ class AioClientCreator(ClientCreator):
         handler = self._retry_handler_factory.create_retry_handler(
             retry_config, endpoint_prefix
         )
-        unique_id = 'retry-config-%s' % service_event_name
+        unique_id = f'retry-config-{service_event_name}'
         client.meta.events.register(
             f"needs-retry.{service_event_name}", handler, unique_id=unique_id
         )
@@ -301,8 +301,8 @@ class AioClientCreator(ClientCreator):
 
 class AioBaseClient(BaseClient):
     async def _async_getattr(self, item):
-        event_name = 'getattr.{}.{}'.format(
-            self._service_model.service_id.hyphenize(), item
+        event_name = (
+            f'getattr.{self._service_model.service_id.hyphenize()}.{item}'
         )
         handler, event_response = await self.meta.events.emit_until_response(
             event_name, client=self
@@ -315,9 +315,7 @@ class AioBaseClient(BaseClient):
         # deferred attrgetter (See #803), it would resolve in hasattr always returning
         # true.  This ends up breaking ddtrace for example when it tries to set a pin.
         raise AttributeError(
-            "'{}' object has no attribute '{}'".format(
-                self.__class__.__name__, item
-            )
+            f"'{self.__class__.__name__}' object has no attribute '{item}'"
         )
 
     async def close(self):
@@ -372,9 +370,7 @@ class AioBaseClient(BaseClient):
 
         service_id = self._service_model.service_id.hyphenize()
         handler, event_response = await self.meta.events.emit_until_response(
-            'before-call.{service_id}.{operation_name}'.format(
-                service_id=service_id, operation_name=operation_name
-            ),
+            f'before-call.{service_id}.{operation_name}',
             model=operation_model,
             params=request_dict,
             request_signer=self._request_signer,
@@ -393,9 +389,7 @@ class AioBaseClient(BaseClient):
             )
 
         await self.meta.events.emit(
-            'after-call.{service_id}.{operation_name}'.format(
-                service_id=service_id, operation_name=operation_name
-            ),
+            f'after-call.{service_id}.{operation_name}',
             http_response=http,
             parsed=parsed_response,
             model=operation_model,
@@ -421,10 +415,7 @@ class AioBaseClient(BaseClient):
             )
         except Exception as e:
             await self.meta.events.emit(
-                'after-call-error.{service_id}.{operation_name}'.format(
-                    service_id=self._service_model.service_id.hyphenize(),
-                    operation_name=operation_model.name,
-                ),
+                f'after-call-error.{self._service_model.service_id.hyphenize()}.{operation_model.name}',
                 exception=e,
                 context=request_context,
             )
@@ -614,13 +605,13 @@ class AioBaseClient(BaseClient):
         """
         config = self._get_waiter_config()
         if not config:
-            raise ValueError("Waiter does not exist: %s" % waiter_name)
+            raise ValueError(f"Waiter does not exist: {waiter_name}")
         model = waiter.WaiterModel(config)
         mapping = {}
         for name in model.waiter_names:
             mapping[xform_name(name)] = name
         if waiter_name not in mapping:
-            raise ValueError("Waiter does not exist: %s" % waiter_name)
+            raise ValueError(f"Waiter does not exist: {waiter_name}")
 
         return waiter.create_waiter_with_client(
             mapping[waiter_name], model, self

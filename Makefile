@@ -3,7 +3,7 @@
 # ?= conditional assign, so users can pass options on the CLI instead of manually editing this file
 FLAGS?=
 
-pre-commit flake: checkrst
+pre-commit: checkrst
 	pre-commit run --all
 
 test: pre-commit
