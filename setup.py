@@ -1,7 +1,7 @@
 import os
 import re
 
-from setuptools import find_packages, setup
+from setuptools import setup
 
 # NOTE: If updating requirements make sure to also check Pipfile for any locks
 # NOTE: When updating botocore make sure to update awscli/boto3 versions below
@@ -62,9 +62,7 @@ setup(
     url='https://github.com/aio-libs/aiobotocore',
     download_url='https://pypi.python.org/pypi/aiobotocore',
     license='Apache License 2.0',
-    packages=find_packages(include=['aiobotocore']),
     python_requires='>=3.8',
     install_requires=install_requires,
     extras_require=extras_require,
-    include_package_data=True,
 )
