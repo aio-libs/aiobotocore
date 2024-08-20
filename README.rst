@@ -231,12 +231,6 @@ For `types-aiobotocore-lite` package use explicit type annotations:
 Full documentation for `types-aiobotocore` can be found here: https://youtype.github.io/types_aiobotocore_docs/
 
 
-Mailing List
-------------
-
-https://groups.google.com/forum/#!forum/aio-libs
-
-
 Requirements
 ------------
 * Python_ 3.8+
