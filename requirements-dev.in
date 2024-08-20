@@ -12,6 +12,9 @@ setuptools==67.8.0;python_version>="3.12"
 # this is needed for test_patches
 dill~=0.3.3
 
+# this is needed for test_version
+tomli; python_version < "3.11"
+
 # this is needed when running setup.py check -rms
 Pygments
 
