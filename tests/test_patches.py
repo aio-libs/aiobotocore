@@ -135,7 +135,7 @@ from dill.source import getsource
 # REPLACE = backwards incompatible change
 # APPEND = officially supporting more versions of botocore/aiohttp
 
-# If you're changing these, most likely need to update setup.py as well.
+# If you're changing these, most likely need to update dependencies in pyproject.toml as well.
 _API_DIGESTS = {
     # args.py
     ClientArgsCreator.get_client_args: {
