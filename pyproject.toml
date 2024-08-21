@@ -45,7 +45,7 @@ boto3 = [
 
 [project.urls]
 Repository = "https://github.com/aio-libs/aiobotocore"
-Documentation = "https://aiobotocore.readthedocs.io"
+Documentation = "https://aiobotocore.aio-libs.org"
 
 [tool.setuptools.dynamic]
 version = { attr = "aiobotocore.__version__" }
