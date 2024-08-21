@@ -5,8 +5,8 @@
 
 aiobotocore's documentation!
 ============================
-.. image:: https://github.com/aio-libs/aiobotocore/actions/workflows/python-package.yml/badge.svg?branch=master
-    :target: https://github.com/aio-libs/aiobotocore/actions/workflows/python-package.yml
+.. image:: https://github.com/aio-libs/aiobotocore/actions/workflows/ci-cd.yml/badge.svg?branch=master
+    :target: https://github.com/aio-libs/aiobotocore/actions/workflows/ci-cd.yml
 .. image:: https://codecov.io/gh/aio-libs/aiobotocore/branch/master/graph/badge.svg
     :target: https://codecov.io/gh/aio-libs/aiobotocore
 .. image:: https://img.shields.io/pypi/v/aiobotocore.svg

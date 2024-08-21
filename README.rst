@@ -1,7 +1,7 @@
 aiobotocore
 ===========
-.. |ci badge| image:: https://github.com/aio-libs/aiobotocore/actions/workflows/python-package.yml/badge.svg?branch=master
-    :target: https://github.com/aio-libs/aiobotocore/actions/workflows/python-package.yml
+.. |ci badge| image:: https://github.com/aio-libs/aiobotocore/actions/workflows/ci-cd.yml/badge.svg?branch=master
+    :target: https://github.com/aio-libs/aiobotocore/actions/workflows/ci-cd.yml
     :alt: CI status of master branch
 .. |coverage badge| image:: https://codecov.io/gh/aio-libs/aiobotocore/branch/master/graph/badge.svg
     :target: https://codecov.io/gh/aio-libs/aiobotocore
