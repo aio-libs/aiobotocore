@@ -1,3 +1,4 @@
+---
 version: 2
 
 build:
@@ -10,9 +11,9 @@ sphinx:
 
 python:
   install:
-    - path: .
-    - requirements: docs/requirements.txt
+  - path: .
+  - requirements: docs/requirements.txt
 
 formats:
-  - htmlzip
-  - epub
+- htmlzip
+- epub
