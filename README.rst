@@ -3,6 +3,9 @@ aiobotocore
 .. |ci badge| image:: https://github.com/aio-libs/aiobotocore/actions/workflows/ci-cd.yml/badge.svg?branch=master
     :target: https://github.com/aio-libs/aiobotocore/actions/workflows/ci-cd.yml
     :alt: CI status of master branch
+.. |pre-commit badge| image:: https://results.pre-commit.ci/badge/github/aio-libs/aiobotocore/master.svg
+    :target: https://results.pre-commit.ci/latest/github/aio-libs/aiobotocore/master
+    :alt: pre-commit.ci status
 .. |coverage badge| image:: https://codecov.io/gh/aio-libs/aiobotocore/branch/master/graph/badge.svg
     :target: https://codecov.io/gh/aio-libs/aiobotocore
     :alt: Coverage status on master branch
@@ -25,7 +28,7 @@ aiobotocore
     :target: https://stackoverflow.com/questions/tagged/aiobotocore
     :alt: Stack Overflow
 
-|ci badge| |coverage badge| |docs badge| |pypi badge| |gitter badge| |pypi downloads badge| |conda badge| |stackoverflow badge|
+|ci badge| |pre-commit badge| |coverage badge| |docs badge| |pypi badge| |gitter badge| |pypi downloads badge| |conda badge| |stackoverflow badge|
 
 Async client for amazon services using botocore_ and aiohttp_/asyncio_.
 
