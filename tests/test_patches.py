@@ -146,7 +146,7 @@ _API_DIGESTS = {
     },
     # client.py
     ClientCreator.create_client: {
-        'eeb7c4730ac86aec37de53b2be0779490b05f50b',
+        'e5bfb3213dc625a3c96e13ca7514f1ca7fc18899',
     },
     ClientCreator._create_client_class: {
         'fcecaf8d4f2c1ac3c5d0eb50c573233ef86d641d',
@@ -178,8 +178,7 @@ _API_DIGESTS = {
         '06864c8ecac153fa36d9d57f0057cb95909ee7cd',
     },
     BaseClient._make_api_call: {
-        '2cb11088d36a89cf9f5c41508bce908acbde24c4',
-        '490a95d7f829ce1fc2e3fbb6169ee63f04d6aeeb',
+        'fccb87670b86bd0bd834d5c38b74e1d77211590a',
     },
     BaseClient._make_request: {
         'cfd8bbf19ea132134717cdf9c460694ddacdbf58',
@@ -203,7 +202,7 @@ _API_DIGESTS = {
     # config.py
     Config.merge: {'c3dd8c3ffe0da86953ceba4a35267dfb79c6a2c8'},
     Config: {
-        '9154efda503c21ab9aa048214ddca7aa637e2ff9',
+        '823f8d031fc7218a600a56268a369aaa878f46c8',
     },
     # credentials.py
     create_mfa_serial_refresher: {'9b5e98782fcacdcea5899a6d0d29d1b9de348bb0'},

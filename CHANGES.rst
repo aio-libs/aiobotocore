@@ -1,6 +1,10 @@
 Changes
 -------
 
+2.14.0 (2024-08-23)
+^^^^^^^^^^^^^^^^^^^
+* bump botocore dependency specification
+
 2.13.3 (2024-08-22)
 ^^^^^^^^^^^^^^^^^^^
 * fix ``create_waiter_with_client()``
