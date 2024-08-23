@@ -3,7 +3,7 @@
 # ?= conditional assign, so users can pass options on the CLI instead of manually editing this file
 FLAGS?=
 
-pre-commit: checkrst
+pre-commit:
 	pre-commit run --all
 
 test: pre-commit
@@ -11,9 +11,6 @@ test: pre-commit
 
 vtest:
 	python -Wd -X tracemalloc=5 -X faulthandler -m pytest -s -vv $(FLAGS) ./tests/
-
-checkrst:
-	python setup.py check -rms
 
 cov cover coverage: pre-commit
 	python -Wd -m pytest -s -vv --cov-report term --cov-report html --cov aiobotocore ./tests

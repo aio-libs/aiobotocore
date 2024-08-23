@@ -15,9 +15,6 @@ dill~=0.3.3
 # this is needed for test_version
 tomli; python_version < "3.11"
 
-# this is needed when running setup.py check -rms
-Pygments
-
 aiohttp${AIOHTTP_VERSION}
 
 -e .[awscli,boto3]
