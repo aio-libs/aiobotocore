@@ -21,6 +21,7 @@ jobs:
   build:
     name: Build distribution 📦
     runs-on: ubuntu-latest
+    timeout-minutes: 5
 
     steps:
     - uses: actions/checkout@v4
@@ -58,7 +59,7 @@ jobs:
         - aiohttp-version: <4.0.0
           python-version: 3.11
       fail-fast: false
-    timeout-minutes: 15
+    timeout-minutes: 5
 
     steps:
     - name: Checkout
@@ -111,6 +112,7 @@ jobs:
     permissions:
       # IMPORTANT: this permission is mandatory for trusted publishing
       id-token: write
+    timeout-minutes: 5
 
     steps:
     - name: Download distribution 📦
