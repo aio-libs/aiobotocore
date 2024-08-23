@@ -76,7 +76,7 @@ jobs:
         AIOHTTP_VERSION: ${{ matrix.aiohttp-version }}
       run: |
         python -V -V
-        python -m pip install -U pip codecov pip-tools
+        python -m pip install -U pip pip-tools
         time pip-compile requirements-dev.in
         time pip-sync requirements-dev.txt
     - name: Run pre-commit hooks
