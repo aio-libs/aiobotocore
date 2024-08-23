@@ -75,7 +75,6 @@ jobs:
       env:
         AIOHTTP_VERSION: ${{ matrix.aiohttp-version }}
       run: |
-        python -V -V
         python -m pip install -U pip pip-tools
         time pip-compile requirements-dev.in
         time pip-sync requirements-dev.txt
