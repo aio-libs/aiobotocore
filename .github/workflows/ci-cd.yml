@@ -54,10 +54,6 @@ jobs:
         - 3.11
         - 3.12
         - 3.13
-        include:
-        - aiohttp-version: ==3.9.2
-        - aiohttp-version: <4.0.0
-          python-version: 3.11
       fail-fast: false
     timeout-minutes: 5
 
@@ -72,8 +68,6 @@ jobs:
         python-version: ${{ matrix.python-version }}
         allow-prereleases: true
     - name: Lock and sync dependencies
-      env:
-        AIOHTTP_VERSION: ${{ matrix.aiohttp-version }}
       run: |
         python -m pip install -U pip pip-tools
         time pip-compile requirements-dev.in
