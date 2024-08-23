@@ -16,8 +16,14 @@ repos:
   - id: ruff
     args: [--fix]
   - id: ruff-format
-- repo: https://github.com/adrienverge/yamllint.git
+- repo: https://github.com/adrienverge/yamllint
   rev: v1.35.1
   hooks:
   - id: yamllint
     args: [--strict]
+- repo: https://github.com/python-jsonschema/check-jsonschema
+  rev: 0.29.2
+  hooks:
+  - id: check-dependabot
+  - id: check-github-workflows
+  - id: check-readthedocs
