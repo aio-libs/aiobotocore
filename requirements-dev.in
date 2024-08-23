@@ -7,7 +7,6 @@ pytest==8.1.1
 pytest-cov==5.0.0
 pytest-asyncio~=0.23.8
 pytest-xdist==3.5.0
-setuptools==67.8.0;python_version>="3.12"
 
 # this is needed for test_patches
 dill~=0.3.3
