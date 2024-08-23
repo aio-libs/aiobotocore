@@ -142,6 +142,9 @@ def test_release_versions():
     # ensures versions in CHANGES.rst + __init__.py match
     init_version = version.parse(aiobotocore.__version__)
 
+    # the init version should be in canonical from
+    assert str(init_version) == aiobotocore.__version__
+
     changes_path = _root_path / 'CHANGES.rst'
 
     with changes_path.open('r') as f:
