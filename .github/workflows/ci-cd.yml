@@ -70,8 +70,9 @@ jobs:
     - name: Lock and sync dependencies
       run: |
         python -m pip install -U pip pip-tools
-        pip-compile requirements-dev.in
-        pip-sync requirements-dev.txt
+        pip-compile --all-extras pyproject.toml requirements-dev.in
+        pip-sync
+        pip install -e ".[awscli,boto3]"
     - name: Run pre-commit hooks
       run: |
         make pre-commit
