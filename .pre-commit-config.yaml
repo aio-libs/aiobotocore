@@ -27,3 +27,12 @@ repos:
   - id: check-dependabot
   - id: check-github-workflows
   - id: check-readthedocs
+  - id: check-jsonschema
+    alias: check-github-workflows-require-timeout
+    name: Check GitHub Actions workflow jobs set timeout-minutes
+    args:
+    - --builtin-schema
+    - github-workflows-require-timeout
+    files: ^\.github/workflows/[^/]+$
+    types:
+    - yaml
