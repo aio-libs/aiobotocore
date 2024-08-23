@@ -4,7 +4,7 @@
 FLAGS?=
 
 pre-commit:
-	pre-commit run --all
+	pre-commit run --all --show-diff-on-failure
 
 test: pre-commit
 	python -Wd -m pytest -s -vv $(FLAGS) ./tests/
