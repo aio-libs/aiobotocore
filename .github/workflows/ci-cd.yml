@@ -70,8 +70,8 @@ jobs:
     - name: Lock and sync dependencies
       run: |
         python -m pip install -U pip pip-tools
-        time pip-compile requirements-dev.in
-        time pip-sync requirements-dev.txt
+        pip-compile requirements-dev.in
+        pip-sync requirements-dev.txt
     - name: Run pre-commit hooks
       run: |
         make pre-commit
