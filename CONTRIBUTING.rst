@@ -14,7 +14,7 @@ First of all, clone the repository::
     $ git clone git@github.com:aio-libs/aiobotocore.git
 
 Create virtualenv with at least python3.8 (older versions are not supported).
-For example, using *virtualenvwrapper* commands could look like::
+For example, using ``virtualenvwrapper`` commands could look like::
 
    $ cd aiobotocore
    $ mkvirtualenv --python=`which python3.8` aiobotocore
@@ -37,7 +37,7 @@ To run individual use following command::
 
 Reporting an Issue
 ------------------
-If you have found issue with `aiobotocore` please do
+If you have found issue with ``aiobotocore`` please do
 not hesitate to file an issue on the GitHub_ project. When filing your
 issue please make sure you can express the issue with a reproducible test
 case.
@@ -47,8 +47,8 @@ that you can include. We never know what information will be pertinent when
 trying narrow down the issue. Please include at least the following
 information:
 
-* Version of `aiobotocore` and `python`.
-* Version fo `botocore`.
+* Version of ``aiobotocore`` and ``python``.
+* Version of ``botocore``.
 * Platform you're running on (OS X, Linux).
 
 
@@ -56,7 +56,7 @@ Background and Implementation
 -----------------------------
 aiobotocore adds async functionality to botocore by replacing certain critical
 methods in botocore classes with async versions.  The best way to see how this
-works is by working backwards from `AioEndpoint._request`.  Because of this tight
+works is by working backwards from ``AioEndpoint._request``.  Because of this tight
 integration aiobotocore is typically version locked to a particular release of
 botocore.
 
@@ -69,7 +69,7 @@ botocore calls eventually called.
 The best way I've seen to upgrade botocore support is by performing the following:
 
 1. Download sources of the release of botocore you're trying to upgrade to, and the version of botocore that aiobotocore is currently locked to (see pyproject.toml) and do a folder based file comparison of the botocore folders (tools like DiffMerge are nice).
-2. Manually apply the relevant changes to their aiobotocore equivalent(s). Note that sometimes new functions are added which will need to be overridden (like `__enter__` -> `__aenter__`)
+2. Manually apply the relevant changes to their aiobotocore equivalent(s). Note that sometimes new functions are added which will need to be overridden (like ``__enter__`` -> ``__aenter__``)
 3. Update the "project.optional-dependencies" in pyproject.toml to the versions which match the botocore version you are targeting.
 4. Now do a directory diff between aiobotocore and your target version botocore directory to ensure the changes were propagated.
 
