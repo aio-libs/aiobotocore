@@ -158,8 +158,8 @@ commonly used methods.
 | Kinesis        | Basic methods tested  |
 +----------------+-----------------------+
 
-Due to the way boto3 is implemented, its highly likely that even if services are not listed above that you can take any `boto3.client('service')` and
-stick `await` infront of methods to make them async, e.g. `await client.list_named_queries()` would asynchronous list all of the named Athena queries.
+Due to the way boto3 is implemented, its highly likely that even if services are not listed above that you can take any ``boto3.client('service')`` and
+stick ``await`` in front of methods to make them async, e.g. ``await client.list_named_queries()`` would asynchronous list all of the named Athena queries.
 
 If a service is not listed here and you could do with some tests or examples feel free to raise an issue.
 
@@ -199,7 +199,7 @@ Execute tests suite:
 Enable type checking and code completion
 ----------------------------------------
 
-Install types-aiobotocore_ that contains type annotations for `aiobotocore`
+Install types-aiobotocore_ that contains type annotations for ``aiobotocore``
 and all supported botocore_ services.
 
 .. code:: bash
@@ -218,7 +218,7 @@ and all supported botocore_ services.
 Now you should be able to run Pylance_, pyright_, or mypy_ for type checking
 as well as code completion in your IDE.
 
-For `types-aiobotocore-lite` package use explicit type annotations:
+For ``types-aiobotocore-lite`` package use explicit type annotations:
 
 .. code:: python
 
@@ -231,7 +231,7 @@ For `types-aiobotocore-lite` package use explicit type annotations:
         # type checking and code completion is now enabled for client
 
 
-Full documentation for `types-aiobotocore` can be found here: https://youtype.github.io/types_aiobotocore_docs/
+Full documentation for ``types-aiobotocore`` can be found here: https://youtype.github.io/types_aiobotocore_docs/
 
 
 Requirements
