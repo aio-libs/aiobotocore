@@ -54,10 +54,6 @@ jobs:
         - 3.11
         - 3.12
         - 3.13
-        include:
-        - aiohttp-version: ==3.9.2
-        - aiohttp-version: <4.0.0
-          python-version: 3.11
       fail-fast: false
     timeout-minutes: 5
 
@@ -66,19 +62,17 @@ jobs:
       uses: actions/checkout@v4
       with:
         submodules: true
-    - name: Setup Python ${{ matrix.pyver }}
+    - name: Setup Python ${{ matrix.python-version }}
       uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
         allow-prereleases: true
     - name: Lock and sync dependencies
-      env:
-        AIOHTTP_VERSION: ${{ matrix.aiohttp-version }}
       run: |
-        python -V -V
-        python -m pip install -U pip codecov pip-tools
-        time pip-compile requirements-dev.in
-        time pip-sync requirements-dev.txt
+        python -m pip install -U pip pip-tools
+        pip-compile --all-extras pyproject.toml requirements-dev.in
+        pip-sync
+        pip install -e ".[awscli,boto3]"
     - name: Run pre-commit hooks
       run: |
         make pre-commit

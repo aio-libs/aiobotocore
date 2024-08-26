@@ -182,8 +182,9 @@ secret accessible via environment variables:
 ::
 
     $ pip install pip-tools
-    $ pip-compile requirements-dev.in
-    $ pip-sync requirements-dev.txt
+    $ pip-compile --all-extras pyproject.toml
+    $ pip-sync
+    $ pip install -e ".[awscli,boto3]"
     $ export AWS_ACCESS_KEY_ID=xxx
     $ export AWS_SECRET_ACCESS_KEY=xxx
     $ export AWS_DEFAULT_REGION=xxx # e.g. us-west-2
