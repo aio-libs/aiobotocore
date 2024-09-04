@@ -51,6 +51,9 @@ Documentation = "https://aiobotocore.aio-libs.org"
 version = { attr = "aiobotocore.__version__" }
 readme = { file = ["README.rst", "CHANGES.rst"] }
 
+[tool.setuptools.packages.find]
+include = ["aiobotocore*"]
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 cache_dir = "/tmp/pytest_aiobotocore_cache"
