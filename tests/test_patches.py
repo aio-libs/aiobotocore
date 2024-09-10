@@ -361,8 +361,7 @@ _API_DIGESTS = {
     },
     Endpoint._get_response: {'bbf10e6e07147d50e09d7205bf0883bd673a8bf3'},
     Endpoint._do_get_response: {
-        '5afcfe76196406903afb24e05e3dd0feeac1a23d',
-        '4a1cab721ecf2777419ba070c38db77ae3b6df1e',
+        'abad88892d61b22f2a6decffba2e40d070ba9f38',
     },
     Endpoint._needs_retry: {'f718e2ff874763a677648fe6f87cc65e4cec2792'},
     Endpoint._send: {'644c7e5bb88fecaa0b2a204411f8c7e69cc90bf1'},
