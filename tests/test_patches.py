@@ -42,7 +42,6 @@ from botocore.endpoint import (
 )
 from botocore.eventstream import EventStream
 from botocore.handlers import (
-    _looks_like_special_case_error,
     check_for_200_error,
     inject_presigned_url_ec2,
     inject_presigned_url_rds,
@@ -202,6 +201,7 @@ _API_DIGESTS = {
     Config.merge: {'c3dd8c3ffe0da86953ceba4a35267dfb79c6a2c8'},
     Config: {
         '823f8d031fc7218a600a56268a369aaa878f46c8',
+        'b1bd1c2cb9a20afa98db306c803617543ffecbf4',
     },
     # credentials.py
     create_mfa_serial_refresher: {'9b5e98782fcacdcea5899a6d0d29d1b9de348bb0'},
@@ -487,11 +487,13 @@ _API_DIGESTS = {
         'd03631d6810e2453b8874bc76619927b694a4207',
     },
     S3PostPresigner.generate_presigned_post: {
-        '269efc9af054a2fd2728d5b0a27db82c48053d7f'
+        '269efc9af054a2fd2728d5b0a27db82c48053d7f',
+        '48418dc6c9b04fdc8689c7cb5b6eb987321a84e3',
     },
     add_generate_presigned_post: {'e30360f2bd893fabf47f5cdb04b0de420ccd414d'},
     generate_presigned_post: {
         'a3a834a08be2cf76c20ea137ba6b28e7a12f58ed',
+        'd93240c58dcda7b63cf2b7144ee0fea110f0e762',
     },
     add_generate_db_auth_token: {'f61014e6fac4b5c7ee7ac2d2bec15fb16fa9fbe5'},
     generate_db_auth_token: {'1f37e1e5982d8528841ce6b79f229b3e23a18959'},
@@ -623,9 +625,8 @@ _API_DIGESTS = {
     inject_presigned_url_rds: {'b5d45b339686346e81b255d4e8c36e76d3fe6a78'},
     inject_presigned_url_ec2: {'48e09a5e4e95577e716be30f2d2706949261a07f'},
     parse_get_bucket_location: {'64ffbf5c6aa6ebd083f49371000fa046d0de1fc6'},
-    check_for_200_error: {'ded7f3aaef7b1a5d047c4dac86692ab55cbd7a13'},
-    _looks_like_special_case_error: {
-        '86946722d10a72b593483fca0abf30100c609178'
+    check_for_200_error: {
+        '3a00f0bea409528f8457d6569aecf05998094386',
     },
     # httpsession.py
     URLLib3Session: {
