@@ -1,6 +1,10 @@
 Changes
 -------
 
+2.15.3 (2024-10-27)
+^^^^^^^^^^^^^^^^^^^
+* relax botocore dependency specification
+
 2.15.2 (2024-10-09)
 ^^^^^^^^^^^^^^^^^^^
 * relax botocore dependency specification
