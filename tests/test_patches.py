@@ -43,7 +43,6 @@ from botocore.endpoint import (
 )
 from botocore.eventstream import EventStream
 from botocore.handlers import (
-    _looks_like_special_case_error,
     check_for_200_error,
     inject_presigned_url_ec2,
     inject_presigned_url_rds,
@@ -624,9 +623,8 @@ _API_DIGESTS = {
     inject_presigned_url_rds: {'b5d45b339686346e81b255d4e8c36e76d3fe6a78'},
     inject_presigned_url_ec2: {'48e09a5e4e95577e716be30f2d2706949261a07f'},
     parse_get_bucket_location: {'64ffbf5c6aa6ebd083f49371000fa046d0de1fc6'},
-    check_for_200_error: {'ded7f3aaef7b1a5d047c4dac86692ab55cbd7a13'},
-    _looks_like_special_case_error: {
-        '86946722d10a72b593483fca0abf30100c609178'
+    check_for_200_error: {
+        '3a00f0bea409528f8457d6569aecf05998094386',
     },
     # httpsession.py
     URLLib3Session: {
