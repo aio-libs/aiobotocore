@@ -1,13 +1,14 @@
 from botocore.handlers import (
     ETree,
-    XMLParseError,
     _get_cross_region_presigned_url,
     _get_presigned_url_source_and_destination_regions,
+    _looks_like_special_case_error,
     logger,
 )
 
 
 async def check_for_200_error(response, **kwargs):
+    """This function has been deprecated, but is kept for backwards compatibility."""
     # From: http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectCOPY.html
     # There are two opportunities for a copy request to return an error. One
     # can occur when Amazon S3 receives the copy request and the other can
@@ -28,7 +29,9 @@ async def check_for_200_error(response, **kwargs):
         # trying to retrieve the response.  See Endpoint._get_response().
         return
     http_response, parsed = response
-    if await _looks_like_special_case_error(http_response):
+    if _looks_like_special_case_error(
+        http_response.status_code, await http_response.content
+    ):
         logger.debug(
             "Error found for response with 200 status code, "
             "errors: %s, changing status code to "
@@ -36,24 +39,6 @@ async def check_for_200_error(response, **kwargs):
             parsed,
         )
         http_response.status_code = 500
-
-
-async def _looks_like_special_case_error(http_response):
-    if http_response.status_code == 200:
-        try:
-            parser = ETree.XMLParser(
-                target=ETree.TreeBuilder(), encoding='utf-8'
-            )
-            parser.feed(await http_response.content)
-            root = parser.close()
-        except XMLParseError:
-            # In cases of network disruptions, we may end up with a partial
-            # streamed response from S3. We need to treat these cases as
-            # 500 Service Errors and try again.
-            return True
-        if root.tag == 'Error':
-            return True
-    return False
 
 
 async def inject_presigned_url_ec2(params, request_signer, model, **kwargs):

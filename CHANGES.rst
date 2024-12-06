@@ -1,6 +1,10 @@
 Changes
 -------
 
+2.16.0 (2024-10-28)
+^^^^^^^^^^^^^^^^^^^
+* bump botocore dependency specification
+
 2.15.2 (2024-10-09)
 ^^^^^^^^^^^^^^^^^^^
 * relax botocore dependency specification
