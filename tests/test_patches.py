@@ -572,8 +572,7 @@ _API_DIGESTS = {
         'e7e5a8ce541110eb79bf98414171d3a1c137e32b'
     },
     S3RegionRedirectorv2.redirect_from_error: {
-        'ac37ca2ca48f7bde42d9659c01d5bd5bc08a78f9',
-        'bc01047b596b1d1113df7cc2481af9cca2a49267',
+        '8e3003ec881c7eab0945fe4b6e021ca488fbcd78',
     },
     S3RegionRedirectorv2.get_bucket_region: {
         'b5bbc8b010576668dc2812d657c4b48af79e8f99'

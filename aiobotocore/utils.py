@@ -461,6 +461,10 @@ class AioS3RegionRedirectorv2(S3RegionRedirectorv2):
             0
         ].status_code in (301, 302, 307)
         is_permanent_redirect = error_code == 'PermanentRedirect'
+        is_opt_in_region_redirect = (
+            error_code == 'IllegalLocationConstraintException'
+            and operation.name != 'CreateBucket'
+        )
         if not any(
             [
                 is_special_head_object,
@@ -468,6 +472,7 @@ class AioS3RegionRedirectorv2(S3RegionRedirectorv2):
                 is_permanent_redirect,
                 is_special_head_bucket,
                 is_redirect_status,
+                is_opt_in_region_redirect,
             ]
         ):
             return
