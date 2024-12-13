@@ -78,9 +78,13 @@ from botocore.session import Session, get_session
 from botocore.signers import (
     RequestSigner,
     S3PostPresigner,
+    _dsql_generate_db_auth_token,
+    add_dsql_generate_db_auth_token_methods,
     add_generate_db_auth_token,
     add_generate_presigned_post,
     add_generate_presigned_url,
+    dsql_generate_db_connect_admin_auth_token,
+    dsql_generate_db_connect_auth_token,
     generate_db_auth_token,
     generate_presigned_post,
     generate_presigned_url,
@@ -498,6 +502,18 @@ _API_DIGESTS = {
     },
     add_generate_db_auth_token: {'f61014e6fac4b5c7ee7ac2d2bec15fb16fa9fbe5'},
     generate_db_auth_token: {'1f37e1e5982d8528841ce6b79f229b3e23a18959'},
+    add_dsql_generate_db_auth_token_methods: {
+        '95c68a1aac8ee549e11b5dc010b6bb03f9ea00ea',
+    },
+    _dsql_generate_db_auth_token: {
+        '53034b0475122209509db59fbd79a4ead70836cf',
+    },
+    dsql_generate_db_connect_auth_token: {
+        '29b5919b695113c55452f2325d0ff66dd719a647'
+    },
+    dsql_generate_db_connect_admin_auth_token: {
+        'd7e7a4899b8fd3a544dd1df95196517e2cfd5c84'
+    },
     # tokens.py
     create_token_resolver: {'b287f4879235a4292592a49b201d2b0bc2dbf401'},
     DeferredRefreshableToken.__init__: {

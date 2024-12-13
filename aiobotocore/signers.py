@@ -2,7 +2,7 @@ import datetime
 
 import botocore
 import botocore.auth
-from botocore.exceptions import UnknownClientMethodError
+from botocore.exceptions import ParamValidationError, UnknownClientMethodError
 from botocore.signers import (
     RequestSigner,
     S3PostPresigner,
@@ -200,6 +200,15 @@ def add_generate_db_auth_token(class_attributes, **kwargs):
     class_attributes['generate_db_auth_token'] = generate_db_auth_token
 
 
+def add_dsql_generate_db_auth_token_methods(class_attributes, **kwargs):
+    class_attributes['generate_db_connect_auth_token'] = (
+        dsql_generate_db_connect_auth_token
+    )
+    class_attributes['generate_db_connect_admin_auth_token'] = (
+        dsql_generate_db_connect_admin_auth_token
+    )
+
+
 async def generate_db_auth_token(
     self, DBHostname, Port, DBUsername, Region=None
 ):
@@ -254,6 +263,86 @@ async def generate_db_auth_token(
         signing_name='rds-db',
     )
     return presigned_url[len(scheme) :]
+
+
+async def _dsql_generate_db_auth_token(
+    self, Hostname, Action, Region=None, ExpiresIn=900
+):
+    """Generate a DSQL database token for an arbitrary action.
+    :type Hostname: str
+    :param Hostname: The DSQL endpoint host name.
+    :type Action: str
+    :param Action: Action to perform on the cluster (DbConnectAdmin or DbConnect).
+    :type Region: str
+    :param Region: The AWS region where the DSQL Cluster is hosted. If None, the client region will be used.
+    :type ExpiresIn: int
+    :param ExpiresIn: The token expiry duration in seconds (default is 900 seconds).
+    :return: A presigned url which can be used as an auth token.
+    """
+    possible_actions = ("DbConnect", "DbConnectAdmin")
+
+    if Action not in possible_actions:
+        raise ParamValidationError(
+            report=f"Received {Action} for action but expected one of: {', '.join(possible_actions)}"
+        )
+
+    if Region is None:
+        Region = self.meta.region_name
+
+    request_dict = {
+        'url_path': '/',
+        'query_string': '',
+        'headers': {},
+        'body': {
+            'Action': Action,
+        },
+        'method': 'GET',
+    }
+    scheme = 'https://'
+    endpoint_url = f'{scheme}{Hostname}'
+    prepare_request_dict(request_dict, endpoint_url)
+    presigned_url = await self._request_signer.generate_presigned_url(
+        operation_name=Action,
+        request_dict=request_dict,
+        region_name=Region,
+        expires_in=ExpiresIn,
+        signing_name='dsql',
+    )
+    return presigned_url[len(scheme) :]
+
+
+async def dsql_generate_db_connect_auth_token(
+    self, Hostname, Region=None, ExpiresIn=900
+):
+    """Generate a DSQL database token for the "DbConnect" action.
+    :type Hostname: str
+    :param Hostname: The DSQL endpoint host name.
+    :type Region: str
+    :param Region: The AWS region where the DSQL Cluster is hosted. If None, the client region will be used.
+    :type ExpiresIn: int
+    :param ExpiresIn: The token expiry duration in seconds (default is 900 seconds).
+    :return: A presigned url which can be used as an auth token.
+    """
+    return await _dsql_generate_db_auth_token(
+        self, Hostname, "DbConnect", Region, ExpiresIn
+    )
+
+
+async def dsql_generate_db_connect_admin_auth_token(
+    self, Hostname, Region=None, ExpiresIn=900
+):
+    """Generate a DSQL database token for the "DbConnectAdmin" action.
+    :type Hostname: str
+    :param Hostname: The DSQL endpoint host name.
+    :type Region: str
+    :param Region: The AWS region where the DSQL Cluster is hosted. If None, the client region will be used.
+    :type ExpiresIn: int
+    :param ExpiresIn: The token expiry duration in seconds (default is 900 seconds).
+    :return: A presigned url which can be used as an auth token.
+    """
+    return await _dsql_generate_db_auth_token(
+        self, Hostname, "DbConnectAdmin", Region, ExpiresIn
+    )
 
 
 class AioS3PostPresigner(S3PostPresigner):

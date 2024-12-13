@@ -9,6 +9,9 @@ from botocore.handlers import (
 )
 from botocore.hooks import HierarchicalEmitter, logger
 from botocore.signers import (
+    add_dsql_generate_db_auth_token_methods as boto_add_dsql_generate_db_auth_token_methods,
+)
+from botocore.signers import (
     add_generate_db_auth_token as boto_add_generate_db_auth_token,
 )
 from botocore.signers import (
@@ -25,6 +28,7 @@ from .handlers import (
     parse_get_bucket_location,
 )
 from .signers import (
+    add_dsql_generate_db_auth_token_methods,
     add_generate_db_auth_token,
     add_generate_presigned_post,
     add_generate_presigned_url,
@@ -37,6 +41,7 @@ _HANDLER_MAPPING = {
     boto_add_generate_presigned_post: add_generate_presigned_post,
     boto_add_generate_db_auth_token: add_generate_db_auth_token,
     boto_parse_get_bucket_location: parse_get_bucket_location,
+    boto_add_dsql_generate_db_auth_token_methods: add_dsql_generate_db_auth_token_methods,
 }
 
 
