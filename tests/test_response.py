@@ -35,14 +35,12 @@ async def _tolist(aiter):
     return results
 
 
-@pytest.mark.moto
 async def test_streaming_wrapper_validates_content_length():
     body = AsyncBytesIO(b'1234567890')
     stream = response.StreamingBody(body, content_length=10)
     assert await stream.read() == b'1234567890'
 
 
-@pytest.mark.moto
 async def test_streaming_body_with_invalid_length():
     body = AsyncBytesIO(b'123456789')
     stream = response.StreamingBody(body, content_length=10)
@@ -53,7 +51,6 @@ async def test_streaming_body_with_invalid_length():
         await stream.read()
 
 
-@pytest.mark.moto
 async def test_streaming_body_with_zero_read():
     body = AsyncBytesIO(b'1234567890')
     stream = response.StreamingBody(body, content_length=10)
@@ -62,7 +59,6 @@ async def test_streaming_body_with_zero_read():
     assert await stream.read() == b'1234567890'
 
 
-@pytest.mark.moto
 async def test_streaming_body_with_single_read():
     body = AsyncBytesIO(b'123456789')
     stream = response.StreamingBody(body, content_length=10)
@@ -70,7 +66,6 @@ async def test_streaming_body_with_single_read():
         await stream.read()
 
 
-@pytest.mark.moto
 async def test_streaming_body_closes():
     body = AsyncBytesIO(b'1234567890')
     stream = response.StreamingBody(body, content_length=10)
@@ -79,7 +74,6 @@ async def test_streaming_body_closes():
     assert body.closed is True
 
 
-@pytest.mark.moto
 async def test_default_iter_behavior():
     body = AsyncBytesIO(b'a' * 2048)
     stream = response.StreamingBody(body, content_length=2048)
@@ -88,7 +82,6 @@ async def test_default_iter_behavior():
     assert chunks, [b'a' * 1024 == b'a' * 1024]
 
 
-@pytest.mark.moto
 async def test_iter_chunks_single_byte():
     body = AsyncBytesIO(b'abcde')
     stream = response.StreamingBody(body, content_length=5)
@@ -96,7 +89,6 @@ async def test_iter_chunks_single_byte():
     assert chunks, [b'a', b'b', b'c', b'd' == b'e']
 
 
-@pytest.mark.moto
 async def test_iter_chunks_with_leftover():
     body = AsyncBytesIO(b'abcde')
     stream = response.StreamingBody(body, content_length=5)
@@ -104,7 +96,6 @@ async def test_iter_chunks_with_leftover():
     assert chunks, [b'ab', b'cd' == b'e']
 
 
-@pytest.mark.moto
 async def test_iter_chunks_single_chunk():
     body = AsyncBytesIO(b'abcde')
     stream = response.StreamingBody(body, content_length=5)
@@ -112,7 +103,6 @@ async def test_iter_chunks_single_chunk():
     assert chunks == [b'abcde']
 
 
-@pytest.mark.moto
 async def test_streaming_line_iterator():
     body = AsyncBytesIO(b'1234567890\n1234567890\n12345')
     stream = response.StreamingBody(body, content_length=27)
@@ -122,7 +112,6 @@ async def test_streaming_line_iterator():
     )
 
 
-@pytest.mark.moto
 async def test_streaming_line_iterator_ends_newline():
     body = AsyncBytesIO(b'1234567890\n1234567890\n12345\n')
     stream = response.StreamingBody(body, content_length=28)
@@ -132,7 +121,6 @@ async def test_streaming_line_iterator_ends_newline():
     )
 
 
-@pytest.mark.moto
 async def test_streaming_line_iter_chunk_sizes():
     for chunk_size in range(1, 30):
         body = AsyncBytesIO(b'1234567890\n1234567890\n12345')
@@ -143,7 +131,6 @@ async def test_streaming_line_iter_chunk_sizes():
         )
 
 
-@pytest.mark.moto
 async def test_streaming_body_is_an_iterator():
     body = AsyncBytesIO(b'a' * 1024 + b'b' * 1024 + b'c' * 2)
     stream = response.StreamingBody(body, content_length=2050)
@@ -154,7 +141,6 @@ async def test_streaming_body_is_an_iterator():
         await stream.__anext__()
 
 
-@pytest.mark.moto
 async def test_streaming_line_abstruse_newline_standard():
     for chunk_size in range(1, 30):
         body = AsyncBytesIO(b'1234567890\r\n1234567890\r\n12345\r\n')
@@ -165,7 +151,6 @@ async def test_streaming_line_abstruse_newline_standard():
         )
 
 
-@pytest.mark.moto
 async def test_streaming_line_empty_body():
     stream = response.StreamingBody(
         AsyncBytesIO(b''),

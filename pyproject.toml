@@ -59,7 +59,7 @@ include = ["aiobotocore*"]
 asyncio_mode = "auto"
 cache_dir = "/tmp/pytest_aiobotocore_cache"
 markers = [
-    "moto",
+    "localonly",
     "config_kwargs",
     "patch_attributes",
 ]

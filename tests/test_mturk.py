@@ -1,3 +1,4 @@
+import pytest
 from botocore.stub import ANY, Stubber
 
 _mturk_list_hits_response = {
@@ -19,7 +20,7 @@ _mturk_list_hits_response = {
 
 # Unfortunately moto does not support mturk yet
 # Also looks like we won't be able to support this (see notes from 1.0.6 release)
-# @pytest.mark.moto
+@pytest.mark.localonly
 async def test_mturk_stubber(session):
     async with session.create_client(
         'mturk', region_name='us-east-1'

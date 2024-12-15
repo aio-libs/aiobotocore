@@ -41,7 +41,6 @@ def lambda_handler(event, context):
     return _process_lambda(lambda_src)
 
 
-@pytest.mark.moto
 async def test_run_lambda(iam_client, lambda_client, aws_lambda_zip):
     role_arn = await _get_role_arn(iam_client, 'test-iam-role')
     lambda_response = await lambda_client.create_function(

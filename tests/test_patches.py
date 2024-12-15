@@ -1,7 +1,6 @@
 import hashlib
 
 import botocore
-import pytest
 from botocore import retryhandler, stub
 from botocore.args import ClientArgsCreator
 from botocore.awsrequest import AWSResponse
@@ -749,15 +748,12 @@ _API_DIGESTS = {
 _PROTOCOL_PARSER_CONTENT = {'ec2', 'query', 'json', 'rest-json', 'rest-xml'}
 
 
-@pytest.mark.moto
 def test_protocol_parsers():
     # Check that no new parsers have been added
     current_parsers = set(PROTOCOL_PARSERS.keys())
     assert current_parsers == _PROTOCOL_PARSER_CONTENT
 
 
-# NOTE: this doesn't require moto but needs to be marked to run with coverage
-@pytest.mark.moto
 def test_patches():
     print(f"Botocore version: {botocore.__version__}")
 
