@@ -71,7 +71,6 @@ def fake_aiohttp_session(responses: list[Response] | Response):
 
 
 @pytest.mark.moto
-@pytest.mark.asyncio
 async def test_idmsfetcher_disabled():
     env = {'AWS_EC2_METADATA_DISABLED': 'true'}
     fetcher = utils.AioIMDSFetcher(env=env)
@@ -81,7 +80,6 @@ async def test_idmsfetcher_disabled():
 
 
 @pytest.mark.moto
-@pytest.mark.asyncio
 async def test_idmsfetcher_get_token_success():
     session = fake_aiohttp_session(
         ('blah', 200),
@@ -95,7 +93,6 @@ async def test_idmsfetcher_get_token_success():
 
 
 @pytest.mark.moto
-@pytest.mark.asyncio
 async def test_idmsfetcher_get_token_not_found():
     session = fake_aiohttp_session(
         ('blah', 404),
@@ -109,7 +106,6 @@ async def test_idmsfetcher_get_token_not_found():
 
 
 @pytest.mark.moto
-@pytest.mark.asyncio
 async def test_idmsfetcher_get_token_bad_request():
     session = fake_aiohttp_session(
         ('blah', 400),
@@ -123,7 +119,6 @@ async def test_idmsfetcher_get_token_bad_request():
 
 
 @pytest.mark.moto
-@pytest.mark.asyncio
 async def test_idmsfetcher_get_token_timeout():
     session = fake_aiohttp_session(
         [
@@ -138,7 +133,6 @@ async def test_idmsfetcher_get_token_timeout():
 
 
 @pytest.mark.moto
-@pytest.mark.asyncio
 async def test_idmsfetcher_get_token_retry():
     session = fake_aiohttp_session(
         [
@@ -155,7 +149,6 @@ async def test_idmsfetcher_get_token_retry():
 
 
 @pytest.mark.moto
-@pytest.mark.asyncio
 async def test_idmsfetcher_retry():
     session = fake_aiohttp_session(
         [
@@ -184,7 +177,6 @@ async def test_idmsfetcher_retry():
 
 
 @pytest.mark.moto
-@pytest.mark.asyncio
 async def test_idmsfetcher_timeout():
     session = fake_aiohttp_session(
         [

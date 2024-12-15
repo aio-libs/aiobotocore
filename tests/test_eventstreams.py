@@ -44,7 +44,6 @@ class FakeStreamReader:
 
 
 @pytest.mark.moto
-@pytest.mark.asyncio
 async def test_eventstream_chunking(s3_client):
     # These are the options passed to the EventStream class
     # during a normal run with botocore.
@@ -75,7 +74,6 @@ async def test_eventstream_chunking(s3_client):
 
 
 @pytest.mark.moto
-@pytest.mark.asyncio
 async def test_eventstream_no_iter(s3_client):
     # These are the options passed to the EventStream class
     # during a normal run with botocore.

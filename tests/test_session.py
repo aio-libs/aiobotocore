@@ -9,7 +9,6 @@ from aiobotocore.session import AioSession
 
 
 @pytest.mark.moto
-@pytest.mark.asyncio
 async def test_get_service_data(session):
     handler_called = False
 
@@ -24,7 +23,6 @@ async def test_get_service_data(session):
 
 
 @pytest.mark.moto
-@pytest.mark.asyncio
 async def test_retry(
     session: AioSession, caplog: LogCaptureFixture, monkeypatch
 ):

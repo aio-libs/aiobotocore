@@ -275,7 +275,6 @@ sso_provider_refresh_cases = [
 
 
 @pytest.mark.moto
-@pytest.mark.asyncio
 @parametrize(sso_provider_refresh_cases)
 async def test_sso_token_provider_refresh(test_case):
     config = {

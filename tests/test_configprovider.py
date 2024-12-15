@@ -8,7 +8,6 @@ from aiobotocore.session import AioSession
     [('legacy', 'legacy'), ('standard', 'standard'), ('auto', 'standard')],
 )
 @pytest.mark.moto
-@pytest.mark.asyncio
 async def test_defaults_mode(monkeypatch, defaults_mode, retry_mode):
     monkeypatch.setenv('AWS_DEFAULTS_MODE', defaults_mode)
 

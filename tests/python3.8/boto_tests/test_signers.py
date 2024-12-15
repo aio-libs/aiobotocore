@@ -65,7 +65,6 @@ async def base_signer_setup_s3v4() -> dict:
 
 # From class TestGenerateUrl
 @pytest.mark.moto
-@pytest.mark.asyncio
 async def test_signers_generate_presigned_urls():
     with mock.patch(
         'aiobotocore.signers.AioRequestSigner.generate_presigned_url'
@@ -109,7 +108,6 @@ async def test_signers_generate_presigned_urls():
 
 
 @pytest.mark.moto
-@pytest.mark.asyncio
 async def test_signers_generate_presigned_post():
     with mock.patch(
         'aiobotocore.signers.AioS3PostPresigner.generate_presigned_post'
@@ -146,7 +144,6 @@ async def test_signers_generate_presigned_post():
 
 
 @pytest.mark.moto
-@pytest.mark.asyncio
 async def test_testsigner_get_auth(base_signer_setup: dict):
     auth_cls = mock.Mock()
     with mock.patch.dict(botocore.auth.AUTH_TYPE_MAPS, {'v4': auth_cls}):
@@ -162,7 +159,6 @@ async def test_testsigner_get_auth(base_signer_setup: dict):
 
 
 @pytest.mark.moto
-@pytest.mark.asyncio
 async def test_testsigner_region_required_for_sig4(base_signer_setup: dict):
     signer = aiobotocore.signers.AioRequestSigner(
         ServiceId('service_name'),
@@ -178,7 +174,6 @@ async def test_testsigner_region_required_for_sig4(base_signer_setup: dict):
 
 
 @pytest.mark.moto
-@pytest.mark.asyncio
 async def test_testsigner_custom_sign_version(base_signer_setup: dict):
     signer = base_signer_setup['signer']
     with pytest.raises(UnknownSignatureVersionError):
@@ -188,7 +183,6 @@ async def test_testsigner_custom_sign_version(base_signer_setup: dict):
 
 
 @pytest.mark.moto
-@pytest.mark.asyncio
 async def test_testsigner_choose_signer_override(base_signer_setup: dict):
     auth_cls = mock.Mock()
     auth_cls.REQUIRES_REGION = False
@@ -208,7 +202,6 @@ async def test_testsigner_choose_signer_override(base_signer_setup: dict):
 
 
 @pytest.mark.moto
-@pytest.mark.asyncio
 async def test_testsigner_generate_presigned_url(base_signer_setup: dict):
     auth_cls = mock.Mock()
     auth_cls.REQUIRES_REGION = True
@@ -239,7 +232,6 @@ async def test_testsigner_generate_presigned_url(base_signer_setup: dict):
 
 # From class TestGeneratePresignedPost
 @pytest.mark.moto
-@pytest.mark.asyncio
 async def test_testsigner_generate_presigned_post(
     base_signer_setup_s3v4: dict,
 ):

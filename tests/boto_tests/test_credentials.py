@@ -128,7 +128,6 @@ def credential_provider():
 
 
 @pytest.mark.moto
-@pytest.mark.asyncio
 async def test_assumerolefetcher_no_cache():
     response = {
         'Credentials': {
@@ -151,7 +150,6 @@ async def test_assumerolefetcher_no_cache():
 
 
 @pytest.mark.moto
-@pytest.mark.asyncio
 async def test_assumerolefetcher_cache_key_with_role_session_name():
     response = {
         'Credentials': {
@@ -181,7 +179,6 @@ async def test_assumerolefetcher_cache_key_with_role_session_name():
 
 
 @pytest.mark.moto
-@pytest.mark.asyncio
 async def test_assumerolefetcher_cache_in_cache_but_expired():
     response = {
         'Credentials': {
@@ -216,7 +213,6 @@ async def test_assumerolefetcher_cache_in_cache_but_expired():
 
 
 @pytest.mark.moto
-@pytest.mark.asyncio
 async def test_assumerolefetcher_mfa():
     response = {
         'Credentials': {
@@ -249,7 +245,6 @@ async def test_assumerolefetcher_mfa():
 
 
 @pytest.mark.moto
-@pytest.mark.asyncio
 async def test_recursive_assume_role(assume_role_setup):
     self = assume_role_setup
 
@@ -307,7 +302,6 @@ def assume_role_web_identity_client_creator(with_response):
 
 
 @pytest.mark.moto
-@pytest.mark.asyncio
 async def test_webidentfetcher_no_cache():
     response = {
         'Credentials': {
@@ -330,7 +324,6 @@ async def test_webidentfetcher_no_cache():
 
 
 @pytest.mark.moto
-@pytest.mark.asyncio
 async def test_credresolver_load_credentials_single_provider(
     credential_provider,
 ):
@@ -348,7 +341,6 @@ async def test_credresolver_load_credentials_single_provider(
 
 
 @pytest.mark.moto
-@pytest.mark.asyncio
 async def test_credresolver_no_providers(credential_provider):
     provider1 = credential_provider('provider1', 'CustomProvider1', None)
     resolver = credentials.AioCredentialResolver(providers=[provider1])
@@ -359,7 +351,6 @@ async def test_credresolver_no_providers(credential_provider):
 
 # From class TestCanonicalNameSourceProvider(BaseEnvVar):
 @pytest.mark.moto
-@pytest.mark.asyncio
 async def test_canonicalsourceprovider_source_creds(credential_provider):
     creds = credentials.AioCredentials('a', 'b', 'c')
     provider1 = credential_provider('provider1', 'CustomProvider1', creds)
@@ -373,7 +364,6 @@ async def test_canonicalsourceprovider_source_creds(credential_provider):
 
 
 @pytest.mark.moto
-@pytest.mark.asyncio
 async def test_canonicalsourceprovider_source_creds_case_insensitive(
     credential_provider,
 ):
@@ -419,7 +409,6 @@ def assumerolecredprovider_config_loader():
 
 
 @pytest.mark.moto
-@pytest.mark.asyncio
 async def test_assumerolecredprovider_assume_role_no_cache(
     credential_provider, assumerolecredprovider_config_loader
 ):
@@ -462,7 +451,6 @@ async def test_assumerolecredprovider_assume_role_no_cache(
 
 # MFA
 @pytest.mark.moto
-@pytest.mark.asyncio
 async def test_assumerolecredprovider_mfa(
     credential_provider, assumerolecredprovider_config_loader
 ):
@@ -521,7 +509,6 @@ async def test_assumerolecredprovider_mfa(
 
 
 @pytest.mark.moto
-@pytest.mark.asyncio
 async def test_assumerolecredprovider_mfa_cannot_refresh_credentials(
     credential_provider, assumerolecredprovider_config_loader
 ):
@@ -578,7 +565,6 @@ async def test_assumerolecredprovider_mfa_cannot_refresh_credentials(
 
 # From class TestAssumeRoleWithWebIdentityCredentialProvider
 @pytest.mark.moto
-@pytest.mark.asyncio
 async def test_assumerolewebidentprovider_no_cache():
     future = datetime.now(tzlocal()) + timedelta(hours=24)
 
@@ -631,7 +617,6 @@ def full_url(url):
 
 # From class TestEnvVar(BaseEnvVar):
 @pytest.mark.moto
-@pytest.mark.asyncio
 async def test_envvarprovider_env_var_present():
     environ = {
         'AWS_ACCESS_KEY_ID': 'foo',
@@ -647,7 +632,6 @@ async def test_envvarprovider_env_var_present():
 
 
 @pytest.mark.moto
-@pytest.mark.asyncio
 async def test_envvarprovider_env_var_absent():
     environ = {}
     provider = credentials.AioEnvProvider(environ)
@@ -656,7 +640,6 @@ async def test_envvarprovider_env_var_absent():
 
 
 @pytest.mark.moto
-@pytest.mark.asyncio
 async def test_envvarprovider_env_var_expiry():
     expiry_time = datetime.now(tzlocal()) - timedelta(hours=1)
     environ = {
@@ -692,7 +675,6 @@ def profile_config():
 
 
 @pytest.mark.moto
-@pytest.mark.asyncio
 async def test_configprovider_file_exists(profile_config):
     provider = credentials.AioConfigProvider(
         'cli.cfg', 'default', profile_config
@@ -706,7 +688,6 @@ async def test_configprovider_file_exists(profile_config):
 
 
 @pytest.mark.moto
-@pytest.mark.asyncio
 async def test_configprovider_file_missing_profile(profile_config):
     provider = credentials.AioConfigProvider(
         'cli.cfg', 'NOT-default', profile_config
@@ -717,7 +698,6 @@ async def test_configprovider_file_missing_profile(profile_config):
 
 # From class TestSharedCredentialsProvider(BaseEnvVar):
 @pytest.mark.moto
-@pytest.mark.asyncio
 async def test_sharedcredentials_file_exists():
     parser = mock.Mock()
     parser.return_value = {
@@ -741,7 +721,6 @@ async def test_sharedcredentials_file_exists():
 
 
 @pytest.mark.moto
-@pytest.mark.asyncio
 async def test_sharedcredentials_file_missing():
     parser = mock.Mock()
     parser.side_effect = botocore.exceptions.ConfigNotFound(path='foo')
@@ -755,7 +734,6 @@ async def test_sharedcredentials_file_missing():
 
 # From class TestBotoProvider(BaseEnvVar):
 @pytest.mark.moto
-@pytest.mark.asyncio
 async def test_botoprovider_file_exists():
     parser = mock.Mock()
     parser.return_value = {
@@ -775,7 +753,6 @@ async def test_botoprovider_file_exists():
 
 
 @pytest.mark.moto
-@pytest.mark.asyncio
 async def test_botoprovider_file_missing():
     parser = mock.Mock()
     parser.side_effect = botocore.exceptions.ConfigNotFound(path='foo')
@@ -787,7 +764,6 @@ async def test_botoprovider_file_missing():
 
 # From class TestOriginalEC2Provider(BaseEnvVar):
 @pytest.mark.moto
-@pytest.mark.asyncio
 async def test_originalec2provider_file_exists():
     envrion = {'AWS_CREDENTIAL_FILE': 'foo.cfg'}
     parser = mock.Mock()
@@ -808,7 +784,6 @@ async def test_originalec2provider_file_exists():
 
 
 @pytest.mark.moto
-@pytest.mark.asyncio
 async def test_originalec2provider_file_missing():
     provider = credentials.AioOriginalEC2Provider(environ={})
     creds = await provider.load()
@@ -855,7 +830,6 @@ def mock_session():
 
 
 @pytest.mark.moto
-@pytest.mark.asyncio
 async def test_createcredentialresolver(mock_session):
     session = mock_session()
 
@@ -864,7 +838,6 @@ async def test_createcredentialresolver(mock_session):
 
 
 @pytest.mark.moto
-@pytest.mark.asyncio
 async def test_get_credentials(mock_session):
     session = mock_session()
 
@@ -1099,7 +1072,6 @@ def assume_role_setup(base_assume_role_test_setup):
 
 
 @pytest.mark.moto
-@pytest.mark.asyncio
 async def test_sso_credential_fetcher_can_fetch_credentials(
     ssl_credential_fetcher_setup,
 ):
@@ -1142,7 +1114,6 @@ async def test_sso_credential_fetcher_can_fetch_credentials(
 
 
 @pytest.mark.moto
-@pytest.mark.asyncio
 async def test_sso_cred_fetcher_raises_helpful_message_on_unauthorized_exception(
     ssl_credential_fetcher_setup,
 ):
@@ -1247,7 +1218,6 @@ def _add_get_role_credentials_response(self):
 
 
 @pytest.mark.moto
-@pytest.mark.asyncio
 async def test_load_sso_credentials_without_cache(sso_provider_setup):
     self = sso_provider_setup
     _add_get_role_credentials_response(self)
@@ -1260,7 +1230,6 @@ async def test_load_sso_credentials_without_cache(sso_provider_setup):
 
 
 @pytest.mark.moto
-@pytest.mark.asyncio
 async def test_load_sso_credentials_with_cache(sso_provider_setup):
     self = sso_provider_setup
 
@@ -1281,7 +1250,6 @@ async def test_load_sso_credentials_with_cache(sso_provider_setup):
 
 
 @pytest.mark.moto
-@pytest.mark.asyncio
 async def test_load_sso_credentials_with_cache_expired(sso_provider_setup):
     self = sso_provider_setup
     cached_creds = {
@@ -1305,7 +1273,6 @@ async def test_load_sso_credentials_with_cache_expired(sso_provider_setup):
 
 
 @pytest.mark.moto
-@pytest.mark.asyncio
 async def test_required_config_not_set(sso_provider_setup):
     self = sso_provider_setup
     del self.config['sso_start_url']

@@ -79,7 +79,6 @@ def deferrable_creds():
 
 
 @pytest.mark.moto
-@pytest.mark.asyncio
 async def test_refreshablecredentials_get_credentials_set(refreshable_creds):
     creds = refreshable_creds(
         mock_time_return_value=(
@@ -97,7 +96,6 @@ async def test_refreshablecredentials_get_credentials_set(refreshable_creds):
 
 
 @pytest.mark.moto
-@pytest.mark.asyncio
 async def test_refreshablecredentials_refresh_returns_empty_dict(
     refreshable_creds,
 ):
@@ -113,7 +111,6 @@ async def test_refreshablecredentials_refresh_returns_empty_dict(
 
 
 @pytest.mark.moto
-@pytest.mark.asyncio
 async def test_refreshablecredentials_refresh_returns_none(refreshable_creds):
     creds = refreshable_creds(
         mock_time_return_value=datetime.now(tzlocal()),
@@ -127,7 +124,6 @@ async def test_refreshablecredentials_refresh_returns_none(refreshable_creds):
 
 
 @pytest.mark.moto
-@pytest.mark.asyncio
 async def test_refreshablecredentials_refresh_returns_partial(
     refreshable_creds,
 ):
@@ -143,7 +139,6 @@ async def test_refreshablecredentials_refresh_returns_partial(
 
 
 @pytest.mark.moto
-@pytest.mark.asyncio
 async def test_deferrablecredentials_get_credentials_set(deferrable_creds):
     creds = deferrable_creds()
 
@@ -154,7 +149,6 @@ async def test_deferrablecredentials_get_credentials_set(deferrable_creds):
 
 
 @pytest.mark.moto
-@pytest.mark.asyncio
 async def test_deferrablecredentials_refresh_only_called_once(
     deferrable_creds,
 ):
@@ -170,7 +164,6 @@ async def test_deferrablecredentials_refresh_only_called_once(
 
 # From class TestInstanceMetadataProvider(BaseEnvVar):
 @pytest.mark.moto
-@pytest.mark.asyncio
 async def test_instancemetadata_load():
     timeobj = datetime.now(tzlocal())
     timestamp = (timeobj + timedelta(hours=24)).isoformat()
@@ -200,7 +193,6 @@ async def test_instancemetadata_load():
 
 
 @pytest.mark.moto
-@pytest.mark.asyncio
 async def test_containerprovider_assume_role_no_cache():
     environ = {
         'AWS_CONTAINER_CREDENTIALS_RELATIVE_URI': '/latest/credentials?id=foo'
@@ -248,7 +240,6 @@ def process_provider():
 
 
 @pytest.mark.moto
-@pytest.mark.asyncio
 async def test_processprovider_retrieve_refereshable_creds(process_provider):
     config = {
         'profiles': {'default': {'credential_process': 'my-process /somefile'}}
@@ -287,7 +278,6 @@ async def test_processprovider_retrieve_refereshable_creds(process_provider):
 
 
 @pytest.mark.moto
-@pytest.mark.asyncio
 async def test_processprovider_retrieve_creds(process_provider):
     config = {'profiles': {'default': {'credential_process': 'my-process'}}}
     invoked_process = mock.AsyncMock()
@@ -315,7 +305,6 @@ async def test_processprovider_retrieve_creds(process_provider):
 
 
 @pytest.mark.moto
-@pytest.mark.asyncio
 async def test_processprovider_bad_version(process_provider):
     config = {'profiles': {'default': {'credential_process': 'my-process'}}}
     invoked_process = mock.AsyncMock()
@@ -339,7 +328,6 @@ async def test_processprovider_bad_version(process_provider):
 
 
 @pytest.mark.moto
-@pytest.mark.asyncio
 async def test_processprovider_missing_field(process_provider):
     config = {'profiles': {'default': {'credential_process': 'my-process'}}}
     invoked_process = mock.AsyncMock()
@@ -362,7 +350,6 @@ async def test_processprovider_missing_field(process_provider):
 
 
 @pytest.mark.moto
-@pytest.mark.asyncio
 async def test_processprovider_bad_exitcode(process_provider):
     config = {'profiles': {'default': {'credential_process': 'my-process'}}}
     invoked_process = mock.AsyncMock()
@@ -378,7 +365,6 @@ async def test_processprovider_bad_exitcode(process_provider):
 
 
 @pytest.mark.moto
-@pytest.mark.asyncio
 async def test_processprovider_bad_config(process_provider):
     config = {'profiles': {'default': {'credential_process': None}}}
     invoked_process = mock.AsyncMock()
@@ -402,7 +388,6 @@ async def test_processprovider_bad_config(process_provider):
 
 
 @pytest.mark.moto
-@pytest.mark.asyncio
 async def test_session_credentials():
     with mock.patch(
         'aiobotocore.credentials.AioCredential' 'Resolver.load_credentials'

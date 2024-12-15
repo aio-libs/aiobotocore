@@ -8,7 +8,6 @@ from .mock_server import AIOServer
 
 
 @pytest.mark.moto
-@pytest.mark.asyncio
 async def test_add_response():
     session = AioSession()
 
@@ -37,7 +36,6 @@ async def test_add_response():
 
 
 @pytest.mark.moto
-@pytest.mark.asyncio
 async def test_add_client_error():
     session = AioSession()
 

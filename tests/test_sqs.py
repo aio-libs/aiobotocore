@@ -4,7 +4,6 @@ import pytest
 
 
 @pytest.mark.moto
-@pytest.mark.asyncio
 async def test_list_queues(sqs_client, sqs_queue_url):
     response = await sqs_client.list_queues()
     pytest.aio.assert_status_code(response, 200)
@@ -13,7 +12,6 @@ async def test_list_queues(sqs_client, sqs_queue_url):
 
 
 @pytest.mark.moto
-@pytest.mark.asyncio
 async def test_get_queue_name(sqs_client, sqs_queue_url):
     queue_name = sqs_queue_url.rsplit('/', 1)[-1]
 
@@ -24,7 +22,6 @@ async def test_get_queue_name(sqs_client, sqs_queue_url):
 
 
 @pytest.mark.moto
-@pytest.mark.asyncio
 async def test_put_pull_delete_test(sqs_client, sqs_queue_url):
     response = await sqs_client.send_message(
         QueueUrl=sqs_queue_url,
@@ -59,7 +56,6 @@ async def test_put_pull_delete_test(sqs_client, sqs_queue_url):
 
 
 @pytest.mark.moto
-@pytest.mark.asyncio
 async def test_put_pull_wait(sqs_client, sqs_queue_url):
     start = time.perf_counter()
     response = await sqs_client.receive_message(
