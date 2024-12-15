@@ -1,7 +1,6 @@
 import hashlib
 
 import botocore
-import pytest
 from botocore import retryhandler, stub
 from botocore.args import ClientArgsCreator
 from botocore.awsrequest import AWSResponse

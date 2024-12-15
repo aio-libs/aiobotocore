@@ -2,7 +2,6 @@ import datetime
 from datetime import timezone
 from unittest import mock
 
-import pytest
 
 import aiobotocore.credentials
 import aiobotocore.session

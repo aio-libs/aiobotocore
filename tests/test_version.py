@@ -11,7 +11,6 @@ import docutils.frontend
 import docutils.nodes
 import docutils.parsers.rst
 import docutils.utils
-import pytest
 import requests
 from packaging import version
 from pip._internal.req import InstallRequirement

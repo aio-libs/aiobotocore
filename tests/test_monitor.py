@@ -1,5 +1,3 @@
-import pytest
-
 from aiobotocore.session import AioSession
 
 

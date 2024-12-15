@@ -1,5 +1,3 @@
-import pytest
-
 from aiobotocore.awsrequest import AioAWSResponse
 from aiobotocore.session import AioSession
 from aiobotocore.stub import AioStubber

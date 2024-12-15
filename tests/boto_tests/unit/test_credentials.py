@@ -44,7 +44,6 @@ from aiobotocore.credentials import (
     AioSSOProvider,
 )
 from aiobotocore.session import AioSession
-
 from tests.boto_tests.helpers import StubbedSession
 
 

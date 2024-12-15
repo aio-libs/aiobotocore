@@ -11,10 +11,10 @@
 # ANY KIND, either express or implied. See the License for the specific
 # language governing permissions and limitations under the License.
 """Unit tests for the binary event stream decoder."""
+
 from unittest import mock
 
 import pytest
-
 from botocore.eventstream import (
     ChecksumMismatch,
     DecodeUtils,
@@ -27,12 +27,10 @@ from botocore.eventstream import (
     MessagePrelude,
     NoInitialResponseError,
 )
-
-from aiobotocore.eventstream import (
-    AioEventStream,
-)
 from botocore.exceptions import EventStreamError
 from botocore.parsers import EventStreamXMLParser
+
+from aiobotocore.eventstream import AioEventStream
 
 EMPTY_MESSAGE = (
     b'\x00\x00\x00\x10\x00\x00\x00\x00\x05\xc2H\xeb}\x98\xc8\xff',
