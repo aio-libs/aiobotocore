@@ -137,7 +137,6 @@ def _get_boto_module_versions(
     return module_versions
 
 
-@pytest.mark.moto
 def test_release_versions():
     # ensures versions in CHANGES.rst + __init__.py match
     init_version = version.parse(aiobotocore.__version__)

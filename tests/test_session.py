@@ -8,8 +8,6 @@ from aiobotocore.config import AioConfig
 from aiobotocore.session import AioSession
 
 
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_get_service_data(session):
     handler_called = False
 
@@ -23,8 +21,6 @@ async def test_get_service_data(session):
     assert handler_called
 
 
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_retry(
     session: AioSession, caplog: LogCaptureFixture, monkeypatch
 ):
@@ -54,7 +50,6 @@ async def test_retry(
         assert 'sleeping for' in caplog.text
 
 
-@pytest.mark.moto
 async def test_set_user_agent_for_session(session: AioSession):
     assert session.user_agent_name == "aiobotocore"
     assert session.user_agent_version == __version__

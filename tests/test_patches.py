@@ -765,7 +765,6 @@ _API_DIGESTS = {
 _PROTOCOL_PARSER_CONTENT = {'ec2', 'query', 'json', 'rest-json', 'rest-xml'}
 
 
-@pytest.mark.moto
 def test_protocol_parsers():
     # Check that no new parsers have been added
     current_parsers = set(PROTOCOL_PARSERS.keys())
@@ -773,7 +772,6 @@ def test_protocol_parsers():
 
 
 # NOTE: this doesn't require moto but needs to be marked to run with coverage
-@pytest.mark.moto
 def test_patches():
     print(f"Botocore version: {botocore.__version__}")
 

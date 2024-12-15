@@ -12,8 +12,6 @@ from tests.mock_server import AIOServer
 
 
 # NOTE: this doesn't require moto but needs to be marked to run with coverage
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_connector_args():
     with pytest.raises(ParamValidationError):
         # wrong type
@@ -63,8 +61,6 @@ async def test_connector_args():
     assert aio_cfg.connector_args['keepalive_timeout'] == 75
 
 
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_connector_timeout():
     session = AioSession()
     config = AioConfig(
@@ -96,8 +92,6 @@ async def test_connector_timeout():
             task2.cancel()
 
 
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_connector_timeout2():
     session = AioSession()
     config = AioConfig(
@@ -118,14 +112,11 @@ async def test_connector_timeout2():
             await resp["Body"].read()
 
 
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_get_session():
     session = get_session()
     assert isinstance(session, AioSession)
 
 
-@pytest.mark.moto
 def test_merge():
     config = AioConfig()
     other_config = AioConfig()
@@ -136,8 +127,6 @@ def test_merge():
 
 
 # Check that it's possible to specify custom http_session_cls
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_config_http_session_cls():
     class SuccessExc(Exception): ...
 
