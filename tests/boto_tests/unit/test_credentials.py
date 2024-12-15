@@ -44,8 +44,7 @@ from aiobotocore.credentials import (
     AioSSOProvider,
 )
 from aiobotocore.session import AioSession
-
-from .helpers import StubbedSession
+from tests.boto_tests.helpers import StubbedSession
 
 
 def random_chars(num_chars):
