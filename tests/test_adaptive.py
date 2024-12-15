@@ -77,7 +77,7 @@ class TestAsyncClientRateLimiter:
         self.rate_adjustor.success_received.return_value = 20
         self.rate_clocker.record.return_value = 21
         await rate_limiter.on_receiving_response()
-        assert await self.token_bucket.set_max_rate.called_with(20)
+        self.token_bucket.set_max_rate.assert_called_with(20)
 
     async def test_max_rate_cant_exceed_20_percent_max(self):
         rate_limiter = self.create_client_limiter()
@@ -89,7 +89,7 @@ class TestAsyncClientRateLimiter:
 
         # The most we should go up is 2.0 * 20
         await rate_limiter.on_receiving_response()
-        assert await self.token_bucket.set_max_rate.called_with(2.0 * 20)
+        self.token_bucket.set_max_rate.assert_called_with(2.0 * 20)
 
 
 class TestAsyncTokenBucket:
