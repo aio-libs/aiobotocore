@@ -1,8 +1,6 @@
 import pytest
 
 
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_invalid_endpoint_url(session, region):
     endpoint_url = 'invalid_url'
     with pytest.raises(ValueError, match=f'Invalid endpoint: {endpoint_url}'):

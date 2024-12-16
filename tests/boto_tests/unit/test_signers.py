@@ -2,15 +2,11 @@ import datetime
 from datetime import timezone
 from unittest import mock
 
-import pytest
-
 import aiobotocore.credentials
 import aiobotocore.session
 import aiobotocore.signers
 
 
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_signers_generate_db_auth_token(rds_client):
     hostname = 'prod-instance.us-east-1.rds.amazonaws.com'
     port = 3306

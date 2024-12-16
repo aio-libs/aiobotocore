@@ -15,7 +15,6 @@ def cloudformation_waiter_model(cloudformation_client):
     return WaiterModel(config)
 
 
-@pytest.mark.moto
 def test_create_waiter_with_client(
     cloudformation_client, cloudformation_waiter_model
 ):
@@ -28,8 +27,6 @@ def test_create_waiter_with_client(
     assert asyncio.iscoroutinefunction(waiter.wait)
 
 
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_sqs(cloudformation_client):
     cloudformation_template = """{
       "AWSTemplateFormatVersion": "2010-09-09",

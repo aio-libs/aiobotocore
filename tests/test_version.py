@@ -11,7 +11,6 @@ import docutils.frontend
 import docutils.nodes
 import docutils.parsers.rst
 import docutils.utils
-import pytest
 import requests
 from packaging import version
 from pip._internal.req import InstallRequirement
@@ -137,7 +136,6 @@ def _get_boto_module_versions(
     return module_versions
 
 
-@pytest.mark.moto
 def test_release_versions():
     # ensures versions in CHANGES.rst + __init__.py match
     init_version = version.parse(aiobotocore.__version__)

@@ -13,7 +13,7 @@ from botocore.utils import MetadataRetrievalError
 from aiobotocore import utils
 from aiobotocore.awsrequest import AioAWSResponse
 from aiobotocore.utils import AioInstanceMetadataFetcher
-from tests.boto_tests.test_utils import fake_aiohttp_session
+from tests.boto_tests.unit.test_utils import fake_aiohttp_session
 from tests.test_response import AsyncBytesIO
 
 
@@ -79,8 +79,6 @@ class TestInstanceMetadataFetcher(unittest.IsolatedAsyncioTestCase):
             raise response
         return response
 
-    @pytest.mark.moto
-    @pytest.mark.asyncio
     async def test_disabled_by_environment(self):
         env = {'AWS_EC2_METADATA_DISABLED': 'true'}
         fetcher = AioInstanceMetadataFetcher(env=env)
@@ -88,8 +86,6 @@ class TestInstanceMetadataFetcher(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result, {})
         self._send.assert_not_called()
 
-    @pytest.mark.moto
-    @pytest.mark.asyncio
     async def test_disabled_by_environment_mixed_case(self):
         env = {'AWS_EC2_METADATA_DISABLED': 'tRuE'}
         fetcher = AioInstanceMetadataFetcher(env=env)
@@ -97,8 +93,6 @@ class TestInstanceMetadataFetcher(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result, {})
         self._send.assert_not_called()
 
-    @pytest.mark.moto
-    @pytest.mark.asyncio
     async def test_disabling_env_var_not_true(self):
         url = 'https://example.com/'
         env = {'AWS_EC2_METADATA_DISABLED': 'false'}
@@ -112,8 +106,6 @@ class TestInstanceMetadataFetcher(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(result, self._expected_creds)
 
-    @pytest.mark.moto
-    @pytest.mark.asyncio
     async def test_includes_user_agent_header(self):
         user_agent = 'my-user-agent'
         self.add_get_token_imds_response(token='token')
@@ -128,8 +120,6 @@ class TestInstanceMetadataFetcher(unittest.IsolatedAsyncioTestCase):
         for call in self._send.calls:
             self.assertTrue(call[0][0].headers['User-Agent'], user_agent)
 
-    @pytest.mark.moto
-    @pytest.mark.asyncio
     async def test_non_200_response_for_role_name_is_retried(self):
         # Response for role name that have a non 200 status code should
         # be retried.
@@ -144,8 +134,6 @@ class TestInstanceMetadataFetcher(unittest.IsolatedAsyncioTestCase):
         ).retrieve_iam_role_credentials()
         self.assertEqual(result, self._expected_creds)
 
-    @pytest.mark.moto
-    @pytest.mark.asyncio
     async def test_http_connection_error_for_role_name_is_retried(self):
         # Connection related errors should be retried
         self.add_get_token_imds_response(token='token')
@@ -157,8 +145,6 @@ class TestInstanceMetadataFetcher(unittest.IsolatedAsyncioTestCase):
         ).retrieve_iam_role_credentials()
         self.assertEqual(result, self._expected_creds)
 
-    @pytest.mark.moto
-    @pytest.mark.asyncio
     async def test_empty_response_for_role_name_is_retried(self):
         # Response for role name that have a non 200 status code should
         # be retried.
@@ -171,8 +157,6 @@ class TestInstanceMetadataFetcher(unittest.IsolatedAsyncioTestCase):
         ).retrieve_iam_role_credentials()
         self.assertEqual(result, self._expected_creds)
 
-    @pytest.mark.moto
-    @pytest.mark.asyncio
     async def test_non_200_response_is_retried(self):
         self.add_get_token_imds_response(token='token')
         self.add_get_role_name_imds_response()
@@ -187,8 +171,6 @@ class TestInstanceMetadataFetcher(unittest.IsolatedAsyncioTestCase):
         ).retrieve_iam_role_credentials()
         self.assertEqual(result, self._expected_creds)
 
-    @pytest.mark.moto
-    @pytest.mark.asyncio
     async def test_http_connection_errors_is_retried(self):
         self.add_get_token_imds_response(token='token')
         self.add_get_role_name_imds_response()
@@ -200,8 +182,6 @@ class TestInstanceMetadataFetcher(unittest.IsolatedAsyncioTestCase):
         ).retrieve_iam_role_credentials()
         self.assertEqual(result, self._expected_creds)
 
-    @pytest.mark.moto
-    @pytest.mark.asyncio
     async def test_empty_response_is_retried(self):
         self.add_get_token_imds_response(token='token')
         self.add_get_role_name_imds_response()
@@ -214,8 +194,6 @@ class TestInstanceMetadataFetcher(unittest.IsolatedAsyncioTestCase):
         ).retrieve_iam_role_credentials()
         self.assertEqual(result, self._expected_creds)
 
-    @pytest.mark.moto
-    @pytest.mark.asyncio
     async def test_invalid_json_is_retried(self):
         self.add_get_token_imds_response(token='token')
         self.add_get_role_name_imds_response()
@@ -228,8 +206,6 @@ class TestInstanceMetadataFetcher(unittest.IsolatedAsyncioTestCase):
         ).retrieve_iam_role_credentials()
         self.assertEqual(result, self._expected_creds)
 
-    @pytest.mark.moto
-    @pytest.mark.asyncio
     async def test_exhaust_retries_on_role_name_request(self):
         self.add_get_token_imds_response(token='token')
         self.add_imds_response(status_code=400, body=b'')
@@ -238,8 +214,6 @@ class TestInstanceMetadataFetcher(unittest.IsolatedAsyncioTestCase):
         ).retrieve_iam_role_credentials()
         self.assertEqual(result, {})
 
-    @pytest.mark.moto
-    @pytest.mark.asyncio
     async def test_exhaust_retries_on_credentials_request(self):
         self.add_get_token_imds_response(token='token')
         self.add_get_role_name_imds_response()
@@ -249,8 +223,6 @@ class TestInstanceMetadataFetcher(unittest.IsolatedAsyncioTestCase):
         ).retrieve_iam_role_credentials()
         self.assertEqual(result, {})
 
-    @pytest.mark.moto
-    @pytest.mark.asyncio
     async def test_missing_fields_in_credentials_response(self):
         self.add_get_token_imds_response(token='token')
         self.add_get_role_name_imds_response()
@@ -264,8 +236,6 @@ class TestInstanceMetadataFetcher(unittest.IsolatedAsyncioTestCase):
         )
         self.assertEqual(result, {})
 
-    @pytest.mark.moto
-    @pytest.mark.asyncio
     async def test_token_is_included(self):
         user_agent = 'my-user-agent'
         self.add_get_token_imds_response(token='token')
@@ -284,8 +254,6 @@ class TestInstanceMetadataFetcher(unittest.IsolatedAsyncioTestCase):
             )
         self.assertEqual(result, self._expected_creds)
 
-    @pytest.mark.moto
-    @pytest.mark.asyncio
     async def test_metadata_token_not_supported_404(self):
         user_agent = 'my-user-agent'
         self.add_imds_response(b'', status_code=404)
@@ -300,8 +268,6 @@ class TestInstanceMetadataFetcher(unittest.IsolatedAsyncioTestCase):
             self.assertNotIn('x-aws-ec2-metadata-token', call[0][0].headers)
         self.assertEqual(result, self._expected_creds)
 
-    @pytest.mark.moto
-    @pytest.mark.asyncio
     async def test_metadata_token_not_supported_403(self):
         user_agent = 'my-user-agent'
         self.add_imds_response(b'', status_code=403)
@@ -316,8 +282,6 @@ class TestInstanceMetadataFetcher(unittest.IsolatedAsyncioTestCase):
             self.assertNotIn('x-aws-ec2-metadata-token', call[0][0].headers)
         self.assertEqual(result, self._expected_creds)
 
-    @pytest.mark.moto
-    @pytest.mark.asyncio
     async def test_metadata_token_not_supported_405(self):
         user_agent = 'my-user-agent'
         self.add_imds_response(b'', status_code=405)
@@ -332,8 +296,6 @@ class TestInstanceMetadataFetcher(unittest.IsolatedAsyncioTestCase):
             self.assertNotIn('x-aws-ec2-metadata-token', call[0][0].headers)
         self.assertEqual(result, self._expected_creds)
 
-    @pytest.mark.moto
-    @pytest.mark.asyncio
     async def test_metadata_token_not_supported_timeout(self):
         user_agent = 'my-user-agent'
         self.add_imds_connection_error(ReadTimeoutError(endpoint_url='url'))
@@ -348,8 +310,6 @@ class TestInstanceMetadataFetcher(unittest.IsolatedAsyncioTestCase):
             self.assertNotIn('x-aws-ec2-metadata-token', call[0][0].headers)
         self.assertEqual(result, self._expected_creds)
 
-    @pytest.mark.moto
-    @pytest.mark.asyncio
     async def test_token_not_supported_exhaust_retries(self):
         user_agent = 'my-user-agent'
         self.add_imds_connection_error(ConnectTimeoutError(endpoint_url='url'))
@@ -364,8 +324,6 @@ class TestInstanceMetadataFetcher(unittest.IsolatedAsyncioTestCase):
             self.assertNotIn('x-aws-ec2-metadata-token', call[0][0].headers)
         self.assertEqual(result, self._expected_creds)
 
-    @pytest.mark.moto
-    @pytest.mark.asyncio
     async def test_metadata_token_bad_request_yields_no_credentials(self):
         user_agent = 'my-user-agent'
         self.add_imds_response(b'', status_code=400)
@@ -375,8 +333,6 @@ class TestInstanceMetadataFetcher(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result, {})
 
 
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_containermetadatafetcher_retrieve_url():
     json_body = json.dumps(
         {
@@ -406,8 +362,6 @@ async def test_containermetadatafetcher_retrieve_url():
     assert resp['Expiration'] == 'd'
 
 
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_containermetadatafetcher_retrieve_url_bad_status():
     json_body = "not json"
 
@@ -419,8 +373,6 @@ async def test_containermetadatafetcher_retrieve_url_bad_status():
         await fetcher.retrieve_uri('/foo?id=1')
 
 
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_containermetadatafetcher_retrieve_url_not_json():
     json_body = "not json"
 

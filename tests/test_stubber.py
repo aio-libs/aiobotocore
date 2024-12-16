@@ -1,5 +1,3 @@
-import pytest
-
 from aiobotocore.awsrequest import AioAWSResponse
 from aiobotocore.session import AioSession
 from aiobotocore.stub import AioStubber
@@ -7,8 +5,6 @@ from aiobotocore.stub import AioStubber
 from .mock_server import AIOServer
 
 
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_add_response():
     session = AioSession()
 
@@ -36,8 +32,6 @@ async def test_add_response():
         assert stubber._queue[0]['expected_params'] == expected_params
 
 
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_add_client_error():
     session = AioSession()
 
