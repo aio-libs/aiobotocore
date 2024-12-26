@@ -25,7 +25,7 @@ repos:
   - id: yamllint
     args: [--strict]
 - repo: https://github.com/python-jsonschema/check-jsonschema
-  rev: 0.29.2
+  rev: 0.30.0
   hooks:
   - id: check-dependabot
   - id: check-github-workflows
