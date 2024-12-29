@@ -25,7 +25,7 @@ After that, please install libraries required for development::
     $ pip install pip-tools
     $ pip-compile --all-extras pyproject.toml requirements-dev.in
     $ pip-sync
-    $ pip install -e ".[awscli,boto3]"
+    $ pip install -e .
 
 Install pre-commit hooks::
 
