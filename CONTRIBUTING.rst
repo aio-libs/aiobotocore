@@ -31,7 +31,25 @@ Install pre-commit hooks::
 
     $ pre-commit install
 
-Congratulations, you are ready to run the test suite::
+Congratulations, you are ready to run the test suite.
+
+There are two set of tests, those that can be mocked through `moto <https://github.com/getmoto/moto>`_ running in docker, and those that require running against a personal amazon key. The CI only runs the moto tests.
+
+To run the moto tests::
+
+    $ make mototest
+
+To run the non-moto tests, make sure you have your amazon key and secret accessible via environment variables::
+
+    $ export AWS_ACCESS_KEY_ID=xxx
+    $ export AWS_SECRET_ACCESS_KEY=xxx
+    $ export AWS_DEFAULT_REGION=xxx # e.g. us-west-2
+
+Execute full tests suite::
+
+    $ make test
+
+Execute full tests suite with coverage::
 
     $ make cov
 
