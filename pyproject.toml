@@ -30,10 +30,10 @@ classifiers = [
 dynamic = ["version", "readme"]
 
 dependencies = [
-    "botocore >=1.35.74, <1.35.89", # NOTE: When updating, always keep `project.optional-dependencies` aligned
     "aiohttp >=3.9.2, <4.0.0",
-    "wrapt >=1.10.10, <2.0.0",
     "aioitertools >=0.5.1, <1.0.0",
+    "botocore >=1.35.74, <1.35.89", # NOTE: When updating, always keep `project.optional-dependencies` aligned
+    "wrapt >=1.10.10, <2.0.0",
 ]
 
 [project.optional-dependencies]
