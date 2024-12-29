@@ -43,6 +43,8 @@ jobs:
 
   test:
     name: Test Python ${{ matrix.python-version }}
+    needs:
+    - build
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -67,12 +69,18 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
         allow-prereleases: true
+    - name: Download distribution 📦
+      uses: actions/download-artifact@v4
+      with:
+        name: python-package-distributions
+        path: dist/
     - name: Lock and sync dependencies
       run: |
         python -m pip install -U pip pip-tools
         pip-compile --all-extras pyproject.toml requirements-dev.in
         pip-sync
-        pip install -e ".[awscli,boto3]"
+        wheels=(dist/aiobotocore-*-py3-none-any.whl)
+        pip install "${files[0]}[awscli,boto3]"
     - name: Run pre-commit hooks
       run: |
         make pre-commit
