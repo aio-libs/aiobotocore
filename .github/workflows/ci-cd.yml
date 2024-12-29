@@ -73,7 +73,7 @@ jobs:
         python -m pip install -U pip pip-tools
         pip-compile --all-extras pyproject.toml requirements-dev.in
         pip-sync
-        pip install -e ".[awscli,boto3]"
+        pip install -e .
     - name: Run pre-commit hooks
       run: |
         make pre-commit
