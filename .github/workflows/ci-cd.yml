@@ -2,6 +2,7 @@
 name: CI/CD
 
 on:
+  merge_group:
   push:
     branches:
     - master
