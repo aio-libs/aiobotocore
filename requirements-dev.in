@@ -17,10 +17,15 @@ pytest-xdist==3.5.0
 
 ### aiobotocore dev dependencies
 
-dill~=0.3.3  # Requirement for tests/test_patches.py
+dill~=0.3.3  # Used in test_patches.py
 docker~=7.1
+docutils~=0.16  # Used in test_version.py
 moto[server,s3,sqs,awslambda,dynamodb,cloudformation,sns,batch,ec2,rds]~=4.2.9
+packaging~=24.1  # Used in test_version.py
+pip~=24.3.1  # Used in test_version.py
 pre-commit~=3.5.0
 pytest-asyncio~=0.23.8
+requests~=2.32.3  # Used in test_version.py
 time-machine~=2.15.0
-tomli; python_version < "3.11"  # Requirement for tests/test_version.py
+tomli; python_version < "3.11"  # Used in test_version.py
+werkzeug~=3.0.6  # Used in moto_server.py
