@@ -27,6 +27,10 @@ After that, please install libraries required for development::
     $ pip-sync
     $ pip install -e ".[awscli,boto3]"
 
+Install pre-commit hooks::
+
+    $ pre-commit install
+
 Congratulations, you are ready to run the test suite::
 
     $ make cov
