@@ -3,6 +3,7 @@ Changes
 
 2.17.0 (2025-01-06)
 ^^^^^^^^^^^^^^^^^^^
+* relax botocore dependency specification
 * add missing dependencies `python-dateutil`, `jmespath`, `multidict`, and `urllib3`
 
 2.16.1 (2024-12-26)
