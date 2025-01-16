@@ -1,14 +1,16 @@
 import io
 
+from botocore.exceptions import FlexibleChecksumError
 from botocore.httpchecksum import (
     _CHECKSUM_CLS,
     AwsChunkedWrapper,
-    FlexibleChecksumError,
     _apply_request_header_checksum,
     base64,
+    logger,
+)
+from botocore.utils import (
     conditionally_calculate_md5,
     determine_content_length,
-    logger,
 )
 
 from aiobotocore._helpers import resolve_awaitable

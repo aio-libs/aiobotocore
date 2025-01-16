@@ -1,5 +1,6 @@
 Changes
 -------
+* fix imports for botocore 1.36.0
 
 2.17.0 (2025-01-06)
 ^^^^^^^^^^^^^^^^^^^
