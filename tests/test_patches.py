@@ -204,8 +204,7 @@ _API_DIGESTS = {
     # config.py
     Config.merge: {'c3dd8c3ffe0da86953ceba4a35267dfb79c6a2c8'},
     Config: {
-        '823f8d031fc7218a600a56268a369aaa878f46c8',
-        'b1bd1c2cb9a20afa98db306c803617543ffecbf4',
+        'b74583575a542516edeeeec2e5d30ee61ce449b0',
     },
     # credentials.py
     create_mfa_serial_refresher: {'9b5e98782fcacdcea5899a6d0d29d1b9de348bb0'},
@@ -716,8 +715,7 @@ _API_DIGESTS = {
     },
     AwsChunkedWrapper.__iter__: {'261e26d1061655555fe3dcb2689d963e43f80fb0'},
     apply_request_checksum: {
-        'bcc044f0655f30769994efab72b29e76d73f7e39',
-        '5ebac6a8f1475a6b42b356135bc5f5840ac07a55',
+        '94f2d201a07a3831fd55d8ca2f2d75cdb06a9514',
     },
     _apply_request_trailer_checksum: {
         '28cdf19282be7cd2c99a734831ec4f489648bcc7'

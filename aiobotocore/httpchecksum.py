@@ -6,7 +6,6 @@ from botocore.httpchecksum import (
     FlexibleChecksumError,
     _apply_request_header_checksum,
     base64,
-    conditionally_calculate_md5,
     determine_content_length,
     logger,
 )
@@ -145,16 +144,18 @@ def apply_request_checksum(request):
     if not algorithm:
         return
 
-    if algorithm == "conditional-md5":
-        # Special case to handle the http checksum required trait
-        conditionally_calculate_md5(request)
-    elif algorithm["in"] == "header":
+    if algorithm["in"] == "header":
         _apply_request_header_checksum(request)
     elif algorithm["in"] == "trailer":
         _apply_request_trailer_checksum(request)
     else:
         raise FlexibleChecksumError(
             error_msg="Unknown checksum variant: {}".format(algorithm["in"])
+        )
+    if "request_algorithm_header" in checksum_context:
+        request_algorithm_header = checksum_context["request_algorithm_header"]
+        request["headers"][request_algorithm_header["name"]] = (
+            request_algorithm_header["value"]
         )
 
 
