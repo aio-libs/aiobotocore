@@ -21,7 +21,7 @@ env:
 jobs:
   build:
     name: Build distribution 📦
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
 
     steps:
@@ -40,7 +40,7 @@ jobs:
 
   test:
     name: Test Python ${{ matrix.python-version }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       matrix:
         python-version:
@@ -90,7 +90,7 @@ jobs:
     needs:
     - build
     - test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     environment:
       name: pypi
       url: https://pypi.org/project/aiobotocore/${{ github.ref_name }}
