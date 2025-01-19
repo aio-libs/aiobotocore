@@ -46,6 +46,11 @@ class AioConfig(botocore.client.Config):
                     raise ParamValidationError(
                         report=f'{k} value must be a boolean'
                     )
+            elif k == 'ttl_dns_cache':
+                if v is not None and not isinstance(v, int):
+                    raise ParamValidationError(
+                        report=f'{k} value must be an int or None'
+                    )
             elif k == 'keepalive_timeout':
                 if v is not None and not isinstance(v, (float, int)):
                     raise ParamValidationError(

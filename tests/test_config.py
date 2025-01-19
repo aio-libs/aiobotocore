@@ -19,6 +19,11 @@ async def test_connector_args():
 
     with pytest.raises(ParamValidationError):
         # wrong type
+        connector_args = dict(ttl_dns_cache="1")
+        AioConfig(connector_args)
+
+    with pytest.raises(ParamValidationError):
+        # wrong type
         connector_args = dict(keepalive_timeout="1")
         AioConfig(connector_args)
 
@@ -48,6 +53,8 @@ async def test_connector_args():
         AioConfig(connector_args)
 
     # Test valid configs:
+    AioConfig({"ttl_dns_cache": None})
+    AioConfig({"ttl_dns_cache": 1})
     AioConfig({"resolver": aiohttp.resolver.DefaultResolver()})
     AioConfig({'keepalive_timeout': None})
 
