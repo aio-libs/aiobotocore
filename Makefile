@@ -17,8 +17,6 @@ cov cover coverage: pre-commit
 	@echo "open file://`pwd`/htmlcov/index.html"
 
 mototest:
-	docker pull alpine
-	docker pull lambci/lambda:python3.8
 	python -Wd -X tracemalloc=5 -X faulthandler -m pytest -vv -m "not localonly" -n auto --cov-report term --cov-report html --cov-report xml --cov=aiobotocore --cov=tests --log-cli-level=DEBUG $(FLAGS) aiobotocore tests
 	@echo "open file://`pwd`/htmlcov/index.html"
 
