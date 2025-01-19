@@ -84,12 +84,25 @@ jobs:
         fail_ci_if_error: true  # optional (default = false)
         verbose: true  # optional (default = false)
 
+  check:  # This job does nothing and is only used for the branch protection
+    if: always()
+    needs:
+    - build
+    - test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+
+    steps:
+    - name: Decide whether the needed jobs succeeded or failed
+      uses: re-actors/alls-green@release/v1
+      with:
+        jobs: ${{ toJSON(needs) }}
+
   pypi-publish:
     name: Publish Python 🐍 distribution 📦 to PyPI
     if: github.ref_type == 'tag'  # only publish on tag pushes
     needs:
-    - build
-    - test
+    - check
     runs-on: ubuntu-24.04
     environment:
       name: pypi
