@@ -1,9 +1,10 @@
 Changes
 -------
 
-2.19.0 (2025-01-19)
+2.19.0 (2025-01-22)
 ^^^^^^^^^^^^^^^^^^^
 * support custom `ttl_dns_cache` connector configuration
+* relax botocore dependency specification
 
 2.18.0 (2025-01-17)
 ^^^^^^^^^^^^^^^^^^^
