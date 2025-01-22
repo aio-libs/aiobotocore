@@ -1,4 +1,5 @@
 import asyncio
+import multiprocessing
 import os
 import random
 import string
@@ -18,6 +19,12 @@ from aiobotocore.config import AioConfig
 host = '127.0.0.1'
 
 _PYCHARM_HOSTED = os.environ.get('PYCHARM_HOSTED') == '1'
+
+
+@pytest.fixture(scope="session", autouse=True)
+def always_spawn():
+    # enforce multiprocessing start method `spawn` to prevent deadlocks in the child
+    multiprocessing.set_start_method("spawn", force=True)
 
 
 @pytest.fixture(
