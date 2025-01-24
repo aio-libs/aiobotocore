@@ -75,7 +75,7 @@ jobs:
         uv run make mototest
     - name: Upload coverage to Codecov
       if: matrix.python-version == '3.11'
-      uses: codecov/codecov-action@v5.2.0
+      uses: codecov/codecov-action@v5.3.0
       with:
         token: ${{ secrets.CODECOV_TOKEN }}  # not required for public repos
         files: ./coverage.xml
