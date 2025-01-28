@@ -41,6 +41,7 @@ jobs:
   test:
     name: Test Python ${{ matrix.python-version }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    continue-on-error: ${{ matrix.experimental }}
     strategy:
       matrix:
         python-version:
@@ -54,6 +55,10 @@ jobs:
         os:
         - ubuntu-24.04
         - ubuntu-24.04-arm
+        include:
+        - experimental: false
+        - experimental: true
+          os: ubuntu-24.04-arm  # deal with flaky runners
       fail-fast: false
     env:
       UV_FROZEN: 1
