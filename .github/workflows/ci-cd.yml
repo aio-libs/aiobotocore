@@ -39,8 +39,9 @@ jobs:
         path: dist/
 
   test:
-    name: Test Python ${{ matrix.python-version }}
-    runs-on: ubuntu-24.04
+    name: Test Python ${{ matrix.python-version }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    continue-on-error: ${{ matrix.experimental }}
     strategy:
       matrix:
         python-version:
@@ -51,6 +52,17 @@ jobs:
         - 3.11
         - 3.12
         - 3.13
+        os:
+        - ubuntu-24.04
+        - ubuntu-24.04-arm
+        include:
+        - experimental: false
+        - experimental: true
+          os: ubuntu-24.04-arm  # deal with flaky runners
+        - upload-coverage: false
+        - upload-coverage: true
+          python-version: 3.11
+          os: ubuntu-24.04
       fail-fast: false
     env:
       UV_FROZEN: 1
@@ -74,7 +86,7 @@ jobs:
       run: |
         uv run make mototest
     - name: Upload coverage to Codecov
-      if: matrix.python-version == '3.11'
+      if: ${{ matrix.upload-coverage }}
       uses: codecov/codecov-action@v5.3.1
       with:
         token: ${{ secrets.CODECOV_TOKEN }}  # not required for public repos
