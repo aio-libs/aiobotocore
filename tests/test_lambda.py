@@ -1,10 +1,12 @@
 import base64
+import contextlib
 import io
 import json
 import zipfile
 
 # Third Party
 import botocore.client
+import botocore.exceptions
 import pytest
 
 
@@ -41,7 +43,10 @@ def lambda_handler(event, context):
     return _process_lambda(lambda_src)
 
 
-async def test_run_lambda(iam_client, lambda_client, aws_lambda_zip):
+@pytest.fixture
+async def lambda_client_with_test_function(
+    iam_client, lambda_client, aws_lambda_zip
+):
     role_arn = await _get_role_arn(iam_client, 'test-iam-role')
     lambda_response = await lambda_client.create_function(
         FunctionName='test-function',
@@ -53,9 +58,18 @@ async def test_run_lambda(iam_client, lambda_client, aws_lambda_zip):
         Publish=True,
         Code={'ZipFile': aws_lambda_zip},
     )
-    assert lambda_response['FunctionName'] == 'test-function'
+    try:
+        assert lambda_response['FunctionName'] == 'test-function'
+        yield lambda_client
+    finally:
+        with contextlib.suppress(botocore.exceptions.ClientError):
+            await lambda_client.delete_function(FunctionName='test-function')
 
-    invoke_response = await lambda_client.invoke(
+
+# moto sometimes attempts to use legacy Lambda image which fails to run on arm64
+@pytest.mark.flaky(reruns=10)
+async def test_run_lambda(lambda_client_with_test_function):
+    invoke_response = await lambda_client_with_test_function.invoke(
         FunctionName="test-function",
         InvocationType="RequestResponse",
         LogType='Tail',
