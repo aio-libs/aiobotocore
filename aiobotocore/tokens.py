@@ -3,7 +3,6 @@ import logging
 from datetime import timedelta
 
 import dateutil.parser
-from botocore.compat import total_seconds
 from botocore.exceptions import ClientError, TokenRetrievalError
 from botocore.tokens import (
     DeferredRefreshableToken,
@@ -118,7 +117,7 @@ class AioSSOTokenProvider(SSOTokenProvider):
             return None
 
         expiry = dateutil.parser.parse(token["registrationExpiresAt"])
-        if total_seconds(expiry - self._now()) <= 0:
+        if (expiry - self._now()).total_seconds() <= 0:
             logger.info(f"SSO token registration expired at {expiry}")
             return None
 
@@ -136,7 +135,7 @@ class AioSSOTokenProvider(SSOTokenProvider):
         expiration = dateutil.parser.parse(token_dict["expiresAt"])
         logger.debug(f"Cached SSO token expires at {expiration}")
 
-        remaining = total_seconds(expiration - self._now())
+        remaining = (expiration - self._now()).total_seconds()
         if remaining < self._REFRESH_WINDOW:
             new_token_dict = await self._refresh_access_token(token_dict)
             if new_token_dict is not None:

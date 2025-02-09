@@ -7,7 +7,6 @@ import subprocess
 from copy import deepcopy
 from hashlib import sha1
 
-import botocore.compat
 from botocore import UNSIGNED
 from botocore.compat import compat_shell_split
 from botocore.config import Config
@@ -517,7 +516,7 @@ class AioProcessProvider(ProcessProvider):
             raise CredentialRetrievalError(
                 provider=self.METHOD, error_msg=stderr.decode('utf-8')
             )
-        parsed = botocore.compat.json.loads(stdout.decode('utf-8'))
+        parsed = json.loads(stdout.decode('utf-8'))
         version = parsed.get('Version', '<Version key not provided>')
         if version != 1:
             raise CredentialRetrievalError(
