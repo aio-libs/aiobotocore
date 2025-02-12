@@ -696,8 +696,7 @@ _API_DIGESTS = {
     AWSResponse.text: {'a724100ba9f6d51b333b8fe470fac46376d5044a'},
     # httpchecksum.py
     handle_checksum_body: {
-        '898cee7a7a5e5a02af7e0e65dcbb8122257b85df',
-        '6f15cc120818413e89aac088d130c729ba3d422c',
+        '040cb48d8ebfb5ca195d41deb55b38d1fcb489f8',
     },
     _handle_streaming_response: {
         '7ce971e012f9d4b04889f0af83f67281ed6a9e6e',
