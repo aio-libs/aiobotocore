@@ -721,7 +721,7 @@ _API_DIGESTS = {
         '94f2d201a07a3831fd55d8ca2f2d75cdb06a9514',
     },
     _apply_request_trailer_checksum: {
-        '28cdf19282be7cd2c99a734831ec4f489648bcc7'
+        '45f483dd8520bf67616a063bdf6386865aad3591',
     },
     # retryhandler.py
     retryhandler.create_retry_handler: {
