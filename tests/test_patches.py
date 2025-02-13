@@ -710,6 +710,9 @@ _API_DIGESTS = {
         '0761c4590c6addbe8c674e40fca9f7dd375a184b',
         '11dce986975df44f08ff61d7e86cba4f92f7c19f',
     },
+    AwsChunkedWrapper.read: {
+        '226db2259073a2b2e05f999e8ef55210394693d8',
+    },
     AwsChunkedWrapper._make_chunk: {
         '097361692f0fd6c863a17dd695739629982ef7e4'
     },

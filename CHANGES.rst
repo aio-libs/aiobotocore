@@ -1,6 +1,10 @@
 Changes
 -------
 
+2.20.0 (2025-02-13)
+^^^^^^^^^^^^^^^^^^^
+* patch `AwsChunkedWrapper.read`
+
 2.19.0 (2025-01-22)
 ^^^^^^^^^^^^^^^^^^^
 * support custom `ttl_dns_cache` connector configuration

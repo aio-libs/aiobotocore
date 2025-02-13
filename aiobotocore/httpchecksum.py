@@ -15,6 +15,31 @@ from aiobotocore.response import StreamingBody
 
 
 class AioAwsChunkedWrapper(AwsChunkedWrapper):
+    async def read(self, size=None):
+        # Normalize "read all" size values to None
+        if size is not None and size <= 0:
+            size = None
+
+        # If the underlying body is done and we have nothing left then
+        # end the stream
+        if self._complete and not self._remaining:
+            return b""
+
+        # While we're not done and want more bytes
+        want_more_bytes = size is None or size > len(self._remaining)
+        while not self._complete and want_more_bytes:
+            self._remaining += await self._make_chunk()
+            want_more_bytes = size is None or size > len(self._remaining)
+
+        # If size was None, we want to return everything
+        if size is None:
+            size = len(self._remaining)
+
+        # Return a chunk up to the size asked for
+        to_return = self._remaining[:size]
+        self._remaining = self._remaining[size:]
+        return to_return
+
     async def _make_chunk(self):
         # NOTE: Chunk size is not deterministic as read could return less. This
         # means we cannot know the content length of the encoded aws-chunked
