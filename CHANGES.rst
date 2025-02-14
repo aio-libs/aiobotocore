@@ -1,7 +1,7 @@
 Changes
 -------
 
-2.20.0 (2025-02-13)
+2.20.0 (2025-02-19)
 ^^^^^^^^^^^^^^^^^^^
 * patch `AwsChunkedWrapper.read`
 * bump botocore dependency specification
