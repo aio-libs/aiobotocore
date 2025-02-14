@@ -6,6 +6,7 @@ from botocore.httpchecksum import (
     FlexibleChecksumError,
     _apply_request_header_checksum,
     base64,
+    conditionally_calculate_md5,
     determine_content_length,
     logger,
 )
@@ -169,7 +170,10 @@ def apply_request_checksum(request):
     if not algorithm:
         return
 
-    if algorithm["in"] == "header":
+    if algorithm == "conditional-md5":
+        # Special case to handle the http checksum required trait
+        conditionally_calculate_md5(request)
+    elif algorithm["in"] == "header":
         _apply_request_header_checksum(request)
     elif algorithm["in"] == "trailer":
         _apply_request_trailer_checksum(request)

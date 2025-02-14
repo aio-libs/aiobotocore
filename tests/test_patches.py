@@ -717,7 +717,7 @@ _API_DIGESTS = {
     },
     AwsChunkedWrapper.__iter__: {'261e26d1061655555fe3dcb2689d963e43f80fb0'},
     apply_request_checksum: {
-        '94f2d201a07a3831fd55d8ca2f2d75cdb06a9514',
+        '6d904d118cd9d768935e38a60a73a46c67a8d440',
     },
     _apply_request_trailer_checksum: {
         '45f483dd8520bf67616a063bdf6386865aad3591',
