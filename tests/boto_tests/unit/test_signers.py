@@ -25,6 +25,7 @@ from tests.boto_tests import assert_url_equal
 DATE = datetime.datetime(2024, 11, 7, 17, 39, 33, tzinfo=timezone.utc)
 
 
+@pytest.mark.parametrize('aws_auth', [{'aws_secret_access_key': 'skid', 'aws_access_key_id': 'akid'}])
 async def test_signers_generate_db_auth_token(rds_client):
     hostname = 'prod-instance.us-east-1.rds.amazonaws.com'
     port = 3306
@@ -41,14 +42,18 @@ async def test_signers_generate_db_auth_token(rds_client):
             hostname, port, username
         )
 
-    # A scheme needs to be appended to the beginning or urlsplit may fail
-    # on certain systems.
-    assert result.startswith(
-        'prod-instance.us-east-1.rds.amazonaws.com:3306/?AWSAccessKeyId=xxx&'
+    expected_result = (
+        'prod-instance.us-east-1.rds.amazonaws.com:3306/?Action=connect'
+        '&DBUser=someusername&X-Amz-Algorithm=AWS4-HMAC-SHA256'
+        '&X-Amz-Date=20161107T173933Z&X-Amz-SignedHeaders=host'
+        '&X-Amz-Expires=900&X-Amz-Credential=akid%2F20161107%2F'
+        'us-east-1%2Frds-db%2Faws4_request&X-Amz-Signature'
+        '=d1138cdbc0ca63eec012ec0fc6c2267e03642168f5884a7795320d4c18374c61'
     )
-    assert result2.startswith(
-        'prod-instance.us-east-1.rds.amazonaws.com:3306/?AWSAccessKeyId=xxx&'
-    )
+
+    assert_url_equal('http://' + result, 'http://' + expected_result)
+
+    assert result2 == result
 
 
 class TestDSQLGenerateDBAuthToken:

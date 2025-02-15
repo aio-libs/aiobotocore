@@ -82,7 +82,6 @@ dev = [
     "requests ~= 2.32.3", # Used in test_version.py
     "time-machine ~= 2.15.0", # Used in test_signers.py
     "tomli; python_version<'3.11'", # Used in test_version.py
-    "werkzeug ~= 3.0.6", # Used in moto_server.py
 ]
 
 [tool.uv]

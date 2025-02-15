@@ -1,19 +1,32 @@
 import asyncio
 import multiprocessing
+import socket
 
 # Third Party
 import aiohttp
 import aiohttp.web
 import pytest
 from aiohttp.web import StreamResponse
+from moto.server import ThreadedMotoServer
 
-# aiobotocore
-from tests.moto_server import MotoService, get_free_tcp_port, host
 
 _proxy_bypass = {
     "http": None,
     "https": None,
 }
+
+host = '127.0.0.1'
+
+
+def get_free_tcp_port(release_socket: bool = False):
+    sckt = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sckt.bind((host, 0))
+    addr, port = sckt.getsockname()
+    if release_socket:
+        sckt.close()
+        return port
+
+    return sckt, port
 
 
 # This runs in a subprocess for a variety of reasons
@@ -98,5 +111,10 @@ class AIOServer(multiprocessing.Process):
 
 @pytest.fixture
 async def moto_server(server_scheme):
-    async with MotoService(ssl=server_scheme == 'https') as svc:
-        yield svc.endpoint_url
+    server = ThreadedMotoServer(port=0)
+    try:
+        server.start()
+        host, port = server.get_host_and_port()
+        yield f'http://{host}:{port}'
+    finally:
+        server.stop()
