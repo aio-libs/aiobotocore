@@ -71,18 +71,18 @@ botocore-dev = [
     # "colorama>0.3.0", # Windows requirement
 ]
 dev = [
-    "dill ~=0.3.3", # Used in test_patches.py
-    "docker ~=7.1",
-    "docutils >=0.16,<0.22", # Used in test_version.py
-    "moto[server,s3,sqs,awslambda,dynamodb,cloudformation,sns,batch,ec2,rds] ~=4.2.9",
-    "packaging ~=24.1", # Used in test_version.py
+    "dill ~= 0.3.3", # Used in test_patches.py
+    "docker ~= 7.1",
+    "docutils >= 0.16,<0.22", # Used in test_version.py
+    "moto[server,s3,sqs,awslambda,dynamodb,cloudformation,sns,batch,ec2,rds] ~= 5.0.11",
+    "packaging ~= 24.1", # Used in test_version.py
     "pip >=24.3.1,<26", # Used in test_version.py
-    "pre-commit >=3.5.0,<5",
-    "pytest-asyncio >=0.23.8,<0.26",
-    "requests ~=2.32.3", # Used in test_version.py
-    "time-machine ~=2.15.0", # Used in test_signers.py
+    "pre-commit >= 3.5.0,<5",
+    "pytest-asyncio >= 0.23.8,<0.26",
+    "requests ~= 2.32.3", # Used in test_version.py
+    "time-machine ~= 2.15.0", # Used in test_signers.py
     "tomli; python_version<'3.11'", # Used in test_version.py
-    "werkzeug ~=3.0.6", # Used in moto_server.py
+    "werkzeug ~= 3.0.6", # Used in moto_server.py
 ]
 
 [tool.uv]

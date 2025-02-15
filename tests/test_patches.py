@@ -713,11 +713,6 @@ _API_DIGESTS = {
     AwsChunkedWrapper.read: {
         '226db2259073a2b2e05f999e8ef55210394693d8',
     },
-    _handle_streaming_response: {'7ce971e012f9d4b04889f0af83f67281ed6a9e6e'},
-    StreamingChecksumBody: {
-        '2c6eb22268d46abae261ce386eb2deabbc3a0dcd',
-    },
-    _handle_bytes_response: {'0761c4590c6addbe8c674e40fca9f7dd375a184b'},
     AwsChunkedWrapper._make_chunk: {
         '097361692f0fd6c863a17dd695739629982ef7e4'
     },
