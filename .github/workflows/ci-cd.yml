@@ -1,0 +1,138 @@
+---
+name: CI/CD
+
+on:
+  merge_group:
+  push:
+    branches:
+    - master
+    tags:
+    - >-
+      [0-9]+.[0-9]+.[0-9]+
+  pull_request:
+    branches:
+    - master
+    - >-
+      [0-9].[0-9]+.[0-9]+
+
+env:
+  FORCE_COLOR: 1
+
+jobs:
+  build:
+    name: Build distribution 📦
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install uv
+      uses: astral-sh/setup-uv@v5
+    - name: Build distribution 📦
+      run: uv build
+    - name: Check distribution 📦
+      run: uvx twine check --strict dist/*
+    - name: Upload distribution 📦
+      uses: actions/upload-artifact@v4
+      with:
+        name: python-package-distributions
+        path: dist/
+
+  test:
+    name: Test Python ${{ matrix.python-version }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    continue-on-error: ${{ matrix.experimental }}
+    strategy:
+      matrix:
+        python-version:
+        - 3.8
+        - 3.9
+        - >-
+          3.10
+        - 3.11
+        - 3.12
+        - 3.13
+        os:
+        - ubuntu-24.04
+        - ubuntu-24.04-arm
+        include:
+        - experimental: false
+        - experimental: true
+          os: ubuntu-24.04-arm  # deal with flaky runners
+        - upload-coverage: false
+        - upload-coverage: true
+          python-version: 3.11
+          os: ubuntu-24.04
+      fail-fast: false
+    env:
+      UV_FROZEN: 1
+    timeout-minutes: 5
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        submodules: true
+    - name: Install uv
+      uses: astral-sh/setup-uv@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Run pre-commit hooks
+      run: |
+        uv run make pre-commit
+    - name: Run unittests
+      env:
+        COLOR: 'yes'
+      run: |
+        uv run make mototest
+    - name: Upload coverage to Codecov
+      if: ${{ matrix.upload-coverage }}
+      uses: codecov/codecov-action@v5.3.1
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}  # not required for public repos
+        files: ./coverage.xml
+        flags: unittests  # optional
+        name: codecov-umbrella  # optional
+        fail_ci_if_error: true  # optional (default = false)
+        verbose: true  # optional (default = false)
+
+  check:  # This job does nothing and is only used for the branch protection
+    if: always()
+    needs:
+    - build
+    - test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+
+    steps:
+    - name: Decide whether the needed jobs succeeded or failed
+      uses: re-actors/alls-green@release/v1
+      with:
+        jobs: ${{ toJSON(needs) }}
+
+  pypi-publish:
+    name: Publish Python 🐍 distribution 📦 to PyPI
+    if: github.ref_type == 'tag'  # only publish on tag pushes
+    needs:
+    - check
+    runs-on: ubuntu-24.04
+    environment:
+      name: pypi
+      url: https://pypi.org/project/aiobotocore/${{ github.ref_name }}
+    permissions:
+      # IMPORTANT: this permission is mandatory for trusted publishing
+      id-token: write
+    timeout-minutes: 5
+
+    steps:
+    - name: Download distribution 📦
+      uses: actions/download-artifact@v4
+      with:
+        name: python-package-distributions
+        path: dist/
+    - name: Check if distribution 📦 names match git tag
+      run: |
+        test -f "dist/aiobotocore-${{ github.ref_name }}.tar.gz"
+        test -f "dist/aiobotocore-${{ github.ref_name }}-py3-none-any.whl"
+    - name: Publish distribution 📦 to PyPI
+      uses: pypa/gh-action-pypi-publish@release/v1

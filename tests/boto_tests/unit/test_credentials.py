@@ -3,11 +3,13 @@ These tests have been taken from
 https://github.com/boto/botocore/blob/develop/tests/unit/test_credentials.py
 and adapted to work with asyncio and pytest
 """
+
 import binascii
 import os
 import sys
 import tempfile
 import uuid
+from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 from functools import partial
 from typing import Optional
@@ -31,7 +33,6 @@ from botocore.utils import (
 from dateutil.tz import tzlocal, tzutc
 
 from aiobotocore import credentials
-from aiobotocore._helpers import asynccontextmanager
 from aiobotocore.credentials import (
     AioAssumeRoleProvider,
     AioCanonicalNameCredentialSourcer,
@@ -43,8 +44,7 @@ from aiobotocore.credentials import (
     AioSSOProvider,
 )
 from aiobotocore.session import AioSession
-
-from .helpers import StubbedSession
+from tests.boto_tests.helpers import StubbedSession
 
 
 def random_chars(num_chars):
@@ -52,7 +52,6 @@ def random_chars(num_chars):
 
 
 # From class TestCredentials(BaseEnvVar):
-@pytest.mark.moto
 @pytest.mark.parametrize(
     "access,secret", [('foo\xe2\x80\x99', 'bar\xe2\x80\x99'), ('foo', 'bar')]
 )
@@ -126,8 +125,6 @@ def credential_provider():
     return _f
 
 
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_assumerolefetcher_no_cache():
     response = {
         'Credentials': {
@@ -149,8 +146,6 @@ async def test_assumerolefetcher_no_cache():
     assert response == expected_response
 
 
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_assumerolefetcher_cache_key_with_role_session_name():
     response = {
         'Credentials': {
@@ -179,8 +174,6 @@ async def test_assumerolefetcher_cache_key_with_role_session_name():
     assert cache[cache_key] == response
 
 
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_assumerolefetcher_cache_in_cache_but_expired():
     response = {
         'Credentials': {
@@ -214,8 +207,6 @@ async def test_assumerolefetcher_cache_in_cache_but_expired():
     assert response == expected
 
 
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_assumerolefetcher_mfa():
     response = {
         'Credentials': {
@@ -247,8 +238,6 @@ async def test_assumerolefetcher_mfa():
     assert call_kwargs['TokenCode'] == 'token-code'
 
 
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_recursive_assume_role(assume_role_setup):
     self = assume_role_setup
 
@@ -305,8 +294,6 @@ def assume_role_web_identity_client_creator(with_response):
     return mock.Mock(return_value=_Client(with_response))
 
 
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_webidentfetcher_no_cache():
     response = {
         'Credentials': {
@@ -328,8 +315,6 @@ async def test_webidentfetcher_no_cache():
     assert response == expected_response
 
 
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_credresolver_load_credentials_single_provider(
     credential_provider,
 ):
@@ -346,8 +331,6 @@ async def test_credresolver_load_credentials_single_provider(
     assert creds.token == 'c'
 
 
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_credresolver_no_providers(credential_provider):
     provider1 = credential_provider('provider1', 'CustomProvider1', None)
     resolver = credentials.AioCredentialResolver(providers=[provider1])
@@ -357,8 +340,6 @@ async def test_credresolver_no_providers(credential_provider):
 
 
 # From class TestCanonicalNameSourceProvider(BaseEnvVar):
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_canonicalsourceprovider_source_creds(credential_provider):
     creds = credentials.AioCredentials('a', 'b', 'c')
     provider1 = credential_provider('provider1', 'CustomProvider1', creds)
@@ -371,8 +352,6 @@ async def test_canonicalsourceprovider_source_creds(credential_provider):
     assert result is creds
 
 
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_canonicalsourceprovider_source_creds_case_insensitive(
     credential_provider,
 ):
@@ -417,8 +396,6 @@ def assumerolecredprovider_config_loader():
     return _f
 
 
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_assumerolecredprovider_assume_role_no_cache(
     credential_provider, assumerolecredprovider_config_loader
 ):
@@ -460,8 +437,6 @@ async def test_assumerolecredprovider_assume_role_no_cache(
 
 
 # MFA
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_assumerolecredprovider_mfa(
     credential_provider, assumerolecredprovider_config_loader
 ):
@@ -519,8 +494,6 @@ async def test_assumerolecredprovider_mfa(
     assert call_kwargs['TokenCode'] == 'token-code'
 
 
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_assumerolecredprovider_mfa_cannot_refresh_credentials(
     credential_provider, assumerolecredprovider_config_loader
 ):
@@ -576,8 +549,6 @@ async def test_assumerolecredprovider_mfa_cannot_refresh_credentials(
 
 
 # From class TestAssumeRoleWithWebIdentityCredentialProvider
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_assumerolewebidentprovider_no_cache():
     future = datetime.now(tzlocal()) + timedelta(hours=24)
 
@@ -625,14 +596,10 @@ async def test_assumerolewebidentprovider_no_cache():
 
 # From class TestContainerProvider(BaseEnvVar):
 def full_url(url):
-    return 'http://{}{}'.format(
-        credentials.AioContainerMetadataFetcher.IP_ADDRESS, url
-    )
+    return f'http://{credentials.AioContainerMetadataFetcher.IP_ADDRESS}{url}'
 
 
 # From class TestEnvVar(BaseEnvVar):
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_envvarprovider_env_var_present():
     environ = {
         'AWS_ACCESS_KEY_ID': 'foo',
@@ -647,8 +614,6 @@ async def test_envvarprovider_env_var_present():
     assert creds.method == 'env'
 
 
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_envvarprovider_env_var_absent():
     environ = {}
     provider = credentials.AioEnvProvider(environ)
@@ -656,8 +621,6 @@ async def test_envvarprovider_env_var_absent():
     assert creds is None
 
 
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_envvarprovider_env_var_expiry():
     expiry_time = datetime.now(tzlocal()) - timedelta(hours=1)
     environ = {
@@ -692,8 +655,6 @@ def profile_config():
     return parser
 
 
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_configprovider_file_exists(profile_config):
     provider = credentials.AioConfigProvider(
         'cli.cfg', 'default', profile_config
@@ -706,8 +667,6 @@ async def test_configprovider_file_exists(profile_config):
     assert creds.method == 'config-file'
 
 
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_configprovider_file_missing_profile(profile_config):
     provider = credentials.AioConfigProvider(
         'cli.cfg', 'NOT-default', profile_config
@@ -717,8 +676,6 @@ async def test_configprovider_file_missing_profile(profile_config):
 
 
 # From class TestSharedCredentialsProvider(BaseEnvVar):
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_sharedcredentials_file_exists():
     parser = mock.Mock()
     parser.return_value = {
@@ -741,8 +698,6 @@ async def test_sharedcredentials_file_exists():
     assert creds.method == 'shared-credentials-file'
 
 
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_sharedcredentials_file_missing():
     parser = mock.Mock()
     parser.side_effect = botocore.exceptions.ConfigNotFound(path='foo')
@@ -755,8 +710,6 @@ async def test_sharedcredentials_file_missing():
 
 
 # From class TestBotoProvider(BaseEnvVar):
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_botoprovider_file_exists():
     parser = mock.Mock()
     parser.return_value = {
@@ -775,8 +728,6 @@ async def test_botoprovider_file_exists():
     assert creds.method == 'boto-config'
 
 
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_botoprovider_file_missing():
     parser = mock.Mock()
     parser.side_effect = botocore.exceptions.ConfigNotFound(path='foo')
@@ -787,8 +738,6 @@ async def test_botoprovider_file_missing():
 
 
 # From class TestOriginalEC2Provider(BaseEnvVar):
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_originalec2provider_file_exists():
     envrion = {'AWS_CREDENTIAL_FILE': 'foo.cfg'}
     parser = mock.Mock()
@@ -808,8 +757,6 @@ async def test_originalec2provider_file_exists():
     assert creds.method == 'ec2-credentials-file'
 
 
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_originalec2provider_file_missing():
     provider = credentials.AioOriginalEC2Provider(environ={})
     creds = await provider.load()
@@ -855,8 +802,6 @@ def mock_session():
     return _f
 
 
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_createcredentialresolver(mock_session):
     session = mock_session()
 
@@ -864,10 +809,6 @@ async def test_createcredentialresolver(mock_session):
     assert isinstance(resolver, credentials.AioCredentialResolver)
 
 
-# Disabled on travis as we cant easily disable the tests properly and
-#  travis has an IAM role which can't be applied to the mock session
-# @pytest.mark.moto
-@pytest.mark.asyncio
 async def test_get_credentials(mock_session):
     session = mock_session()
 
@@ -967,9 +908,9 @@ def _create_assume_role_response(credentials, expiration=None):
 
 def _create_random_credentials():
     return Credentials(
-        'fake-%s' % random_chars(15),
-        'fake-%s' % random_chars(35),
-        'fake-%s' % random_chars(45),
+        f'fake-{random_chars(15)}',
+        f'fake-{random_chars(35)}',
+        f'fake-{random_chars(45)}',
     )
 
 
@@ -1096,15 +1037,11 @@ def assume_role_setup(base_assume_role_test_setup):
     credential_process = os.path.join(
         current_dir, 'utils', 'credentialprocess.py'
     )
-    self.credential_process = '{} {}'.format(
-        sys.executable, credential_process
-    )
+    self.credential_process = f'{sys.executable} {credential_process}'
 
     yield self
 
 
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_sso_credential_fetcher_can_fetch_credentials(
     ssl_credential_fetcher_setup,
 ):
@@ -1146,8 +1083,6 @@ async def test_sso_credential_fetcher_can_fetch_credentials(
     self.assertEqual(self.cache[cache_key], expected_cached_credentials)
 
 
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_sso_cred_fetcher_raises_helpful_message_on_unauthorized_exception(
     ssl_credential_fetcher_setup,
 ):
@@ -1251,8 +1186,6 @@ def _add_get_role_credentials_response(self):
     )
 
 
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_load_sso_credentials_without_cache(sso_provider_setup):
     self = sso_provider_setup
     _add_get_role_credentials_response(self)
@@ -1264,8 +1197,6 @@ async def test_load_sso_credentials_without_cache(sso_provider_setup):
         self.assertEqual(credentials.token, 'baz')
 
 
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_load_sso_credentials_with_cache(sso_provider_setup):
     self = sso_provider_setup
 
@@ -1285,8 +1216,6 @@ async def test_load_sso_credentials_with_cache(sso_provider_setup):
     self.assertEqual(credentials.token, 'cached-st')
 
 
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_load_sso_credentials_with_cache_expired(sso_provider_setup):
     self = sso_provider_setup
     cached_creds = {
@@ -1309,8 +1238,6 @@ async def test_load_sso_credentials_with_cache_expired(sso_provider_setup):
         self.assertEqual(credentials.token, 'baz')
 
 
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_required_config_not_set(sso_provider_setup):
     self = sso_provider_setup
     del self.config['sso_start_url']

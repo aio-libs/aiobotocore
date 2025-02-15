@@ -1,6 +1,7 @@
 import ast
 import operator
 import re
+import sys
 from datetime import datetime
 from itertools import chain
 from pathlib import Path
@@ -10,7 +11,6 @@ import docutils.frontend
 import docutils.nodes
 import docutils.parsers.rst
 import docutils.utils
-import pytest
 import requests
 from packaging import version
 from pip._internal.req import InstallRequirement
@@ -18,6 +18,11 @@ from pip._internal.req.constructors import install_req_from_line
 from pip._vendor.packaging.specifiers import SpecifierSet
 
 import aiobotocore
+
+if sys.version_info >= (3, 11):
+    import tomllib
+else:
+    import tomli as tomllib
 
 _root_path = Path(__file__).absolute().parent.parent
 
@@ -52,9 +57,7 @@ class VersionInfo(NamedTuple):
     specifier_set: SpecifierSet
 
 
-def _get_boto_module_versions(
-    setup_content: str, ensure_plus_one_patch_range: bool = False
-):
+def _get_requirements_from_setup_py(setup_content: str):
     parsed = ast.parse(setup_content)
     top_level_vars = {"install_requires", "requires", "extras_require"}
     assignments = dict()
@@ -67,13 +70,28 @@ def _get_boto_module_versions(
             value = ast.literal_eval(node.value)
             assignments[target_name] = value
 
-    module_versions = dict()
-
-    for ver in chain(
+    return chain(
         assignments.get("install_requires", []),
         assignments.get("requires", []),
         assignments.get("extras_require", {}).values(),
-    ):
+    )
+
+
+def _get_requirements_from_pyproject_toml(pyproject_content: str):
+    content = tomllib.loads(pyproject_content)
+
+    return chain(
+        content["project"].get("dependencies", []),
+        *content["project"].get("optional-dependencies", {}).values(),
+    )
+
+
+def _get_boto_module_versions(
+    requirements, ensure_plus_one_patch_range: bool = False
+):
+    module_versions = dict()
+
+    for ver in requirements:
         if isinstance(ver, str):
             ver: InstallRequirement = install_req_from_line(ver)
         elif isinstance(ver, list):
@@ -118,10 +136,12 @@ def _get_boto_module_versions(
     return module_versions
 
 
-@pytest.mark.moto
 def test_release_versions():
     # ensures versions in CHANGES.rst + __init__.py match
     init_version = version.parse(aiobotocore.__version__)
+
+    # the init version should be in canonical from
+    assert str(init_version) == aiobotocore.__version__
 
     changes_path = _root_path / 'CHANGES.rst'
 
@@ -165,16 +185,21 @@ def test_release_versions():
         ), 'Current release must be after last release'
 
     # get aioboto reqs
-    with (_root_path / 'setup.py').open() as f:
+    with (_root_path / 'pyproject.toml').open() as f:
         content = f.read()
-        aioboto_reqs = _get_boto_module_versions(content, False)
+        aioboto_reqs = _get_boto_module_versions(
+            _get_requirements_from_pyproject_toml(content),
+            False,
+        )
 
     # get awscli reqs
     awscli_resp = requests.get(
         f"https://raw.githubusercontent.com/aws/aws-cli/"
         f"{aioboto_reqs['awscli'].least_version}/setup.py"
     )
-    awscli_reqs = _get_boto_module_versions(awscli_resp.text)
+    awscli_reqs = _get_boto_module_versions(
+        _get_requirements_from_setup_py(awscli_resp.text)
+    )
     assert awscli_reqs['botocore'].specifier_set.contains(
         aioboto_reqs['botocore'].least_version
     )
@@ -184,7 +209,9 @@ def test_release_versions():
         f"https://raw.githubusercontent.com/boto/boto3/"
         f"{aioboto_reqs['boto3'].least_version}/setup.py"
     )
-    boto3_reqs = _get_boto_module_versions(boto3_resp.text)
+    boto3_reqs = _get_boto_module_versions(
+        _get_requirements_from_setup_py(boto3_resp.text)
+    )
     assert boto3_reqs['botocore'].specifier_set.contains(
         aioboto_reqs['botocore'].least_version
     )

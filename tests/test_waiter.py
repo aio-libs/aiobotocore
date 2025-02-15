@@ -1,8 +1,32 @@
+import asyncio
+
 import pytest
 
+from aiobotocore.waiter import (
+    AIOWaiter,
+    WaiterModel,
+    create_waiter_with_client,
+)
 
-@pytest.mark.moto
-@pytest.mark.asyncio
+
+@pytest.fixture
+def cloudformation_waiter_model(cloudformation_client):
+    config = cloudformation_client._get_waiter_config()
+    return WaiterModel(config)
+
+
+def test_create_waiter_with_client(
+    cloudformation_client, cloudformation_waiter_model
+):
+    waiter = create_waiter_with_client(
+        'StackCreateComplete',
+        cloudformation_waiter_model,
+        cloudformation_client,
+    )
+    assert isinstance(waiter, AIOWaiter)
+    assert asyncio.iscoroutinefunction(waiter.wait)
+
+
 async def test_sqs(cloudformation_client):
     cloudformation_template = """{
       "AWSTemplateFormatVersion": "2010-09-09",

@@ -119,7 +119,6 @@ def _run_token_provider_test_case(provider, test_case):
         assert auth_token is None
 
 
-@pytest.mark.moto
 @parametrize(sso_provider_resolution_cases)
 def test_sso_token_provider_resolution(test_case):
     mock_session = _create_mock_session(test_case["config"])
@@ -128,7 +127,6 @@ def test_sso_token_provider_resolution(test_case):
     _run_token_provider_test_case(resolver, test_case)
 
 
-@pytest.mark.moto
 @parametrize(sso_provider_resolution_cases)
 def test_sso_token_provider_profile_name_overrides_session_profile(test_case):
     mock_session = _create_mock_session(test_case["config"])
@@ -274,8 +272,6 @@ sso_provider_refresh_cases = [
 ]
 
 
-@pytest.mark.moto
-@pytest.mark.asyncio
 @parametrize(sso_provider_refresh_cases)
 async def test_sso_token_provider_refresh(test_case):
     config = {

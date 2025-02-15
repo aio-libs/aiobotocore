@@ -6,7 +6,6 @@ from botocore.httpchecksum import (
     FlexibleChecksumError,
     _apply_request_header_checksum,
     base64,
-    conditionally_calculate_md5,
     determine_content_length,
     logger,
 )
@@ -16,6 +15,31 @@ from aiobotocore.response import StreamingBody
 
 
 class AioAwsChunkedWrapper(AwsChunkedWrapper):
+    async def read(self, size=None):
+        # Normalize "read all" size values to None
+        if size is not None and size <= 0:
+            size = None
+
+        # If the underlying body is done and we have nothing left then
+        # end the stream
+        if self._complete and not self._remaining:
+            return b""
+
+        # While we're not done and want more bytes
+        want_more_bytes = size is None or size > len(self._remaining)
+        while not self._complete and want_more_bytes:
+            self._remaining += await self._make_chunk()
+            want_more_bytes = size is None or size > len(self._remaining)
+
+        # If size was None, we want to return everything
+        if size is None:
+            size = len(self._remaining)
+
+        # Return a chunk up to the size asked for
+        to_return = self._remaining[:size]
+        self._remaining = self._remaining[size:]
+        return to_return
+
     async def _make_chunk(self):
         # NOTE: Chunk size is not deterministic as read could return less. This
         # means we cannot know the content length of the encoded aws-chunked
@@ -79,7 +103,7 @@ async def handle_checksum_body(
         return
 
     for algorithm in algorithms:
-        header_name = "x-amz-checksum-%s" % algorithm
+        header_name = f"x-amz-checksum-{algorithm}"
         # If the header is not found, check the next algorithm
         if header_name not in headers:
             continue
@@ -113,7 +137,7 @@ async def handle_checksum_body(
 
 def _handle_streaming_response(http_response, response, algorithm):
     checksum_cls = _CHECKSUM_CLS.get(algorithm)
-    header_name = "x-amz-checksum-%s" % algorithm
+    header_name = f"x-amz-checksum-{algorithm}"
     return StreamingChecksumBody(
         http_response.raw,
         response["headers"].get("content-length"),
@@ -124,18 +148,15 @@ def _handle_streaming_response(http_response, response, algorithm):
 
 async def _handle_bytes_response(http_response, response, algorithm):
     body = await http_response.content
-    header_name = "x-amz-checksum-%s" % algorithm
+    header_name = f"x-amz-checksum-{algorithm}"
     checksum_cls = _CHECKSUM_CLS.get(algorithm)
     checksum = checksum_cls()
     checksum.update(body)
     expected = response["headers"][header_name]
     if checksum.digest() != base64.b64decode(expected):
         error_msg = (
-            "Expected checksum %s did not match calculated checksum: %s"
-            % (
-                expected,
-                checksum.b64digest(),
-            )
+            f"Expected checksum {expected} did not match calculated "
+            f"checksum: {checksum.b64digest()}"
         )
         raise FlexibleChecksumError(error_msg=error_msg)
     return body
@@ -148,16 +169,18 @@ def apply_request_checksum(request):
     if not algorithm:
         return
 
-    if algorithm == "conditional-md5":
-        # Special case to handle the http checksum required trait
-        conditionally_calculate_md5(request)
-    elif algorithm["in"] == "header":
+    if algorithm["in"] == "header":
         _apply_request_header_checksum(request)
     elif algorithm["in"] == "trailer":
         _apply_request_trailer_checksum(request)
     else:
         raise FlexibleChecksumError(
-            error_msg="Unknown checksum variant: %s" % algorithm["in"]
+            error_msg="Unknown checksum variant: {}".format(algorithm["in"])
+        )
+    if "request_algorithm_header" in checksum_context:
+        request_algorithm_header = checksum_context["request_algorithm_header"]
+        request["headers"][request_algorithm_header["name"]] = (
+            request_algorithm_header["value"]
         )
 
 

@@ -1,9 +1,10 @@
 import asyncio
+import multiprocessing
 import os
 import random
 import string
 import tempfile
-from contextlib import ExitStack
+from contextlib import AsyncExitStack, ExitStack
 from itertools import chain
 from unittest.mock import patch
 
@@ -14,11 +15,16 @@ import pytest
 
 import aiobotocore.session
 from aiobotocore.config import AioConfig
-from tests._helpers import AsyncExitStack
 
 host = '127.0.0.1'
 
 _PYCHARM_HOSTED = os.environ.get('PYCHARM_HOSTED') == '1'
+
+
+@pytest.fixture(scope="session", autouse=True)
+def always_spawn():
+    # enforce multiprocessing start method `spawn` to prevent deadlocks in the child
+    multiprocessing.set_start_method("spawn", force=True)
 
 
 @pytest.fixture(
@@ -81,9 +87,7 @@ async def assert_num_uploads_found(
             await asyncio.sleep(2)
 
         pytest.fail(
-            "Expected to see {} uploads, instead saw: {}".format(
-                num_uploads, amount_seen
-            )
+            f"Expected to see {num_uploads} uploads, instead saw: {amount_seen}"
         )
 
 

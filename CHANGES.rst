@@ -1,6 +1,57 @@
 Changes
 -------
 
+2.20.0 (2025-02-13)
+^^^^^^^^^^^^^^^^^^^
+* patch `AwsChunkedWrapper.read`
+
+2.19.0 (2025-01-22)
+^^^^^^^^^^^^^^^^^^^
+* support custom `ttl_dns_cache` connector configuration
+* relax botocore dependency specification
+
+2.18.0 (2025-01-17)
+^^^^^^^^^^^^^^^^^^^
+* bump botocore dependency specification
+
+2.17.0 (2025-01-06)
+^^^^^^^^^^^^^^^^^^^
+* relax botocore dependency specification
+* add missing dependencies `python-dateutil`, `jmespath`, `multidict`, and `urllib3`
+
+2.16.1 (2024-12-26)
+^^^^^^^^^^^^^^^^^^^
+* relax botocore dependency specification
+
+2.16.0 (2024-12-16)
+^^^^^^^^^^^^^^^^^^^
+* bump botocore dependency specification
+
+2.15.2 (2024-10-09)
+^^^^^^^^^^^^^^^^^^^
+* relax botocore dependency specification
+
+2.15.1 (2024-09-19)
+^^^^^^^^^^^^^^^^^^^
+* relax botocore dependency specification
+
+2.15.0 (2024-09-10)
+^^^^^^^^^^^^^^^^^^^
+* bump botocore dependency specification
+
+2.14.0 (2024-08-28)
+^^^^^^^^^^^^^^^^^^^
+* bump botocore dependency specification
+
+2.13.3 (2024-08-22)
+^^^^^^^^^^^^^^^^^^^
+* fix ``create_waiter_with_client()``
+* relax botocore dependency specification
+
+2.13.2 (2024-07-18)
+^^^^^^^^^^^^^^^^^^^
+* fix for #1125 due to missing patch of StreamingChecksumBody
+
 2.13.1 (2024-06-24)
 ^^^^^^^^^^^^^^^^^^^
 * bump botocore dependency specification
