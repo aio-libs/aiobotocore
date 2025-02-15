@@ -98,5 +98,5 @@ class AIOServer(multiprocessing.Process):
 
 @pytest.fixture
 async def moto_server(server_scheme):
-    async with MotoService( ssl=server_scheme == 'https') as svc:
+    async with MotoService(ssl=server_scheme == 'https') as svc:
         yield svc.endpoint_url

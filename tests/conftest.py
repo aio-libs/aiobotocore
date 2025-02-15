@@ -262,9 +262,7 @@ async def alternative_s3_client(
 
 
 @pytest.fixture
-async def dynamodb_client(
-    session, region, config, moto_server, mocking_test
-):
+async def dynamodb_client(session, region, config, moto_server, mocking_test):
     kw = moto_config(moto_server) if mocking_test else {}
     async with session.create_client(
         'dynamodb', region_name=region, config=config, **kw
@@ -347,9 +345,7 @@ async def ec2_client(session, region, config, moto_server, mocking_test):
 
 
 @pytest.fixture
-async def kinesis_client(
-    session, region, config, moto_server, mocking_test
-):
+async def kinesis_client(session, region, config, moto_server, mocking_test):
     kw = moto_config(moto_server) if mocking_test else {}
     async with session.create_client(
         'kinesis', region_name=region, config=config, **kw

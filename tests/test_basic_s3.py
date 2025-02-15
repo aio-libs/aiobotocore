@@ -174,7 +174,9 @@ async def test_result_key_iters(s3_client, bucket_name, create_object):
     assert 'CommonPrefixes' in response
 
 
-async def test_can_get_and_put_object(s3_client, create_object, bucket_name: str):
+async def test_can_get_and_put_object(
+    s3_client, create_object, bucket_name: str
+):
     key_name = 'foobarbaz'
     await create_object(key_name, body='body contents')
 
@@ -187,7 +189,9 @@ async def test_can_get_and_put_object(s3_client, create_object, bucket_name: str
     # now test checksum'd file
     key_name = 'foobarbaz_cs'
     await create_object(key_name, b'abcd', ChecksumAlgorithm="sha1")
-    resp = await s3_client.get_object(Bucket=bucket_name, Key=key_name, ChecksumMode="ENABLED")
+    resp = await s3_client.get_object(
+        Bucket=bucket_name, Key=key_name, ChecksumMode="ENABLED"
+    )
     data = await resp['Body'].read()
     assert data == b'abcd'
     print()

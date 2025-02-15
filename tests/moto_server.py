@@ -1,5 +1,4 @@
 import asyncio
-import functools
 import logging
 import os
 import socket
@@ -33,8 +32,6 @@ class MotoService:
     Service is ref-counted so there will only be one per process. Real Service will
     be returned by `__aenter__`."""
 
-    _services = dict()  # {name: instance}
-
     def __init__(self, port: int = None, ssl: bool = False):
         if port:
             self._socket = None
@@ -44,7 +41,6 @@ class MotoService:
 
         self._thread = None
         self._logger = logging.getLogger('MotoService')
-        self._refcount = 0
         self._ip_address = host
         self._server = None
         self._ssl_ctx = (
@@ -56,61 +52,7 @@ class MotoService:
     def endpoint_url(self):
         return f'{self._schema}://{self._ip_address}:{self._port}'
 
-    def __call__(self, func):
-        async def wrapper(*args, **kwargs):
-            await self._start()
-            try:
-                result = await func(*args, **kwargs)
-            finally:
-                await self._stop()
-            return result
-
-        functools.update_wrapper(wrapper, func)
-        wrapper.__wrapped__ = func
-        return wrapper
-
     async def __aenter__(self):
-        if self._refcount == 0:
-            self._refcount = 1
-            await self._start()
-            return self
-        else:
-            self._refcount += 1
-            return svc
-
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
-        self._refcount -= 1
-
-        if self._socket:
-            self._socket.close()
-            self._socket = None
-
-        if self._refcount == 0:
-            await self._stop()
-
-    def _server_entry(self):
-        try:
-            self._main_app = moto.server.DomainDispatcherApplication(
-                moto.server.create_backend_app
-            )
-        except BaseException as exc:
-            raise
-        self._main_app.debug = True
-
-        if self._socket:
-            self._socket.close()  # release right before we use it
-            self._socket = None
-
-        self._server = werkzeug.serving.make_server(
-            self._ip_address,
-            self._port,
-            self._main_app,
-            True,
-            ssl_context=self._ssl_ctx,
-        )
-        self._server.serve_forever()
-
-    async def _start(self):
         self._thread = threading.Thread(target=self._server_entry, daemon=True)
         self._thread.start()
 
@@ -135,6 +77,37 @@ class MotoService:
             else:
                 await self._stop()  # pytest.fail doesn't call stop_process
                 raise Exception("Can not start moto service")
+
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        if self._socket:
+            self._socket.close()
+            self._socket = None
+
+        await self._stop()
+
+    def _server_entry(self):
+        try:
+            self._main_app = moto.server.DomainDispatcherApplication(
+                moto.server.create_backend_app
+            )
+        except BaseException:
+            raise
+        self._main_app.debug = True
+
+        if self._socket:
+            self._socket.close()  # release right before we use it
+            self._socket = None
+
+        self._server = werkzeug.serving.make_server(
+            self._ip_address,
+            self._port,
+            self._main_app,
+            True,
+            ssl_context=self._ssl_ctx,
+        )
+        self._server.serve_forever()
 
     async def _stop(self):
         if self._server:
