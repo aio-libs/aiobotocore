@@ -1,19 +1,31 @@
 import asyncio
 import multiprocessing
+import socket
 
 # Third Party
 import aiohttp
 import aiohttp.web
 import pytest
 from aiohttp.web import StreamResponse
-
-# aiobotocore
-from tests.moto_server import MotoService, get_free_tcp_port, host
+from moto.server import ThreadedMotoServer
 
 _proxy_bypass = {
     "http": None,
     "https": None,
 }
+
+host = '127.0.0.1'
+
+
+def get_free_tcp_port(release_socket: bool = False):
+    sckt = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sckt.bind((host, 0))
+    addr, port = sckt.getsockname()
+    if release_socket:
+        sckt.close()
+        return port
+
+    return sckt, port
 
 
 # This runs in a subprocess for a variety of reasons
@@ -97,68 +109,11 @@ class AIOServer(multiprocessing.Process):
 
 
 @pytest.fixture
-async def s3_server(server_scheme):
-    async with MotoService('s3', ssl=server_scheme == 'https') as svc:
-        yield svc.endpoint_url
-
-
-@pytest.fixture
-async def dynamodb2_server(server_scheme):
-    async with MotoService('dynamodb', ssl=server_scheme == 'https') as svc:
-        yield svc.endpoint_url
-
-
-@pytest.fixture
-async def cloudformation_server(server_scheme):
-    async with MotoService(
-        'cloudformation', ssl=server_scheme == 'https'
-    ) as svc:
-        yield svc.endpoint_url
-
-
-@pytest.fixture
-async def sns_server(server_scheme):
-    async with MotoService('sns', ssl=server_scheme == 'https') as svc:
-        yield svc.endpoint_url
-
-
-@pytest.fixture
-async def sqs_server(server_scheme):
-    async with MotoService('sqs', ssl=server_scheme == 'https') as svc:
-        yield svc.endpoint_url
-
-
-@pytest.fixture
-async def batch_server(server_scheme):
-    async with MotoService('batch', ssl=server_scheme == 'https') as svc:
-        yield svc.endpoint_url
-
-
-@pytest.fixture
-async def lambda_server(server_scheme):
-    async with MotoService('lambda', ssl=server_scheme == 'https') as svc:
-        yield svc.endpoint_url
-
-
-@pytest.fixture
-async def iam_server(server_scheme):
-    async with MotoService('iam', ssl=server_scheme == 'https') as svc:
-        yield svc.endpoint_url
-
-
-@pytest.fixture
-async def rds_server(server_scheme):
-    async with MotoService('rds', ssl=server_scheme == 'https') as svc:
-        yield svc.endpoint_url
-
-
-@pytest.fixture
-async def ec2_server(server_scheme):
-    async with MotoService('ec2', ssl=server_scheme == 'https') as svc:
-        yield svc.endpoint_url
-
-
-@pytest.fixture
-async def kinesis_server(server_scheme):
-    async with MotoService('kinesis', ssl=server_scheme == 'https') as svc:
-        yield svc.endpoint_url
+async def moto_server(server_scheme):
+    server = ThreadedMotoServer(port=0)
+    try:
+        server.start()
+        host, port = server.get_host_and_port()
+        yield f'http://{host}:{port}'
+    finally:
+        server.stop()
