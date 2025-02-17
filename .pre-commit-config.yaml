@@ -1,5 +1,6 @@
 ---
 ci:
+  autofix_prs: false
   autoupdate_schedule: quarterly
   skip: [uv-lock]  # https://github.com/astral-sh/uv/issues/10167
 
