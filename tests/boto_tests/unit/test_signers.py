@@ -25,7 +25,10 @@ from tests.boto_tests import assert_url_equal
 DATE = datetime.datetime(2024, 11, 7, 17, 39, 33, tzinfo=timezone.utc)
 
 
-@pytest.mark.parametrize('aws_auth', [{'aws_secret_access_key': 'skid', 'aws_access_key_id': 'akid'}])
+@pytest.mark.parametrize(
+    'aws_auth',
+    [{'aws_secret_access_key': 'skid', 'aws_access_key_id': 'akid'}],
+)
 async def test_signers_generate_db_auth_token(rds_client):
     hostname = 'prod-instance.us-east-1.rds.amazonaws.com'
     port = 3306

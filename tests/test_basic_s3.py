@@ -194,7 +194,6 @@ async def test_can_get_and_put_object(
     )
     data = await resp['Body'].read()
     assert data == b'abcd'
-    print()
 
 
 @pytest.mark.patch_attributes(
