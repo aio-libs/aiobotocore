@@ -6,6 +6,7 @@ from botocore.httpchecksum import (
     FlexibleChecksumError,
     _apply_request_header_checksum,
     base64,
+    conditionally_calculate_md5,
     determine_content_length,
     logger,
 )
@@ -129,7 +130,7 @@ async def handle_checksum_body(
         response["context"]["checksum"] = checksum_context
         return
 
-    logger.info(
+    logger.debug(
         f'Skipping checksum validation. Response did not contain one of the '
         f'following algorithms: {algorithms}.'
     )
@@ -169,7 +170,10 @@ def apply_request_checksum(request):
     if not algorithm:
         return
 
-    if algorithm["in"] == "header":
+    if algorithm == "conditional-md5":
+        # Special case to handle the http checksum required trait
+        conditionally_calculate_md5(request)
+    elif algorithm["in"] == "header":
         _apply_request_header_checksum(request)
     elif algorithm["in"] == "trailer":
         _apply_request_trailer_checksum(request)
@@ -212,6 +216,12 @@ def _apply_request_trailer_checksum(request):
         # Send the decoded content length if we can determine it. Some
         # services such as S3 may require the decoded content length
         headers["X-Amz-Decoded-Content-Length"] = str(content_length)
+
+        if "Content-Length" in headers:
+            del headers["Content-Length"]
+            logger.debug(
+                "Removing the Content-Length header since 'chunked' is specified for Transfer-Encoding."
+            )
 
     if isinstance(body, (bytes, bytearray)):
         body = io.BytesIO(body)

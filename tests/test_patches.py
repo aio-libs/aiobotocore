@@ -696,8 +696,7 @@ _API_DIGESTS = {
     AWSResponse.text: {'a724100ba9f6d51b333b8fe470fac46376d5044a'},
     # httpchecksum.py
     handle_checksum_body: {
-        '898cee7a7a5e5a02af7e0e65dcbb8122257b85df',
-        '6f15cc120818413e89aac088d130c729ba3d422c',
+        '040cb48d8ebfb5ca195d41deb55b38d1fcb489f8',
     },
     _handle_streaming_response: {
         '7ce971e012f9d4b04889f0af83f67281ed6a9e6e',
@@ -718,10 +717,10 @@ _API_DIGESTS = {
     },
     AwsChunkedWrapper.__iter__: {'261e26d1061655555fe3dcb2689d963e43f80fb0'},
     apply_request_checksum: {
-        '94f2d201a07a3831fd55d8ca2f2d75cdb06a9514',
+        '6d904d118cd9d768935e38a60a73a46c67a8d440',
     },
     _apply_request_trailer_checksum: {
-        '28cdf19282be7cd2c99a734831ec4f489648bcc7'
+        '45f483dd8520bf67616a063bdf6386865aad3591',
     },
     # retryhandler.py
     retryhandler.create_retry_handler: {
