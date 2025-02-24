@@ -13,7 +13,6 @@ from botocore.endpoint import (
     logger,
 )
 from botocore.hooks import first_non_none_response
-from urllib3.response import HTTPHeaderDict
 
 from aiobotocore.httpchecksum import handle_checksum_body
 from aiobotocore.httpsession import AIOHTTPSession
