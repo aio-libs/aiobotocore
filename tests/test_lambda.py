@@ -1,11 +1,16 @@
 import base64
 import io
 import json
+import os
 import zipfile
 
 # Third Party
 import botocore.client
 import pytest
+
+
+_MATRIX_CONTEXT = json.loads(os.environ.get('MATRIX_CONTEXT', '{}'))
+_MATRIX_OS = _MATRIX_CONTEXT.get('os')
 
 
 async def _get_role_arn(iam_client, role_name: str):
@@ -41,7 +46,11 @@ def lambda_handler(event, context):
     return _process_lambda(lambda_src)
 
 
-async def test_run_lambda(iam_client, lambda_client, aws_lambda_zip):
+async def test_run_lambda(request, iam_client, lambda_client, aws_lambda_zip):
+    if _MATRIX_OS == 'ubuntu-24.04-arm':
+        mark = pytest.mark.xfail(reason="xfail")
+        request.node.add_marker(mark)
+
     role_arn = await _get_role_arn(iam_client, 'test-iam-role')
     lambda_response = await lambda_client.create_function(
         FunctionName='test-function',

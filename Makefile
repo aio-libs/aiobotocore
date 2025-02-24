@@ -17,7 +17,6 @@ cov cover coverage: pre-commit
 	@echo "open file://`pwd`/htmlcov/index.html"
 
 mototest:
-	@echo MATRIX_CONTEXT=${MATRIX_CONTEXT}
 	python -Wd -X tracemalloc=5 -X faulthandler -m pytest -vv -m "not localonly" -n auto --cov-report term --cov-report html --cov-report xml --cov=aiobotocore --cov=tests --log-cli-level=DEBUG $(FLAGS) aiobotocore tests
 
 clean:
