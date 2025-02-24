@@ -46,6 +46,7 @@ def lambda_handler(event, context):
 
 
 async def test_run_lambda(request, iam_client, lambda_client, aws_lambda_zip):
+    # TODO: remove once moto 5.0.29 is released: https://github.com/getmoto/moto/pull/8603
     if _MATRIX_OS == 'ubuntu-24.04-arm':
         mark = pytest.mark.xfail(reason="xfail")
         request.node.add_marker(mark)
