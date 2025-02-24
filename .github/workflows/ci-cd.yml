@@ -57,8 +57,9 @@ jobs:
         - ubuntu-24.04-arm
         include:
         - experimental: false
-        - experimental: true
-          os: ubuntu-24.04-arm  # deal with flaky runners
+        - experimental: true  # no reliable moto release available
+          python-version: 3.8
+          os: ubuntu-24.04-arm
         - upload-coverage: false
         - upload-coverage: true
           python-version: 3.11
