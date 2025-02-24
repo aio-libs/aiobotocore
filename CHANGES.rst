@@ -1,6 +1,6 @@
 Changes
 -------
-2.20.1 (TBD)
+2.20.1.dev0 (2025-02-24)
 ^^^^^^^^^^^^^^^^^^^
 * upstream http response header fixes to be more in-line with botocore
 
