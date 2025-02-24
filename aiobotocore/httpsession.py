@@ -229,8 +229,17 @@ class AIOHTTPSession:
                 proxy_headers=proxy_headers,
             )
 
+            # botocore converts keys to str, so make sure that they are in
+            # the expected case. See detailed discussion here:
+            # https://github.com/aio-libs/aiobotocore/pull/116
+            # aiohttp's CIMultiDict camel cases the headers :(
+            headers = {
+                k.decode('utf-8').lower(): v.decode('utf-8')
+                for k, v in response.raw_headers
+            }
+
             http_response = aiobotocore.awsrequest.AioAWSResponse(
-                str(response.url), response.status, response.headers, response
+                str(response.url), response.status, headers, response
             )
 
             if not request.stream_output:

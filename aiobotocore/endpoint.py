@@ -39,16 +39,7 @@ async def convert_to_response_dict(http_response, operation_model):
 
     """
     response_dict = {
-        # botocore converts keys to str, so make sure that they are in
-        # the expected case. See detailed discussion here:
-        # https://github.com/aio-libs/aiobotocore/pull/116
-        # aiohttp's CIMultiDict camel cases the headers :(
-        'headers': HTTPHeaderDict(
-            {
-                k.decode('utf-8').lower(): v.decode('utf-8')
-                for k, v in http_response.raw.raw_headers
-            }
-        ),
+        'headers': http_response.headers,
         'status_code': http_response.status_code,
         'context': {
             'operation_name': operation_model.name,
