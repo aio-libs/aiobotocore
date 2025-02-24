@@ -8,7 +8,6 @@ import zipfile
 import botocore.client
 import pytest
 
-
 _MATRIX_CONTEXT = json.loads(os.environ.get('MATRIX_CONTEXT', '{}'))
 _MATRIX_OS = _MATRIX_CONTEXT.get('os')
 
