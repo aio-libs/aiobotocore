@@ -1,5 +1,8 @@
 Changes
 -------
+2.20.1 (XXXX-XX-XX)
+^^^^^^^^^^^^^^^^^^^
+* upstream http response header fixes to be more in-line with botocore
 
 2.20.0 (2025-02-19)
 ^^^^^^^^^^^^^^^^^^^
