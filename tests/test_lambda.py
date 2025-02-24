@@ -10,6 +10,7 @@ import pytest
 
 _MATRIX_CONTEXT = json.loads(os.environ.get('MATRIX_CONTEXT', '{}'))
 _MATRIX_OS = _MATRIX_CONTEXT.get('os')
+_MATRIX_PY_VERSION = _MATRIX_CONTEXT.get('python-version')
 
 
 async def _get_role_arn(iam_client, role_name: str):
@@ -46,8 +47,9 @@ def lambda_handler(event, context):
 
 
 async def test_run_lambda(request, iam_client, lambda_client, aws_lambda_zip):
-    # TODO: remove once moto 5.0.29 is released: https://github.com/getmoto/moto/pull/8603
-    if _MATRIX_OS == 'ubuntu-24.04-arm':
+    # TODO: remove once moto 5.0.29 is released for python3.8 or we drop python3.8
+    #  support https://github.com/getmoto/moto/pull/8603
+    if _MATRIX_OS == 'ubuntu-24.04-arm' and _MATRIX_PY_VERSION == 3.8:
         mark = pytest.mark.xfail(reason="xfail")
         request.node.add_marker(mark)
 
