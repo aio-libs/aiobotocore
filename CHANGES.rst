@@ -1,6 +1,6 @@
 Changes
 -------
-2.20.1 (XXXX-XX-XX)
+2.20.1 (TBD)
 ^^^^^^^^^^^^^^^^^^^
 * upstream http response header fixes to be more in-line with botocore
 
