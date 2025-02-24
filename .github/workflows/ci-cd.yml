@@ -83,6 +83,7 @@ jobs:
     - name: Run unittests
       env:
         COLOR: 'yes'
+        MATRIX_CONTEXT: ${{ toJson(matrix) }}
       run: |
         uv run make mototest
     - name: Upload coverage to Codecov
