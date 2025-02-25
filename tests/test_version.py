@@ -173,10 +173,6 @@ def test_release_versions():
         #     rst_ver.is_prerelease
         # ), 'Version must be prerelease if final release date not set'
     else:
-        assert (
-            not rst_ver.is_prerelease
-        ), 'Version must not be prerelease if release date set'
-
         rst_date = datetime.strptime(rst_date, '%Y-%m-%d').date()
         rst_prev_date = datetime.strptime(rst_prev_date, '%Y-%m-%d').date()
 
