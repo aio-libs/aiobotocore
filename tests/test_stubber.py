@@ -4,6 +4,8 @@ from aiobotocore.stub import AioStubber
 
 from .mock_server import AIOServer
 
+# these tests don't currently care about aiohttp vs httpx
+
 
 async def test_add_response():
     session = AioSession()

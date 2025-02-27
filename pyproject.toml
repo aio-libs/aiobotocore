@@ -46,6 +46,7 @@ awscli = [
 boto3 = [
     "boto3 >= 1.36.20, < 1.36.24",
 ]
+httpx = ["httpx"]
 
 [project.urls]
 Repository = "https://github.com/aio-libs/aiobotocore"
@@ -80,6 +81,7 @@ dev = [
     "requests >= 2.32.3, < 3", # Used in test_version.py
     "time-machine >= 2.15.0, < 3", # Used in test_signers.py
     "tomli; python_version<'3.11'", # Used in test_version.py
+    "httpx"
 ]
 
 [tool.uv]

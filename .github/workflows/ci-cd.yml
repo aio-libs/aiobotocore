@@ -88,6 +88,15 @@ jobs:
         COLOR: 'yes'
       run: |
         uv run make mototest
+    # TODO: I don't know how to do this properly with uv-managed venv
+    # - name: Run unittests without httpx installed
+    #   # run it on same python as codecov
+    #   if: matrix.python-version == '3.11'
+    #   env:
+    #     COLOR: 'yes'
+    #   run: |
+    #     pip uninstall --yes httpx
+    #     HTTP_BACKEND='aiohttp' FLAGS='--cov-append' uv run make mototest
     - name: Upload coverage to Codecov
       if: ${{ matrix.upload-coverage }}
       uses: codecov/codecov-action@v5.4.0
