@@ -4,7 +4,7 @@ from botocore import translate
 from botocore.exceptions import PartialCredentialsError
 from botocore.session import EVENT_ALIASES, ServiceModel
 from botocore.session import Session as _SyncSession
-from botocore.session import UnknownServiceError, copy
+from botocore.session import UnknownServiceError, copy, logger
 
 from . import __version__, retryhandler
 from .client import AioBaseClient, AioClientCreator
@@ -82,8 +82,12 @@ class AioSession(_SyncSession):
             'response_parser_factory', AioResponseParserFactory()
         )
 
-    def set_credentials(self, access_key, secret_key, token=None):
-        self._credentials = AioCredentials(access_key, secret_key, token)
+    def set_credentials(
+        self, access_key, secret_key, token=None, account_id=None
+    ):
+        self._credentials = AioCredentials(
+            access_key, secret_key, token, account_id=account_id
+        )
 
     async def get_credentials(self):
         if self._credentials is None:
@@ -130,6 +134,7 @@ class AioSession(_SyncSession):
         aws_secret_access_key=None,
         aws_session_token=None,
         config=None,
+        aws_account_id=None,
     ):
         default_client_config = self.get_default_client_config()
         # If a config is provided and a default config is set, then
@@ -165,6 +170,7 @@ class AioSession(_SyncSession):
                 access_key=aws_access_key_id,
                 secret_key=aws_secret_access_key,
                 token=aws_session_token,
+                account_id=aws_account_id,
             )
         elif self._missing_cred_vars(aws_access_key_id, aws_secret_access_key):
             raise PartialCredentialsError(
@@ -174,6 +180,13 @@ class AioSession(_SyncSession):
                 ),
             )
         else:
+            if ignored_credentials := self._get_ignored_credentials(
+                aws_session_token, aws_account_id
+            ):
+                logger.debug(
+                    f"Ignoring the following credential-related values which were set without "
+                    f"an access key id and secret key on the session or client: {ignored_credentials}"
+                )
             credentials = await self.get_credentials()
         auth_token = self.get_auth_token()
         endpoint_resolver = self._get_internal_component('endpoint_resolver')

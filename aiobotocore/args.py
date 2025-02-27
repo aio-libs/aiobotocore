@@ -49,6 +49,7 @@ class AioClientArgsCreator(ClientArgsCreator):
         configured_endpoint_url = final_args['configured_endpoint_url']
         signing_region = endpoint_config['signing_region']
         endpoint_region_name = endpoint_config['region_name']
+        account_id_endpoint_mode = config_kwargs['account_id_endpoint_mode']
 
         event_emitter = copy.copy(self._event_emitter)
         signer = AioRequestSigner(
@@ -107,6 +108,8 @@ class AioClientArgsCreator(ClientArgsCreator):
             is_secure,
             endpoint_bridge,
             event_emitter,
+            credentials,
+            account_id_endpoint_mode,
         )
 
         # Copy the session's user agent factory and adds client configuration.
@@ -144,6 +147,8 @@ class AioClientArgsCreator(ClientArgsCreator):
         is_secure,
         endpoint_bridge,
         event_emitter,
+        credentials,
+        account_id_endpoint_mode,
     ):
         if endpoints_ruleset_data is None:
             return None
@@ -168,6 +173,8 @@ class AioClientArgsCreator(ClientArgsCreator):
             endpoint_bridge=endpoint_bridge,
             client_endpoint_url=endpoint_url,
             legacy_endpoint_url=endpoint.host,
+            credentials=credentials,
+            account_id_endpoint_mode=account_id_endpoint_mode,
         )
         # Client context params for s3 conflict with the available settings
         # in the `s3` parameter on the `Config` object. If the same parameter

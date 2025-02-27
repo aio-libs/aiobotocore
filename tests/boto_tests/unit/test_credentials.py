@@ -101,6 +101,7 @@ def get_expected_creds_from_response(response):
         'secret_key': response['Credentials']['SecretAccessKey'],
         'token': response['Credentials']['SessionToken'],
         'expiry_time': expiration,
+        'account_id': response.get('Credentials', {}).get('AccountId'),
     }
 
 
@@ -911,6 +912,9 @@ def _create_random_credentials():
         f'fake-{random_chars(15)}',
         f'fake-{random_chars(35)}',
         f'fake-{random_chars(45)}',
+        # The account_id gets resolved from the
+        # Arn in create_assume_role_response().
+        account_id='1234567890',
     )
 
 
@@ -1078,6 +1082,7 @@ async def test_sso_credential_fetcher_can_fetch_credentials(
             'SecretAccessKey': 'bar',
             'SessionToken': 'baz',
             'Expiration': '2008-09-23T12:43:20Z',
+            'AccountId': '1234567890',
         },
     }
     self.assertEqual(self.cache[cache_key], expected_cached_credentials)
