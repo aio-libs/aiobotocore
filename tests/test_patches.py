@@ -18,6 +18,7 @@ from botocore.credentials import (
     ContainerProvider,
     CredentialResolver,
     Credentials,
+    DeferredRefreshableCredentials,
     EnvProvider,
     InstanceMetadataProvider,
     OriginalEC2Provider,
@@ -241,6 +242,9 @@ _API_DIGESTS = {
     },
     RefreshableCredentials.get_frozen_credentials: {
         'f661c84a8b759786e011f0b1e8a468a0c6294e36'
+    },
+    DeferredRefreshableCredentials.__init__: {
+        'd18601140386cfaa6718d0e0d38a0816cd151d35',
     },
     SSOCredentialFetcher: {'fa2a1dd73e0ec37e250c97f55a7b2c341a7f836a'},
     SSOProvider.load: {'67aba81dd1def437f2035f5e20b0720b328d970a'},

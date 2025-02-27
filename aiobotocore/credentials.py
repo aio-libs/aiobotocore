@@ -27,6 +27,7 @@ from botocore.credentials import (
     CredentialResolver,
     CredentialRetrievalError,
     Credentials,
+    DeferredRefreshableCredentials,
     EnvProvider,
     InstanceMetadataProvider,
     InvalidConfigError,
@@ -364,7 +365,9 @@ class AioRefreshableCredentials(RefreshableCredentials):
         return self._frozen_credentials
 
 
-class AioDeferredRefreshableCredentials(AioRefreshableCredentials):
+class AioDeferredRefreshableCredentials(
+    DeferredRefreshableCredentials, AioRefreshableCredentials
+):
     def __init__(self, refresh_using, method, time_fetcher=_local_now):
         self._refresh_using = refresh_using
         self._access_key = None
@@ -375,11 +378,6 @@ class AioDeferredRefreshableCredentials(AioRefreshableCredentials):
         self._refresh_lock = asyncio.Lock()
         self.method = method
         self._frozen_credentials = None
-
-    def refresh_needed(self, refresh_in=None):
-        if self._frozen_credentials is None:
-            return True
-        return super().refresh_needed(refresh_in)
 
 
 class AioCachedCredentialFetcher(CachedCredentialFetcher):

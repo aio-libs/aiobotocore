@@ -1,5 +1,10 @@
 Changes
 -------
+
+2.21.0 (2025-02-27)
+^^^^^^^^^^^^^^^^^^^
+* make `AioDeferredRefreshableCredentials` subclass of `DeferredRefreshableCredentials`
+
 2.20.1.dev0 (2025-02-24)
 ^^^^^^^^^^^^^^^^^^^^^^^^
 * upstream http response header fixes to be more in-line with botocore
