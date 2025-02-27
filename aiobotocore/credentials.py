@@ -1,11 +1,8 @@
 import asyncio
-import datetime
-import json
 import logging
 import os
 import subprocess
 from copy import deepcopy
-from hashlib import sha1
 
 import botocore.compat
 from botocore import UNSIGNED
@@ -40,6 +37,7 @@ from botocore.credentials import (
     RefreshableCredentials,
     RefreshWithMFAUnsupportedError,
     SharedCredentialProvider,
+    SSOCredentialFetcher,
     SSOProvider,
     SSOTokenLoader,
     UnauthorizedSSOTokenError,
@@ -51,7 +49,6 @@ from botocore.credentials import (
     parse,
     resolve_imds_endpoint_mode,
 )
-from dateutil.tz import tzutc
 
 from aiobotocore._helpers import resolve_awaitable
 from aiobotocore.config import AioConfig
@@ -971,52 +968,9 @@ class AioCredentialResolver(CredentialResolver):
         return None
 
 
-class AioSSOCredentialFetcher(AioCachedCredentialFetcher):
-    _UTC_DATE_FORMAT = '%Y-%m-%dT%H:%M:%SZ'
-
-    def __init__(
-        self,
-        start_url,
-        sso_region,
-        role_name,
-        account_id,
-        client_creator,
-        token_loader=None,
-        cache=None,
-        expiry_window_seconds=None,
-        token_provider=None,
-        sso_session_name=None,
-    ):
-        self._client_creator = client_creator
-        self._sso_region = sso_region
-        self._role_name = role_name
-        self._account_id = account_id
-        self._start_url = start_url
-        self._token_loader = token_loader
-        self._token_provider = token_provider
-        self._sso_session_name = sso_session_name
-        super().__init__(cache, expiry_window_seconds)
-
-    def _create_cache_key(self):
-        args = {
-            'roleName': self._role_name,
-            'accountId': self._account_id,
-        }
-        if self._sso_session_name:
-            args['sessionName'] = self._sso_session_name
-        else:
-            args['startUrl'] = self._start_url
-
-        args = json.dumps(args, sort_keys=True, separators=(',', ':'))
-        argument_hash = sha1(args.encode('utf-8')).hexdigest()
-        return self._make_file_safe(argument_hash)
-
-    def _parse_timestamp(self, timestamp_ms):
-        # fromtimestamp expects seconds so: milliseconds / 1000 = seconds
-        timestamp_seconds = timestamp_ms / 1000.0
-        timestamp = datetime.datetime.fromtimestamp(timestamp_seconds, tzutc())
-        return timestamp.strftime(self._UTC_DATE_FORMAT)
-
+class AioSSOCredentialFetcher(
+    SSOCredentialFetcher, AioCachedCredentialFetcher
+):
     async def _get_credentials(self):
         """Get credentials by calling SSO get role credentials."""
         config = Config(

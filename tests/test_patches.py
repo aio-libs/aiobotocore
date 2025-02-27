@@ -246,7 +246,9 @@ _API_DIGESTS = {
     DeferredRefreshableCredentials.__init__: {
         'd18601140386cfaa6718d0e0d38a0816cd151d35',
     },
-    SSOCredentialFetcher: {'fa2a1dd73e0ec37e250c97f55a7b2c341a7f836a'},
+    SSOCredentialFetcher._get_credentials: {
+        '8b330f4b299aece9232577f066060e28d369f3e9',
+    },
     SSOProvider.load: {'67aba81dd1def437f2035f5e20b0720b328d970a'},
     CachedCredentialFetcher._get_credentials: {
         '02a7d13599d972e3f258d2b53f87eeda4cc3e3a4'
