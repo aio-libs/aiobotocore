@@ -747,11 +747,14 @@ class AioAssumeRoleProvider(AssumeRoleProvider):
     async def _resolve_credentials_from_profile(self, profile_name):
         profiles = self._loaded_config.get('profiles', {})
         profile = profiles[profile_name]
-
         if (
             self._has_static_credentials(profile)
             and not self._profile_provider_builder
         ):
+            # This is only here for backwards compatibility. If this provider
+            # isn't given a profile provider builder we still want to be able
+            # handle the basic static credential case as we would before the
+            # provile provider builder parameter was added.
             return self._resolve_static_credentials_from_profile(profile)
         elif self._has_static_credentials(
             profile
@@ -770,7 +773,6 @@ class AioAssumeRoleProvider(AssumeRoleProvider):
                     error_msg=error_message % profile_name,
                 )
             return credentials
-
         return await self._load_creds_via_assume_role(profile_name)
 
     def _resolve_static_credentials_from_profile(self, profile):
