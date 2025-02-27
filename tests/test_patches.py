@@ -455,6 +455,9 @@ _API_DIGESTS = {
     Session._create_credential_resolver: {
         '87e98d201c72d06f7fbdb4ebee2dce1c09de0fb2'
     },
+    Session.set_credentials: {
+        '63a10f97f417d3df8aae8a5444db4c8a6ebe06ad',
+    },
     Session.get_credentials: {'718da08b630569e631f93aedd65f1d9215bfc30b'},
     get_session: {'c47d588f5da9b8bde81ccc26eaef3aee19ddd901'},
     Session.get_service_data: {
