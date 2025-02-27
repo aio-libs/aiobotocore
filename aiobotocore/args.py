@@ -47,7 +47,6 @@ class AioClientArgsCreator(ClientArgsCreator):
         partition = endpoint_config['metadata'].get('partition', None)
         socket_options = final_args['socket_options']
         configured_endpoint_url = final_args['configured_endpoint_url']
-
         signing_region = endpoint_config['signing_region']
         endpoint_region_name = endpoint_config['region_name']
 

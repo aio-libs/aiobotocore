@@ -18,6 +18,7 @@ from botocore.credentials import (
     ContainerProvider,
     CredentialResolver,
     Credentials,
+    DeferredRefreshableCredentials,
     EnvProvider,
     InstanceMetadataProvider,
     OriginalEC2Provider,
@@ -242,7 +243,12 @@ _API_DIGESTS = {
     RefreshableCredentials.get_frozen_credentials: {
         'f661c84a8b759786e011f0b1e8a468a0c6294e36'
     },
-    SSOCredentialFetcher: {'fa2a1dd73e0ec37e250c97f55a7b2c341a7f836a'},
+    DeferredRefreshableCredentials.__init__: {
+        'd18601140386cfaa6718d0e0d38a0816cd151d35',
+    },
+    SSOCredentialFetcher._get_credentials: {
+        '8b330f4b299aece9232577f066060e28d369f3e9',
+    },
     SSOProvider.load: {'67aba81dd1def437f2035f5e20b0720b328d970a'},
     CachedCredentialFetcher._get_credentials: {
         '02a7d13599d972e3f258d2b53f87eeda4cc3e3a4'
@@ -454,6 +460,9 @@ _API_DIGESTS = {
     },
     Session._create_credential_resolver: {
         '87e98d201c72d06f7fbdb4ebee2dce1c09de0fb2'
+    },
+    Session.set_credentials: {
+        '63a10f97f417d3df8aae8a5444db4c8a6ebe06ad',
     },
     Session.get_credentials: {'718da08b630569e631f93aedd65f1d9215bfc30b'},
     get_session: {'c47d588f5da9b8bde81ccc26eaef3aee19ddd901'},
