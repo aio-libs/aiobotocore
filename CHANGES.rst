@@ -1,11 +1,11 @@
 Changes
 -------
 
-2.21.0 (2025-02-27)
+2.21.0 (2025-02-28)
 ^^^^^^^^^^^^^^^^^^^
 * make `AioDeferredRefreshableCredentials` subclass of `DeferredRefreshableCredentials`
 * make `AioSSOCredentialFetcher` subclass of `SSOCredentialFetcher`
-* relax botocore dependency specification
+* bump botocore dependency specification
 
 2.20.1.dev0 (2025-02-24)
 ^^^^^^^^^^^^^^^^^^^^^^^^

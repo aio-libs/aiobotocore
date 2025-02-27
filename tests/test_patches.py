@@ -142,10 +142,10 @@ from dill.source import getsource
 _API_DIGESTS = {
     # args.py
     ClientArgsCreator.get_client_args: {
-        '2dc13a6f32c470bc415a2cfc1f82cf569b1a5196'
+        'd651b5c3d81738b7f2072b984eef8b5d4cfacd22',
     },
     ClientArgsCreator._build_endpoint_resolver: {
-        '0f80192233321ae4a55d95b68f5b8a68f3ad18e6',
+        '354033a66f90fc1d939a3309ae7d595d480020a6',
     },
     # client.py
     ClientCreator.create_client: {
@@ -205,15 +205,15 @@ _API_DIGESTS = {
     # config.py
     Config.merge: {'c3dd8c3ffe0da86953ceba4a35267dfb79c6a2c8'},
     Config: {
-        'b74583575a542516edeeeec2e5d30ee61ce449b0',
+        'c7cf339ac7fb2d5fca9f133beb84d750bd4c9e30',
     },
     # credentials.py
     create_mfa_serial_refresher: {'9b5e98782fcacdcea5899a6d0d29d1b9de348bb0'},
     Credentials.get_frozen_credentials: {
-        'eb247f2884aee311bdabba3435e749c3b8589100'
+        '87ced1e435eda7738852e0569ddbff3b7a8e977f',
     },
     RefreshableCredentials.__init__: {
-        '25ee814f47e5ce617f57e893ae158e5fd6d358ea',
+        '88ab16aa041eb1cad8d666834613cbe5f0cf7514',
     },
     # We've overridden some properties
     RefreshableCredentials.__dict__['access_key'].fset: {
@@ -234,20 +234,26 @@ _API_DIGESTS = {
     RefreshableCredentials.__dict__['token'].fget: {
         '005c1b44b616f37739ce9276352e4e83644d8220'
     },
+    RefreshableCredentials.__dict__['account_id'].fset: {
+        '0d67de1c18dc80429b8537fe94a842175636f850',
+    },
+    RefreshableCredentials.__dict__['account_id'].fget: {
+        'd40a5f4571df3a239500a615ca0cc3fe77ac70ab',
+    },
     RefreshableCredentials._refresh: {
         'd5731d01db2812d498df19b4bd5d7c17519241fe'
     },
     RefreshableCredentials._protected_refresh: {
-        '9f8fdb76f41c3b1c64fd4d03d0701504626939e5'
+        '8b2d523a605a4f4728ad99861c14143838e56176',
     },
     RefreshableCredentials.get_frozen_credentials: {
         'f661c84a8b759786e011f0b1e8a468a0c6294e36'
     },
     DeferredRefreshableCredentials.__init__: {
-        'd18601140386cfaa6718d0e0d38a0816cd151d35',
+        'dd5ccda2b047854ae5e88907b654b57d35fe0dfd',
     },
     SSOCredentialFetcher._get_credentials: {
-        '8b330f4b299aece9232577f066060e28d369f3e9',
+        '13ac3b73e0745dfeaa934a8873179ca6c22a164f',
     },
     SSOProvider.load: {'67aba81dd1def437f2035f5e20b0720b328d970a'},
     CachedCredentialFetcher._get_credentials: {
@@ -257,10 +263,10 @@ _API_DIGESTS = {
         '0dd2986a4cbb38764ec747075306a33117e86c3d'
     },
     CachedCredentialFetcher._get_cached_credentials: {
-        'a9f8c348d226e62122972da9ccc025365b6803d6'
+        'f578b2527712d501c021f8236bd20e68e99201f5',
     },
     AssumeRoleCredentialFetcher._get_credentials: {
-        '5c575634bc0a713c10e5668f28fbfa8779d5a1da'
+        '51e265bebde5b193d79a680706f2c7efc7b56622',
     },
     AssumeRoleCredentialFetcher._create_client: {
         '27c76f07bd43e665899ca8d21b6ba2038b276fbb'
@@ -270,20 +276,22 @@ _API_DIGESTS = {
         'ab270375dfe425c5e21276590dea690fdbfe40a5'
     },
     AssumeRoleWithWebIdentityCredentialFetcher._get_credentials: {
-        '02eba9d4e846474910cb076710070348e395a819'
+        '23a7efbaf2022dcf713399649936cd9c2116f6c5',
     },
     AssumeRoleWithWebIdentityCredentialFetcher._assume_role_kwargs: {
         '8fb4fefe8664b7d82a67e0fd6d6812c1c8d92285'
     },
     # Ensure that the load method doesn't do anything we should asyncify
-    EnvProvider.load: {'39871a6ec3b3f5d51bc967122793e86b7ca6ed3c'},
+    EnvProvider.load: {
+        '9c6bb8f48ea4cb3dfbe7df925a269a077205d62b',
+    },
     ContainerProvider.__init__: {'ea6aafb2e12730066af930fb5a27f7659c1736a1'},
     ContainerProvider.load: {'57c35569050b45c1e9e33fcdb3b49da9e342fdcf'},
     ContainerProvider._retrieve_or_fail: {
-        'c99153a4c68927810a3edde09ee98c5ba33d3697'
+        '057ebdc912f15ec4903ab2e157f339d2ae740615',
     },
     ContainerProvider._create_fetcher: {
-        'a921ee40b9b4779f238adcf369a3757b19857fc7'
+        'f61e3e60fda55de7dbcf4a66865981f7cb0804b8',
     },
     InstanceMetadataProvider.load: {
         '15becfc0373ccfbc1bb200bd6a34731e61561d06'
@@ -303,14 +311,18 @@ _API_DIGESTS = {
     ProfileProviderBuilder._create_sso_provider: {
         'e463160179add7a1a513e46ee848447a216504aa'
     },
-    ConfigProvider.load: {'d0714da9f1f54cebc555df82f181c4913ce97258'},
+    ConfigProvider.load: {
+        'dab41451970911f4b578015a3083ff550c6b7beb',
+    },
     SharedCredentialProvider.load: {
-        '8a17d992e2a90ebc0e07ba5a5dfef2b725367496'
+        '833ec38b8361165e1bb285740e99c7ff7af161a5',
     },
     ProcessProvider.__init__: {'2e870ec0c6b0bc8483fa9b1159ef68bbd7a12c56'},
-    ProcessProvider.load: {'6866e1d3abbde7a14e83aea28cc49377faaca84b'},
+    ProcessProvider.load: {
+        '6691e82aeeccc4e07c30ee484ee31ebba5b6e2fb',
+    },
     ProcessProvider._retrieve_credentials_using: {
-        'c12acda42ddc5dfd73946adce8c155295f8c6b88'
+        'd8755c0bb80c4c9852c89276db6ec418f988f6f0',
     },
     CredentialResolver.load_credentials: {
         'ef31ba8817f84c1f61f36259da1cc6e597b8625a'
@@ -329,7 +341,7 @@ _API_DIGESTS = {
         '105c0c011e23d76a3b8bd3d9b91b6d945c8307a1'
     },
     AssumeRoleProvider._resolve_credentials_from_profile: {
-        'a87ece979f8c94c1afd5801156e2b39f0d6d45ab'
+        '3e4e6371dabe4deb3445495aeb702eed8a3fba63',
     },
     AssumeRoleProvider._resolve_static_credentials_from_profile: {
         'a470795f6ba451cf99ce7456fef24777f8087654'
@@ -454,7 +466,9 @@ _API_DIGESTS = {
     Session._register_response_parser_factory: {
         'bb8f7f3cc4d9ff9551f0875604747c4bb5030ff6'
     },
-    Session.create_client: {'a821ae3870f33b65b1ea7cd347ca0497ed306ccd'},
+    Session.create_client: {
+        '256ae18c8b119c66bfaf24ff224db8a8d2ad9661',
+    },
     Session._create_token_resolver: {
         '142df7a219db0dd9c96fd81dc9e84a764a2fe5fb'
     },
@@ -462,7 +476,7 @@ _API_DIGESTS = {
         '87e98d201c72d06f7fbdb4ebee2dce1c09de0fb2'
     },
     Session.set_credentials: {
-        '63a10f97f417d3df8aae8a5444db4c8a6ebe06ad',
+        '923e96e9386054d65b38a3871574dd32c0f5015f',
     },
     Session.get_credentials: {'718da08b630569e631f93aedd65f1d9215bfc30b'},
     get_session: {'c47d588f5da9b8bde81ccc26eaef3aee19ddd901'},
