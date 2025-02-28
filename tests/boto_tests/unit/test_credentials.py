@@ -4,8 +4,11 @@ https://github.com/boto/botocore/blob/develop/tests/unit/test_credentials.py
 and adapted to work with asyncio and pytest
 """
 
-import binascii
+import asyncio
+import json
+import logging
 import os
+import subprocess
 import sys
 import tempfile
 import uuid
@@ -44,11 +47,8 @@ from aiobotocore.credentials import (
     AioSSOProvider,
 )
 from aiobotocore.session import AioSession
+from tests.boto_tests import random_chars
 from tests.boto_tests.helpers import StubbedSession
-
-
-def random_chars(num_chars):
-    return binascii.hexlify(os.urandom(int(num_chars / 2))).decode('ascii')
 
 
 # From class TestCredentials(BaseEnvVar):
@@ -101,6 +101,7 @@ def get_expected_creds_from_response(response):
         'secret_key': response['Credentials']['SecretAccessKey'],
         'token': response['Credentials']['SessionToken'],
         'expiry_time': expiration,
+        'account_id': response.get('Credentials', {}).get('AccountId'),
     }
 
 
@@ -238,6 +239,57 @@ async def test_assumerolefetcher_mfa():
     assert call_kwargs['TokenCode'] == 'token-code'
 
 
+async def test_assumerolefetcher_account_id_with_valid_arn():
+    response = {
+        'Credentials': {
+            'AccessKeyId': 'foo',
+            'SecretAccessKey': 'bar',
+            'SessionToken': 'baz',
+            'Expiration': some_future_time().isoformat(),
+            'AccountId': '123456789012',
+        },
+        'AssumedRoleUser': {
+            'AssumedRoleId': 'myroleid',
+            'Arn': 'arn:aws:iam::123456789012:role/RoleA',
+        },
+    }
+    client_creator = assume_role_client_creator(with_response=response)
+    refresher = credentials.AioAssumeRoleCredentialFetcher(
+        client_creator,
+        credentials.AioCredentials('a', 'b', 'c'),
+        'myrole',
+    )
+    expected_response = get_expected_creds_from_response(response)
+    response = await refresher.fetch_credentials()
+    assert response == expected_response
+    assert response['account_id'] == '123456789012'
+
+
+async def test_assumerolefetcher_account_id_with_invalid_arn():
+    response = {
+        'Credentials': {
+            'AccessKeyId': 'foo',
+            'SecretAccessKey': 'bar',
+            'SessionToken': 'baz',
+            'Expiration': some_future_time().isoformat(),
+        },
+        'AssumedRoleUser': {
+            'AssumedRoleId': 'myroleid',
+            'Arn': 'invalid-arn',
+        },
+    }
+    client_creator = assume_role_client_creator(with_response=response)
+    refresher = credentials.AioAssumeRoleCredentialFetcher(
+        client_creator,
+        credentials.AioCredentials('a', 'b', 'c'),
+        'myrole',
+    )
+    expected_response = get_expected_creds_from_response(response)
+    response = await refresher.fetch_credentials()
+    assert response == expected_response
+    assert response['account_id'] is None
+
+
 async def test_recursive_assume_role(assume_role_setup):
     self = assume_role_setup
 
@@ -266,6 +318,34 @@ async def test_recursive_assume_role(assume_role_setup):
         actual_creds = await session.get_credentials()
         await self.assert_creds_equal(actual_creds, profile_a_creds)
         stubber.assert_no_pending_responses()
+
+
+# From class TestAssumeRole(BaseAssumeRoleTest):
+async def test_assume_role_resolves_account_id(assume_role_setup):
+    self = assume_role_setup
+
+    config = (
+        '[profile A]\n'
+        'role_arn = arn:aws:iam::1234567890:role/RoleA\n'
+        'source_profile = B\n\n'
+        '[profile B]\n'
+        'aws_access_key_id = foo\n'
+        'aws_secret_access_key = bar\n'
+    )
+    self.write_config(config)
+    expected_creds = self.create_random_credentials()
+    response = self.create_assume_role_response(expected_creds)
+
+    async with self.create_session(profile='A') as (session, stubber):
+        stubber.add_response('assume_role', response)
+
+        actual_creds = await session.get_credentials()
+        await self.assert_creds_equal(actual_creds, expected_creds)
+        # So calling .account_id would cause deferred credentials to be loaded,
+        # according to the source, you're supposed to call get_frozen_credentials
+        # so will do that.
+        actual_creds = await actual_creds.get_frozen_credentials()
+        assert actual_creds.account_id == '1234567890'
 
 
 # From class TestAssumeRoleWithWebIdentityCredentialFetcher(BaseEnvVar):
@@ -313,6 +393,61 @@ async def test_webidentfetcher_no_cache():
     response = await refresher.fetch_credentials()
 
     assert response == expected_response
+
+
+async def test_webidentfetcher_account_id_with_valid_arn():
+    response = {
+        'Credentials': {
+            'AccessKeyId': 'foo',
+            'SecretAccessKey': 'bar',
+            'SessionToken': 'baz',
+            'Expiration': some_future_time().isoformat(),
+            'AccountId': '123456789012',
+        },
+        'AssumedRoleUser': {
+            'AssumedRoleId': 'myroleid',
+            'Arn': 'arn:aws:iam::123456789012:role/RoleA',
+        },
+    }
+    client_creator = assume_role_web_identity_client_creator(
+        with_response=response
+    )
+    refresher = credentials.AioAssumeRoleWithWebIdentityCredentialFetcher(
+        client_creator,
+        lambda: 'totally.a.token',
+        'myrole',
+    )
+    expected_response = get_expected_creds_from_response(response)
+    response = await refresher.fetch_credentials()
+    assert response == expected_response
+    assert response['account_id'] == '123456789012'
+
+
+async def test_webidentfetcher_account_id_with_invalid_arn():
+    response = {
+        'Credentials': {
+            'AccessKeyId': 'foo',
+            'SecretAccessKey': 'bar',
+            'SessionToken': 'baz',
+            'Expiration': some_future_time().isoformat(),
+        },
+        'AssumedRoleUser': {
+            'AssumedRoleId': 'myroleid',
+            'Arn': 'invalid-arn',
+        },
+    }
+    client_creator = assume_role_web_identity_client_creator(
+        with_response=response
+    )
+    refresher = credentials.AioAssumeRoleWithWebIdentityCredentialFetcher(
+        client_creator,
+        lambda: 'totally.a.token',
+        'myrole',
+    )
+    expected_response = get_expected_creds_from_response(response)
+    response = await refresher.fetch_credentials()
+    assert response == expected_response
+    assert response['account_id'] is None
 
 
 async def test_credresolver_load_credentials_single_provider(
@@ -599,6 +734,35 @@ def full_url(url):
     return f'http://{credentials.AioContainerMetadataFetcher.IP_ADDRESS}{url}'
 
 
+async def test_containerprovider_can_retrieve_account_id():
+    environ = {
+        'AWS_CONTAINER_CREDENTIALS_RELATIVE_URI': '/latest/credentials?id=foo'
+    }
+    fetcher = mock.AsyncMock()
+    fetcher.full_url = full_url
+    timeobj = datetime.now(tzlocal())
+    timestamp = (timeobj + timedelta(hours=24)).isoformat()
+    fetcher.retrieve_full_uri.return_value = {
+        "AccessKeyId": "access_key",
+        "SecretAccessKey": "secret_key",
+        "Token": "token",
+        "Expiration": timestamp,
+        "AccountId": "account_id",
+    }
+    provider = credentials.AioContainerProvider(environ, fetcher)
+    creds = await provider.load()
+
+    fetcher.retrieve_full_uri.assert_called_with(
+        full_url('/latest/credentials?id=foo'), headers=None
+    )
+    assert creds.method == 'container-role'
+    creds = await creds.get_frozen_credentials()
+    assert creds.access_key == 'access_key'
+    assert creds.secret_key == 'secret_key'
+    assert creds.token == 'token'
+    assert creds.account_id == 'account_id'
+
+
 # From class TestEnvVar(BaseEnvVar):
 async def test_envvarprovider_env_var_present():
     environ = {
@@ -638,6 +802,38 @@ async def test_envvarprovider_env_var_expiry():
         await creds.get_frozen_credentials()
 
 
+async def test_envvarprovider_envvars_found_with_account_id():
+    environ = {
+        'AWS_ACCESS_KEY_ID': 'foo',
+        'AWS_SECRET_ACCESS_KEY': 'bar',
+        'AWS_ACCOUNT_ID': 'baz',
+    }
+    provider = credentials.AioEnvProvider(environ)
+    creds = await provider.load()
+    assert creds is not None
+    assert creds.access_key == 'foo'
+    assert creds.secret_key == 'bar'
+    assert creds.account_id == 'baz'
+    assert creds.method == 'env'
+
+
+async def test_envvarprovider_can_override_account_id_env_var_mapping():
+    environ = {
+        'AWS_ACCESS_KEY_ID': 'foo',
+        'AWS_SECRET_ACCESS_KEY': 'bar',
+        'AWS_SESSION_TOKEN': 'baz',
+        'FOO_ACCOUNT_ID': 'bin',
+    }
+    provider = credentials.AioEnvProvider(
+        environ, {'account_id': 'FOO_ACCOUNT_ID'}
+    )
+    creds = await provider.load()
+    assert creds.access_key == 'foo'
+    assert creds.secret_key == 'bar'
+    assert creds.token == 'baz'
+    assert creds.account_id == 'bin'
+
+
 # From class TestConfigFileProvider(BaseEnvVar):
 @pytest.fixture
 def profile_config():
@@ -675,6 +871,26 @@ async def test_configprovider_file_missing_profile(profile_config):
     assert creds is None
 
 
+async def test_configprovider_config_file_with_account_id():
+    profile_config = {
+        'aws_access_key_id': 'foo',
+        'aws_secret_access_key': 'bar',
+        'aws_session_token': 'baz',
+        'aws_account_id': 'bin',
+    }
+    parsed = {'profiles': {'default': profile_config}}
+    parser = mock.Mock()
+    parser.return_value = parsed
+    provider = credentials.AioConfigProvider('cli.cfg', 'default', parser)
+    creds = await provider.load()
+    assert creds is not None
+    assert creds.access_key == 'foo'
+    assert creds.secret_key == 'bar'
+    assert creds.token == 'baz'
+    assert creds.method == 'config-file'
+    assert creds.account_id == 'bin'
+
+
 # From class TestSharedCredentialsProvider(BaseEnvVar):
 async def test_sharedcredentials_file_exists():
     parser = mock.Mock()
@@ -707,6 +923,30 @@ async def test_sharedcredentials_file_missing():
     )
     creds = await provider.load()
     assert creds is None
+
+
+async def test_sharedcredentials_credentials_file_exists_with_account_id():
+    parser = mock.Mock()
+    parser.return_value = {
+        'default': {
+            'aws_access_key_id': 'foo',
+            'aws_secret_access_key': 'bar',
+            'aws_session_token': 'baz',
+            'aws_account_id': 'bin',
+        }
+    }
+    provider = credentials.AioSharedCredentialProvider(
+        creds_filename='~/.aws/creds',
+        profile_name='default',
+        ini_parser=parser,
+    )
+    creds = await provider.load()
+    assert creds is not None
+    assert creds.access_key == 'foo'
+    assert creds.secret_key == 'bar'
+    assert creds.token == 'baz'
+    assert creds.method == 'shared-credentials-file'
+    assert creds.account_id == 'bin'
 
 
 # From class TestBotoProvider(BaseEnvVar):
@@ -911,6 +1151,9 @@ def _create_random_credentials():
         f'fake-{random_chars(15)}',
         f'fake-{random_chars(35)}',
         f'fake-{random_chars(45)}',
+        # The account_id gets resolved from the
+        # Arn in create_assume_role_response().
+        account_id='1234567890',
     )
 
 
@@ -1078,6 +1321,7 @@ async def test_sso_credential_fetcher_can_fetch_credentials(
             'SecretAccessKey': 'bar',
             'SessionToken': 'baz',
             'Expiration': '2008-09-23T12:43:20Z',
+            'AccountId': '1234567890',
         },
     }
     self.assertEqual(self.cache[cache_key], expected_cached_credentials)
@@ -1244,3 +1488,155 @@ async def test_required_config_not_set(sso_provider_setup):
     # If any required configuration is missing we should get an error
     with self.assertRaises(botocore.exceptions.InvalidConfigError):
         await self.provider.load()
+
+
+async def test_load_sso_credentials_with_account_id(sso_provider_setup):
+    self = sso_provider_setup
+    self._add_get_role_credentials_response()
+    with self.stubber:
+        credentials = await self.provider.load()
+        credentials = await credentials.get_frozen_credentials()
+
+        self.assertEqual(credentials.access_key, 'foo')
+        self.assertEqual(credentials.secret_key, 'bar')
+        self.assertEqual(credentials.token, 'baz')
+        self.assertEqual(credentials.account_id, '1234567890')
+
+
+# From class TestProcessProvider(BaseEnvVar):
+@pytest.fixture()
+def process_provider():
+    def _f(profile_name='default', loaded_config=None, invoked_process=None):
+        load_config = mock.Mock(return_value=loaded_config)
+        popen_mock = mock.Mock(
+            return_value=invoked_process or mock.Mock(),
+            spec=asyncio.create_subprocess_exec,
+        )
+        return popen_mock, credentials.AioProcessProvider(
+            profile_name, load_config, popen=popen_mock
+        )
+
+    return _f
+
+
+async def test_processprovider_can_retrieve_account_id(process_provider):
+    config = {'profiles': {'default': {'credential_process': 'my-process'}}}
+    invoked_process = mock.AsyncMock()
+    stdout = json.dumps(
+        {
+            'Version': 1,
+            'AccessKeyId': 'foo',
+            'SecretAccessKey': 'bar',
+            'SessionToken': 'baz',
+            'Expiration': '2999-01-01T00:00:00Z',
+            'AccountId': '123456789012',
+        }
+    )
+    invoked_process.communicate.return_value = (stdout.encode('utf-8'), b'')
+    invoked_process.returncode = 0
+
+    popen_mock, provider = process_provider(
+        loaded_config=config, invoked_process=invoked_process
+    )
+    creds = await provider.load()
+    assert isinstance(creds, credentials.AioRefreshableCredentials)
+    assert creds is not None
+    assert creds.method == 'custom-process'
+
+    creds = await creds.get_frozen_credentials()
+    assert creds.access_key == 'foo'
+    assert creds.secret_key == 'bar'
+    assert creds.token == 'baz'
+    assert creds.account_id == '123456789012'
+    popen_mock.assert_called_with(
+        'my-process',
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+
+
+async def test_processprovider_can_retrieve_account_id_via_profile_config(
+    process_provider,
+):
+    config = {
+        'profiles': {
+            'default': {
+                'credential_process': 'my-process',
+                'aws_account_id': '123456789012',
+            }
+        }
+    }
+    invoked_process = mock.AsyncMock()
+    stdout = json.dumps(
+        {
+            'Version': 1,
+            'AccessKeyId': 'foo',
+            'SecretAccessKey': 'bar',
+            'SessionToken': 'baz',
+            'Expiration': '2999-01-01T00:00:00Z',
+        }
+    )
+    invoked_process.communicate.return_value = (stdout.encode('utf-8'), b'')
+    invoked_process.returncode = 0
+
+    popen_mock, provider = process_provider(
+        loaded_config=config, invoked_process=invoked_process
+    )
+    creds = await provider.load()
+    assert isinstance(creds, credentials.AioRefreshableCredentials)
+    assert creds is not None
+    assert creds.method == 'custom-process'
+
+    creds = await creds.get_frozen_credentials()
+    assert creds.access_key == 'foo'
+    assert creds.secret_key == 'bar'
+    assert creds.token == 'baz'
+    assert creds.account_id == '123456789012'
+    popen_mock.assert_called_with(
+        'my-process',
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+
+
+@pytest.fixture
+def mock_base_assume_role_credential_fetcher():
+    return credentials.AioBaseAssumeRoleCredentialFetcher(
+        client_creator=mock.Mock(),
+        role_arn='arn:aws:iam::123456789012:role/RoleA',
+    )
+
+
+def test_add_account_id_to_response_with_valid_arn(
+    mock_base_assume_role_credential_fetcher,
+):
+    response = {
+        'Credentials': {},
+        'AssumedRoleUser': {
+            'AssumedRoleId': 'myroleid',
+            'Arn': 'arn:aws:iam::123456789012:role/RoleA',
+        },
+    }
+    mock_base_assume_role_credential_fetcher._add_account_id_to_response(
+        response
+    )
+    assert 'AccountId' in response['Credentials']
+    assert response['Credentials']['AccountId'] == '123456789012'
+
+
+def test_add_account_id_to_response_with_invalid_arn(
+    mock_base_assume_role_credential_fetcher, caplog
+):
+    response = {
+        'Credentials': {},
+        'AssumedRoleUser': {
+            'AssumedRoleId': 'myroleid',
+            'Arn': 'invalid-arn',
+        },
+    }
+    with caplog.at_level(logging.DEBUG):
+        mock_base_assume_role_credential_fetcher._add_account_id_to_response(
+            response
+        )
+    assert 'AccountId' not in response['Credentials']
+    assert 'Unable to extract account ID from Arn' in caplog.text

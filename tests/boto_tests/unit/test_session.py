@@ -12,10 +12,12 @@
 # distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
 # ANY KIND, either express or implied. See the License for the specific
 # language governing permissions and limitations under the License.
+import logging
 import os
 
 import botocore.exceptions
 import pytest
+from _pytest.logging import LogCaptureFixture
 from botocore import UNSIGNED
 from botocore.configprovider import ConfigChainFactory
 from botocore.model import ServiceModel
@@ -431,6 +433,50 @@ class TestCreateClient(BaseSessionTest):
                     client_creator.return_value.create_client.call_args[1]
                 )
                 assert call_kwargs['api_version'] == override_api_version
+
+    @mock.patch('aiobotocore.session.AioClientCreator', autospec=True)
+    async def test_create_client_with_credentials(
+        self, client_creator, session
+    ):
+        async with session.create_client(
+            'sts',
+            'us-west-2',
+            aws_access_key_id='foo',
+            aws_secret_access_key='bar',
+            aws_session_token='baz',
+            aws_account_id='bin',
+        ):
+            credentials = (
+                client_creator.return_value.create_client.call_args.kwargs[
+                    'credentials'
+                ]
+            )
+            assert credentials.access_key == 'foo'
+            assert credentials.secret_key == 'bar'
+            assert credentials.token == 'baz'
+            assert credentials.account_id == 'bin'
+
+    @mock.patch('aiobotocore.session.AioClientCreator', autospec=True)
+    async def test_create_client_with_ignored_credentials(
+        self, client_creator, session, caplog: LogCaptureFixture
+    ):
+        caplog.set_level(logging.DEBUG, 'botocore.session')
+        async with session.create_client(
+            'sts',
+            'us-west-2',
+            aws_account_id='foo',
+        ):
+            credentials = (
+                client_creator.return_value.create_client.call_args.kwargs[
+                    'credentials'
+                ]
+            )
+            assert (
+                'Ignoring the following credential-related values'
+                in caplog.text
+            )
+            assert 'aws_account_id' in caplog.text
+            assert credentials.account_id is None
 
 
 class TestClientMonitoring(BaseSessionTest):

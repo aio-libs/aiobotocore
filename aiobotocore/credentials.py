@@ -249,7 +249,7 @@ create_aio_mfa_serial_refresher = create_mfa_serial_refresher
 class AioCredentials(Credentials):
     async def get_frozen_credentials(self):
         return ReadOnlyCredentials(
-            self.access_key, self.secret_key, self.token
+            self.access_key, self.secret_key, self.token, self.account_id
         )
 
 
@@ -299,6 +299,19 @@ class AioRefreshableCredentials(RefreshableCredentials):
     def token(self, value):
         self._token = value
 
+    @property
+    def account_id(self):
+        # TODO: this needs to be resolved
+        raise NotImplementedError(
+            "missing call to self._refresh. "
+            "Use get_frozen_credentials instead"
+        )
+        return self._account_id
+
+    @account_id.setter
+    def account_id(self, value):
+        self._account_id = value
+
     async def _refresh(self):
         if not self.refresh_needed(self._advisory_refresh_timeout):
             return
@@ -347,7 +360,7 @@ class AioRefreshableCredentials(RefreshableCredentials):
             return
         self._set_from_data(metadata)
         self._frozen_credentials = ReadOnlyCredentials(
-            self._access_key, self._secret_key, self._token
+            self._access_key, self._secret_key, self._token, self._account_id
         )
         if self._is_expired():
             msg = (
@@ -370,6 +383,7 @@ class AioDeferredRefreshableCredentials(
         self._access_key = None
         self._secret_key = None
         self._token = None
+        self._account_id = None
         self._expiry_time = None
         self._time_fetcher = time_fetcher
         self._refresh_lock = asyncio.Lock()
@@ -399,12 +413,15 @@ class AioCachedCredentialFetcher(CachedCredentialFetcher):
 
         creds = response['Credentials']
         expiration = _serialize_if_needed(creds['Expiration'], iso=True)
-        return {
+        credentials = {
             'access_key': creds['AccessKeyId'],
             'secret_key': creds['SecretAccessKey'],
             'token': creds['SessionToken'],
             'expiry_time': expiration,
+            'account_id': creds.get('AccountId'),
         }
+
+        return credentials
 
 
 class AioBaseAssumeRoleCredentialFetcher(
@@ -421,7 +438,9 @@ class AioAssumeRoleCredentialFetcher(
         kwargs = self._assume_role_kwargs()
         client = await self._create_client()
         async with client as sts:
-            return await sts.assume_role(**kwargs)
+            response = await sts.assume_role(**kwargs)
+            self._add_account_id_to_response(response)
+            return response
 
     async def _create_client(self):
         """Create an STS client using the source credentials."""
@@ -465,7 +484,9 @@ class AioAssumeRoleWithWebIdentityCredentialFetcher(
         # the token, explicitly configure the client to not sign requests.
         config = AioConfig(signature_version=UNSIGNED)
         async with self._client_creator('sts', config=config) as client:
-            return await client.assume_role_with_web_identity(**kwargs)
+            response = await client.assume_role_with_web_identity(**kwargs)
+            self._add_account_id_to_response(response)
+            return response
 
     def _assume_role_kwargs(self):
         """Get the arguments for assume role based on current configuration."""
@@ -498,6 +519,7 @@ class AioProcessProvider(ProcessProvider):
             secret_key=creds_dict['secret_key'],
             token=creds_dict.get('token'),
             method=self.METHOD,
+            account_id=creds_dict.get('account_id'),
         )
 
     async def _retrieve_credentials_using(self, credential_process):
@@ -528,6 +550,7 @@ class AioProcessProvider(ProcessProvider):
                 'secret_key': parsed['SecretAccessKey'],
                 'token': parsed.get('SessionToken'),
                 'expiry_time': parsed.get('Expiration'),
+                'account_id': self._get_account_id(parsed),
             }
         except KeyError as e:
             raise CredentialRetrievalError(
@@ -573,6 +596,7 @@ class AioEnvProvider(EnvProvider):
                     expiry_time,
                     refresh_using=fetcher,
                     method=self.METHOD,
+                    account_id=credentials['account_id'],
                 )
 
             return AioCredentials(
@@ -580,6 +604,7 @@ class AioEnvProvider(EnvProvider):
                 credentials['secret_key'],
                 credentials['token'],
                 method=self.METHOD,
+                account_id=credentials['account_id'],
             )
         else:
             return None
@@ -621,8 +646,13 @@ class AioSharedCredentialProvider(SharedCredentialProvider):
                     config, self.ACCESS_KEY, self.SECRET_KEY
                 )
                 token = self._get_session_token(config)
+                account_id = self._get_account_id(config)
                 return AioCredentials(
-                    access_key, secret_key, token, method=self.METHOD
+                    access_key,
+                    secret_key,
+                    token,
+                    method=self.METHOD,
+                    account_id=account_id,
                 )
 
 
@@ -643,8 +673,13 @@ class AioConfigProvider(ConfigProvider):
                     profile_config, self.ACCESS_KEY, self.SECRET_KEY
                 )
                 token = self._get_session_token(profile_config)
+                account_id = self._get_account_id(profile_config)
                 return AioCredentials(
-                    access_key, secret_key, token, method=self.METHOD
+                    access_key,
+                    secret_key,
+                    token,
+                    method=self.METHOD,
+                    account_id=account_id,
                 )
         else:
             return None
@@ -748,8 +783,8 @@ class AioAssumeRoleProvider(AssumeRoleProvider):
         ):
             # This is only here for backwards compatibility. If this provider
             # isn't given a profile provider builder we still want to be able
-            # handle the basic static credential case as we would before the
-            # provile provider builder parameter was added.
+            # to handle the basic static credential case as we would before the
+            # profile provider builder parameter was added.
             return self._resolve_static_credentials_from_profile(profile)
         elif self._has_static_credentials(
             profile
@@ -920,6 +955,7 @@ class AioContainerProvider(ContainerProvider):
             method=self.METHOD,
             expiry_time=_parse_if_needed(creds['expiry_time']),
             refresh_using=fetcher,
+            account_id=creds.get('account_id'),
         )
 
     def _create_fetcher(self, full_uri, *args, **kwargs):
@@ -941,6 +977,7 @@ class AioContainerProvider(ContainerProvider):
                 'secret_key': response['SecretAccessKey'],
                 'token': response['Token'],
                 'expiry_time': response['Expiration'],
+                'account_id': response.get('AccountId'),
             }
 
         return fetch_creds
@@ -1004,6 +1041,7 @@ class AioSSOCredentialFetcher(
                     'Expiration': self._parse_timestamp(
                         credentials['expiration']
                     ),
+                    'AccountId': self._account_id,
                 },
             }
             return credentials

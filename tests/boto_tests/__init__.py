@@ -11,6 +11,7 @@
 # ANY KIND, either express or implied. See the License for the specific
 # language governing permissions and limitations under the License.
 
+import binascii
 import contextlib
 import os
 import random
@@ -25,6 +26,15 @@ from botocore.compat import parse_qs, urlparse
 import aiobotocore.session
 
 _LOADER = botocore.loaders.Loader()
+
+
+def random_chars(num_chars):
+    """Returns random hex characters.
+
+    Useful for creating resources with random names.
+
+    """
+    return binascii.hexlify(os.urandom(int(num_chars / 2))).decode('ascii')
 
 
 def create_session(**kwargs):
