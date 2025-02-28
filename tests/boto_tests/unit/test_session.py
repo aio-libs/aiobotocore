@@ -45,7 +45,6 @@ class BaseSessionTest:
     @pytest.fixture
     def environ_patch(self, environ):
         with mock.patch('os.environ', environ) as environ_patch:
-            # environ_patch.start()
             yield environ_patch
 
     @pytest.fixture
