@@ -11,7 +11,53 @@
 # ANY KIND, either express or implied. See the License for the specific
 # language governing permissions and limitations under the License.
 
+import contextlib
+import os
+import random
+import shutil
+import tempfile
+import time
+from unittest import mock  # noqa: F401
+
+import botocore.loaders
 from botocore.compat import parse_qs, urlparse
+
+import aiobotocore.session
+
+_LOADER = botocore.loaders.Loader()
+
+
+def create_session(**kwargs):
+    # Create a Session object.  By default,
+    # the _LOADER object is used as the loader
+    # so that we reused the same models across tests.
+    session = aiobotocore.session.AioSession(**kwargs)
+    session.register_component('data_loader', _LOADER)
+    session.set_config_variable('credentials_file', 'noexist/foo/botocore')
+    return session
+
+
+@contextlib.contextmanager
+def temporary_file(mode):
+    """This is a cross platform temporary file creation.
+
+    tempfile.NamedTemporary file on windows creates a secure temp file
+    that can't be read by other processes and can't be opened a second time.
+
+    For tests, we generally *want* them to be read multiple times.
+    The test fixture writes the temp file contents, the test reads the
+    temp file.
+
+    """
+    temporary_directory = tempfile.mkdtemp()
+    basename = f'tmpfile-{int(time.time())}-{random.randint(1, 1000)}'
+    full_filename = os.path.join(temporary_directory, basename)
+    open(full_filename, 'w').close()
+    try:
+        with open(full_filename, mode) as f:
+            yield f
+    finally:
+        shutil.rmtree(temporary_directory)
 
 
 def _urlparse(url):
