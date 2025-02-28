@@ -25,7 +25,7 @@ from botocore.model import ServiceModel
 import aiobotocore.config
 from aiobotocore import client
 from aiobotocore.session import ClientCreatorContext
-from tests.boto_tests import create_session, mock, temporary_file
+from tests.botocore_tests import create_session, mock, temporary_file
 
 
 class BaseSessionTest:

@@ -13,7 +13,7 @@ from botocore.utils import MetadataRetrievalError
 from aiobotocore import utils
 from aiobotocore.awsrequest import AioAWSResponse
 from aiobotocore.utils import AioInstanceMetadataFetcher
-from tests.boto_tests.unit.test_utils import fake_aiohttp_session
+from tests.botocore_tests.unit.test_utils import fake_aiohttp_session
 from tests.test_response import AsyncBytesIO
 
 

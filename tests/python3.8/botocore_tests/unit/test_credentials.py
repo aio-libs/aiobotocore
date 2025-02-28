@@ -10,7 +10,7 @@ from dateutil.tz import tzlocal
 
 from aiobotocore import credentials
 from aiobotocore.session import AioSession
-from tests.boto_tests.unit.test_credentials import full_url
+from tests.botocore_tests.unit.test_credentials import full_url
 
 
 # From class TestRefreshableCredentials(TestCredentials):

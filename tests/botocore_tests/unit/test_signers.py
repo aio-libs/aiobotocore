@@ -20,7 +20,7 @@ from botocore.exceptions import ParamValidationError
 import aiobotocore.credentials
 import aiobotocore.session
 import aiobotocore.signers
-from tests.boto_tests import assert_url_equal
+from tests.botocore_tests import assert_url_equal
 
 DATE = datetime.datetime(2024, 11, 7, 17, 39, 33, tzinfo=timezone.utc)
 

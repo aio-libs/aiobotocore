@@ -47,8 +47,8 @@ from aiobotocore.credentials import (
     AioSSOProvider,
 )
 from aiobotocore.session import AioSession
-from tests.boto_tests import random_chars
-from tests.boto_tests.helpers import StubbedSession
+from tests.botocore_tests import random_chars
+from tests.botocore_tests.helpers import StubbedSession
 
 
 # From class TestCredentials(BaseEnvVar):
