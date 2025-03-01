@@ -25,7 +25,7 @@ from botocore.model import ServiceModel
 import aiobotocore.config
 from aiobotocore import client
 from aiobotocore.session import ClientCreatorContext
-from tests.boto_tests import create_session, mock, temporary_file
+from tests.botocore_tests import create_session, mock, temporary_file
 
 
 class BaseSessionTest:
@@ -45,7 +45,6 @@ class BaseSessionTest:
     @pytest.fixture
     def environ_patch(self, environ):
         with mock.patch('os.environ', environ) as environ_patch:
-            # environ_patch.start()
             yield environ_patch
 
     @pytest.fixture
