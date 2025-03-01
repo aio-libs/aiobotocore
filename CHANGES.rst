@@ -1,6 +1,10 @@
 Changes
 -------
 
+2.22.0 (2025-03-01)
+^^^^^^^^^^^^^^^^^^^
+* patch `ResponseParser`
+
 2.21.0 (2025-02-28)
 ^^^^^^^^^^^^^^^^^^^
 * make `AioDeferredRefreshableCredentials` subclass of `DeferredRefreshableCredentials`
