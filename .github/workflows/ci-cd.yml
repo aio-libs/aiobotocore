@@ -41,9 +41,8 @@ jobs:
         path: dist/
 
   test:
-    name: >-
-      Test Python ${{ matrix.python-version }} on
-      ${{ matrix.os }}${{ matrix.no-httpx && ' no-httpx' || '' }}
+    name: Test Python ${{ matrix.python-version }} on ${{ matrix.os }}${{
+      matrix.no-httpx && ' no-httpx' || '' }}
     runs-on: ${{ matrix.os }}
     continue-on-error: ${{ matrix.experimental }}
     strategy:
