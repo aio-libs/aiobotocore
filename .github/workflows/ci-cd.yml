@@ -87,11 +87,18 @@ jobs:
       run: |
         uv run make pre-commit
     - name: Run unittests
+      if: ${{ !matrix.no-httpx }}
       env:
         COLOR: 'yes'
-        HTTP_BACKEND: ${{ matrx.no-httpx && 'aiohttp' || 'all' }}
       run: |
-        uv run ${{ matrix.no-httpx && '--no-group=httpx' || '' }} make mototest
+        uv run make mototest
+    - name: Run unittests without httpx installed
+      if: ${{ matrix.no-httpx }}
+      env:
+        COLOR: 'yes'
+        HTTP_BACKEND: 'aiohttp'
+      run: |
+        uv run --no-group=httpx make mototest
     - name: Upload coverage to Codecov
       if: ${{ matrix.upload-coverage }}
       uses: codecov/codecov-action@v5.4.0
