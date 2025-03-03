@@ -41,7 +41,9 @@ jobs:
         path: dist/
 
   test:
-    name: Test Python ${{ matrix.python-version }} on ${{ matrix.os }}
+    name: >-
+      Test Python ${{ matrix.python-version }} on
+      ${{ matrix.os }}${{ matrix.no-httpx && ' no-httpx' || '' }}
     runs-on: ${{ matrix.os }}
     continue-on-error: ${{ matrix.experimental }}
     strategy:
@@ -49,8 +51,7 @@ jobs:
         python-version:
         - 3.8
         - 3.9
-        - >-
-          3.10
+        - 3.10
         - 3.11
         - 3.12
         - 3.13
@@ -66,6 +67,7 @@ jobs:
         - upload-coverage: true
           python-version: 3.11
           os: ubuntu-24.04
+        # add a no-httpx run on latest python as a sanity check
         - python-version: 3.13
           os: ubuntu-24.04
           no-httpx: true
