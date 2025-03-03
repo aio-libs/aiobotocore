@@ -57,6 +57,7 @@ jobs:
         os:
         - ubuntu-24.04
         - ubuntu-24.04-arm
+        no-httpx: ['0']
         include:
         - experimental: false
         - experimental: true  # no reliable moto release available
@@ -66,6 +67,9 @@ jobs:
         - upload-coverage: true
           python-version: 3.11
           os: ubuntu-24.04
+        - python-version: 3.13
+          os: ubuntu-24.04
+          no-httpx: '1'
       fail-fast: false
     env:
       UV_FROZEN: 1
@@ -88,6 +92,12 @@ jobs:
         COLOR: 'yes'
       run: |
         uv run make mototest
+    - name: Run unittests without httpx installed
+      env:
+        COLOR: 'yes'
+        HTTP_BACKEND: 'aiohttp'
+      run: |
+        uv run --no-group=httpx make mototest
     - name: Upload coverage to Codecov
       if: ${{ matrix.upload-coverage }}
       uses: codecov/codecov-action@v5.4.0
