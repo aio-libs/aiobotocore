@@ -66,6 +66,9 @@ jobs:
         - upload-coverage: true
           python-version: 3.11
           os: ubuntu-24.04
+        - python-version: 3.13
+          os: ubuntu-24.04
+          no-httpx: true
       fail-fast: false
     env:
       UV_FROZEN: 1
@@ -86,16 +89,9 @@ jobs:
     - name: Run unittests
       env:
         COLOR: 'yes'
+        HTTP_BACKEND: ${{ matrx.no-httpx && 'aiohttp' || 'all' }}
       run: |
-        uv run make mototest
-    - name: Run unittests without httpx installed
-      # run it on same python as codecov
-      if: matrix.python-version == '3.13'
-      env:
-        COLOR: 'yes'
-      run: |
-        HTTP_BACKEND='aiohttp' FLAGS='--cov-append' \
-        uv run --no-group=httpx make mototest
+        uv run ${{ matrix.no-httpx && '--no-group=httpx' || '' }} make mototest
     - name: Upload coverage to Codecov
       if: ${{ matrix.upload-coverage }}
       uses: codecov/codecov-action@v5.4.0
