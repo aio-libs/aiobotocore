@@ -59,8 +59,7 @@ jobs:
         os:
         - ubuntu-24.04
         - ubuntu-24.04-arm
-        no-httpx:
-        - false
+        no-httpx: ['0']
         include:
         - experimental: false
         - experimental: true  # no reliable moto release available
