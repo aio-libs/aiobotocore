@@ -4,6 +4,8 @@ import logging
 from botocore.exceptions import EndpointProviderError
 from botocore.regions import EndpointRulesetResolver
 
+from aiobotocore._helpers import resolve_awaitable
+
 LOG = logging.getLogger(__name__)
 
 
@@ -82,9 +84,11 @@ class AioEndpointRulesetResolver(EndpointRulesetResolver):
                 call_args=call_args,
             )
             if param_val is None and param_def.builtin is not None:
-                param_val = self._resolve_param_as_builtin(
-                    builtin_name=param_def.builtin,
-                    builtins=customized_builtins,
+                param_val = await resolve_awaitable(
+                    self._resolve_param_as_builtin(
+                        builtin_name=param_def.builtin,
+                        builtins=customized_builtins,
+                    )
                 )
             if param_val is not None:
                 provider_params[param_name] = param_val

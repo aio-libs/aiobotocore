@@ -247,6 +247,19 @@ create_aio_mfa_serial_refresher = create_mfa_serial_refresher
 
 
 class AioCredentials(Credentials):
+    # Overrides for property accessors
+    def get_account_id(self):
+        return self.account_id
+
+    def get_access_key(self):
+        return self.access_key
+
+    def get_secret_key(self):
+        return self.secret_key
+
+    def get_token(self):
+        return self.token
+
     async def get_frozen_credentials(self):
         return ReadOnlyCredentials(
             self.access_key, self.secret_key, self.token, self.account_id
@@ -258,6 +271,22 @@ class AioRefreshableCredentials(RefreshableCredentials):
         super().__init__(*args, **kwargs)
         self._refresh_lock = asyncio.Lock()
 
+    async def get_account_id(self):
+        await self._refresh()
+        return self._account_id
+
+    async def get_access_key(self):
+        await self._refresh()
+        return self._access_key
+
+    async def get_secret_key(self):
+        await self._refresh()
+        return self._secret_key
+
+    async def get_token(self):
+        await self._refresh()
+        return self._token
+
     # Redeclaring the properties so it doesn't call refresh
     # Have to redeclare setter as we're overriding the getter
     @property
@@ -265,7 +294,7 @@ class AioRefreshableCredentials(RefreshableCredentials):
         # TODO: this needs to be resolved
         raise NotImplementedError(
             "missing call to self._refresh. "
-            "Use get_frozen_credentials instead"
+            "Use get_frozen_credentials or get_access_key"
         )
         return self._access_key
 
@@ -278,7 +307,7 @@ class AioRefreshableCredentials(RefreshableCredentials):
         # TODO: this needs to be resolved
         raise NotImplementedError(
             "missing call to self._refresh. "
-            "Use get_frozen_credentials instead"
+            "Use get_frozen_credentials or get_secret_key instead"
         )
         return self._secret_key
 
@@ -291,7 +320,7 @@ class AioRefreshableCredentials(RefreshableCredentials):
         # TODO: this needs to be resolved
         raise NotImplementedError(
             "missing call to self._refresh. "
-            "Use get_frozen_credentials instead"
+            "Use get_frozen_credentials or get_token instead"
         )
         return self._token
 
@@ -304,7 +333,7 @@ class AioRefreshableCredentials(RefreshableCredentials):
         # TODO: this needs to be resolved
         raise NotImplementedError(
             "missing call to self._refresh. "
-            "Use get_frozen_credentials instead"
+            "Use get_frozen_credentials or get_account_id instead"
         )
         return self._account_id
 
