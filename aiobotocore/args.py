@@ -178,8 +178,9 @@ class AioClientArgsCreator(ClientArgsCreator):
         )
 
         # replace with async version
-        resolver_builtins[EPRBuiltins.ACCOUNT_ID] = \
+        resolver_builtins[EPRBuiltins.ACCOUNT_ID] = (
             credentials.get_account_id if credentials else None
+        )
 
         # Client context params for s3 conflict with the available settings
         # in the `s3` parameter on the `Config` object. If the same parameter
