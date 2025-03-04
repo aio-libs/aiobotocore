@@ -1,5 +1,10 @@
 Changes
 -------
+
+2.22.0 (2025-03-05)
+^^^^^^^^^^^^^^^^^^^
+* patch `ResponseParser`
+
 2.21.1 (2025-03-04)
 ^^^^^^^^^^^^^^^^^^^
 * fix for refreshable credential account-id lookup

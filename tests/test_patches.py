@@ -65,6 +65,7 @@ from botocore.parsers import (
     EC2QueryParser,
     JSONParser,
     QueryParser,
+    ResponseParser,
     ResponseParserFactory,
     RestJSONParser,
     RestXMLParser,
@@ -423,6 +424,9 @@ _API_DIGESTS = {
     # parsers.py
     ResponseParserFactory.create_parser: {
         '5cf11c9acecd1f60a013f6facbe0f294daa3f390'
+    },
+    ResponseParser._create_event_stream: {
+        '0564ba55383a71cc1ba3e5be7110549d7e9992f5',
     },
     RestXMLParser._create_event_stream: {
         '0564ba55383a71cc1ba3e5be7110549d7e9992f5'
