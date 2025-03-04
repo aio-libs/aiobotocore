@@ -130,6 +130,32 @@ class StreamingBody(wrapt.ObjectProxy):
     def tell(self):
         return self._self_amount_read
 
+    async def aclose(self):
+        return self.__wrapped__.close()
+
+
+class HttpxStreamingBody(wrapt.ObjectProxy):
+    def __init__(self, raw_stream: aiohttp.StreamReader):
+        super().__init__(raw_stream)
+
+    async def read(self, amt=None):
+        if amt is not None:
+            # We could do a fancy thing here and start doing calls to
+            # aiter_bytes()/aiter_raw() and keep state
+            raise ValueError(
+                "httpx.Response.aread does not support reading a specific number of bytes"
+            )
+        return await self.__wrapped__.aread()
+
+    async def __aenter__(self):
+        # use AsyncClient.stream somehow?
+        # See "manual mode" at https://www.python-httpx.org/async/#streaming-responses
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        # TODO: I'm pretty sure this eats exceptions
+        await self.__wrapped__.aclose()
+
 
 async def get_response(operation_model, http_response):
     protocol = operation_model.metadata['protocol']
