@@ -27,7 +27,9 @@ classifiers = [
     'Framework :: AsyncIO',
 ]
 
-dynamic = ["version", "readme"]
+version = "2.21.1"
+
+dynamic = ["readme"]
 
 dependencies = [
     "aiohttp >= 3.9.2, < 4.0.0",
