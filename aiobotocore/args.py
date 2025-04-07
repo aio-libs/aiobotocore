@@ -2,7 +2,7 @@ import copy
 
 import botocore.parsers
 import botocore.serialize
-from botocore.args import ClientArgsCreator
+from botocore.args import ClientArgsCreator, EPRBuiltins
 
 from .config import AioConfig
 from .endpoint import DEFAULT_HTTP_SESSION_CLS, AioEndpointCreator
@@ -176,6 +176,12 @@ class AioClientArgsCreator(ClientArgsCreator):
             credentials=credentials,
             account_id_endpoint_mode=account_id_endpoint_mode,
         )
+
+        # replace with async version
+        resolver_builtins[EPRBuiltins.ACCOUNT_ID] = (
+            credentials.get_account_id if credentials else None
+        )
+
         # Client context params for s3 conflict with the available settings
         # in the `s3` parameter on the `Config` object. If the same parameter
         # is set in both places, the value in the `s3` parameter takes priority.
