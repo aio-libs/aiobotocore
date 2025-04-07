@@ -409,7 +409,7 @@ class TestAwsChunkedWrapper:
         bytes = BytesIO(b"abcdefghijklmnopqrstuvwxyz")
         wrapper = AioAwsChunkedWrapper(bytes)
         body = await wrapper.read()
-        expected = b"1a\r\n" b"abcdefghijklmnopqrstuvwxyz\r\n" b"0\r\n\r\n"
+        expected = b"1a\r\nabcdefghijklmnopqrstuvwxyz\r\n0\r\n\r\n"
         assert body == expected
 
     async def test_multi_chunk_body(self):
@@ -418,13 +418,7 @@ class TestAwsChunkedWrapper:
         wrapper = AioAwsChunkedWrapper(bytes, chunk_size=10)
         body = await wrapper.read()
         expected = (
-            b"a\r\n"
-            b"abcdefghij\r\n"
-            b"a\r\n"
-            b"klmnopqrst\r\n"
-            b"6\r\n"
-            b"uvwxyz\r\n"
-            b"0\r\n\r\n"
+            b"a\r\nabcdefghij\r\na\r\nklmnopqrst\r\n6\r\nuvwxyz\r\n0\r\n\r\n"
         )
         assert body == expected
 
@@ -442,13 +436,7 @@ class TestAwsChunkedWrapper:
         # always be the configured chunk_size if the read does not return that
         # much data.
         expected = (
-            b"9\r\n"
-            b"abcdefghi\r\n"
-            b"9\r\n"
-            b"jklmnopqr\r\n"
-            b"8\r\n"
-            b"stuvwxyz\r\n"
-            b"0\r\n\r\n"
+            b"9\r\nabcdefghi\r\n9\r\njklmnopqr\r\n8\r\nstuvwxyz\r\n0\r\n\r\n"
         )
         assert body == expected
 
@@ -459,9 +447,7 @@ class TestAwsChunkedWrapper:
             checksum_name="checksum",
         )
         body = await wrapper.read()
-        expected = (
-            b"b\r\n" b"hello world\r\n" b"0\r\n" b"checksum:DUoRhQ==\r\n\r\n"
-        )
+        expected = b"b\r\nhello world\r\n0\r\nchecksum:DUoRhQ==\r\n\r\n"
         assert body == expected
 
     async def test_multi_chunk_body_with_checksum(self):

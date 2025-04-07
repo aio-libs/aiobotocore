@@ -369,8 +369,7 @@ class TestCreateClient(BaseSessionTest):
             environ['FOO_CONFIG_FILE'] = f.name
             f.write('[default]\n')
             f.write(
-                'foo_api_versions =\n'
-                f'    myservice = {config_api_version}\n'
+                f'foo_api_versions =\n    myservice = {config_api_version}\n'
             )
             f.flush()
 
@@ -420,8 +419,7 @@ class TestCreateClient(BaseSessionTest):
             environ['FOO_CONFIG_FILE'] = f.name
             f.write('[default]\n')
             f.write(
-                'foo_api_versions =\n'
-                f'    myservice = {config_api_version}\n'
+                f'foo_api_versions =\n    myservice = {config_api_version}\n'
             )
             f.flush()
 
