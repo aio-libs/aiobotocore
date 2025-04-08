@@ -181,7 +181,7 @@ _API_DIGESTS = {
         '06864c8ecac153fa36d9d57f0057cb95909ee7cd',
     },
     BaseClient._make_api_call: {
-        'fccb87670b86bd0bd834d5c38b74e1d77211590a',
+        'e5bfb3213dc625a3c96e13ca7514f1ca7fc18899',
     },
     BaseClient._make_request: {
         'cfd8bbf19ea132134717cdf9c460694ddacdbf58',
@@ -467,7 +467,7 @@ _API_DIGESTS = {
         'bb8f7f3cc4d9ff9551f0875604747c4bb5030ff6'
     },
     Session.create_client: {
-        '256ae18c8b119c66bfaf24ff224db8a8d2ad9661',
+        'c796153d589ea6fe46a3a1afa2c460f06a1c37a2',
     },
     Session._create_token_resolver: {
         '142df7a219db0dd9c96fd81dc9e84a764a2fe5fb'
@@ -651,7 +651,7 @@ _API_DIGESTS = {
         '79723632d023739aa19c8a899bc2b814b8ab12ff'
     },
     Waiter.wait: {
-        '735608297a2a3d4572e6705daafcf4fc8556fc03',
+        'be33b3d947f559950943305d35daa6a8ece33ea4',
         '00d3990fb22fee667235f4035a9754cda0ebd4d8',
     },
     create_waiter_with_client: {
@@ -784,7 +784,14 @@ _API_DIGESTS = {
 }
 
 
-_PROTOCOL_PARSER_CONTENT = {'ec2', 'query', 'json', 'rest-json', 'rest-xml'}
+_PROTOCOL_PARSER_CONTENT = {
+    'ec2',
+    'query',
+    'json',
+    'rest-json',
+    'rest-xml',
+    'smithy-rpc-v2-cbor',
+}
 
 
 def test_protocol_parsers():

@@ -8,6 +8,7 @@ from botocore.parsers import (
     ResponseParserFactory,
     RestJSONParser,
     RestXMLParser,
+    RpcV2CBORParser,
     lowercase_dict,
 )
 
@@ -119,10 +120,18 @@ class AioRestXMLParser(RestXMLParser):
         return AioEventStream(response['body'], shape, parser, name)
 
 
+class AioRpcV2CBORParser(RpcV2CBORParser):
+    def _create_event_stream(self, response, shape):
+        parser = self._event_stream_parser
+        name = response['context'].get('operation_name')
+        return AioEventStream(response['body'], shape, parser, name)
+
+
 PROTOCOL_PARSERS = {
     'ec2': AioEC2QueryParser,
     'query': AioQueryParser,
     'json': AioJSONParser,
     'rest-json': AioRestJSONParser,
     'rest-xml': AioRestXMLParser,
+    'smithy-rpc-v2-cbor': AioRpcV2CBORParser,
 }
