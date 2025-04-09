@@ -21,3 +21,4 @@
 * [ ] I have read and followed [CONTRIBUTING.rst](https://github.com/aio-libs/aiobotocore/blob/master/CONTRIBUTING.rst#how-to-upgrade-botocore)
 * [ ] I have updated test_patches.py where/if appropriate (also check if no changes necessary)
 * [ ] I have ensured that the awscli/boto3 versions match the updated botocore version
+* [ ] I have added URL to diff: https://github.com/boto/botocore/compare/[CURRENT_BOTO_VERSION_TAG]...[NEW_BOTO_VERSION_TAG]
