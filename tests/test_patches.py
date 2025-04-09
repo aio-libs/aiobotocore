@@ -68,6 +68,7 @@ from botocore.parsers import (
     ResponseParserFactory,
     RestJSONParser,
     RestXMLParser,
+    RpcV2CBORParser,
     create_parser,
 )
 from botocore.regions import EndpointRulesetResolver
@@ -181,7 +182,7 @@ _API_DIGESTS = {
         '06864c8ecac153fa36d9d57f0057cb95909ee7cd',
     },
     BaseClient._make_api_call: {
-        'e5bfb3213dc625a3c96e13ca7514f1ca7fc18899',
+        'fccb87670b86bd0bd834d5c38b74e1d77211590a',
     },
     BaseClient._make_request: {
         'cfd8bbf19ea132134717cdf9c460694ddacdbf58',
@@ -446,6 +447,15 @@ _API_DIGESTS = {
         '0564ba55383a71cc1ba3e5be7110549d7e9992f5'
     },
     create_parser: {'37e9f1c3b60de17f477a9b79eae8e1acaa7c89d7'},
+    RpcV2CBORParser._create_event_stream: {
+        '0564ba55383a71cc1ba3e5be7110549d7e9992f5'
+    },
+    RpcV2CBORParser._do_parse: {'e2d884a116d830f57c5ca41f315d3baac49372eb'},
+    RpcV2CBORParser._handle_event_stream: {
+        '2aa007aaca55b37c7e327b7ef8c86237f19690cc'
+    },
+    # NOTE: if this hits we need to change our ResponseParser impl in JSONParser
+    RpcV2CBORParser.parse: {'c2153eac3789855f4fc6a816a1f30a6afe0cf969'},
     # regions.py
     EndpointRulesetResolver.construct_endpoint: {
         'ccbed61e316a0e92e1d0f67c554ee15efa4ee6b8',
@@ -467,7 +477,7 @@ _API_DIGESTS = {
         'bb8f7f3cc4d9ff9551f0875604747c4bb5030ff6'
     },
     Session.create_client: {
-        'c796153d589ea6fe46a3a1afa2c460f06a1c37a2',
+        '256ae18c8b119c66bfaf24ff224db8a8d2ad9661',
     },
     Session._create_token_resolver: {
         '142df7a219db0dd9c96fd81dc9e84a764a2fe5fb'
