@@ -1,9 +1,10 @@
 Changes
 -------
 
-2.22.0 (2025-04-09)
+2.22.0 (2025-04-15)
 ^^^^^^^^^^^^^^^^^^^
 * patch `ResponseParser`
+* use SPDX license identifier for project metadata
 
 2.21.1 (2025-03-04)
 ^^^^^^^^^^^^^^^^^^^
