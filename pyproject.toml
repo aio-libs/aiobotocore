@@ -9,7 +9,7 @@ requires-python = ">=3.8"
 authors = [
     { name = "Nikolay Novik", email = "nickolainovik@gmail.com" },
 ]
-license = { text = "Apache License 2.0" }
+license = { text = "Apache-2.0" }
 classifiers = [
     'Development Status :: 4 - Beta',
     'Intended Audience :: Developers',

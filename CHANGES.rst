@@ -1,7 +1,10 @@
 Changes
 -------
-2.22.0 (2025-04-07)
+
+2.22.0 (2025-04-15)
 ^^^^^^^^^^^^^^^^^^^
+* patch `ResponseParser`
+* use SPDX license identifier for project metadata
 * upstream support for the smithy-rpc-v2-cbor protocol
 * bump botocore dependency specification
 

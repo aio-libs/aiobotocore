@@ -4,6 +4,7 @@ from botocore.parsers import (
     JSONParser,
     NoInitialResponseError,
     QueryParser,
+    ResponseParser,
     ResponseParserError,
     ResponseParserFactory,
     RestJSONParser,
@@ -25,18 +26,19 @@ def create_parser(protocol):
     return AioResponseParserFactory().create_parser(protocol)
 
 
-class AioQueryParser(QueryParser):
+class AioResponseParser(ResponseParser):
     def _create_event_stream(self, response, shape):
         parser = self._event_stream_parser
         name = response['context'].get('operation_name')
         return AioEventStream(response['body'], shape, parser, name)
 
 
-class AioEC2QueryParser(EC2QueryParser):
-    def _create_event_stream(self, response, shape):
-        parser = self._event_stream_parser
-        name = response['context'].get('operation_name')
-        return AioEventStream(response['body'], shape, parser, name)
+class AioQueryParser(QueryParser, AioResponseParser):
+    pass
+
+
+class AioEC2QueryParser(EC2QueryParser, AioResponseParser):
+    pass
 
 
 # this is actually from ResponseParser and used by JSONParser and
@@ -75,7 +77,7 @@ async def _parse(self, response, shape):
     return parsed
 
 
-class AioJSONParser(JSONParser):
+class AioJSONParser(JSONParser, AioResponseParser):
     async def _do_parse(self, response, shape):
         parsed = {}
         if shape is not None:
@@ -88,11 +90,6 @@ class AioJSONParser(JSONParser):
                 parsed = self._handle_json_body(response['body'], shape)
         self._inject_response_metadata(parsed, response['headers'])
         return parsed
-
-    def _create_event_stream(self, response, shape):
-        parser = self._event_stream_parser
-        name = response['context'].get('operation_name')
-        return AioEventStream(response['body'], shape, parser, name)
 
     async def _handle_event_stream(self, response, shape, event_name):
         event_stream_shape = shape.members[event_name]
@@ -109,18 +106,12 @@ class AioJSONParser(JSONParser):
     parse = _parse
 
 
-class AioRestJSONParser(RestJSONParser):
-    def _create_event_stream(self, response, shape):
-        parser = self._event_stream_parser
-        name = response['context'].get('operation_name')
-        return AioEventStream(response['body'], shape, parser, name)
+class AioRestJSONParser(RestJSONParser, AioResponseParser):
+    pass
 
 
-class AioRestXMLParser(RestXMLParser):
-    def _create_event_stream(self, response, shape):
-        parser = self._event_stream_parser
-        name = response['context'].get('operation_name')
-        return AioEventStream(response['body'], shape, parser, name)
+class AioRestXMLParser(RestXMLParser, AioResponseParser):
+    pass
 
 
 class AioRpcV2CBORParser(RpcV2CBORParser):

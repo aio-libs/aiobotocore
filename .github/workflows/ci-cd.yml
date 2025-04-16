@@ -90,7 +90,7 @@ jobs:
         uv run make mototest
     - name: Upload coverage to Codecov
       if: ${{ matrix.upload-coverage }}
-      uses: codecov/codecov-action@v5.4.0
+      uses: codecov/codecov-action@v5.4.2
       with:
         token: ${{ secrets.CODECOV_TOKEN }}  # not required for public repos
         files: ./coverage.xml
