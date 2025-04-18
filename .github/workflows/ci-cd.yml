@@ -41,7 +41,8 @@ jobs:
         path: dist/
 
   test:
-    name: Test Python ${{ matrix.python-version }} on ${{ matrix.os }}
+    name: Test Python ${{ matrix.python-version }} on ${{ matrix.os }}${{
+      matrix.no-httpx && ' no-httpx' || '' }}
     runs-on: ${{ matrix.os }}
     continue-on-error: ${{ matrix.experimental }}
     strategy:
@@ -57,6 +58,7 @@ jobs:
         os:
         - ubuntu-24.04
         - ubuntu-24.04-arm
+        no-httpx: [false]
         include:
         - experimental: false
         - experimental: true  # no reliable moto release available
@@ -66,6 +68,12 @@ jobs:
         - upload-coverage: true
           python-version: 3.11
           os: ubuntu-24.04
+        - no-httpx: true
+          python-version: 3.13
+          os: ubuntu-24.04
+          # this is necessary for matrix.experimental to be defined, otherwise
+          # CI breaks because continue-on-error is undefined
+          experimental: false
       fail-fast: false
     env:
       UV_FROZEN: 1
@@ -84,10 +92,18 @@ jobs:
       run: |
         uv run make pre-commit
     - name: Run unittests
+      if: ${{ ! matrix.no_httpx }}
       env:
         COLOR: 'yes'
       run: |
         uv run make mototest
+    - name: Run unittests without httpx installed
+      if: ${{ matrix.no_httpx }}
+      env:
+        COLOR: 'yes'
+        HTTP_BACKEND: 'aiohttp'
+      run: |
+        uv run --no-group=httpx make mototest
     - name: Upload coverage to Codecov
       if: ${{ matrix.upload-coverage }}
       uses: codecov/codecov-action@v5.4.2
