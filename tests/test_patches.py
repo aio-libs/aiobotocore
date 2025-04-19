@@ -69,6 +69,7 @@ from botocore.parsers import (
     ResponseParserFactory,
     RestJSONParser,
     RestXMLParser,
+    RpcV2CBORParser,
     create_parser,
 )
 from botocore.regions import EndpointRulesetResolver
@@ -450,6 +451,15 @@ _API_DIGESTS = {
         '0564ba55383a71cc1ba3e5be7110549d7e9992f5'
     },
     create_parser: {'37e9f1c3b60de17f477a9b79eae8e1acaa7c89d7'},
+    RpcV2CBORParser._create_event_stream: {
+        '0564ba55383a71cc1ba3e5be7110549d7e9992f5'
+    },
+    RpcV2CBORParser._do_parse: {'e2d884a116d830f57c5ca41f315d3baac49372eb'},
+    RpcV2CBORParser._handle_event_stream: {
+        '2aa007aaca55b37c7e327b7ef8c86237f19690cc'
+    },
+    # NOTE: if this hits we need to change our ResponseParser impl in JSONParser
+    RpcV2CBORParser.parse: {'c2153eac3789855f4fc6a816a1f30a6afe0cf969'},
     # regions.py
     EndpointRulesetResolver.construct_endpoint: {
         'ccbed61e316a0e92e1d0f67c554ee15efa4ee6b8',
@@ -655,7 +665,7 @@ _API_DIGESTS = {
         '79723632d023739aa19c8a899bc2b814b8ab12ff'
     },
     Waiter.wait: {
-        '735608297a2a3d4572e6705daafcf4fc8556fc03',
+        'be33b3d947f559950943305d35daa6a8ece33ea4',
         '00d3990fb22fee667235f4035a9754cda0ebd4d8',
     },
     create_waiter_with_client: {
@@ -788,7 +798,14 @@ _API_DIGESTS = {
 }
 
 
-_PROTOCOL_PARSER_CONTENT = {'ec2', 'query', 'json', 'rest-json', 'rest-xml'}
+_PROTOCOL_PARSER_CONTENT = {
+    'ec2',
+    'query',
+    'json',
+    'rest-json',
+    'rest-xml',
+    'smithy-rpc-v2-cbor',
+}
 
 
 def test_protocol_parsers():
