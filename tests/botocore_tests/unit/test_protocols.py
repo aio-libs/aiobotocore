@@ -54,7 +54,6 @@ can set the BOTOCORE_TEST_ID env var with the ``suite_id:test_id`` syntax.
 import base64
 import copy
 import os
-import xml.etree.ElementTree as ET
 from enum import Enum
 
 import pytest
