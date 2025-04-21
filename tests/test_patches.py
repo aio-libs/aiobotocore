@@ -428,6 +428,7 @@ _API_DIGESTS = {
     ResponseParser._create_event_stream: {
         '0564ba55383a71cc1ba3e5be7110549d7e9992f5',
     },
+    ResponseParser.parse: {'c2153eac3789855f4fc6a816a1f30a6afe0cf969'},
     RestXMLParser._create_event_stream: {
         '0564ba55383a71cc1ba3e5be7110549d7e9992f5'
     },
@@ -444,8 +445,6 @@ _API_DIGESTS = {
     JSONParser._handle_event_stream: {
         '3cf7bb1ecff0d72bafd7e7fd6625595b4060abd6'
     },
-    # NOTE: if this hits we need to change our ResponseParser impl in JSONParser
-    JSONParser.parse: {'c2153eac3789855f4fc6a816a1f30a6afe0cf969'},
     RestJSONParser._create_event_stream: {
         '0564ba55383a71cc1ba3e5be7110549d7e9992f5'
     },

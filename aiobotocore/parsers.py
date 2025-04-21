@@ -1,5 +1,3 @@
-import inspect
-
 from botocore.parsers import (
     LOG,
     EC2QueryParser,
@@ -14,6 +12,7 @@ from botocore.parsers import (
     lowercase_dict,
 )
 
+from ._helpers import resolve_awaitable
 from .eventstream import AioEventStream
 
 
@@ -33,8 +32,6 @@ class AioResponseParser(ResponseParser):
         name = response['context'].get('operation_name')
         return AioEventStream(response['body'], shape, parser, name)
 
-    # Only JSONParser needs this to be async. Override it here at the base
-    # class so the interface is consistent on all aio response classes.
     async def parse(self, response, shape):
         LOG.debug('Response headers: %s', response['headers'])
         LOG.debug('Response body:\n%s', response['body'])
@@ -48,9 +45,7 @@ class AioResponseParser(ResponseParser):
             else:
                 parsed = self._do_error_parse(response, shape)
         else:
-            parsed = self._do_parse(response, shape)
-            if inspect.iscoroutine(parsed):
-                parsed = await parsed
+            parsed = await resolve_awaitable(self._do_parse(response, shape))
 
         # We don't want to decorate event stream responses with metadata
         if shape and shape.serialization.get('eventstream'):
