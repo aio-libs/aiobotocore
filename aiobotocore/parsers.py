@@ -1,6 +1,12 @@
 from botocore.parsers import (
     LOG,
+    BaseEventStreamParser,
+    BaseJSONParser,
+    BaseRestParser,
+    BaseXMLResponseParser,
     EC2QueryParser,
+    EventStreamJSONParser,
+    EventStreamXMLParser,
     JSONParser,
     NoInitialResponseError,
     QueryParser,
@@ -32,15 +38,41 @@ class AioResponseParser(ResponseParser):
         return AioEventStream(response['body'], shape, parser, name)
 
 
-class AioQueryParser(QueryParser, AioResponseParser):
+class AioBaseXMLResponseParser(BaseXMLResponseParser, AioResponseParser):
     pass
 
 
-class AioEC2QueryParser(EC2QueryParser, AioResponseParser):
+class AioQueryParser(QueryParser, AioBaseXMLResponseParser):
     pass
 
 
-class AioJSONParser(JSONParser, AioResponseParser):
+class AioEC2QueryParser(EC2QueryParser, AioQueryParser):
+    pass
+
+
+class AioBaseJSONParser(BaseJSONParser, AioResponseParser):
+    pass
+
+
+class AioBaseEventStreamParser(BaseEventStreamParser, AioResponseParser):
+    pass
+
+
+class AioEventStreamJSONParser(
+    EventStreamJSONParser, AioBaseEventStreamParser, AioBaseJSONParser
+):
+    pass
+
+
+class AioEventStreamXMLParser(
+    EventStreamXMLParser, AioBaseEventStreamParser, AioBaseXMLResponseParser
+):
+    pass
+
+
+class AioJSONParser(JSONParser, AioBaseJSONParser):
+    EVENT_STREAM_PARSER_CLS = AioEventStreamJSONParser
+
     async def _do_parse(self, response, shape):
         parsed = {}
         if shape is not None:
@@ -102,12 +134,18 @@ class AioJSONParser(JSONParser, AioResponseParser):
         return parsed
 
 
-class AioRestJSONParser(RestJSONParser, AioResponseParser):
+class AioBaseRestParser(BaseRestParser, AioResponseParser):
     pass
 
 
-class AioRestXMLParser(RestXMLParser, AioResponseParser):
-    pass
+class AioRestJSONParser(RestJSONParser, AioBaseRestParser, AioBaseJSONParser):
+    EVENT_STREAM_PARSER_CLS = AioEventStreamJSONParser
+
+
+class AioRestXMLParser(
+    RestXMLParser, AioBaseRestParser, AioBaseXMLResponseParser
+):
+    EVENT_STREAM_PARSER_CLS = AioEventStreamXMLParser
 
 
 PROTOCOL_PARSERS = {
