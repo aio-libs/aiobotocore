@@ -954,7 +954,7 @@ _API_DIGESTS = (
     (
         RequestSigner.get_auth,
         {
-            '4f8099bef30f9a72fa3bcaa1bd3d22c4fbd224a8',
+            'b78756b9d4f7a5bce9630195d761bab557677225',
         },
     ),
     (
