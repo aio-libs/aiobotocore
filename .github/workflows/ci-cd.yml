@@ -135,7 +135,9 @@ jobs:
         path: dist/
     - name: Check if distribution 📦 names match git tag
       run: |
-        test -f "dist/aiobotocore-${{ github.ref_name }}.tar.gz"
-        test -f "dist/aiobotocore-${{ github.ref_name }}-py3-none-any.whl"
+        test -f "dist/aiobotocore-${REF_NAME}.tar.gz"
+        test -f "dist/aiobotocore-${REF_NAME}-py3-none-any.whl"
+      env:
+        REF_NAME: ${{ github.ref_name }}
     - name: Publish distribution 📦 to PyPI
       uses: pypa/gh-action-pypi-publish@release/v1
