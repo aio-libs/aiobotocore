@@ -28,6 +28,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+      with:
+        persist-credentials: false
     - name: Install uv
       uses: astral-sh/setup-uv@v6
       with:
@@ -78,6 +80,7 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v4
       with:
+        persist-credentials: false
         submodules: true
     - name: Install uv
       uses: astral-sh/setup-uv@v6
