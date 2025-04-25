@@ -36,8 +36,9 @@ jobs:
       # yamllint disable-line rule:line-length
       uses: astral-sh/setup-uv@c7f87aa956e4c323abf06d5dec078e358f6b4d04  # v6.0.0
       with:
-        # prevent cache poisoning
-        enable-cache: ${{ github.ref_type == 'tag' && 'false' || 'auto' }}
+        # yamllint disable-line rule:line-length
+        enable-cache: | # zizmor: ignore[cache-poisoning] cache is disabled when publishing to prevent poisoning
+          ${{ github.ref_type == 'tag' && 'false' || 'auto' }}
     - name: Build distribution 📦
       run: uv build
     - name: Check distribution 📦
@@ -90,8 +91,9 @@ jobs:
       uses: astral-sh/setup-uv@c7f87aa956e4c323abf06d5dec078e358f6b4d04  # v6.0.0
       with:
         python-version: ${{ matrix.python-version }}
-        # prevent cache poisoning
-        enable-cache: ${{ github.ref_type == 'tag' && 'false' || 'auto' }}
+        # yamllint disable-line rule:line-length
+        enable-cache: | # zizmor: ignore[cache-poisoning] cache is disabled when publishing to prevent poisoning
+          ${{ github.ref_type == 'tag' && 'false' || 'auto' }}
     - name: Run pre-commit hooks
       run: |
         uv run make pre-commit
