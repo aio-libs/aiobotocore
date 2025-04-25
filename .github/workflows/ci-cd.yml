@@ -1,6 +1,8 @@
 ---
 name: CI/CD
 
+permissions: {}
+
 on:
   merge_group:
   push:
