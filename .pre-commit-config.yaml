@@ -45,3 +45,7 @@ repos:
     files: ^\.github/workflows/[^/]+$
     types:
     - yaml
+- repo: https://github.com/woodruffw/zizmor-pre-commit
+  rev: v1.6.0
+  hooks:
+  - id: zizmor
