@@ -114,11 +114,17 @@ jobs:
         fail_ci_if_error: true  # optional (default = false)
         verbose: true  # optional (default = false)
 
+  zizmor:
+    uses: ./.github/workflows/reusable-zizmor.yml
+    permissions:
+      security-events: write
+
   check:  # This job does nothing and is only used for the branch protection
     if: always()
     needs:
     - build
     - test
+    - zizmor
     runs-on: ubuntu-24.04
     timeout-minutes: 5
 
