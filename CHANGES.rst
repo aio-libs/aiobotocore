@@ -5,7 +5,8 @@ Changes
 ^^^^^^^^^^^^^^^^^^^
 * patch `ResponseParser`
 * use SPDX license identifier for project metadata
-* refactor `AioResponseParser` to have a consistent async implementation of the `parse` method.
+* refactor ``AioResponseParser`` to have a consistent async implementation of the `parse` method.
+  sync `parse` methods are deprecated and will be removed in a future release.``
 
 2.21.1 (2025-03-04)
 ^^^^^^^^^^^^^^^^^^^

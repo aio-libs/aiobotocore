@@ -1,4 +1,6 @@
 import asyncio
+import inspect
+import warnings
 
 from botocore.endpoint import (
     DEFAULT_TIMEOUT,
@@ -204,9 +206,15 @@ class AioEndpoint(Endpoint):
         )
         parser = self._response_parser_factory.create_parser(protocol)
 
-        parsed_response = await parser.parse(
+        parsed_response = parser.parse(
             response_dict, operation_model.output_shape
         )
+        if inspect.isawaitable(parsed_response):
+            parsed_response = await parsed_response
+        else:
+            warnings.deprecated(
+                f"The use of non-async `parse` function on {parser.__class__.__name__} is deprecated."
+            )
         parsed_response.update(customized_response_dict)
 
         if http_response.status_code >= 300:
@@ -234,7 +242,13 @@ class AioEndpoint(Endpoint):
         if error_shape is None:
             return
 
-        modeled_parse = await parser.parse(response_dict, error_shape)
+        modeled_parse = parser.parse(response_dict, error_shape)
+        if inspect.isawaitable(modeled_parse):
+            modeled_parse = await modeled_parse
+        else:
+            warnings.deprecated(
+                f"The use of non-async `parse` function on {parser.__class__.__name__} is deprecated."
+            )
         # TODO: avoid naming conflicts with ResponseMetadata and Error
         parsed_response.update(modeled_parse)
 
