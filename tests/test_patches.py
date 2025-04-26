@@ -62,6 +62,7 @@ from botocore.httpsession import URLLib3Session
 from botocore.paginate import PageIterator, ResultKeyIterator
 from botocore.parsers import (
     PROTOCOL_PARSERS,
+    BaseRpcV2Parser,
     EC2QueryParser,
     JSONParser,
     QueryParser,
@@ -69,6 +70,7 @@ from botocore.parsers import (
     ResponseParserFactory,
     RestJSONParser,
     RestXMLParser,
+    RpcV2CBORParser,
     create_parser,
 )
 from botocore.regions import EndpointRulesetResolver
@@ -139,7 +141,14 @@ from dill.source import getsource
 # REPLACE = backwards incompatible change
 # APPEND = officially supporting more versions of botocore/aiohttp
 
-_PROTOCOL_PARSER_CONTENT = {'ec2', 'query', 'json', 'rest-json', 'rest-xml'}
+_PROTOCOL_PARSER_CONTENT = {
+    'ec2',
+    'query',
+    'json',
+    'rest-json',
+    'rest-xml',
+    'smithy-rpc-v2-cbor',
+}
 
 
 def test_protocol_parsers():
@@ -840,9 +849,27 @@ def test_protocol_parsers():
             },
         ),
         (
+            BaseRpcV2Parser._do_parse,
+            {
+                'e2d884a116d830f57c5ca41f315d3baac49372eb',
+            },
+        ),
+        (
             RestJSONParser._create_event_stream,
             {
                 '0564ba55383a71cc1ba3e5be7110549d7e9992f5',
+            },
+        ),
+        (
+            RpcV2CBORParser.EVENT_STREAM_PARSER_CLS,
+            {
+                '10c1f773f07e22929ecac791729c1a30a4091bd3',
+            },
+        ),
+        (
+            RpcV2CBORParser._handle_event_stream,
+            {
+                '2aa007aaca55b37c7e327b7ef8c86237f19690cc',
             },
         ),
         (

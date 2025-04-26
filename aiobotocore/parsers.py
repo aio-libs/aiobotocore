@@ -1,10 +1,13 @@
 from botocore.parsers import (
     LOG,
+    BaseCBORParser,
     BaseEventStreamParser,
     BaseJSONParser,
     BaseRestParser,
+    BaseRpcV2Parser,
     BaseXMLResponseParser,
     EC2QueryParser,
+    EventStreamCBORParser,
     EventStreamJSONParser,
     EventStreamXMLParser,
     JSONParser,
@@ -15,6 +18,7 @@ from botocore.parsers import (
     ResponseParserFactory,
     RestJSONParser,
     RestXMLParser,
+    RpcV2CBORParser,
     lowercase_dict,
 )
 
@@ -88,6 +92,10 @@ class AioBaseJSONParser(BaseJSONParser, AioResponseParser):
     pass
 
 
+class AioBaseCBORParser(BaseCBORParser, AioResponseParser):
+    pass
+
+
 class AioBaseEventStreamParser(BaseEventStreamParser, AioResponseParser):
     pass
 
@@ -100,6 +108,12 @@ class AioEventStreamJSONParser(
 
 class AioEventStreamXMLParser(
     EventStreamXMLParser, AioBaseEventStreamParser, AioBaseXMLResponseParser
+):
+    pass
+
+
+class AioEventStreamCBORParser(
+    EventStreamCBORParser, AioBaseEventStreamParser, AioBaseCBORParser
 ):
     pass
 
@@ -137,8 +151,44 @@ class AioBaseRestParser(BaseRestParser, AioResponseParser):
     pass
 
 
+class AioBaseRpcV2Parser(BaseRpcV2Parser, AioResponseParser):
+    async def _do_parse(self, response, shape):
+        parsed = {}
+        if shape is not None:
+            event_stream_name = shape.event_stream_name
+            if event_stream_name:
+                parsed = await self._handle_event_stream(
+                    response, shape, event_stream_name
+                )
+            else:
+                parsed = {}
+                self._parse_payload(response, shape, parsed)
+            parsed['ResponseMetadata'] = self._populate_response_metadata(
+                response
+            )
+        return parsed
+
+
 class AioRestJSONParser(RestJSONParser, AioBaseRestParser, AioBaseJSONParser):
     EVENT_STREAM_PARSER_CLS = AioEventStreamJSONParser
+
+
+class AioRpcV2CBORParser(
+    RpcV2CBORParser, AioBaseRpcV2Parser, AioBaseCBORParser
+):
+    EVENT_STREAM_PARSER_CLS = AioEventStreamCBORParser
+
+    async def _handle_event_stream(self, response, shape, event_name):
+        event_stream_shape = shape.members[event_name]
+        event_stream = self._create_event_stream(response, event_stream_shape)
+        try:
+            event = await event_stream.get_initial_response()
+        except NoInitialResponseError:
+            error_msg = 'First event was not of type initial-response'
+            raise ResponseParserError(error_msg)
+        parsed = self._initial_body_parse(event.payload)
+        parsed[event_name] = event_stream
+        return parsed
 
 
 class AioRestXMLParser(
@@ -153,4 +203,5 @@ PROTOCOL_PARSERS = {
     'json': AioJSONParser,
     'rest-json': AioRestJSONParser,
     'rest-xml': AioRestXMLParser,
+    'smithy-rpc-v2-cbor': AioRpcV2CBORParser,
 }
