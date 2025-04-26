@@ -87,7 +87,7 @@ default-groups = [
     "botocore-dev",
     "dev",
 ]
-required-version = ">=0.6.0"
+required-version = ">=0.6.15"
 
 [tool.setuptools.dynamic]
 version = { attr = "aiobotocore.__version__" }
