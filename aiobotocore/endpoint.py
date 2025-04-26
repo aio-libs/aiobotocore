@@ -226,16 +226,9 @@ class AioEndpoint(Endpoint):
             customized_response_dict=customized_response_dict,
         )
         parser = self._response_parser_factory.create_parser(protocol)
-
-        if asyncio.iscoroutinefunction(parser.parse):
-            parsed_response = await parser.parse(
-                response_dict, operation_model.output_shape
-            )
-        else:
-            parsed_response = parser.parse(
-                response_dict, operation_model.output_shape
-            )
-
+        parsed_response = await parser.parse(
+            response_dict, operation_model.output_shape
+        )
         parsed_response.update(customized_response_dict)
 
         if http_response.status_code >= 300:
@@ -262,11 +255,7 @@ class AioEndpoint(Endpoint):
         error_shape = service_model.shape_for_error_code(error_code)
         if error_shape is None:
             return
-
-        if asyncio.iscoroutinefunction(parser.parse):
-            modeled_parse = await parser.parse(response_dict, error_shape)
-        else:
-            modeled_parse = parser.parse(response_dict, error_shape)
+        modeled_parse = await parser.parse(response_dict, error_shape)
         # TODO: avoid naming conflicts with ResponseMetadata and Error
         parsed_response.update(modeled_parse)
 

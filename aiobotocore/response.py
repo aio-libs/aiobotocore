@@ -150,10 +150,5 @@ async def get_response(operation_model, http_response):
         response_dict['body'] = await http_response.content
 
     parser = parsers.create_parser(protocol)
-    if asyncio.iscoroutinefunction(parser.parse):
-        parsed = await parser.parse(
-            response_dict, operation_model.output_shape
-        )
-    else:
-        parsed = parser.parse(response_dict, operation_model.output_shape)
+    parsed = await parser.parse(response_dict, operation_model.output_shape)
     return http_response, parsed

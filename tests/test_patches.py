@@ -723,6 +723,12 @@ def test_protocol_parsers():
             },
         ),
         (
+            EventStream._parse_event,
+            {
+                'c5b4e65fe718653a6f4cee4e8647f286f10fae05',
+            },
+        ),
+        (
             EventStream.get_initial_response,
             {
                 'aed648305970c90bb5d1e31f6fe5ff12cf6a2a06',
@@ -786,6 +792,12 @@ def test_protocol_parsers():
             },
         ),
         (
+            ResponseParser.parse,
+            {
+                'c2153eac3789855f4fc6a816a1f30a6afe0cf969',
+            },
+        ),
+        (
             ResponseParser._create_event_stream,
             {
                 '0564ba55383a71cc1ba3e5be7110549d7e9992f5',
@@ -825,13 +837,6 @@ def test_protocol_parsers():
             JSONParser._handle_event_stream,
             {
                 '3cf7bb1ecff0d72bafd7e7fd6625595b4060abd6',
-            },
-        ),
-        # NOTE, if this hits we need to change our ResponseParser impl in JSONParser
-        (
-            JSONParser.parse,
-            {
-                'c2153eac3789855f4fc6a816a1f30a6afe0cf969',
             },
         ),
         (

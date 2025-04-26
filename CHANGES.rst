@@ -5,7 +5,7 @@ Changes
 ^^^^^^^^^^^^^^^^^^^
 * fully patch ``ClientArgsCreator.get_client_args()``
 * patch ``AioEndpoint.__init__()``
-* patch `ResponseParser` and subclasses
+* patch ``EventStream._parse_event()``, ``ResponseParser`` and subclasses
 * use SPDX license identifier for project metadata
 
 2.21.1 (2025-03-04)
