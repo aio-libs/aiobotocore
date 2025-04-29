@@ -4,6 +4,7 @@ Changes
 2.22.0 (2025-04-29)
 ^^^^^^^^^^^^^^^^^^^
 * fully patch ``ClientArgsCreator.get_client_args()``
+* patch ``AioEndpoint.__init__()``
 * patch `ResponseParser` and subclasses
 * use SPDX license identifier for project metadata
 

@@ -653,6 +653,12 @@ def test_protocol_parsers():
             },
         ),
         (
+            Endpoint.__init__,
+            {
+                '4bafe9733a02817950f5096612410ec4ebc40f55',
+            },
+        ),
+        (
             Endpoint.create_request,
             {
                 '37d0fbd02f91aef6c0499a2d0a725bf067c3ce8b',

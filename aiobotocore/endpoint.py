@@ -16,6 +16,7 @@ from botocore.hooks import first_non_none_response
 
 from aiobotocore.httpchecksum import handle_checksum_body
 from aiobotocore.httpsession import AIOHTTPSession
+from aiobotocore.parsers import AioResponseParserFactory
 from aiobotocore.response import StreamingBody
 
 DEFAULT_HTTP_SESSION_CLS = AIOHTTPSession
@@ -57,6 +58,28 @@ async def convert_to_response_dict(http_response, operation_model):
 
 
 class AioEndpoint(Endpoint):
+    def __init__(
+        self,
+        host,
+        endpoint_prefix,
+        event_emitter,
+        response_parser_factory=None,
+        http_session=None,
+    ):
+        if response_parser_factory is None:
+            response_parser_factory = AioResponseParserFactory()
+
+        if http_session is None:
+            raise ValueError('http_session must be provided')
+
+        super().__init__(
+            host=host,
+            endpoint_prefix=endpoint_prefix,
+            event_emitter=event_emitter,
+            response_parser_factory=response_parser_factory,
+            http_session=http_session,
+        )
+
     async def close(self):
         await self.http_session.close()
 
