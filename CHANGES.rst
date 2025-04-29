@@ -1,8 +1,9 @@
 Changes
 -------
 
-2.22.0 (2025-04-21)
+2.22.0 (2025-04-29)
 ^^^^^^^^^^^^^^^^^^^
+* fully patch ``ClientArgsCreator.get_client_args()``
 * patch `ResponseParser` and subclasses
 * use SPDX license identifier for project metadata
 
