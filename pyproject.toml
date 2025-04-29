@@ -69,14 +69,14 @@ botocore-dev = [
     # "colorama>0.3.0", # Windows requirement
 ]
 dev = [
-    "dill >= 0.3.3, < 0.4", # Used in test_patches.py
+    "dill >= 0.3.3, < 0.5", # Used in test_patches.py
     "docker >= 7.1, < 8",
     "docutils >= 0.16, < 0.22", # Used in test_version.py
     "moto[server,s3,sqs,awslambda,dynamodb,cloudformation,sns,batch,ec2,rds] >= 5.0.11, < 6",
-    "packaging >= 24.1, < 25", # Used in test_version.py
+    "packaging >= 24.1, < 26", # Used in test_version.py
     "pip >= 24.3.1, < 26", # Used in test_version.py
     "pre-commit >= 3.5.0, < 5",
-    "pytest-asyncio >= 0.23.8, < 0.26",
+    "pytest-asyncio >= 0.23.8, < 0.27",
     "requests >= 2.32.3, < 3", # Used in test_version.py
     "time-machine >= 2.15.0, < 3", # Used in test_signers.py
     "tomli; python_version<'3.11'", # Used in test_version.py
@@ -87,7 +87,7 @@ default-groups = [
     "botocore-dev",
     "dev",
 ]
-required-version = ">=0.6.0"
+required-version = ">=0.6.15"
 
 [tool.setuptools.dynamic]
 version = { attr = "aiobotocore.__version__" }
