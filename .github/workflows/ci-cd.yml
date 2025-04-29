@@ -24,35 +24,9 @@ env:
 
 jobs:
   build:
-    name: Build distribution 📦
-    runs-on: ubuntu-24.04
-    timeout-minutes: 5
-
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        persist-credentials: false
-    - name: Install uv
-      # yamllint disable-line rule:line-length
-      uses: astral-sh/setup-uv@c7f87aa956e4c323abf06d5dec078e358f6b4d04  # v6.0.0
-      with:
-        # yamllint disable-line rule:line-length
-        enable-cache: | # zizmor: ignore[cache-poisoning] cache is disabled when publishing to prevent poisoning
-          ${{ github.ref_type == 'tag' && 'false' || 'auto' }}
-    - name: Build distribution 📦
-      run: uv build
-    - name: Check distribution 📦
-      run: uvx twine check --strict dist/*
-    - name: Upload distribution 📦
-      uses: actions/upload-artifact@v4
-      with:
-        name: python-package-distributions
-        path: dist/
+    uses: ./.github/workflows/reusable-build.yml
 
   test:
-    name: Test Python ${{ matrix.python-version }} on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    continue-on-error: ${{ matrix.experimental }}
     strategy:
       matrix:
         python-version:
@@ -76,43 +50,16 @@ jobs:
           python-version: 3.11
           os: ubuntu-24.04
       fail-fast: false
-    env:
-      UV_FROZEN: 1
-    timeout-minutes: 5
-
-    steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-      with:
-        persist-credentials: false
-        submodules: true
-    - name: Install uv
+    uses: ./.github/workflows/reusable-test.yml
+    with:
+      python-version: ${{ matrix.python-version }}
+      os: ${{ matrix.os }}
+      continue-on-error: ${{ matrix.experimental }}
+      enable-cache: ${{ github.ref_type == 'tag' && 'false' || 'auto' }}
+      upload-coverage: ${{ matrix.upload-coverage }}
+    secrets:
       # yamllint disable-line rule:line-length
-      uses: astral-sh/setup-uv@c7f87aa956e4c323abf06d5dec078e358f6b4d04  # v6.0.0
-      with:
-        python-version: ${{ matrix.python-version }}
-        # yamllint disable-line rule:line-length
-        enable-cache: | # zizmor: ignore[cache-poisoning] cache is disabled when publishing to prevent poisoning
-          ${{ github.ref_type == 'tag' && 'false' || 'auto' }}
-    - name: Run pre-commit hooks
-      run: |
-        uv run make pre-commit
-    - name: Run unittests
-      env:
-        COLOR: 'yes'
-      run: |
-        uv run make mototest
-    - name: Upload coverage to Codecov
-      if: ${{ matrix.upload-coverage }}
-      # yamllint disable-line rule:line-length
-      uses: codecov/codecov-action@ad3126e916f78f00edff4ed0317cf185271ccc2d  # v5.4.2
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}  # not required for public repos
-        files: ./coverage.xml
-        flags: unittests  # optional
-        name: codecov-umbrella  # optional
-        fail_ci_if_error: true  # optional (default = false)
-        verbose: true  # optional (default = false)
+      codecov-token: ${{ matrix.upload-coverage && secrets.CODECOV_TOKEN || '' }}
 
   zizmor:
     uses: ./.github/workflows/reusable-zizmor.yml

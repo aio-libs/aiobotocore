@@ -1,0 +1,37 @@
+---
+name: Reusable build
+
+permissions: {}
+
+on:
+  workflow_call:
+
+env:
+  FORCE_COLOR: 1
+
+jobs:
+  build:
+    name: Build distribution 📦
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        persist-credentials: false
+    - name: Install uv
+      # yamllint disable-line rule:line-length
+      uses: astral-sh/setup-uv@c7f87aa956e4c323abf06d5dec078e358f6b4d04  # v6.0.0
+      with:
+        # yamllint disable-line rule:line-length
+        enable-cache: | # zizmor: ignore[cache-poisoning] cache is disabled when publishing to prevent poisoning
+          ${{ github.ref_type == 'tag' && 'false' || 'auto' }}
+    - name: Build distribution 📦
+      run: uv build
+    - name: Check distribution 📦
+      run: uvx twine check --strict dist/*
+    - name: Upload distribution 📦
+      uses: actions/upload-artifact@v4
+      with:
+        name: python-package-distributions
+        path: dist/

@@ -1,0 +1,68 @@
+---
+name: Reusable test
+
+permissions: {}
+
+on:
+  workflow_call:
+    inputs:
+      python-version:
+        type: string
+        required: true
+      os:
+        type: string
+        required: true
+      continue-on-error:
+        type: boolean
+      enable-cache:
+        type: string
+        required: true
+      upload-coverage:
+        type: boolean
+    secrets:
+      codecov-token:
+        required: false
+
+env:
+  FORCE_COLOR: 1
+
+jobs:
+  test:
+    name: Test Python ${{ inputs.python-version }} on ${{ inputs.os }}
+    runs-on: ${{ inputs.os }}
+    continue-on-error: ${{ inputs.continue-on-error }}
+    env:
+      UV_FROZEN: 1
+    timeout-minutes: 5
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        persist-credentials: false
+        submodules: true
+    - name: Install uv
+      # yamllint disable-line rule:line-length
+      uses: astral-sh/setup-uv@c7f87aa956e4c323abf06d5dec078e358f6b4d04  # v6.0.0
+      with:
+        python-version: ${{ inputs.python-version }}
+        enable-cache: ${{ inputs.enable-cache }}
+    - name: Run pre-commit hooks
+      run: |
+        uv run make pre-commit
+    - name: Run unittests
+      env:
+        COLOR: 'yes'
+      run: |
+        uv run make mototest
+    - name: Upload coverage to Codecov
+      if: ${{ inputs.upload-coverage }}
+      # yamllint disable-line rule:line-length
+      uses: codecov/codecov-action@ad3126e916f78f00edff4ed0317cf185271ccc2d  # v5.4.2
+      with:
+        token: ${{ secrets.codecov-token }}  # not required for public repos
+        files: ./coverage.xml
+        flags: unittests  # optional
+        name: codecov-umbrella  # optional
+        fail_ci_if_error: true  # optional (default = false)
+        verbose: true  # optional (default = false)
