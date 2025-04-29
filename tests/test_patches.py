@@ -139,7 +139,14 @@ from dill.source import getsource
 # REPLACE = backwards incompatible change
 # APPEND = officially supporting more versions of botocore/aiohttp
 
-_PROTOCOL_PARSER_CONTENT = {'ec2', 'query', 'json', 'rest-json', 'rest-xml'}
+_PROTOCOL_PARSER_CONTENT = {
+    'ec2',
+    'query',
+    'json',
+    'rest-json',
+    'rest-xml',
+    'smithy-rpc-v2-cbor',
+}
 
 
 def test_protocol_parsers():
