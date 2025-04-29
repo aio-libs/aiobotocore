@@ -1,7 +1,7 @@
-import botocore.parsers
 import pytest
 
 from aiobotocore.eventstream import AioEventStream
+from aiobotocore.parsers import AioEventStreamXMLParser
 
 # TODO once Moto supports either S3 Select or Kinesis SubscribeToShard then
 # this can be tested against a real AWS API
@@ -50,7 +50,7 @@ async def test_eventstream_chunking(s3_client):
     outputshape = s3_client._service_model.operation_model(
         operation_name
     ).output_shape.members['Payload']
-    parser = botocore.parsers.EventStreamXMLParser()
+    parser = AioEventStreamXMLParser()
     sr = FakeStreamReader(TEST_STREAM_DATA)
 
     event_stream = AioEventStream(sr, outputshape, parser, operation_name)
@@ -79,7 +79,7 @@ async def test_eventstream_no_iter(s3_client):
     outputshape = s3_client._service_model.operation_model(
         operation_name
     ).output_shape.members['Payload']
-    parser = botocore.parsers.EventStreamXMLParser()
+    parser = AioEventStreamXMLParser()
     sr = FakeStreamReader(TEST_STREAM_DATA)
 
     event_stream = AioEventStream(sr, outputshape, parser, operation_name)

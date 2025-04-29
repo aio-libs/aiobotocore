@@ -27,9 +27,9 @@ from botocore.eventstream import (
     NoInitialResponseError,
 )
 from botocore.exceptions import EventStreamError
-from botocore.parsers import EventStreamXMLParser
 
 from aiobotocore.eventstream import AioEventStream
+from aiobotocore.parsers import AioEventStreamXMLParser
 
 EMPTY_MESSAGE = (
     b'\x00\x00\x00\x10\x00\x00\x00\x00\x05\xc2H\xeb}\x98\xc8\xff',
@@ -494,7 +494,7 @@ async def test_event_stream_wrapper_iteration():
         b"\x00\x00\x00+\x00\x00\x00\x0e4\x8b\xec{\x08event-id\x04\x00",
         b"\x00\xa0\x0c{'foo':'bar'}\xd3\x89\x02\x85",
     )
-    parser = mock.Mock(spec=EventStreamXMLParser)
+    parser = mock.Mock(spec=AioEventStreamXMLParser)
     output_shape = mock.Mock()
     event_stream = AioEventStream(raw_stream, output_shape, parser, '')
     events = [e async for e in event_stream]
@@ -510,7 +510,7 @@ async def test_event_stream_wrapper_iteration():
 
 async def test_eventstream_wrapper_iteration_error():
     raw_stream = create_mock_raw_stream(ERROR_EVENT_MESSAGE[0])
-    parser = mock.Mock(spec=EventStreamXMLParser)
+    parser = mock.Mock(spec=AioEventStreamXMLParser)
     parser.parse.return_value = {}
     output_shape = mock.Mock()
     event_stream = AioEventStream(raw_stream, output_shape, parser, '')
@@ -532,7 +532,7 @@ async def test_event_stream_initial_response():
         b'\x05event\x0b:event-type\x07\x00\x10initial-response\r:content-type',
         b'\x07\x00\ttext/json{"InitialResponse": "sometext"}\xf6\x98$\x83',
     )
-    parser = mock.Mock(spec=EventStreamXMLParser)
+    parser = mock.Mock(spec=AioEventStreamXMLParser)
     output_shape = mock.Mock()
     event_stream = AioEventStream(raw_stream, output_shape, parser, '')
     event = await event_stream.get_initial_response()
@@ -551,7 +551,7 @@ async def test_event_stream_initial_response_wrong_type():
         b"\x00\x00\x00+\x00\x00\x00\x0e4\x8b\xec{\x08event-id\x04\x00",
         b"\x00\xa0\x0c{'foo':'bar'}\xd3\x89\x02\x85",
     )
-    parser = mock.Mock(spec=EventStreamXMLParser)
+    parser = mock.Mock(spec=AioEventStreamXMLParser)
     output_shape = mock.Mock()
     event_stream = AioEventStream(raw_stream, output_shape, parser, '')
     with pytest.raises(NoInitialResponseError):
@@ -560,7 +560,7 @@ async def test_event_stream_initial_response_wrong_type():
 
 async def test_event_stream_initial_response_no_event():
     raw_stream = create_mock_raw_stream(b'')
-    parser = mock.Mock(spec=EventStreamXMLParser)
+    parser = mock.Mock(spec=AioEventStreamXMLParser)
     output_shape = mock.Mock()
     event_stream = AioEventStream(raw_stream, output_shape, parser, '')
     with pytest.raises(NoInitialResponseError):

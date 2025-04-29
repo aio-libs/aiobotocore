@@ -6,6 +6,7 @@ from botocore.args import ClientArgsCreator, EPRBuiltins
 
 from .config import AioConfig
 from .endpoint import DEFAULT_HTTP_SESSION_CLS, AioEndpointCreator
+from .parsers import create_parser
 from .regions import AioEndpointRulesetResolver
 from .signers import AioRequestSigner
 
@@ -94,7 +95,7 @@ class AioClientArgsCreator(ClientArgsCreator):
         serializer = botocore.serialize.create_serializer(
             protocol, parameter_validation
         )
-        response_parser = botocore.parsers.create_parser(protocol)
+        response_parser = create_parser(protocol)
 
         ruleset_resolver = self._build_endpoint_resolver(
             endpoints_ruleset_data,
