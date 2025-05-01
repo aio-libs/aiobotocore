@@ -878,18 +878,6 @@ def test_protocol_parsers():
                 '37e9f1c3b60de17f477a9b79eae8e1acaa7c89d7',
             },
         ),
-        (
-            RpcV2CBORParser._handle_event_stream,
-            {
-                '2aa007aaca55b37c7e327b7ef8c86237f19690cc',
-            },
-        ),
-        (
-            RpcV2CBORParser._do_parse,
-            {
-                'e2d884a116d830f57c5ca41f315d3baac49372eb',
-            },
-        ),
         # regions.py
         (
             EndpointRulesetResolver.construct_endpoint,
