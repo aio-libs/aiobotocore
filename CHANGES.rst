@@ -7,6 +7,7 @@ Changes
 * patch ``AioEndpoint.__init__()``
 * patch ``EventStream._parse_event()``, ``ResponseParser`` and subclasses
 * use SPDX license identifier for project metadata
+* upstream support for the smithy-rpc-v2-cbor protocol
 * bump botocore dependency specification
 
 2.21.1 (2025-03-04)
