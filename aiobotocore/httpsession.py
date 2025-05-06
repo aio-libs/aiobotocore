@@ -3,7 +3,7 @@ import contextlib
 import io
 import os
 import socket
-from typing import Dict, Optional
+from typing import Optional
 
 import aiohttp  # lgtm [py/import-and-import-from]
 from aiohttp import (
@@ -47,7 +47,7 @@ class AIOHTTPSession:
     def __init__(
         self,
         verify: bool = True,
-        proxies: Dict[str, str] = None,  # {scheme: url}
+        proxies: dict[str, str] = None,  # {scheme: url}
         timeout: float = None,
         max_pool_connections: int = MAX_POOL_CONNECTIONS,
         socket_options=None,
@@ -59,7 +59,7 @@ class AIOHTTPSession:
 
         # TODO: handle socket_options
         # keep track of sessions by proxy url (if any)
-        self._sessions: Dict[Optional[str], aiohttp.ClientSession] = {}
+        self._sessions: dict[Optional[str], aiohttp.ClientSession] = {}
         self._verify = verify
         self._proxy_config = ProxyConfiguration(
             proxies=proxies, proxies_settings=proxies_config

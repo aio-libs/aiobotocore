@@ -32,7 +32,6 @@ jobs:
     strategy:
       matrix:
         python-version:
-        - 3.8
         - 3.9
         - >-
           3.10
@@ -44,9 +43,6 @@ jobs:
         - ubuntu-24.04-arm
         include:
         - experimental: false
-        - experimental: true  # no reliable moto release available
-          python-version: 3.8
-          os: ubuntu-24.04-arm
         - upload-coverage: false
         - upload-coverage: true
           python-version: 3.11
