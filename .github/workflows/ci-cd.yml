@@ -1,6 +1,8 @@
 ---
 name: CI/CD
 
+permissions: {}
+
 on:
   merge_group:
   push:
@@ -22,29 +24,9 @@ env:
 
 jobs:
   build:
-    name: Build distribution 📦
-    runs-on: ubuntu-24.04
-    timeout-minutes: 5
-
-    steps:
-    - uses: actions/checkout@v4
-    - name: Install uv
-      uses: astral-sh/setup-uv@v5
-    - name: Build distribution 📦
-      run: uv build
-    - name: Check distribution 📦
-      run: uvx twine check --strict dist/*
-    - name: Upload distribution 📦
-      uses: actions/upload-artifact@v4
-      with:
-        name: python-package-distributions
-        path: dist/
+    uses: ./.github/workflows/reusable-build.yml
 
   test:
-    name: Test Python ${{ matrix.python-version }} on ${{ matrix.os }}${{
-      matrix.no-httpx && ' no-httpx' || '' }}
-    runs-on: ${{ matrix.os }}
-    continue-on-error: ${{ matrix.experimental }}
     strategy:
       matrix:
         python-version:
@@ -75,57 +57,36 @@ jobs:
           # CI breaks because continue-on-error is undefined
           experimental: false
       fail-fast: false
-    env:
-      UV_FROZEN: 1
-    timeout-minutes: 5
+    uses: ./.github/workflows/reusable-test.yml
+    with:
+      python-version: ${{ matrix.python-version }}
+      os: ${{ matrix.os }}
+      continue-on-error: ${{ matrix.experimental }}
+      enable-cache: ${{ github.ref_type == 'tag' && 'false' || 'auto' }}
+      upload-coverage: ${{ matrix.upload-coverage }}
+      no-httpx: ${{ matrix.no-httpx }}
+    secrets:
+      # yamllint disable-line rule:line-length
+      codecov-token: ${{ matrix.upload-coverage && secrets.CODECOV_TOKEN || '' }}
 
-    steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-      with:
-        submodules: true
-    - name: Install uv
-      uses: astral-sh/setup-uv@v5
-      with:
-        python-version: ${{ matrix.python-version }}
-    - name: Run pre-commit hooks
-      run: |
-        uv run make pre-commit
-    - name: Run unittests
-      if: ${{ ! matrix.no_httpx }}
-      env:
-        COLOR: 'yes'
-      run: |
-        uv run make mototest
-    - name: Run unittests without httpx installed
-      if: ${{ matrix.no_httpx }}
-      env:
-        COLOR: 'yes'
-        HTTP_BACKEND: 'aiohttp'
-      run: |
-        uv run --no-group=httpx make mototest
-    - name: Upload coverage to Codecov
-      if: ${{ matrix.upload-coverage }}
-      uses: codecov/codecov-action@v5.4.0
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}  # not required for public repos
-        files: ./coverage.xml
-        flags: unittests  # optional
-        name: codecov-umbrella  # optional
-        fail_ci_if_error: true  # optional (default = false)
-        verbose: true  # optional (default = false)
+  zizmor:
+    uses: ./.github/workflows/reusable-zizmor.yml
+    permissions:
+      security-events: write
 
   check:  # This job does nothing and is only used for the branch protection
     if: always()
     needs:
     - build
     - test
+    - zizmor
     runs-on: ubuntu-24.04
     timeout-minutes: 5
 
     steps:
     - name: Decide whether the needed jobs succeeded or failed
-      uses: re-actors/alls-green@release/v1
+      # yamllint disable-line rule:line-length
+      uses: re-actors/alls-green@05ac9388f0aebcb5727afa17fcccfecd6f8ec5fe  # v1.2.2
       with:
         jobs: ${{ toJSON(needs) }}
 
@@ -151,7 +112,10 @@ jobs:
         path: dist/
     - name: Check if distribution 📦 names match git tag
       run: |
-        test -f "dist/aiobotocore-${{ github.ref_name }}.tar.gz"
-        test -f "dist/aiobotocore-${{ github.ref_name }}-py3-none-any.whl"
+        test -f "dist/aiobotocore-${REF_NAME}.tar.gz"
+        test -f "dist/aiobotocore-${REF_NAME}-py3-none-any.whl"
+      env:
+        REF_NAME: ${{ github.ref_name }}
     - name: Publish distribution 📦 to PyPI
-      uses: pypa/gh-action-pypi-publish@release/v1
+      # yamllint disable-line rule:line-length
+      uses: pypa/gh-action-pypi-publish@76f52bc884231f62b9a034ebfe128415bbaabdfc  # v1.12.4
