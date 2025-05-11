@@ -27,6 +27,8 @@ jobs:
     uses: ./.github/workflows/reusable-build.yml
 
   test:
+    # yamllint disable-line rule:line-length
+    name: test${{ '' }}  # zizmor: ignore[obfuscation] nest jobs under the same sidebar category
     strategy:
       matrix:
         python-version:
