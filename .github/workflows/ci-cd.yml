@@ -64,9 +64,12 @@ jobs:
       codecov-token: ${{ matrix.upload-coverage && secrets.CODECOV_TOKEN || '' }}
 
   zizmor:
-    uses: ./.github/workflows/reusable-zizmor.yml
+    name: 🌈 zizmor
     permissions:
       security-events: write
+
+    # yamllint disable-line rule:line-length
+    uses: zizmorcore/workflow/.github/workflows/reusable-zizmor.yml@1ae473d8672fe7613e809d86d202a35063736e16
 
   check:  # This job does nothing and is only used for the branch protection
     if: always()
