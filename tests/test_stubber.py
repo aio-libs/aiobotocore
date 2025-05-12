@@ -8,12 +8,15 @@ from .mock_server import AIOServer
 async def test_add_response():
     session = AioSession()
 
-    async with AIOServer() as server, session.create_client(
-        's3',
-        endpoint_url=server.endpoint_url,
-        aws_secret_access_key='xxx',
-        aws_access_key_id='xxx',
-    ) as s3_client:
+    async with (
+        AIOServer() as server,
+        session.create_client(
+            's3',
+            endpoint_url=server.endpoint_url,
+            aws_secret_access_key='xxx',
+            aws_access_key_id='xxx',
+        ) as s3_client,
+    ):
         stubber = AioStubber(s3_client)
         operation_name = 'put_object'
         service_response = dict(
@@ -35,12 +38,15 @@ async def test_add_response():
 async def test_add_client_error():
     session = AioSession()
 
-    async with AIOServer() as server, session.create_client(
-        's3',
-        endpoint_url=server.endpoint_url,
-        aws_secret_access_key='xxx',
-        aws_access_key_id='xxx',
-    ) as s3_client:
+    async with (
+        AIOServer() as server,
+        session.create_client(
+            's3',
+            endpoint_url=server.endpoint_url,
+            aws_secret_access_key='xxx',
+            aws_access_key_id='xxx',
+        ) as s3_client,
+    ):
         stubber = AioStubber(s3_client)
         operation_name = 'put_object'
         service_error_code = 'InvalidObjectState'
