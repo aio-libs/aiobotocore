@@ -41,20 +41,15 @@ jobs:
         os:
         - ubuntu-24.04
         - ubuntu-24.04-arm
-        include:
-        - experimental: false
-        - upload-coverage: false
-        - upload-coverage: true
-          python-version: 3.11
-          os: ubuntu-24.04
       fail-fast: false
     uses: ./.github/workflows/reusable-test.yml
     with:
       python-version: ${{ matrix.python-version }}
       os: ${{ matrix.os }}
-      continue-on-error: ${{ matrix.experimental }}
+      continue-on-error: false
       enable-cache: ${{ github.ref_type == 'tag' && 'false' || 'auto' }}
-      upload-coverage: ${{ matrix.upload-coverage }}
+      upload-coverage:
+        ${{ matrix.python_version == 3.11 && matrix.os == 'ubuntu-24.04' }}
     secrets:
       # yamllint disable-line rule:line-length
       codecov-token: ${{ matrix.upload-coverage && secrets.CODECOV_TOKEN || '' }}
