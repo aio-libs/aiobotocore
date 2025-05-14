@@ -49,7 +49,7 @@ jobs:
       continue-on-error: false
       enable-cache: ${{ github.ref_type == 'tag' && 'false' || 'auto' }}
       upload-coverage:
-        ${{ matrix.python_version == 3.11 && matrix.os == 'ubuntu-24.04' }}
+        ${{ matrix.python_version == '3.11' && matrix.os == 'ubuntu-24.04' }}
     secrets:
       # yamllint disable-line rule:line-length
       codecov-token: ${{ matrix.upload-coverage && secrets.CODECOV_TOKEN || '' }}
