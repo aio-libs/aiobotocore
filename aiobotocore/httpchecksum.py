@@ -12,8 +12,12 @@ from botocore.httpchecksum import (
 )
 
 from aiobotocore._helpers import resolve_awaitable
-from aiobotocore.awsrequest import HttpxAWSResponse
 from aiobotocore.response import HttpxStreamingBody, StreamingBody
+
+try:
+    import httpx
+except ImportError:
+    httpx = None
 
 
 class AioAwsChunkedWrapper(AwsChunkedWrapper):
@@ -165,7 +169,7 @@ async def handle_checksum_body(
 def _handle_streaming_response(http_response, response, algorithm):
     checksum_cls = _CHECKSUM_CLS.get(algorithm)
     header_name = f"x-amz-checksum-{algorithm}"
-    if isinstance(http_response, HttpxAWSResponse):
+    if httpx is not None and isinstance(http_response.raw, httpx.Response):
         streaming_cls = HttpxStreamingChecksumBody
     else:
         streaming_cls = StreamingChecksumBody

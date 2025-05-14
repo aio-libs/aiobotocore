@@ -231,7 +231,7 @@ class HttpxSession:
                 response.headers.items()
             )
 
-            http_response = aiobotocore.awsrequest.HttpxAWSResponse(
+            http_response = aiobotocore.awsrequest.AioAWSResponse(
                 str(response.url),
                 response.status_code,
                 response_headers,
