@@ -23,9 +23,6 @@ from multidict import CIMultiDict
 import aiobotocore.awsrequest
 from aiobotocore._endpoint_helpers import _text
 
-# TODO: resolve future annotations thing
-
-
 try:
     import httpx
 except ImportError:
@@ -298,7 +295,7 @@ class HttpxSession:
         except httpx.ReadTimeout as e:
             raise ReadTimeoutError(endpoint_url=request.url, error=e)
         except NotImplementedError:
-            raise
+            raise  # Avoid turning it into HTTPClientError.
         except Exception as e:
             message = 'Exception received when sending urllib3 HTTP request'
             logger.debug(message, exc_info=True)
