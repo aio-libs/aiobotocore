@@ -43,25 +43,18 @@ jobs:
         - ubuntu-24.04-arm
         no-httpx: [false]
         include:
-        - experimental: false
-        - upload-coverage: false
-        - upload-coverage: true
-          python-version: 3.11
-          os: ubuntu-24.04
         - no-httpx: true
           python-version: 3.13
           os: ubuntu-24.04
-          # this is necessary for matrix.experimental to be defined, otherwise
-          # CI breaks because continue-on-error is undefined
-          experimental: false
       fail-fast: false
     uses: ./.github/workflows/reusable-test.yml
     with:
       python-version: ${{ matrix.python-version }}
       os: ${{ matrix.os }}
-      continue-on-error: ${{ matrix.experimental }}
+      continue-on-error: false
       enable-cache: ${{ github.ref_type == 'tag' && 'false' || 'auto' }}
-      upload-coverage: ${{ matrix.upload-coverage }}
+      upload-coverage:
+        ${{ matrix.python_version == 3.11 && matrix.os == ubuntu-24.04 }}
       no-httpx: ${{ matrix.no-httpx }}
     secrets:
       # yamllint disable-line rule:line-length
