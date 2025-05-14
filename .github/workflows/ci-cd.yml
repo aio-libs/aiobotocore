@@ -27,10 +27,11 @@ jobs:
     uses: ./.github/workflows/reusable-build.yml
 
   test:
+    # yamllint disable-line rule:line-length
+    name: test${{ '' }}  # zizmor: ignore[obfuscation] nest jobs under the same sidebar category
     strategy:
       matrix:
         python-version:
-        - 3.8
         - 3.9
         - >-
           3.10
@@ -43,9 +44,6 @@ jobs:
         no-httpx: [false]
         include:
         - experimental: false
-        - experimental: true  # no reliable moto release available
-          python-version: 3.8
-          os: ubuntu-24.04-arm
         - upload-coverage: false
         - upload-coverage: true
           python-version: 3.11
@@ -70,9 +68,12 @@ jobs:
       codecov-token: ${{ matrix.upload-coverage && secrets.CODECOV_TOKEN || '' }}
 
   zizmor:
-    uses: ./.github/workflows/reusable-zizmor.yml
+    name: 🌈 zizmor
     permissions:
       security-events: write
+
+    # yamllint disable-line rule:line-length
+    uses: zizmorcore/workflow/.github/workflows/reusable-zizmor.yml@1ae473d8672fe7613e809d86d202a35063736e16
 
   check:  # This job does nothing and is only used for the branch protection
     if: always()

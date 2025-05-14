@@ -1,6 +1,10 @@
 Changes
 -------
 
+2.23.0 (2025-05-02)
+^^^^^^^^^^^^^^^^^^^
+* drop support for Python 3.8 (EOL)
+
 2.22.0 (2025-04-29)
 ^^^^^^^^^^^^^^^^^^^
 * fully patch ``ClientArgsCreator.get_client_args()``
