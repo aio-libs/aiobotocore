@@ -564,9 +564,11 @@ async def aio_session(current_http_backend: Literal['httpx', 'aiohttp']):
         assert httpx is not None
         async with httpx.AsyncClient() as client:
             yield client
-    else:
+    elif current_http_backend == 'aiohttp':
         async with aiohttp.ClientSession() as session:
             yield session
+    else:  # pragma: no cover
+        raise AssertionError("unknown http backend")
 
 
 def pytest_configure():
