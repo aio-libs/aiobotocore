@@ -105,6 +105,14 @@ async def assert_num_uploads_found(
         )
 
 
+# Used by test_fail_proxy_request as it will fail during setup, so needs to
+# be skipped before `skipif` would be able to skip the test.
+@pytest.fixture
+def skip_httpx(current_http_backend: str) -> None:
+    if current_http_backend == 'httpx':
+        pytest.skip('proxy support not implemented for httpx')
+
+
 @pytest.fixture
 def aa_fail_proxy_config(monkeypatch):
     # NOTE: name of this fixture must be alphabetically first to run first

@@ -43,14 +43,6 @@ async def test_can_make_request_no_verify(s3_client):
     assert actual_keys == ['Buckets', 'Owner', 'ResponseMetadata']
 
 
-# test_fail_proxy_request errors in setup under httpx, so we need to skip it
-# with a fixture before aa_fail_proxy_config+s3_client gets to run
-@pytest.fixture
-def skip_httpx(current_http_backend: str) -> None:
-    if current_http_backend == 'httpx':
-        pytest.skip('proxy support not implemented for httpx')
-
-
 async def test_fail_proxy_request(
     skip_httpx, aa_fail_proxy_config, s3_client, monkeypatch
 ):
