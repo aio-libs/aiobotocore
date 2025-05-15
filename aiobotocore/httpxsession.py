@@ -4,14 +4,18 @@ import asyncio
 import io
 import os
 import socket
+import ssl
 from typing import TYPE_CHECKING, Any, cast
 
 import botocore
 from botocore.awsrequest import AWSPreparedRequest
 from botocore.httpsession import (
     MAX_POOL_CONNECTIONS,
+    ConnectionClosedError,
+    ConnectTimeoutError,
     EndpointConnectionError,
     HTTPClientError,
+    ProxyConnectionError,
     ReadTimeoutError,
     create_urllib3_context,
     ensure_boolean,
@@ -243,49 +247,6 @@ class HttpxSession:
 
             return http_response
 
-        # **previous exception mapping**
-        # aiohttp.ClientSSLError -> SSLError
-
-        # aiohttp.ClientProxyConnectiorError
-        # aiohttp.ClientHttpProxyError -> ProxyConnectionError
-
-        # aiohttp.ServerDisconnectedError
-        # aiohttp.ClientPayloadError
-        # aiohttp.http_exceptions.BadStatusLine -> ConnectionClosedError
-
-        # aiohttp.ServerTimeoutError -> ConnectTimeoutError|ReadTimeoutError
-
-        # aiohttp.ClientConnectorError
-        # aiohttp.ClientConnectionError
-        # socket.gaierror -> EndpointConnectionError
-
-        # asyncio.TimeoutError -> ReadTimeoutError
-
-        # **possible httpx exception mapping**
-        # httpx.CookieConflict
-        # httpx.HTTPError
-        # * httpx.HTTPStatusError
-        # * httpx.RequestError
-        #   * httpx.DecodingError
-        #   * httpx.TooManyRedirects
-        # * httpx.TransportError
-        #   * httpx.NetworkError
-        #     * httpx.CloseError -> ConnectionClosedError
-        #     * httpx.ConnectError -> EndpointConnectionError
-        #     * httpx.ReadError
-        #     * httpx.WriteError
-        #   * httpx.ProtocolError
-        #     * httpx.LocalProtocolError -> SSLError??
-        #     * httpx.RemoteProtocolError
-        #   * httpx.ProxyError -> ProxyConnectionError
-        #   * httpx.TimeoutException
-        #     * httpx.ConnectTimeout -> ConnectTimeoutError
-        #     * httpx.PoolTimeout
-        #     * httpx.ReadTimeout -> ReadTimeoutError
-        #     * httpx.WriteTimeout
-        #   * httpx.UnsupportedProtocol
-        # * httpx.InvalidURL
-
         except httpx.ConnectError as e:
             raise EndpointConnectionError(endpoint_url=request.url, error=e)
         except (socket.gaierror,) as e:
@@ -294,9 +255,18 @@ class HttpxSession:
             raise ReadTimeoutError(endpoint_url=request.url, error=e)
         except httpx.ReadTimeout as e:
             raise ReadTimeoutError(endpoint_url=request.url, error=e)
+        except httpx.TimeoutException as e:
+            raise ConnectTimeoutError(endpoint_url=request.url, error=e)
+        except httpx.ProxyError as e:
+            raise ProxyConnectionError(endpoint_url=request.url, error=e)
+        except httpx.CloseError as e:
+            raise ConnectionClosedError(endpoint_url=request.url, error=e)
+        except ssl.SSLError:
+            raise botocore.exceptions.SSLError
+
         except NotImplementedError:
             raise  # Avoid turning it into HTTPClientError.
         except Exception as e:
-            message = 'Exception received when sending urllib3 HTTP request'
+            message = 'Exception received when sending httpx HTTP request'
             logger.debug(message, exc_info=True)
             raise HTTPClientError(error=e)

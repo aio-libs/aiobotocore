@@ -135,9 +135,6 @@ class StreamingBody(wrapt.ObjectProxy):
 
 
 class HttpxStreamingBody(wrapt.ObjectProxy):
-    def __init__(self, raw_stream: aiohttp.StreamReader):
-        super().__init__(raw_stream)
-
     async def read(self, amt=None):
         if amt is not None:
             # We could do a fancy thing here and start doing calls to
@@ -153,7 +150,9 @@ class HttpxStreamingBody(wrapt.ObjectProxy):
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        # TODO: I'm pretty sure this eats exceptions
+        # When support for anyio/trio is added this needs a shielded cancelscope to
+        # avoid swallowing exceptions.
+        # See https://github.com/python-trio/trio/issues/455
         await self.__wrapped__.aclose()
 
 

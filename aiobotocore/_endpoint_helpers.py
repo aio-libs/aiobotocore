@@ -25,11 +25,15 @@ botocore.retryhandler.EXCEPTION_MAP['GENERAL_CONNECTION_ERROR'].extend(
 )
 
 if httpx is not None:
-    # TODO: Wild guesses after looking at https://pydoc.dev/httpx/latest/classIndex.html
-    # somebody with more network and/or httpx knowledge should revise this list.
+    # See https://www.python-httpx.org/exceptions/#the-exception-hierarchy
+    # All child exceptions of TransportError, except ProxyError,
+    # UnsupportedProtocol and CloseError.
     _httpx_retryable_exceptions = [
-        httpx.NetworkError,
-        httpx.ConnectTimeout,
+        httpx.TimeoutException,
+        httpx.ProtocolError,
+        httpx.ConnectError,
+        httpx.ReadError,
+        httpx.WriteError,
     ]
     botocore.retryhandler.EXCEPTION_MAP['GENERAL_CONNECTION_ERROR'].extend(
         _httpx_retryable_exceptions
