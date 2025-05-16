@@ -19,6 +19,9 @@ on:
         required: true
       upload-coverage:
         type: boolean
+      no-httpx:
+        type: boolean
+        required: true
     secrets:
       codecov-token:
         required: false
@@ -28,7 +31,9 @@ env:
 
 jobs:
   test:
-    name: Test Python ${{ inputs.python-version }} on ${{ inputs.os }}
+    name: Test Python ${{ inputs.python-version }} on ${{ inputs.os }}${{
+      inputs.no-httpx && ' no-httpx' || '' }}
+
     runs-on: ${{ inputs.os }}
     continue-on-error: ${{ inputs.continue-on-error }}
     env:
@@ -51,10 +56,18 @@ jobs:
       run: |
         uv run make pre-commit
     - name: Run unittests
+      if: ${{ ! matrix.no_httpx }}
       env:
         COLOR: 'yes'
       run: |
         uv run make mototest
+    - name: Run unittests without httpx installed
+      if: ${{ matrix.no_httpx }}
+      env:
+        COLOR: 'yes'
+        HTTP_BACKEND: 'aiohttp'
+      run: |
+        uv run --no-group=httpx make mototest
     - name: Upload coverage to Codecov
       if: ${{ inputs.upload-coverage }}
       # yamllint disable-line rule:line-length

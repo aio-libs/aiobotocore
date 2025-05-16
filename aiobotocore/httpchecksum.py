@@ -12,7 +12,12 @@ from botocore.httpchecksum import (
 )
 
 from aiobotocore._helpers import resolve_awaitable
-from aiobotocore.response import StreamingBody
+from aiobotocore.response import HttpxStreamingBody, StreamingBody
+
+try:
+    import httpx
+except ImportError:
+    httpx = None
 
 
 class AioAwsChunkedWrapper(AwsChunkedWrapper):
@@ -93,6 +98,31 @@ class StreamingChecksumBody(StreamingBody):
             raise FlexibleChecksumError(error_msg=error_msg)
 
 
+# TODO: fix inheritance? read & _validate_checksum are the exact same as above
+# only diff is super class and how to call __init__
+class HttpxStreamingChecksumBody(HttpxStreamingBody):
+    def __init__(self, raw_stream, content_length, checksum, expected):
+        # HttpxStreamingbody doesn't use content_length
+        super().__init__(raw_stream)
+        self._checksum = checksum
+        self._expected = expected
+
+    async def read(self, amt=None):
+        chunk = await super().read(amt=amt)
+        self._checksum.update(chunk)
+        if amt is None or (not chunk and amt > 0):
+            self._validate_checksum()
+        return chunk
+
+    def _validate_checksum(self):
+        if self._checksum.digest() != base64.b64decode(self._expected):
+            error_msg = (
+                f"Expected checksum {self._expected} did not match calculated "
+                f"checksum: {self._checksum.b64digest()}"
+            )
+            raise FlexibleChecksumError(error_msg=error_msg)
+
+
 async def handle_checksum_body(
     http_response, response, context, operation_model
 ):
@@ -139,7 +169,11 @@ async def handle_checksum_body(
 def _handle_streaming_response(http_response, response, algorithm):
     checksum_cls = _CHECKSUM_CLS.get(algorithm)
     header_name = f"x-amz-checksum-{algorithm}"
-    return StreamingChecksumBody(
+    if httpx is not None and isinstance(http_response.raw, httpx.Response):
+        streaming_cls = HttpxStreamingChecksumBody
+    else:
+        streaming_cls = StreamingChecksumBody
+    return streaming_cls(
         http_response.raw,
         response["headers"].get("content-length"),
         checksum_cls(),
