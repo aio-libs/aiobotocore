@@ -5,6 +5,7 @@ import io
 import os
 import socket
 import ssl
+from collections.abc import AsyncIterable, Iterable
 from typing import TYPE_CHECKING, Any, cast
 
 import botocore
@@ -175,7 +176,6 @@ class HttpxSession:
         try:
             url = request.url
             headers = request.headers
-            data: io.IOBase | str | bytes | bytearray | None = request.body
 
             # currently no support for BOTO_EXPERIMENTAL__ADD_PROXY_HOST_HEADER
             if ensure_boolean(
@@ -192,24 +192,19 @@ class HttpxSession:
             # https://github.com/boto/botocore/issues/1255
             headers_['Accept-Encoding'] = 'identity'
 
-            content: bytes | bytearray | str | None = None
-            # TODO: test that sends a bytearray
+            content: AsyncIterable | bytes | bytearray | str | None = None
 
-            if isinstance(data, io.IOBase):
-                # TODO [httpx]: httpx really wants an async iterable that is not also a
-                # sync iterable (??). Seems like there should be an easy answer, but I
-                # just convert it to bytes for now.
-                k = data.readlines()
-                if len(k) == 0:
-                    content = b''  # TODO: uncovered
-                elif len(k) == 1:
-                    content = k[0]
-                else:
-                    assert False  # TODO: uncovered
+            async def to_async_iterable(stream: Iterable) -> AsyncIterable:
+                for item in stream:
+                    yield item
+                    await asyncio.sleep(0)  # Yield control to event loop
+
+            if isinstance(request.body, io.IOBase) and not isinstance(
+                request.body, AsyncIterable
+            ):
+                content = to_async_iterable(request.body)
             else:
-                content = data
-
-            assert self._session
+                content = request.body
 
             # The target gets used as the HTTP target instead of the URL path
             # it does not get normalized or otherwise processed, which is important
@@ -218,6 +213,8 @@ class HttpxSession:
             # This way of using it is currently ~undocumented, but recommended in
             # https://github.com/encode/httpx/discussions/1805#discussioncomment-8975989
             extensions = {"target": bytes(url, encoding='utf-8')}
+
+            assert self._session is not None
 
             httpx_request = self._session.build_request(
                 method=request.method,

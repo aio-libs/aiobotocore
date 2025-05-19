@@ -131,7 +131,7 @@ def aa_succeed_proxy_config(monkeypatch):
 
 
 @pytest.fixture
-def session():
+def session() -> aiobotocore.session.AioSession:
     session = aiobotocore.session.AioSession()
     return session
 
