@@ -240,7 +240,7 @@ def test_protocol_parsers():
         (
             BaseClient._make_api_call,
             {
-                'fccb87670b86bd0bd834d5c38b74e1d77211590a',
+                'e5bfb3213dc625a3c96e13ca7514f1ca7fc18899',
             },
         ),
         (
@@ -928,7 +928,7 @@ def test_protocol_parsers():
         (
             Session.create_client,
             {
-                '256ae18c8b119c66bfaf24ff224db8a8d2ad9661',
+                'c796153d589ea6fe46a3a1afa2c460f06a1c37a2',
             },
         ),
         (
@@ -1346,7 +1346,7 @@ def test_protocol_parsers():
         (
             Waiter.wait,
             {
-                '735608297a2a3d4572e6705daafcf4fc8556fc03',
+                'be33b3d947f559950943305d35daa6a8ece33ea4',
                 '00d3990fb22fee667235f4035a9754cda0ebd4d8',
             },
         ),
