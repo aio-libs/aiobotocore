@@ -1,6 +1,7 @@
 from botocore import UNSIGNED
 from botocore import __version__ as botocore_version
 from botocore import translate
+from botocore.context import get_context, start_as_current_context
 from botocore.exceptions import PartialCredentialsError
 from botocore.session import EVENT_ALIASES, ServiceModel
 from botocore.session import Session as _SyncSession
@@ -20,13 +21,17 @@ class ClientCreatorContext:
     def __init__(self, coro):
         self._coro = coro
         self._client = None
+        self._context = None
 
     async def __aenter__(self) -> AioBaseClient:
+        self._context = start_as_current_context()
+        self._context.__enter__()
         self._client = await self._coro
         return await self._client.__aenter__()
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         await self._client.__aexit__(exc_type, exc_val, exc_tb)
+        self._context.__exit__(exc_type, exc_val, exc_tb)
 
 
 class AioSession(_SyncSession):
@@ -213,6 +218,9 @@ class AioSession(_SyncSession):
             client_name=service_name,
             config_store=config_store,
         )
+
+        user_agent_creator.set_client_features(get_context().features)
+
         client_creator = AioClientCreator(
             loader,
             endpoint_resolver,

@@ -1,9 +1,11 @@
 import asyncio
+from functools import partial
 
 from botocore.docs.docstring import WaiterDocstring
 
 # WaiterModel is required for client.py import
 from botocore.exceptions import ClientError
+from botocore.useragent import register_feature_id
 from botocore.utils import get_service_module_name
 from botocore.waiter import (
     NormalizedOperationMethod as _NormalizedOperationMethod,
@@ -16,6 +18,8 @@ from botocore.waiter import (
     logger,
     xform_name,
 )
+
+from aiobotocore.context import with_current_context
 
 
 def create_waiter_with_client(waiter_name, waiter_model, client):
@@ -45,6 +49,7 @@ def create_waiter_with_client(waiter_name, waiter_model, client):
     # Create a new wait method that will serve as a proxy to the underlying
     # Waiter.wait method. This is needed to attach a docstring to the
     # method.
+    @with_current_context(partial(register_feature_id, 'WAITER'))
     async def wait(self, **kwargs):
         return await AIOWaiter.wait(self, **kwargs)
 
@@ -81,6 +86,7 @@ class NormalizedOperationMethod(_NormalizedOperationMethod):
 
 
 class AIOWaiter(Waiter):
+    @with_current_context(partial(register_feature_id, 'WAITER'))
     async def wait(self, **kwargs):
         acceptors = list(self.config.acceptors)
         current_state = 'waiting'
