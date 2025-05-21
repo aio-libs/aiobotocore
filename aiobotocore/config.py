@@ -6,6 +6,12 @@ from botocore.exceptions import ParamValidationError
 from aiobotocore.endpoint import DEFAULT_HTTP_SESSION_CLS
 from aiobotocore.httpxsession import HttpxSession
 
+# AWS has a 20 second idle timeout:
+#   https://web.archive.org/web/20150926192339/https://forums.aws.amazon.com/message.jspa?messageID=215367
+# and aiohttp default timeout is 30s so we set it to something
+# reasonable here
+DEFAULT_KEEPALIVE_TIMEOUT = 12
+
 
 class AioConfig(botocore.client.Config):
     def __init__(
@@ -23,11 +29,9 @@ class AioConfig(botocore.client.Config):
             self.connector_args = dict()
 
         if 'keepalive_timeout' not in self.connector_args:
-            # AWS has a 20 second idle timeout:
-            #   https://web.archive.org/web/20150926192339/https://forums.aws.amazon.com/message.jspa?messageID=215367
-            # and aiohttp default timeout is 30s so we set it to something
-            # reasonable here
-            self.connector_args['keepalive_timeout'] = 12
+            self.connector_args['keepalive_timeout'] = (
+                DEFAULT_KEEPALIVE_TIMEOUT
+            )
 
     def merge(self, other_config):
         # Adapted from parent class
@@ -56,7 +60,7 @@ class AioConfig(botocore.client.Config):
                     raise ParamValidationError(
                         report=f'{k} value must be an int or None'
                     )
-            elif k == 'keepalive_timeout':
+            elif k in ('keepalive_timeout', 'write_timeout', 'pool_timeout'):
                 if v is not None and not isinstance(v, (float, int)):
                     raise ParamValidationError(
                         report=f'{k} value must be a float/int or None'

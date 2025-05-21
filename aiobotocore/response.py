@@ -137,6 +137,7 @@ class StreamingBody(wrapt.ObjectProxy):
         await self.__wrapped__.wait_for_close()
 
 
+# wraps httpx.Response
 class HttpxStreamingBody(wrapt.ObjectProxy):
     async def read(self, amt=None):
         if amt is not None:

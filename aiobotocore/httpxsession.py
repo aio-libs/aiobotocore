@@ -26,6 +26,7 @@ from botocore.httpsession import (
 from multidict import CIMultiDict
 
 import aiobotocore.awsrequest
+import aiobotocore.config  # avoid circular import
 from aiobotocore._endpoint_helpers import _text
 
 try:
@@ -58,7 +59,14 @@ class HttpxSession:
                 "Proxy support not implemented with httpx as backend."
             )
 
-        # TODO: handle socket_options
+        if connector_args is None:
+            self._connector_args: dict[str, Any] = {
+                'keepalive_timeout': aiobotocore.config.DEFAULT_KEEPALIVE_TIMEOUT
+            }
+        else:
+            self._connector_args = connector_args
+
+        # TODO: neither this nor AIOHTTPSession handles socket_options
         self._session: httpx.AsyncClient | None = None
         conn_timeout: float | None
         read_timeout: float | None
@@ -67,10 +75,15 @@ class HttpxSession:
             conn_timeout, read_timeout = timeout
         else:
             conn_timeout = read_timeout = timeout
-        # must specify a default or set all four parameters explicitly
-        # 5 is httpx default default
+
+        write_timeout = self._connector_args.get('write_timeout', 5)
+        pool_timeout = self._connector_args.get('pool_timeout', 5)
+
         self._timeout = httpx.Timeout(
-            5, connect=conn_timeout, read=read_timeout
+            connect=conn_timeout,
+            read=read_timeout,
+            write=write_timeout,
+            pool=pool_timeout,
         )
 
         self._cert_file = None
@@ -81,19 +94,6 @@ class HttpxSession:
             self._cert_file, self._key_file = client_cert
         elif client_cert is not None:
             raise TypeError(f'{client_cert} must be str or tuple[str,str]')
-
-        # previous logic was: if no connector args, specify keepalive_expiry=12
-        # if any connector args, don't specify keepalive_expiry.
-        # That seems .. weird to me? I'd expect "specify keepalive_expiry if user doesn't"
-        # but keeping logic the same for now.
-        if connector_args is None:
-            # aiohttp default was 30
-            # AWS has a 20 second idle timeout:
-            #   https://web.archive.org/web/20150926192339/https://forums.aws.amazon.com/message.jspa?messageID=215367
-            # "httpx default timeout is 5s so set something reasonable here"
-            self._connector_args: dict[str, Any] = {'keepalive_timeout': 12}
-        else:
-            self._connector_args = connector_args
 
         if 'use_dns_cache' in self._connector_args:
             raise NotImplementedError(
@@ -134,8 +134,7 @@ class HttpxSession:
 
         limits = httpx.Limits(
             max_connections=self._max_pool_connections,
-            # 5 is httpx default, specifying None is no limit
-            keepalive_expiry=self._connector_args.get('keepalive_timeout', 5),
+            keepalive_expiry=self._connector_args['keepalive_timeout'],
         )
 
         # TODO [httpx]: I put logic here to minimize diff / accidental downstream
@@ -146,9 +145,6 @@ class HttpxSession:
             cert = (self._cert_file, self._key_file)
         else:
             cert = None
-
-        # TODO [httpx]: skip_auto_headers={'Content-TYPE'} ?
-        # TODO [httpx]: auto_decompress=False ?
 
         self._session = httpx.AsyncClient(
             timeout=self._timeout, limits=limits, cert=cert
