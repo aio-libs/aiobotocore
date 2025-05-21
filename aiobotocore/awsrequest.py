@@ -1,6 +1,11 @@
 import botocore.utils
 from botocore.awsrequest import AWSResponse
 
+try:
+    import httpx
+except ImportError:
+    httpx = None
+
 
 class AioAWSResponse(AWSResponse):
     # Unlike AWSResponse, these return awaitables
@@ -9,8 +14,12 @@ class AioAWSResponse(AWSResponse):
         """Content of the response as bytes."""
 
         if self._content is None:
+            if httpx is not None and isinstance(self.raw, httpx.Response):
+                read_func = self.raw.aread
+            else:
+                read_func = self.raw.read
             # NOTE: this will cache the data in self.raw
-            self._content = await self.raw.read() or b''
+            self._content = await read_func() or b''
 
         return self._content
 
