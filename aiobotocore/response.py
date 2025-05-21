@@ -29,8 +29,11 @@ class StreamingBody(wrapt.ObjectProxy):
 
     _DEFAULT_CHUNK_SIZE = 1024
 
-    def __init__(self, raw_stream: aiohttp.StreamReader, content_length: str):
+    def __init__(
+        self, raw_stream: aiohttp.ClientResponse, content_length: str
+    ):
         super().__init__(raw_stream)
+        self.__wrapped__: aiohttp.ClientResponse
         self._self_content_length = content_length
         self._self_amount_read = 0
 
@@ -130,8 +133,8 @@ class StreamingBody(wrapt.ObjectProxy):
     def tell(self):
         return self._self_amount_read
 
-    async def aclose(self):
-        return self.__wrapped__.close()
+    async def aclose(self) -> None:
+        await self.__wrapped__.wait_for_close()
 
 
 class HttpxStreamingBody(wrapt.ObjectProxy):
