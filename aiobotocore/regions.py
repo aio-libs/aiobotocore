@@ -92,6 +92,7 @@ class AioEndpointRulesetResolver(EndpointRulesetResolver):
                 )
             if param_val is not None:
                 provider_params[param_name] = param_val
+                self._register_endpoint_feature_ids(param_name, param_val)
 
         return provider_params
 

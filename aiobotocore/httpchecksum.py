@@ -5,6 +5,7 @@ from botocore.httpchecksum import (
     AwsChunkedWrapper,
     FlexibleChecksumError,
     _apply_request_header_checksum,
+    _register_checksum_algorithm_feature_id,
     base64,
     conditionally_calculate_md5,
     determine_content_length,
@@ -83,6 +84,21 @@ class StreamingChecksumBody(StreamingBody):
         if amt is None or (not chunk and amt > 0):
             self._validate_checksum()
         return chunk
+
+    async def readinto(self, b: bytearray):
+        chunk = await self.__wrapped__.content.read(len(b))
+        amount_read = len(chunk)
+        b[:amount_read] = chunk
+
+        if amount_read == len(b):
+            view = b
+        else:
+            view = memoryview(b)[:amount_read]
+
+        self._checksum.update(view)
+        if amount_read == 0 and len(b) > 0:
+            self._validate_checksum()
+        return amount_read
 
     def _validate_checksum(self):
         if self._checksum.digest() != base64.b64decode(self._expected):
@@ -210,6 +226,7 @@ def _apply_request_trailer_checksum(request):
     else:
         headers["Content-Encoding"] = "aws-chunked"
     headers["X-Amz-Trailer"] = location_name
+    _register_checksum_algorithm_feature_id(algorithm)
 
     content_length = determine_content_length(body)
     if content_length is not None:
