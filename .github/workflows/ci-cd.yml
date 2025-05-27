@@ -50,10 +50,7 @@ jobs:
       os: ${{ matrix.os }}
       continue-on-error: ${{ matrix.experimental }}
       enable-cache: ${{ github.ref_type == 'tag' && 'false' || 'auto' }}
-      upload-coverage:
-        ${{ matrix.python-version == 3.11 && matrix.os == 'ubuntu-24.04' }}
     secrets:
-      # yamllint disable-line rule:line-length
       codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
   zizmor:
