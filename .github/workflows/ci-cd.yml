@@ -54,7 +54,7 @@ jobs:
         ${{ matrix.python-version == 3.11 && matrix.os == 'ubuntu-24.04' }}
     secrets:
       # yamllint disable-line rule:line-length
-      codecov-token: ${{ matrix.upload-coverage && secrets.CODECOV_TOKEN || '' }}
+      codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
   zizmor:
     name: 🌈 zizmor
