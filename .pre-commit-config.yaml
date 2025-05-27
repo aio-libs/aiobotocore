@@ -22,16 +22,16 @@ repos:
     args: [--fix]
   - id: ruff-format
 - repo: https://github.com/astral-sh/uv-pre-commit
-  rev: 0.7.2
+  rev: 0.7.8
   hooks:
   - id: uv-lock
 - repo: https://github.com/adrienverge/yamllint
-  rev: v1.35.1
+  rev: v1.37.1
   hooks:
   - id: yamllint
     args: [--strict]
 - repo: https://github.com/python-jsonschema/check-jsonschema
-  rev: 0.30.0
+  rev: 0.33.0
   hooks:
   - id: check-dependabot
   - id: check-github-workflows
