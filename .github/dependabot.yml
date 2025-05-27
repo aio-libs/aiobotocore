@@ -15,3 +15,8 @@ updates:
   directory: "/"
   schedule:
     interval: "daily"
+
+- package-ecosystem: "uv"
+  directory: "/"
+  schedule:
+    interval: "weekly"
