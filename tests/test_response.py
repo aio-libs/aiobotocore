@@ -1,9 +1,12 @@
+import asyncio
 import io
+from unittest.mock import MagicMock
 
 import pytest
 from botocore.exceptions import IncompleteReadError
 
 from aiobotocore import response
+from aiobotocore.response import AioReadTimeoutError
 
 
 # https://github.com/boto/botocore/blob/develop/tests/unit/test_response.py
@@ -26,6 +29,9 @@ class AsyncBytesIO(io.BytesIO):
         if amt == -1:  # aiohttp to regular response
             amt = None
         return super().read(amt)
+
+    async def readinto(self, b):
+        return super().readinto(b)
 
 
 async def _tolist(aiter):
@@ -64,6 +70,49 @@ async def test_streaming_body_with_single_read():
     stream = response.StreamingBody(body, content_length=10)
     with pytest.raises(IncompleteReadError):
         await stream.read()
+
+
+async def test_streaming_body_readinto():
+    body = AsyncBytesIO(b"123456789")
+    stream = response.StreamingBody(body, content_length=10)
+    chunk = bytearray(b"\x00\x00\x00\x00\x00")
+    assert 5 == await stream.readinto(chunk)
+    assert chunk == bytearray(b"\x31\x32\x33\x34\x35")
+    assert 4 == await stream.readinto(chunk)
+    assert chunk == bytearray(b"\x36\x37\x38\x39\x35")
+
+
+async def test_streaming_body_readinto_with_invalid_length():
+    body = AsyncBytesIO(b"12")
+    stream = response.StreamingBody(body, content_length=9)
+    chunk = bytearray(b"\xde\xad\xbe\xef")
+    assert 2 == await stream.readinto(chunk)
+    assert chunk == bytearray(b"\x31\x32\xbe\xef")
+    with pytest.raises(IncompleteReadError):
+        await stream.readinto(chunk)
+
+
+async def test_streaming_body_readinto_with_empty_buffer():
+    body = AsyncBytesIO(b"12")
+    stream = response.StreamingBody(body, content_length=9)
+    chunk = bytearray(b"")
+    assert 0 == await stream.readinto(chunk)
+
+
+async def test_streaming_body_readinto_with_timeout():
+    class TimeoutBody:
+        def __init__(self, *args, **kwargs):
+            self.content = MagicMock()
+            self.content.read = self.read
+            self.url = ""
+
+        async def read(self, n: int):
+            raise asyncio.TimeoutError()
+
+    stream = response.StreamingBody(TimeoutBody(), content_length=9)
+    with pytest.raises(AioReadTimeoutError):
+        chunk = bytearray(b"\x00\x00\x00\x00\x00")
+        await stream.readinto(chunk)
 
 
 async def test_streaming_body_closes():

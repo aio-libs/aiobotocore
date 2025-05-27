@@ -71,6 +71,28 @@ class StreamingBody(wrapt.ObjectProxy):
             self._verify_content_length()
         return chunk
 
+    async def readinto(self, b: bytearray):
+        """Read bytes into a pre-allocated, writable bytes-like object b, and return the number of bytes read."""
+        try:
+            # AioHTTP ClientResponse does not support .readinto()
+            chunk = await self.__wrapped__.content.read(len(b))
+            amount_read = len(chunk)
+            b[:amount_read] = chunk
+
+        except asyncio.TimeoutError as e:
+            raise AioReadTimeoutError(
+                endpoint_url=self.__wrapped__.url, error=e
+            )
+        except aiohttp.client_exceptions.ClientConnectionError as e:
+            raise ResponseStreamingError(error=e)
+
+        self._self_amount_read += amount_read
+        if amount_read == 0 and len(b) > 0:
+            # If the server sends empty contents then we know we need to verify
+            # the content length.
+            self._verify_content_length()
+        return amount_read
+
     async def readlines(self):
         # assuming this is not an iterator
         lines = [line async for line in self.iter_lines()]

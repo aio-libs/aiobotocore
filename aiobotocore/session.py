@@ -1,6 +1,7 @@
 from botocore import UNSIGNED
 from botocore import __version__ as botocore_version
 from botocore import translate
+from botocore.context import get_context
 from botocore.exceptions import PartialCredentialsError
 from botocore.session import EVENT_ALIASES, ServiceModel
 from botocore.session import Session as _SyncSession
@@ -9,6 +10,7 @@ from botocore.session import UnknownServiceError, copy, logger
 from . import __version__, retryhandler
 from .client import AioBaseClient, AioClientCreator
 from .configprovider import AioSmartDefaultsConfigStoreFactory
+from .context import with_current_context
 from .credentials import AioCredentials, create_credential_resolver
 from .hooks import AioHierarchicalEmitter
 from .parsers import AioResponseParserFactory
@@ -122,6 +124,7 @@ class AioSession(_SyncSession):
     def create_client(self, *args, **kwargs):
         return ClientCreatorContext(self._create_client(*args, **kwargs))
 
+    @with_current_context()
     async def _create_client(
         self,
         service_name,
@@ -213,6 +216,9 @@ class AioSession(_SyncSession):
             client_name=service_name,
             config_store=config_store,
         )
+
+        user_agent_creator.set_client_features(get_context().features)
+
         client_creator = AioClientCreator(
             loader,
             endpoint_resolver,

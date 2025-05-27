@@ -432,6 +432,48 @@ async def create_bucket(s3_client):
 
 
 @pytest.fixture
+async def create_stream(kinesis_client):
+    _stream_name = None
+
+    async def _f(stream_name=None, **kwargs):
+        nonlocal _stream_name
+        if stream_name is None:
+            stream_name = random_name()
+        _stream_name = stream_name
+        stream_kwargs = {
+            'StreamName': _stream_name,
+            **kwargs,
+        }
+
+        response = await kinesis_client.create_stream(**stream_kwargs)
+        assert_status_code(response, 200)
+
+        while (
+            describe_response := (
+                await kinesis_client.describe_stream(  # noqa: E231, E999, E251, E501
+                    StreamName=stream_name
+                )
+            )
+        ) and describe_response['StreamDescription'][
+            'StreamStatus'
+        ] != 'ACTIVE':
+            print("Waiting for stream creation")
+            await asyncio.sleep(1)
+
+        return stream_name
+
+    try:
+        yield _f
+    finally:
+        await delete_stream(kinesis_client, _stream_name)
+
+
+async def delete_stream(kinesis_client, stream_name):
+    response = await kinesis_client.delete_stream(StreamName=stream_name)
+    assert_status_code(response, 200)
+
+
+@pytest.fixture
 async def create_table(dynamodb_client):
     _table_name = None
 
