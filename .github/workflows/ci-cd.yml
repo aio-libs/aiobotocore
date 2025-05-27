@@ -41,12 +41,14 @@ jobs:
         os:
         - ubuntu-24.04
         - ubuntu-24.04-arm
+        experimental:
+        - false
       fail-fast: false
     uses: ./.github/workflows/reusable-test.yml
     with:
       python-version: ${{ matrix.python-version }}
       os: ${{ matrix.os }}
-      continue-on-error: false
+      continue-on-error: ${{ matrix.experimental }}
       enable-cache: ${{ github.ref_type == 'tag' && 'false' || 'auto' }}
       upload-coverage:
         ${{ matrix.python-version == 3.11 && matrix.os == 'ubuntu-24.04' }}
