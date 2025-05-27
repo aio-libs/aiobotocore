@@ -204,7 +204,7 @@ Full documentation for ``types-aiobotocore`` can be found here: https://youtype.
 
 Requirements
 ------------
-* Python_ 3.8+
+* Python_ 3.9+
 * aiohttp_
 * botocore_
 

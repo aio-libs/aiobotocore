@@ -584,3 +584,39 @@ class TestStreamingChecksumBody:
         with pytest.raises(FlexibleChecksumError):
             async for chunk in wrapper:
                 pass
+
+    async def test_readinto_good(self, wrapper):
+        chunk = bytearray(6)
+        assert 6 == await wrapper.readinto(chunk)
+        assert chunk == bytearray(b"hello ")
+        assert 5 == await wrapper.readinto(chunk)
+        # Note the trailing space here comes from the fact we've only got 5
+        # bytes left to read from the stream into a 6 byte buffer, so it leaves
+        # the last byte untouched, which is the space character from the
+        # previous read.
+        assert chunk == bytearray(b"world ")
+        # Whole body has been read, next read signals the end of the stream and
+        # validates the checksum of the body contents read
+        await wrapper.readinto(chunk)
+
+    async def test_readinto_bad(self, make_wrapper):
+        wrapper = make_wrapper("duorhq==")
+
+        chunk = bytearray(6)
+        assert 6 == await wrapper.readinto(chunk)
+        assert chunk == bytearray(b"hello ")
+        assert 5 == await wrapper.readinto(chunk)
+        assert chunk == bytearray(b"world ")
+        # Whole body has been read, next read signals the end of the stream and
+        # validates the checksum of the body contents read
+        with pytest.raises(FlexibleChecksumError):
+            await wrapper.readinto(chunk)
+
+    async def test_readinto_zero_bytes(self, wrapper):
+        # Test that readinto returns 0 when 0 bytes are requested
+        chunk = bytearray(0)
+        assert 0 == await wrapper.readinto(chunk)
+        assert chunk == bytearray(b"")
+        # Whole body has been read, next read signals the end of the stream and
+        # validates the checksum of the body contents read
+        await wrapper.readinto(chunk)

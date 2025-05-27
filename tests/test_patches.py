@@ -6,6 +6,7 @@ from botocore.args import ClientArgsCreator
 from botocore.awsrequest import AWSResponse
 from botocore.client import BaseClient, ClientCreator, Config
 from botocore.configprovider import SmartDefaultsConfigStoreFactory
+from botocore.context import start_as_current_context, with_current_context
 from botocore.credentials import (
     AssumeRoleCredentialFetcher,
     AssumeRoleProvider,
@@ -178,7 +179,7 @@ def test_protocol_parsers():
         (
             ClientCreator.create_client,
             {
-                'e5bfb3213dc625a3c96e13ca7514f1ca7fc18899',
+                '7a95dd4939bcabf79704f3e928ab4dcf079b5e58',
             },
         ),
         (
@@ -238,9 +239,9 @@ def test_protocol_parsers():
             },
         ),
         (
-            BaseClient._make_api_call,
+            BaseClient._make_api_call.__wrapped__,
             {
-                'fccb87670b86bd0bd834d5c38b74e1d77211590a',
+                '549e7d9de202ea48ff9e87f6006c95e515ecbd73',
             },
         ),
         (
@@ -298,7 +299,17 @@ def test_protocol_parsers():
             Config,
             {
                 'c7cf339ac7fb2d5fca9f133beb84d750bd4c9e30',
+                'bebe4d62ce75f866e8621d4d54f2c5262de2eb1a',
             },
+        ),
+        # context.py
+        (
+            with_current_context,
+            {'674c6120c400c7b4b2eba2aa8167ed90ac884eb2'},
+        ),
+        (
+            start_as_current_context.__wrapped__,
+            {'b9e5e8a4e48457f868c4397172fe8202bd918e18'},
         ),
         # credentials.py
         (
@@ -889,7 +900,7 @@ def test_protocol_parsers():
         (
             EndpointRulesetResolver._get_provider_params,
             {
-                'e17f8fce4a5d8adba932cb85e588f369845ce534',
+                '8f4b9bd22516c9f00fc6655923312f415268c8c4',
             },
         ),
         (
@@ -903,7 +914,7 @@ def test_protocol_parsers():
         (
             StreamingBody,
             {
-                '73cb1276dfb509331b964d3d5ed69e5efa008de5',
+                'e6f0cb3b61c8b0a7c6961e77949e27c520b30a5c',
             },
         ),
         (
@@ -928,7 +939,7 @@ def test_protocol_parsers():
         (
             Session.create_client,
             {
-                '256ae18c8b119c66bfaf24ff224db8a8d2ad9661',
+                'c796153d589ea6fe46a3a1afa2c460f06a1c37a2',
             },
         ),
         (
@@ -1346,8 +1357,7 @@ def test_protocol_parsers():
         (
             Waiter.wait,
             {
-                '735608297a2a3d4572e6705daafcf4fc8556fc03',
-                '00d3990fb22fee667235f4035a9754cda0ebd4d8',
+                'be33b3d947f559950943305d35daa6a8ece33ea4',
             },
         ),
         (
@@ -1507,7 +1517,7 @@ def test_protocol_parsers():
         (
             StreamingChecksumBody,
             {
-                '2c6eb22268d46abae261ce386eb2deabbc3a0dcd',
+                '2772706fc4f49bdd5ea810d255fc82b69451b9ac',
             },
         ),
         (
@@ -1544,7 +1554,7 @@ def test_protocol_parsers():
         (
             _apply_request_trailer_checksum,
             {
-                '45f483dd8520bf67616a063bdf6386865aad3591',
+                '6c45ef3db14240dcaa98bd48b59076d6859c0b57',
             },
         ),
         # retryhandler.py

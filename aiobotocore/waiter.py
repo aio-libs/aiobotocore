@@ -1,9 +1,11 @@
 import asyncio
-
-from botocore.docs.docstring import WaiterDocstring
+from functools import partial
 
 # WaiterModel is required for client.py import
+from botocore.context import with_current_context
+from botocore.docs.docstring import WaiterDocstring
 from botocore.exceptions import ClientError
+from botocore.useragent import register_feature_id
 from botocore.utils import get_service_module_name
 from botocore.waiter import (
     NormalizedOperationMethod as _NormalizedOperationMethod,
@@ -81,6 +83,7 @@ class NormalizedOperationMethod(_NormalizedOperationMethod):
 
 
 class AIOWaiter(Waiter):
+    @with_current_context(partial(register_feature_id, 'WAITER'))
     async def wait(self, **kwargs):
         acceptors = list(self.config.acceptors)
         current_state = 'waiting'

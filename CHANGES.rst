@@ -1,9 +1,15 @@
 Changes
 -------
 
-2.23.0 (2025-05-02)
+2.23.0 (2025-05-27)
 ^^^^^^^^^^^^^^^^^^^
 * drop support for Python 3.8 (EOL)
+* bump botocore dependency specification
+* patch ``AioClientCreator.create_client()``
+* patch ``StreamingBody.readinto`` and ``StreamingChecksumBody.readinto`` response classes
+* patch ``_apply_request_trailer_checksum``, ``_get_provider_params`` and ``AIOWaiter.wait`` to add context feature information
+* patch ``AioSession._create_client`` to propagate context information. Created ``context.py`` to provide equivalent async context manager and async decorator functions
+* fixed test ``test_put_object_sha256`` as ``moto`` supports ``ChecksumSHA256``
 
 2.22.0 (2025-04-29)
 ^^^^^^^^^^^^^^^^^^^

@@ -18,6 +18,7 @@ from botocore.waiter import xform_name
 
 from . import waiter
 from .args import AioClientArgsCreator
+from .context import with_current_context
 from .credentials import AioRefreshableCredentials
 from .discovery import AioEndpointDiscoveryHandler, AioEndpointDiscoveryManager
 from .httpchecksum import apply_request_checksum
@@ -104,6 +105,7 @@ class AioClientCreator(ClientCreator):
         )
         self._register_s3express_events(client=service_client)
         self._register_s3_control_events(client=service_client)
+        self._register_importexport_events(client=service_client)
         self._register_endpoint_discovery(
             service_client, endpoint_url, client_config
         )
@@ -327,6 +329,7 @@ class AioBaseClient(BaseClient):
         """Closes underlying endpoint connections."""
         await self._endpoint.close()
 
+    @with_current_context()
     async def _make_api_call(self, operation_name, api_params):
         operation_model = self._service_model.operation_model(operation_name)
         service_name = self._service_model.service_name
