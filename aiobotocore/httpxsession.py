@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import io
 import os
 import socket
 import ssl
@@ -199,7 +200,9 @@ class HttpxSession:
                         yield item
                         await asyncio.sleep(0)  # Yield control to event loop
 
-            if isinstance(request.body, Iterable):
+            if isinstance(
+                request.body, (AsyncIterable, io.BytesIO)
+            ) and isinstance(request.body, Iterable):
                 content = to_async_iterable(request.body)
             else:
                 content = request.body
@@ -221,6 +224,7 @@ class HttpxSession:
                 content=content,
                 extensions=extensions,
             )
+            assert isinstance(httpx_request.stream, httpx.AsyncByteStream)
             # auth, follow_redirects
             response = await self._session.send(httpx_request, stream=True)
             response_headers = botocore.compat.HTTPHeaders.from_pairs(
