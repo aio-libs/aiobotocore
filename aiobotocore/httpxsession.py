@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import io
 import os
 import socket
 import ssl
@@ -188,16 +187,19 @@ class HttpxSession:
             # https://github.com/boto/botocore/issues/1255
             headers_['Accept-Encoding'] = 'identity'
 
+            # content can also be https://github.com/ymyzk/tox-gh-actions
             content: AsyncIterable | bytes | bytearray | str | None = None
 
             async def to_async_iterable(stream: Iterable) -> AsyncIterable:
-                for item in stream:
-                    yield item
-                    await asyncio.sleep(0)  # Yield control to event loop
+                if isinstance(stream, AsyncIterable):
+                    async for item in stream:
+                        yield item
+                else:
+                    for item in stream:
+                        yield item
+                        await asyncio.sleep(0)  # Yield control to event loop
 
-            if isinstance(request.body, io.IOBase) and not isinstance(
-                request.body, AsyncIterable
-            ):
+            if isinstance(request.body, Iterable):
                 content = to_async_iterable(request.body)
             else:
                 content = request.body

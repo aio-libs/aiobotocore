@@ -123,12 +123,31 @@ class HttpxStreamingChecksumBody(HttpxStreamingBody):
         self._checksum = checksum
         self._expected = expected
 
+    # TODO: this class is largely (or possibly entirely) untested. The tests need to be
+    # more thoroughly rewritten wherever they directly create Streamingbody,
+    # StreamingChecksumBody, etc.
+
     async def read(self, amt=None):
         chunk = await super().read(amt=amt)
         self._checksum.update(chunk)
         if amt is None or (not chunk and amt > 0):
             self._validate_checksum()
         return chunk
+
+    async def readinto(self, b: bytearray):
+        chunk = await self.__wrapped__.content.read(len(b))
+        amount_read = len(chunk)
+        b[:amount_read] = chunk
+
+        if amount_read == len(b):
+            view = b
+        else:
+            view = memoryview(b)[:amount_read]
+
+        self._checksum.update(view)
+        if amount_read == 0 and len(b) > 0:
+            self._validate_checksum()
+        return amount_read
 
     def _validate_checksum(self):
         if self._checksum.digest() != base64.b64decode(self._expected):
