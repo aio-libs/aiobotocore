@@ -17,8 +17,6 @@ on:
       enable-cache:
         type: string
         required: true
-      upload-coverage:
-        type: boolean
     secrets:
       codecov-token:
         required: false
@@ -56,13 +54,13 @@ jobs:
       run: |
         uv run make mototest
     - name: Upload coverage to Codecov
-      if: ${{ inputs.upload-coverage }}
       # yamllint disable-line rule:line-length
       uses: codecov/codecov-action@18283e04ce6e62d37312384ff67231eb8fd56d24  # v5.4.3
       with:
         token: ${{ secrets.codecov-token }}  # not required for public repos
         files: ./coverage.xml
-        flags: unittests  # optional
+        # yamllint disable-line rule:line-length
+        flags: unittests,os-${{ inputs.os }},python-${{ inputs.python-version }}  # optional
         name: codecov-umbrella  # optional
         fail_ci_if_error: true  # optional (default = false)
         verbose: true  # optional (default = false)
