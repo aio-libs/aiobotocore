@@ -43,6 +43,13 @@ jobs:
         - ubuntu-24.04-arm
         experimental:
         - false
+        include:
+        - python-version: 3.14
+          os: ubuntu-24.04
+          experimental: true
+        - python-version: 3.14
+          os: ubuntu-24.04-arm
+          experimental: true
       fail-fast: false
     uses: ./.github/workflows/reusable-test.yml
     with:
