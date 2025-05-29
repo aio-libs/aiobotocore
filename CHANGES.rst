@@ -10,6 +10,7 @@ Changes
 * patch ``_apply_request_trailer_checksum``, ``_get_provider_params`` and ``AIOWaiter.wait`` to add context feature information
 * patch ``AioSession._create_client`` to propagate context information. Created ``context.py`` to provide equivalent async context manager and async decorator functions
 * fixed test ``test_put_object_sha256`` as ``moto`` supports ``ChecksumSHA256``
+* Add experimental httpx support. The backend can be activated when creating a new session: ``session.create_client(..., config=AioConfig(http_session_cls=aiobotocore.httpxsession.HttpxSession))``. It's not fully tested and some features from aiohttp have not been ported, but feedback on what you're missing and bug reports are very welcome.
 
 2.22.0 (2025-04-29)
 ^^^^^^^^^^^^^^^^^^^
