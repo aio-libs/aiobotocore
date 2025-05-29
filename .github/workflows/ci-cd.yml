@@ -41,6 +41,7 @@ jobs:
         os:
         - ubuntu-24.04
         - ubuntu-24.04-arm
+        # httpx=false for all runs, but then add a job on 3.13 with httpx
         no-httpx:
         - false
         experimental:
@@ -49,7 +50,13 @@ jobs:
         - no-httpx: true  # add a no-httpx run
           python-version: 3.13
           os: ubuntu-24.04
-        - python-version: 3.14  # add experimental 3.14 runs
+        # add experimental 3.14 runs. Move this to being a 3.14 python-version
+        # entry when stable.
+        - python-version: 3.14
+          os: ubuntu-24.04
+          experimental: true
+        - python-version: 3.14
+          os: ubuntu-24.04-arm
           experimental: true
       fail-fast: false
     uses: ./.github/workflows/reusable-test.yml
