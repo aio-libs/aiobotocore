@@ -9,9 +9,14 @@ updates:
 - package-ecosystem: "github-actions"
   directory: "/"
   schedule:
-    interval: "daily"
+    interval: "weekly"
 
 - package-ecosystem: "pip"
+  directory: "/docs"
+  schedule:
+    interval: "weekly"
+
+- package-ecosystem: "uv"
   directory: "/"
   schedule:
-    interval: "daily"
+    interval: "weekly"
