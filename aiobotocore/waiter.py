@@ -2,7 +2,6 @@ import asyncio
 from functools import partial
 
 # WaiterModel is required for client.py import
-from botocore.context import with_current_context
 from botocore.docs.docstring import WaiterDocstring
 from botocore.exceptions import ClientError
 from botocore.useragent import register_feature_id
@@ -18,6 +17,8 @@ from botocore.waiter import (
     logger,
     xform_name,
 )
+
+from .context import with_current_context
 
 
 def create_waiter_with_client(waiter_name, waiter_model, client):
