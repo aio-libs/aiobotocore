@@ -24,6 +24,7 @@ import botocore.loaders
 from botocore.compat import parse_qs, urlparse
 
 import aiobotocore.session
+from aiobotocore.awsrequest import AioAWSResponse
 
 _LOADER = botocore.loaders.Loader()
 
@@ -93,3 +94,72 @@ def assert_url_equal(url1, url2):
     assert parts1.hostname == parts2.hostname
     assert parts1.port == parts2.port
     assert parse_qs(parts1.query) == parse_qs(parts2.query)
+
+
+class HTTPStubberException(Exception):
+    pass
+
+
+class BaseHTTPStubber:
+    class AsyncFileWrapper:
+        def __init__(self, body: bytes):
+            self._body = body
+
+        async def read(self):
+            return self._body
+
+    def __init__(self, obj_with_event_emitter, strict=True):
+        self.reset()
+        self._strict = strict
+        self._obj_with_event_emitter = obj_with_event_emitter
+
+    def reset(self):
+        self.requests = []
+        self.responses = []
+
+    def add_response(
+        self, url='https://example.com', status=200, headers=None, body=b''
+    ):
+        if headers is None:
+            headers = {}
+
+        response = AioAWSResponse(
+            url, status, headers, self.AsyncFileWrapper(body)
+        )
+        self.responses.append(response)
+
+    @property
+    def _events(self):
+        raise NotImplementedError('_events')
+
+    def start(self):
+        self._events.register('before-send', self)
+
+    def stop(self):
+        self._events.unregister('before-send', self)
+
+    def __enter__(self):
+        self.start()
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.stop()
+
+    def __call__(self, request, **kwargs):
+        self.requests.append(request)
+        if self.responses:
+            response = self.responses.pop(0)
+            if isinstance(response, Exception):
+                raise response
+            else:
+                return response
+        elif self._strict:
+            raise HTTPStubberException('Insufficient responses')
+        else:
+            return None
+
+
+class ClientHTTPStubber(BaseHTTPStubber):
+    @property
+    def _events(self):
+        return self._obj_with_event_emitter.meta.events

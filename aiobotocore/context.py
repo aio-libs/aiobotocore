@@ -1,7 +1,6 @@
 from contextlib import asynccontextmanager
 from copy import deepcopy
 from functools import wraps
-from inspect import iscoroutinefunction
 
 from botocore.context import (
     ClientContext,
@@ -9,6 +8,8 @@ from botocore.context import (
     reset_context,
     set_context,
 )
+
+from ._helpers import resolve_awaitable
 
 
 @asynccontextmanager
@@ -31,10 +32,7 @@ def with_current_context(hook=None):
         async def wrapper(*args, **kwargs):
             async with start_as_current_context():
                 if hook:
-                    if iscoroutinefunction(hook):
-                        await hook()
-                    else:
-                        hook()
+                    await resolve_awaitable(hook())
                 return await func(*args, **kwargs)
 
         return wrapper
