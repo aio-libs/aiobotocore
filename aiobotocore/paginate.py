@@ -1,13 +1,22 @@
+from functools import partial
+
 import aioitertools
 import jmespath
 from botocore.exceptions import PaginationError
 from botocore.paginate import PageIterator, Paginator
+from botocore.useragent import register_feature_id
 from botocore.utils import merge_dicts, set_value_from_jmespath
+
+from .context import with_current_context
 
 
 class AioPageIterator(PageIterator):
     def __aiter__(self):
         return self.__anext__()
+
+    @with_current_context(partial(register_feature_id, 'PAGINATOR'))
+    async def _make_request(self, current_kwargs):
+        return await self._method(**current_kwargs)
 
     async def __anext__(self):
         current_kwargs = self._op_kwargs

@@ -787,6 +787,12 @@ def test_protocol_parsers():
             },
         ),
         (
+            PageIterator._make_request,
+            {
+                'e926671018897ac5851a3add5d2bc15a2d6142df',
+            },
+        ),
+        (
             PageIterator.result_key_iters,
             {
                 'e8cd36fdc4960e08c9aa50196c4e5d1ee4e39756',
