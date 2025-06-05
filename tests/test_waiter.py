@@ -27,7 +27,8 @@ def test_create_waiter_with_client(
     assert asyncio.iscoroutinefunction(waiter.wait)
 
 
-async def test_sqs(cloudformation_client):
+async def test_sqs(cloudformation_client, current_http_backend: str):
+    stack_name = 'my-stack-{current_http_backend}'
     cloudformation_template = """{
       "AWSTemplateFormatVersion": "2010-09-09",
       "Resources": {
@@ -42,11 +43,13 @@ async def test_sqs(cloudformation_client):
 
     # Create stack
     resp = await cloudformation_client.create_stack(
-        StackName='my-stack', TemplateBody=cloudformation_template
+        StackName=stack_name, TemplateBody=cloudformation_template
     )
 
     assert resp['ResponseMetadata']['HTTPStatusCode'] == 200
 
     # wait for complete
     waiter = cloudformation_client.get_waiter('stack_create_complete')
-    await waiter.wait(StackName='my-stack')
+    await waiter.wait(StackName=stack_name)
+
+    await cloudformation_client.delete_stack(StackName=stack_name)

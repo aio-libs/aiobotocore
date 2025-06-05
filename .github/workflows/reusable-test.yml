@@ -17,6 +17,9 @@ on:
       enable-cache:
         type: string
         required: true
+      no-httpx:
+        type: boolean
+        required: true
     secrets:
       codecov-token:
         required: false
@@ -26,7 +29,9 @@ env:
 
 jobs:
   test:
-    name: Test Python ${{ inputs.python-version }} on ${{ inputs.os }}
+    name: Test Python ${{ inputs.python-version }} on ${{ inputs.os }}${{
+      inputs.no-httpx && ' no-httpx' || '' }}
+
     runs-on: ${{ inputs.os }}
     continue-on-error: ${{ inputs.continue-on-error }}
     env:
@@ -49,8 +54,16 @@ jobs:
       run: |
         uv run make pre-commit
     - name: Run unittests
+      if: ${{ ! inputs.no-httpx }}
       env:
         COLOR: 'yes'
+      run: |
+        uv run --extra=httpx make mototest
+    - name: Run unittests without httpx installed
+      if: ${{ inputs.no-httpx }}
+      env:
+        COLOR: 'yes'
+        HTTP_BACKEND: 'aiohttp'
       run: |
         uv run make mototest
     - name: Upload coverage to Codecov
@@ -60,7 +73,7 @@ jobs:
         token: ${{ secrets.codecov-token }}  # not required for public repos
         files: ./coverage.xml
         # yamllint disable-line rule:line-length
-        flags: unittests,os-${{ inputs.os }},python-${{ inputs.python-version }}  # optional
+        flags: unittests,os-${{ inputs.os }},python-${{ inputs.python-version }}${{ inputs.no-httpx && ',no-httpx' || '' }}  # optional
         name: codecov-umbrella  # optional
         fail_ci_if_error: true  # optional (default = false)
         verbose: true  # optional (default = false)

@@ -41,8 +41,25 @@ jobs:
         os:
         - ubuntu-24.04
         - ubuntu-24.04-arm
+        no-httpx:
+        - false
         experimental:
         - false
+        include:
+        - python-version: 3.13  # add a no-httpx run
+          os: ubuntu-24.04
+          no-httpx: true
+          experimental: false
+        # add experimental 3.14 runs. Move this to being a 3.14 python-version
+        # entry when stable.
+        - python-version: 3.14
+          os: ubuntu-24.04
+          no-httpx: false
+          experimental: true
+        - python-version: 3.14
+          os: ubuntu-24.04-arm
+          no-httpx: false
+          experimental: true
       fail-fast: false
     uses: ./.github/workflows/reusable-test.yml
     with:
@@ -50,6 +67,7 @@ jobs:
       os: ${{ matrix.os }}
       continue-on-error: ${{ matrix.experimental }}
       enable-cache: ${{ github.ref_type == 'tag' && 'false' || 'auto' }}
+      no-httpx: ${{ matrix.no-httpx }}
     secrets:
       codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
