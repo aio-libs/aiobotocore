@@ -28,3 +28,14 @@ class AioAWSResponse(AWSResponse):
     @property
     def text(self):
         return self._text_prop()
+
+
+class HttpxAWSResponse(AioAWSResponse):
+    async def _content_prop(self):
+        """Content of the response as bytes."""
+
+        if self._content is None:
+            # NOTE: this will cache the data in self.raw
+            self._content = await self.raw.aread() or b''
+
+        return self._content

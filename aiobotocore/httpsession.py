@@ -40,6 +40,7 @@ from botocore.httpsession import (
 from multidict import CIMultiDict
 
 import aiobotocore.awsrequest
+import aiobotocore.config
 from aiobotocore._endpoint_helpers import _IOBaseWrapper, _text
 
 
@@ -83,10 +84,9 @@ class AIOHTTPSession:
         self._timeout = timeout
         self._connector_args = connector_args
         if self._connector_args is None:
-            # AWS has a 20 second idle timeout:
-            #   https://web.archive.org/web/20150926192339/https://forums.aws.amazon.com/message.jspa?messageID=215367
-            # aiohttp default timeout is 30s so set something reasonable here
-            self._connector_args = dict(keepalive_timeout=12)
+            self._connector_args = dict(
+                keepalive_timeout=aiobotocore.config.DEFAULT_KEEPALIVE_TIMEOUT
+            )
 
         self._max_pool_connections = max_pool_connections
         self._socket_options = socket_options
