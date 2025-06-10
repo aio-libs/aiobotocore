@@ -148,8 +148,6 @@ class FakeStreamReader:
 )
 async def test_output_compliance(json_description, case, basename):
     service_description = copy.deepcopy(json_description)
-    # FIXME: case is globally shared so breaks if parametrizing or re-running the test.
-    # There's probably a better way of fixing this than doing a copy.
     case = copy.deepcopy(case)
     operation_name = case.get('given', {}).get('name', 'OperationName')
     service_description['operations'] = {
