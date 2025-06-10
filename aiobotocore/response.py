@@ -155,9 +155,6 @@ class StreamingBody(wrapt.ObjectProxy):
     def tell(self):
         return self._self_amount_read
 
-    async def aclose(self) -> None:
-        await self.__wrapped__.wait_for_close()
-
 
 # wraps httpx.Response
 class HttpxStreamingBody(wrapt.ObjectProxy):

@@ -15,6 +15,7 @@ import pytest
 
 import aiobotocore.retries.adaptive
 from aiobotocore import httpsession
+from aiobotocore.response import StreamingBody
 
 
 async def fetch_all(pages):
@@ -191,7 +192,10 @@ async def test_can_get_and_put_object(
     resp = await s3_client.get_object(Bucket=bucket_name, Key=key_name)
     data = await resp['Body'].read()
     # TODO: think about better api and make behavior like in aiohttp
-    await resp['Body'].aclose()
+    if isinstance(resp['Body'], StreamingBody):
+        resp['Body'].close()
+    else:
+        await resp['Body'].aclose()
     assert data == b'body contents'
 
     # now test checksum'd file
@@ -274,7 +278,10 @@ async def test_get_object_stream_wrapper(
         chunk2 = await body.read()
     assert chunk1 == b'b'
     assert chunk2 == b'ody contents'
-    await body.aclose()
+    if isinstance(body, StreamingBody):
+        body.close()
+    else:
+        await body.aclose()
 
 
 async def test_get_object_stream_context(
@@ -432,7 +439,10 @@ async def test_copy_with_quoted_char(s3_client, create_object, bucket_name):
     # Now verify we can retrieve the copied object.
     resp = await s3_client.get_object(Bucket=bucket_name, Key=key_name2)
     data = await resp['Body'].read()
-    await resp['Body'].aclose()
+    if isinstance(resp['Body'], StreamingBody):
+        resp['Body'].close()
+    else:
+        await resp['Body'].aclose()
     assert data == b'foo'
 
 
@@ -450,7 +460,10 @@ async def test_copy_with_query_string(s3_client, create_object, bucket_name):
     # Now verify we can retrieve the copied object.
     resp = await s3_client.get_object(Bucket=bucket_name, Key=key_name2)
     data = await resp['Body'].read()
-    await resp['Body'].aclose()
+    if isinstance(resp['Body'], StreamingBody):
+        resp['Body'].close()
+    else:
+        await resp['Body'].aclose()
     assert data == b'foo'
 
 
@@ -468,7 +481,10 @@ async def test_can_copy_with_dict_form(s3_client, create_object, bucket_name):
     # Now verify we can retrieve the copied object.
     resp = await s3_client.get_object(Bucket=bucket_name, Key=key_name2)
     data = await resp['Body'].read()
-    await resp['Body'].aclose()
+    if isinstance(resp['Body'], StreamingBody):
+        resp['Body'].close()
+    else:
+        await resp['Body'].aclose()
     assert data == b'foo'
 
 
@@ -491,7 +507,10 @@ async def test_can_copy_with_dict_form_with_version(
     # Now verify we can retrieve the copied object.
     resp = await s3_client.get_object(Bucket=bucket_name, Key=key_name2)
     data = await resp['Body'].read()
-    await resp['Body'].aclose()
+    if isinstance(resp['Body'], StreamingBody):
+        resp['Body'].close()
+    else:
+        await resp['Body'].aclose()
     assert data == b'foo'
 
 
@@ -586,7 +605,10 @@ async def test_can_follow_signed_url_redirect(
         Bucket=bucket_name, Key='foobarbaz'
     )
     data = await resp['Body'].read()
-    await resp['Body'].aclose()
+    if isinstance(resp['Body'], StreamingBody):
+        resp['Body'].close()
+    else:
+        await resp['Body'].aclose()
     assert data == b'foo'
 
 
