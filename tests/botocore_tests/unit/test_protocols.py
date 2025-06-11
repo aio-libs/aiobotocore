@@ -148,6 +148,7 @@ class FakeStreamReader:
 )
 async def test_output_compliance(json_description, case, basename):
     service_description = copy.deepcopy(json_description)
+    case = copy.deepcopy(case)
     operation_name = case.get('given', {}).get('name', 'OperationName')
     service_description['operations'] = {
         operation_name: case,

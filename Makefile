@@ -1,6 +1,7 @@
 # Some simple testing tasks (sorry, UNIX only).
 
-# ?= conditional assign, so users can pass options on the CLI instead of manually editing this file
+# ?= is conditional assign, so users can pass options on the CLI instead of manually editing this file
+HTTP_BACKEND?='all'
 FLAGS?=
 
 pre-commit:
@@ -17,7 +18,7 @@ cov cover coverage: pre-commit
 	@echo "open file://`pwd`/htmlcov/index.html"
 
 mototest:
-	python -Wd -X tracemalloc=5 -X faulthandler -m pytest -vv -m "not localonly" -n auto --cov-report term --cov-report html --cov-report xml --cov=aiobotocore --cov=tests --log-cli-level=DEBUG $(FLAGS) aiobotocore tests
+	python -Wd -X tracemalloc=5 -X faulthandler -m pytest -vv -m "not localonly" -n auto --cov-report term --cov-report html --cov-report xml --cov=aiobotocore --cov=tests --log-cli-level=DEBUG  --http-backend=$(HTTP_BACKEND) $(FLAGS) aiobotocore tests
 
 clean:
 	rm -rf `find . -name __pycache__`

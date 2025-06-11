@@ -45,6 +45,9 @@ awscli = [
 boto3 = [
     "boto3 >= 1.38.23, < 1.38.25",
 ]
+httpx = [
+    "httpx >= 0.25.1, < 0.29"
+]
 
 [project.urls]
 Repository = "https://github.com/aio-libs/aiobotocore"
