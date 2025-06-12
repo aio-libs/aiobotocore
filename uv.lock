@@ -49,7 +49,7 @@ dev = [
     { name = "pytest-asyncio" },
     { name = "requests" },
     { name = "time-machine" },
-    { name = "tomli", marker = "python_full_version < '3.13'" },
+    { name = "tomli", marker = "python_full_version < '3.11'" },
 ]
 
 [package.metadata]
