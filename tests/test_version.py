@@ -33,13 +33,20 @@ _rst_ver_date_str_re = re.compile(
 )
 
 
-# from: https://stackoverflow.com/a/48719723/1241593
+# from: https://stackoverflow.com/a/75996218
 def _parse_rst(text: str) -> docutils.nodes.document:
     parser = docutils.parsers.rst.Parser()
-    components = (docutils.parsers.rst.Parser,)
-    settings = docutils.frontend.OptionParser(
-        components=components
-    ).get_default_values()
+    if hasattr(docutils.frontend, 'get_default_settings'):
+        # Docutils >= 0.18
+        settings = docutils.frontend.get_default_settings(
+            docutils.parsers.rst.Parser
+        )
+    else:
+        # Docutils < 0.18
+        components = (docutils.parsers.rst.Parser,)
+        settings = docutils.frontend.OptionParser(
+            components=components
+        ).get_default_values()
     document = docutils.utils.new_document('<rst-doc>', settings=settings)
     parser.parse(text, document)
     return document
