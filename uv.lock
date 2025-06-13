@@ -77,7 +77,7 @@ botocore-dev = [
 dev = [
     { name = "dill", specifier = ">=0.3.3,<0.5" },
     { name = "docker", specifier = ">=7.1,<8" },
-    { name = "docutils", specifier = ">=0.16,<0.22" },
+    { name = "docutils", specifier = ">=0.19,<0.22" },
     { name = "moto", extras = ["server", "s3", "sqs", "awslambda", "dynamodb", "cloudformation", "sns", "batch", "ec2", "rds"], specifier = ">=5.0.11,<6" },
     { name = "packaging", specifier = ">=24.1,<26" },
     { name = "pip", specifier = ">=24.3.1,<26" },
