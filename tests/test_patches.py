@@ -216,7 +216,7 @@ def test_protocol_parsers():
         (
             ClientCreator._register_retries,
             {
-                '16d3064142e5f9e45b0094bbfabf7be30183f255',
+                'ceecfc40a4ffa83551d7e6f63fd5d17f820664b0',
             },
         ),
         (
