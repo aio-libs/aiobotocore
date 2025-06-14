@@ -36,9 +36,9 @@ DynamoDB
    examples/dynamo_db/insertions
    examples/dynamo_db/tables
 
-Cognito
+Cognito Identity Provider
 --------
 .. toctree::
    :maxdepth: 2
 
-   examples/cognito/basic_usage
+   examples/cognito_idp/forgot_password.rst

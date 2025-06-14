@@ -1,18 +1,14 @@
+# Boto should get credentials from ~/.aws/credentials or the environment
 import asyncio
 
-from aiobotocore.session import AioSession
-
-AWS_ACCESS_KEY_ID = "xxx"
-AWS_SECRET_ACCESS_KEY = "xxx"
+from aiobotocore.session import get_session
 
 
 async def go():
-    session = AioSession()
+    session = get_session()
     async with session.create_client(
         'cognito-idp',
         region_name='us-west-2',
-        aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
-        aws_access_key_id=AWS_ACCESS_KEY_ID,
     ) as client:
         # initiate forgot password
         resp = await client.forgot_password(
