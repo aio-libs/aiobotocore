@@ -180,7 +180,7 @@ class HttpxStreamingBody(wrapt.ObjectProxy):
 
 
 async def get_response(operation_model, http_response):
-    protocol = operation_model.metadata['protocol']
+    protocol = operation_model.service_model.resolved_protocol
     response_dict = {
         'headers': http_response.headers,
         'status_code': http_response.status_code,

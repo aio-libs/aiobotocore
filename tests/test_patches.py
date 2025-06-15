@@ -216,7 +216,7 @@ def test_protocol_parsers():
         (
             ClientCreator._register_retries,
             {
-                '16d3064142e5f9e45b0094bbfabf7be30183f255',
+                'ceecfc40a4ffa83551d7e6f63fd5d17f820664b0',
             },
         ),
         (
@@ -701,7 +701,7 @@ def test_protocol_parsers():
         (
             Endpoint._do_get_response,
             {
-                'abad88892d61b22f2a6decffba2e40d070ba9f38',
+                'a9f3ae0f375ba9967425b1fb3e4d45537df4f1e3',
             },
         ),
         (
@@ -926,7 +926,7 @@ def test_protocol_parsers():
         (
             get_response,
             {
-                '6515f43730b546419695c26d4bc0d198fde54b10',
+                'ea8686ae71fae32410e2f1774e5774d6715dd492',
             },
         ),
         # session.py

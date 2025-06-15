@@ -1,6 +1,10 @@
 Changes
 -------
 
+2.23.1 (2025-06-15)
+^^^^^^^^^^^^^^^^^^^
+* bump botocore dependency specification
+
 2.23.0 (2025-06-12)
 ^^^^^^^^^^^^^^^^^^^
 * drop support for Python 3.8 (EOL)

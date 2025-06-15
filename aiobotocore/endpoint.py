@@ -225,7 +225,7 @@ class AioEndpoint(Endpoint):
         )
         history_recorder.record('HTTP_RESPONSE', http_response_record_dict)
 
-        protocol = operation_model.metadata['protocol']
+        protocol = operation_model.service_model.resolved_protocol
         customized_response_dict = {}
         await self._event_emitter.emit(
             f"before-parse.{service_id}.{operation_model.name}",
