@@ -13,6 +13,7 @@ from botocore.discovery import block_endpoint_discovery_required_operations
 from botocore.exceptions import OperationNotPageableError, UnknownServiceError
 from botocore.history import get_global_history_recorder
 from botocore.hooks import first_non_none_response
+from botocore.useragent import register_feature_id
 from botocore.utils import get_service_module_name
 from botocore.waiter import xform_name
 
@@ -157,6 +158,9 @@ class AioClientCreator(ClientCreator):
             self._register_v2_adaptive_retries(client)
         elif retry_mode == 'legacy':
             self._register_legacy_retries(client)
+        else:
+            return
+        register_feature_id(f'RETRY_MODE_{retry_mode.upper()}')
 
     def _register_v2_standard_retries(self, client):
         max_attempts = client.meta.config.retries.get('total_max_attempts')
