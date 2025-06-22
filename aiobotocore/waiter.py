@@ -9,10 +9,10 @@ from botocore.utils import get_service_module_name
 from botocore.waiter import (
     NormalizedOperationMethod as _NormalizedOperationMethod,
 )
-from botocore.waiter import WaiterModel  # noqa: F401 lgtm[py/unused-import]
 from botocore.waiter import (
     Waiter,
     WaiterError,
+    WaiterModel,  # noqa: F401 lgtm[py/unused-import]
     is_valid_waiter_error,
     logger,
     xform_name,
@@ -120,7 +120,7 @@ class AIOWaiter(Waiter):
                     )
             if current_state == 'success':
                 logger.debug(
-                    "Waiting complete, waiter matched the " "success state."
+                    "Waiting complete, waiter matched the success state."
                 )
                 return response
             if current_state == 'failure':
