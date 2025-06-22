@@ -6,19 +6,15 @@ ci:
 
 repos:
 - repo: 'https://github.com/pre-commit/pre-commit-hooks'
-  rev: v4.5.0
+  rev: v5.0.0
   hooks:
   - id: check-yaml
   - id: end-of-file-fixer
   - id: trailing-whitespace
-- repo: 'https://github.com/PyCQA/isort'
-  rev: 5.12.0
-  hooks:
-  - id: isort
 - repo: https://github.com/astral-sh/ruff-pre-commit
-  rev: v0.4.8
+  rev: v0.12.0
   hooks:
-  - id: ruff
+  - id: ruff-check
     args: [--fix]
   - id: ruff-format
 - repo: https://github.com/astral-sh/uv-pre-commit
