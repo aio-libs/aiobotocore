@@ -726,9 +726,9 @@ def pytest_collection_modifyitems(config: pytest.Config, items):
     if http_backend == 'aiohttp':
         ignore_backend = 'httpx'
     else:
-        assert (
-            httpx is not None
-        ), "Cannot run httpx as backend if it's not installed."
+        assert httpx is not None, (
+            "Cannot run httpx as backend if it's not installed."
+        )
         ignore_backend = 'aiohttp'
     backend_skip = pytest.mark.skip(
         reason='Selected not to run with --http-backend'

@@ -783,7 +783,7 @@ def test_protocol_parsers():
         (
             PageIterator.__iter__,
             {
-                'a7e83728338e61ff2ca0a26c6f03c67cbabffc32',
+                '0bfe2ffb0ea63faa1f28cc22250ce626959d05d1',
             },
         ),
         (
