@@ -121,9 +121,9 @@ def _get_boto_module_versions(
                 assert False, f'unsupported operator: {spec.operator}'
 
         if ensure_plus_one_patch_range:
-            assert (
-                len(gte.release) == len(lt.release) == 3
-            ), f'{module} gte: {gte} diff len than {lt}'
+            assert len(gte.release) == len(lt.release) == 3, (
+                f'{module} gte: {gte} diff len than {lt}'
+            )
             assert lt.release == tuple(
                 map(operator.add, gte.release, (0, 0, 1))
             ), f'{module} gte: {gte} not one patch off from {lt}'
@@ -175,9 +175,9 @@ def test_release_versions():
         rst_date = datetime.strptime(rst_date, '%Y-%m-%d').date()
         rst_prev_date = datetime.strptime(rst_prev_date, '%Y-%m-%d').date()
 
-        assert (
-            rst_date >= rst_prev_date
-        ), 'Current release must be after last release'
+        assert rst_date >= rst_prev_date, (
+            'Current release must be after last release'
+        )
 
     # get aioboto reqs
     with (_root_path / 'pyproject.toml').open() as f:

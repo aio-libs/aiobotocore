@@ -1988,7 +1988,7 @@ async def test_processprovider_bad_config(process_provider):
 
 async def test_session_credentials():
     with mock.patch(
-        'aiobotocore.credentials.AioCredential' 'Resolver.load_credentials'
+        'aiobotocore.credentials.AioCredentialResolver.load_credentials'
     ) as mock_obj:
         mock_obj.return_value = 'somecreds'
 
