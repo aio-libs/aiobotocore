@@ -81,6 +81,10 @@ class AioClientCreator(ClientCreator):
             config_store=self._config_store,
             service_signature_version=service_signature_version,
         )
+        if token := self._evaluate_client_specific_token(
+            service_model.signing_name
+        ):
+            auth_token = token
         client_args = self._get_client_args(
             service_model,
             region_name,
@@ -355,6 +359,7 @@ class AioBaseClient(BaseClient):
             'has_streaming_input': operation_model.has_streaming_input,
             'auth_type': operation_model.resolved_auth_type,
             'unsigned_payload': operation_model.unsigned_payload,
+            'auth_options': self._service_model.metadata.get('auth'),
         }
 
         api_params = await self._emit_api_params(

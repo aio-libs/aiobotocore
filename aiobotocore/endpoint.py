@@ -30,10 +30,9 @@ DEFAULT_HTTP_SESSION_CLS = AIOHTTPSession
 async def convert_to_response_dict(http_response, operation_model):
     """Convert an HTTP response object to a request dict.
 
-    This converts the requests library's HTTP response object to
-    a dictionary.
+    This converts the HTTP response object to a dictionary.
 
-    :type http_response: botocore.vendored.requests.model.Response
+    :type http_response: botocore.awsrequest.AWSResponse
     :param http_response: The HTTP response from an AWS service request.
 
     :rtype: dict
