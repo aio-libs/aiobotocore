@@ -241,7 +241,7 @@ def test_protocol_parsers():
         (
             BaseClient._make_api_call.__wrapped__,
             {
-                '7da9b5d46bb59e420bc608643e67de106388d944',
+                '44a1fbef21dc588a7976510c3540c5a51350aa11',
             },
         ),
         (
