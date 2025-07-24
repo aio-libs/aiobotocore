@@ -179,7 +179,7 @@ def test_protocol_parsers():
         (
             ClientCreator.create_client,
             {
-                '7a95dd4939bcabf79704f3e928ab4dcf079b5e58',
+                '1c27be7d1b4374887620be970dca01a9fecf9632',
             },
         ),
         (
@@ -241,7 +241,7 @@ def test_protocol_parsers():
         (
             BaseClient._make_api_call.__wrapped__,
             {
-                '549e7d9de202ea48ff9e87f6006c95e515ecbd73',
+                '44a1fbef21dc588a7976510c3540c5a51350aa11',
             },
         ),
         (
@@ -298,8 +298,7 @@ def test_protocol_parsers():
         (
             Config,
             {
-                'c7cf339ac7fb2d5fca9f133beb84d750bd4c9e30',
-                'bebe4d62ce75f866e8621d4d54f2c5262de2eb1a',
+                'da2d8b797568604449695cdcf803e344bdf887eb',
             },
         ),
         # context.py
@@ -670,6 +669,7 @@ def test_protocol_parsers():
             convert_to_response_dict,
             {
                 '5b7701c1f5b3cb2daa6eb307cdbdbbb2e9d33e5f',
+                '0fb9d2f2ab899fad8b2be93223b403f11032670a',
             },
         ),
         (
@@ -1020,13 +1020,13 @@ def test_protocol_parsers():
         (
             RequestSigner.get_auth,
             {
-                'b78756b9d4f7a5bce9630195d761bab557677225',
+                '13e90d57d536179621ac012ace97e4c2cbaa096e',
             },
         ),
         (
             RequestSigner.get_auth_instance,
             {
-                'b78756b9d4f7a5bce9630195d761bab557677225',
+                '13e90d57d536179621ac012ace97e4c2cbaa096e',
             },
         ),
         (
@@ -1114,7 +1114,7 @@ def test_protocol_parsers():
         (
             create_token_resolver,
             {
-                'b287f4879235a4292592a49b201d2b0bc2dbf401',
+                '7e502da18a02d4f0224568041e3a7ef6a67b2de8',
             },
         ),
         (
@@ -1162,7 +1162,7 @@ def test_protocol_parsers():
         (
             SSOTokenProvider.load_token,
             {
-                'aea8584ef3fb83948ed82f2a2518eec40fb537a0',
+                'fb9114c12952ba47b50e201057e3f5664abdb9d8',
             },
         ),
         # utils.py

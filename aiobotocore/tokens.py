@@ -8,6 +8,7 @@ from botocore.exceptions import ClientError, TokenRetrievalError
 from botocore.tokens import (
     DeferredRefreshableToken,
     FrozenAuthToken,
+    ScopedEnvTokenProvider,
     SSOTokenProvider,
     TokenProviderChain,
     _utc_now,
@@ -18,6 +19,7 @@ logger = logging.getLogger(__name__)
 
 def create_token_resolver(session):
     providers = [
+        ScopedEnvTokenProvider(session),
         AioSSOTokenProvider(session),
     ]
     return TokenProviderChain(providers=providers)
@@ -150,7 +152,7 @@ class AioSSOTokenProvider(SSOTokenProvider):
             token_dict["accessToken"], expiration=expiration
         )
 
-    def load_token(self):
+    def load_token(self, **kwargs):
         if self._sso_config is None:
             return None
 

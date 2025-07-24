@@ -163,3 +163,16 @@ class ClientHTTPStubber(BaseHTTPStubber):
     @property
     def _events(self):
         return self._obj_with_event_emitter.meta.events
+
+
+def patch_load_service_model(
+    session, monkeypatch, service_model_json, ruleset_json
+):
+    def mock_load_service_model(service_name, type_name, api_version=None):
+        if type_name == 'service-2':
+            return service_model_json
+        if type_name == 'endpoint-rule-set-1':
+            return ruleset_json
+
+    loader = session.get_component('data_loader')
+    monkeypatch.setattr(loader, 'load_service_model', mock_load_service_model)

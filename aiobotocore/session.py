@@ -234,6 +234,7 @@ class AioSession(_SyncSession):
             exceptions_factory,
             config_store,
             user_agent_creator=user_agent_creator,
+            auth_token_resolver=self.get_auth_token,
         )
         client = await client_creator.create_client(
             service_name=service_name,
