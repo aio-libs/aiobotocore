@@ -17,7 +17,7 @@ repos:
     args: [--fix]
   - id: ruff-format
 - repo: https://github.com/astral-sh/uv-pre-commit
-  rev: 0.7.21
+  rev: 0.8.11
   hooks:
   - id: uv-lock
 - repo: https://github.com/adrienverge/yamllint
