@@ -2,7 +2,6 @@
 ci:
   autofix_prs: false
   autoupdate_schedule: quarterly
-  skip: [uv-lock]  # https://github.com/astral-sh/uv/issues/10167
 
 repos:
 - repo: 'https://github.com/pre-commit/pre-commit-hooks'
