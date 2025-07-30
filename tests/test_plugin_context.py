@@ -18,16 +18,17 @@ from aiobotocore.utils import create_nested_client
 class TestCreateNestedClient:
     """Test the create_nested_client function."""
 
-    def test_create_nested_client_returns_client_context(self, session):
-        """Test that create_nested_client returns a ClientCreatorContext."""
+    def test_create_nested_client_returns_async_context_manager(self, session):
+        """Test that create_nested_client returns an async context manager."""
         client_context = create_nested_client(
             session, 's3', region_name='us-east-1'
         )
 
-        # Should return a ClientCreatorContext
+        # Should return an async context manager
         assert hasattr(client_context, '__aenter__')
         assert hasattr(client_context, '__aexit__')
-        assert client_context.__class__.__name__ == 'ClientCreatorContext'
+        # It's now an async generator context manager, not ClientCreatorContext
+        assert '_AsyncGeneratorContextManager' in str(type(client_context))
 
     async def test_create_nested_client_creates_working_client(self, session):
         """Test that create_nested_client creates a functional client."""
@@ -41,10 +42,10 @@ class TestCreateNestedClient:
             assert hasattr(client, 'list_buckets')
             assert hasattr(client, 'get_object')
 
-    @patch('botocore.utils.set_plugin_context')
-    @patch('botocore.utils.reset_plugin_context')
-    @patch('botocore.utils.PluginContext')
-    def test_create_nested_client_manages_plugin_context(
+    @patch('aiobotocore.utils.set_plugin_context')
+    @patch('aiobotocore.utils.reset_plugin_context')
+    @patch('aiobotocore.utils.PluginContext')
+    async def test_create_nested_client_manages_plugin_context(
         self, mock_plugin_context, mock_reset, mock_set, session
     ):
         """Test that create_nested_client properly manages plugin context."""
@@ -53,19 +54,22 @@ class TestCreateNestedClient:
         mock_token = Mock()
         mock_set.return_value = mock_token
 
-        # Call create_nested_client
-        create_nested_client(session, 's3', region_name='us-east-1')
+        # Call create_nested_client and actually enter the context manager
+        client_context = create_nested_client(
+            session, 's3', region_name='us-east-1'
+        )
+        async with client_context:
+            pass  # Just test that context management works
 
         # Verify plugin context was created with plugins disabled
         mock_plugin_context.assert_called_once_with(plugins="DISABLED")
-
         # Verify context was set and reset
         mock_set.assert_called_once_with(mock_ctx)
         mock_reset.assert_called_once_with(mock_token)
 
-    @patch('botocore.utils.set_plugin_context')
-    @patch('botocore.utils.reset_plugin_context')
-    def test_create_nested_client_resets_context_on_exception(
+    @patch('aiobotocore.utils.set_plugin_context')
+    @patch('aiobotocore.utils.reset_plugin_context')
+    async def test_create_nested_client_resets_context_on_exception(
         self, mock_reset, mock_set, session
     ):
         """Test that plugin context is reset even if client creation fails."""
@@ -76,22 +80,42 @@ class TestCreateNestedClient:
         with patch.object(
             session, 'create_client', side_effect=Exception("Test error")
         ):
+            client_context = create_nested_client(
+                session, 's3', region_name='us-east-1'
+            )
             with pytest.raises(Exception, match="Test error"):
-                create_nested_client(session, 's3', region_name='us-east-1')
+                async with client_context:
+                    pass
 
         # Verify context was still reset despite the exception
         mock_reset.assert_called_once_with(mock_token)
 
-    def test_create_nested_client_passes_kwargs(self, session):
+    async def test_create_nested_client_passes_kwargs(self, session):
         """Test that create_nested_client passes through all kwargs."""
         with patch.object(session, 'create_client') as mock_create:
-            create_nested_client(
+            # Mock create_client to return a simple async context manager
+            mock_client = Mock()
+
+            # Create a proper async context manager mock
+            class MockAsyncContextManager:
+                async def __aenter__(self):
+                    return mock_client
+
+                async def __aexit__(self, exc_type, exc_val, exc_tb):
+                    return None
+
+            mock_create.return_value = MockAsyncContextManager()
+
+            client_context = create_nested_client(
                 session,
                 's3',
                 region_name='us-west-2',
                 aws_access_key_id='test-key',
                 aws_secret_access_key='test-secret',
             )
+
+            async with client_context as client:
+                assert client == mock_client
 
             mock_create.assert_called_once_with(
                 's3',
@@ -115,7 +139,10 @@ class TestGetClientCreator:
         client_creator = _get_client_creator(session, 'us-east-1')
 
         client_context = client_creator('s3')
-        assert client_context.__class__.__name__ == 'ClientCreatorContext'
+        # Now returns an async context manager from create_nested_client
+        assert hasattr(client_context, '__aenter__')
+        assert hasattr(client_context, '__aexit__')
+        assert '_AsyncGeneratorContextManager' in str(type(client_context))
 
     def test_client_creator_uses_provided_region(self, session):
         """Test that client creator uses the provided region."""
@@ -128,11 +155,9 @@ class TestGetClientCreator:
             client_creator('s3')
 
             # Should be called with the specified region
-            mock_create_nested.assert_called_once()
-            args, kwargs = mock_create_nested.call_args
-            assert args[0] == session
-            assert args[1] == 's3'
-            assert kwargs['region_name'] == region
+            mock_create_nested.assert_called_once_with(
+                session, 's3', region_name=region
+            )
 
     def test_client_creator_merges_kwargs(self, session):
         """Test that client creator merges additional kwargs."""
@@ -147,11 +172,13 @@ class TestGetClientCreator:
                 endpoint_url='http://localhost:9000',
             )
 
-            mock_create_nested.assert_called_once()
-            args, kwargs = mock_create_nested.call_args
-            assert kwargs['region_name'] == 'us-east-1'
-            assert kwargs['aws_access_key_id'] == 'test-key'
-            assert kwargs['endpoint_url'] == 'http://localhost:9000'
+            mock_create_nested.assert_called_once_with(
+                session,
+                's3',
+                region_name='us-east-1',
+                aws_access_key_id='test-key',
+                endpoint_url='http://localhost:9000',
+            )
 
     def test_client_creator_kwargs_override_region(self, session):
         """Test that explicit region in kwargs overrides the default."""
@@ -162,10 +189,9 @@ class TestGetClientCreator:
         ) as mock_create_nested:
             client_creator('s3', region_name='eu-west-1')
 
-            mock_create_nested.assert_called_once()
-            args, kwargs = mock_create_nested.call_args
-            # The explicit region should override the default
-            assert kwargs['region_name'] == 'eu-west-1'
+            mock_create_nested.assert_called_once_with(
+                session, 's3', region_name='eu-west-1'
+            )
 
     def test_client_creator_uses_create_nested_client(self, session):
         """Test that client creator uses create_nested_client internally."""
@@ -219,17 +245,23 @@ class TestPluginContextIntegration:
         # Should have been called at least once for the main client
         assert call_count >= 1
 
-    def test_plugin_context_environment_variable_handling(self, session):
+    async def test_plugin_context_environment_variable_handling(self, session):
         """Test that plugin context properly handles environment variables."""
         # Test with plugins enabled via environment variable
         with patch.dict(
             os.environ, {'BOTOCORE_EXPERIMENTAL__PLUGINS': 'test_plugin'}
         ):
-            with patch('botocore.utils.PluginContext') as mock_plugin_context:
-                create_nested_client(session, 's3', region_name='us-east-1')
-
-                # Should create context with plugins disabled regardless of env var
-                mock_plugin_context.assert_called_once_with(plugins="DISABLED")
+            with patch(
+                'aiobotocore.utils.PluginContext'
+            ) as mock_plugin_context:
+                client_context = create_nested_client(
+                    session, 's3', region_name='us-east-1'
+                )
+                async with client_context:
+                    # Should create context with plugins disabled regardless of env var
+                    mock_plugin_context.assert_called_once_with(
+                        plugins="DISABLED"
+                    )
 
     async def test_multiple_nested_clients(self, session):
         """Test creating multiple nested clients works correctly."""
@@ -263,8 +295,10 @@ class TestPluginContextIntegration:
         client2_context = create_nested_client(session, 's3', config=config2)
 
         # Both should be created successfully with different configs
-        assert client1_context.__class__.__name__ == 'ClientCreatorContext'
-        assert client2_context.__class__.__name__ == 'ClientCreatorContext'
+        assert hasattr(client1_context, '__aenter__')
+        assert hasattr(client1_context, '__aexit__')
+        assert hasattr(client2_context, '__aenter__')
+        assert hasattr(client2_context, '__aexit__')
 
 
 class TestCredentialProviderIntegration:
@@ -298,25 +332,40 @@ class TestCredentialProviderIntegration:
 class TestErrorHandling:
     """Test error handling in plugin context functions."""
 
-    def test_create_nested_client_with_invalid_service(self, session):
+    async def test_create_nested_client_with_invalid_service(self, session):
         """Test create_nested_client with invalid service name."""
         # This should still manage plugin context properly even if service is invalid
-        with patch('botocore.utils.set_plugin_context') as mock_set:
-            with patch('botocore.utils.reset_plugin_context') as mock_reset:
+        with patch('aiobotocore.utils.set_plugin_context') as mock_set:
+            with patch('aiobotocore.utils.reset_plugin_context') as mock_reset:
                 mock_token = Mock()
                 mock_set.return_value = mock_token
 
                 # This might raise an exception for invalid service, but context should still be managed
+                client_context = create_nested_client(
+                    session, 'invalid-service', region_name='us-east-1'
+                )
                 try:
-                    create_nested_client(
-                        session, 'invalid-service', region_name='us-east-1'
-                    )
+                    async with client_context:
+                        pass
                 except Exception:
                     pass  # We expect this might fail
 
                 # Context should still be set and reset
                 mock_set.assert_called_once()
                 mock_reset.assert_called_once_with(mock_token)
+
+    def test_plugin_context_availability(self):
+        """Test that plugin context availability is correctly detected."""
+        # The functions should always be available (either real or fallback)
+        from aiobotocore.utils import (
+            PluginContext,
+            reset_plugin_context,
+            set_plugin_context,
+        )
+
+        assert callable(PluginContext)
+        assert callable(set_plugin_context)
+        assert callable(reset_plugin_context)
 
     def test_plugin_context_import_fallback(self):
         """Test that plugin context functions can be imported."""
@@ -368,8 +417,10 @@ class TestErrorHandling:
 
         # Function should create client contexts
         s3_context = client_creator('s3')
-        assert s3_context.__class__.__name__ == 'ClientCreatorContext'
+        assert hasattr(s3_context, '__aenter__')
+        assert hasattr(s3_context, '__aexit__')
 
         # Should work with different services
         sts_context = client_creator('sts')
-        assert sts_context.__class__.__name__ == 'ClientCreatorContext'
+        assert hasattr(sts_context, '__aenter__')
+        assert hasattr(sts_context, '__aexit__')
