@@ -747,3 +747,27 @@ class AioContainerMetadataFetcher(ContainerMetadataFetcher):
                 f"container metadata: {e}"
             )
             raise MetadataRetrievalError(error_msg=error_msg)
+
+
+def create_nested_client(session, service_name, **kwargs):
+    """Create a nested client with plugin context disabled.
+
+    If a client is created from within a plugin based on the environment variable,
+    an infinite loop could arise. Any clients created from within another client
+    must use this method to prevent infinite loops.
+
+    This is the async version of botocore.utils.create_nested_client that works
+    with aiobotocore's async session.
+    """
+    from botocore.utils import (
+        PluginContext,
+        reset_plugin_context,
+        set_plugin_context,
+    )
+
+    ctx = PluginContext(plugins="DISABLED")
+    token = set_plugin_context(ctx)
+    try:
+        return session.create_client(service_name, **kwargs)
+    finally:
+        reset_plugin_context(token)

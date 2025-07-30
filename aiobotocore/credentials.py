@@ -42,7 +42,6 @@ from botocore.credentials import (
     SSOTokenLoader,
     UnauthorizedSSOTokenError,
     UnknownCredentialError,
-    _get_client_creator,
     _local_now,
     _parse_if_needed,
     _serialize_if_needed,
@@ -56,6 +55,7 @@ from aiobotocore.tokens import AioSSOTokenProvider
 from aiobotocore.utils import (
     AioContainerMetadataFetcher,
     AioInstanceMetadataFetcher,
+    create_nested_client,
 )
 
 logger = logging.getLogger(__name__)
@@ -1101,3 +1101,20 @@ class AioSSOProvider(SSOProvider):
             method=self.METHOD,
             refresh_using=sso_fetcher.fetch_credentials,
         )
+
+
+def _get_client_creator(session, region_name):
+    """Create a client creator function for use in credential providers.
+
+    This is the async version of botocore.credentials._get_client_creator that
+    uses aiobotocore's create_nested_client.
+    """
+
+    def client_creator(service_name, **kwargs):
+        create_client_kwargs = {'region_name': region_name}
+        create_client_kwargs.update(**kwargs)
+        return create_nested_client(
+            session, service_name, **create_client_kwargs
+        )
+
+    return client_creator
