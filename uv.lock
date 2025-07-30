@@ -56,9 +56,9 @@ dev = [
 requires-dist = [
     { name = "aiohttp", specifier = ">=3.9.2,<4.0.0" },
     { name = "aioitertools", specifier = ">=0.5.1,<1.0.0" },
-    { name = "awscli", marker = "extra == 'awscli'", specifier = ">=1.41.7,<1.41.10" },
-    { name = "boto3", marker = "extra == 'boto3'", specifier = ">=1.39.7,<1.39.10" },
-    { name = "botocore", specifier = ">=1.39.7,<1.39.10" },
+    { name = "awscli", marker = "extra == 'awscli'", specifier = ">=1.41.9,<1.41.10" },
+    { name = "boto3", marker = "extra == 'boto3'", specifier = ">=1.39.9,<1.39.10" },
+    { name = "botocore", specifier = ">=1.39.9,<1.39.10" },
     { name = "httpx", marker = "extra == 'httpx'", specifier = ">=0.25.1,<0.29" },
     { name = "jmespath", specifier = ">=0.7.1,<2.0.0" },
     { name = "multidict", specifier = ">=6.0.0,<7.0.0" },
