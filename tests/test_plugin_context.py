@@ -346,6 +346,7 @@ class TestErrorHandling:
                 )
                 try:
                     async with client_context:
+                        # pragma: no cover
                         pass
                 except Exception:
                     pass  # We expect this might fail

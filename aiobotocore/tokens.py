@@ -5,7 +5,6 @@ from datetime import timedelta
 import dateutil.parser
 from botocore import UNSIGNED
 from botocore.compat import total_seconds
-from botocore.config import Config
 from botocore.exceptions import ClientError, TokenRetrievalError
 from botocore.tokens import (
     DeferredRefreshableToken,
@@ -17,6 +16,7 @@ from botocore.tokens import (
 )
 from botocore.utils import CachedProperty
 
+from aiobotocore.config import AioConfig
 from aiobotocore.utils import create_nested_client
 
 logger = logging.getLogger(__name__)
@@ -159,7 +159,7 @@ class AioSSOTokenProvider(SSOTokenProvider):
 
     @CachedProperty
     def _client(self):
-        config = Config(
+        config = AioConfig(
             region_name=self._sso_config["sso_region"],
             signature_version=UNSIGNED,
         )
