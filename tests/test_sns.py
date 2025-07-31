@@ -22,6 +22,7 @@ def _get_topic_policy(topic_arn: str):
                     "SNS:Subscribe",
                     "SNS:ListSubscriptionsByTopic",
                     "SNS:Publish",
+                    "SNS:Receive",
                 ],
                 'Resource': topic_arn,
                 'Condition': {
