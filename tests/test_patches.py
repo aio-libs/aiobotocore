@@ -1168,12 +1168,6 @@ def test_protocol_parsers():
             },
         ),
         (
-            SSOTokenProvider._client,
-            {
-                'c46cfb9381e3f9e890d755c180134ba12d2e6a4f',
-            },
-        ),
-        (
             SSOTokenProvider.load_token,
             {
                 'fb9114c12952ba47b50e201057e3f5664abdb9d8',
