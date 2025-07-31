@@ -15,6 +15,7 @@ from botocore.tokens import (
     TokenProviderChain,
     _utc_now,
 )
+from botocore.utils import CachedProperty
 
 from aiobotocore.utils import create_nested_client
 
@@ -156,6 +157,7 @@ class AioSSOTokenProvider(SSOTokenProvider):
             token_dict["accessToken"], expiration=expiration
         )
 
+    @CachedProperty
     def _client(self):
         config = Config(
             region_name=self._sso_config["sso_region"],

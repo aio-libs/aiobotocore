@@ -1170,7 +1170,7 @@ def test_protocol_parsers():
         (
             SSOTokenProvider._client,
             {
-                '81899933931b1b52e9ae9cc79e74c019b0b66d1f',
+                'c46cfb9381e3f9e890d755c180134ba12d2e6a4f',
             },
         ),
         (
