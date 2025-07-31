@@ -24,6 +24,7 @@ from botocore.utils import (
     IMDSRegionProvider,
     InstanceMetadataFetcher,
     InstanceMetadataRegionFetcher,
+    PluginContext,
     ReadTimeoutError,
     S3ExpressIdentityCache,
     S3ExpressIdentityResolver,
@@ -31,7 +32,9 @@ from botocore.utils import (
     S3RegionRedirectorv2,
     get_environ_proxies,
     os,
+    reset_plugin_context,
     resolve_imds_endpoint_mode,
+    set_plugin_context,
 )
 
 import aiobotocore.httpsession
@@ -747,3 +750,32 @@ class AioContainerMetadataFetcher(ContainerMetadataFetcher):
                 f"container metadata: {e}"
             )
             raise MetadataRetrievalError(error_msg=error_msg)
+
+
+@contextlib.asynccontextmanager
+async def create_nested_client(session, service_name, **kwargs):
+    """Create a nested client with plugin context disabled.
+
+    If a client is created from within a plugin based on the environment variable,
+    an infinite loop could arise. Any clients created from within another client
+    must use this method to prevent infinite loops.
+
+    This is the async version of botocore.utils.create_nested_client that works
+    with aiobotocore's async session.
+
+    Usage:
+        async with create_nested_client(session, 'sts', region_name='us-east-1') as client:
+            response = await client.assume_role(...)
+    """
+    # Set plugin context to disabled
+    ctx = PluginContext(plugins="DISABLED")
+    token = set_plugin_context(ctx)
+
+    try:
+        # Create the client context and enter it
+        client_context = session.create_client(service_name, **kwargs)
+        async with client_context as client:
+            yield client
+    finally:
+        # Always reset plugin context
+        reset_plugin_context(token)

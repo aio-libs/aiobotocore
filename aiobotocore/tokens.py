@@ -3,6 +3,7 @@ import logging
 from datetime import timedelta
 
 import dateutil.parser
+from botocore import UNSIGNED
 from botocore.compat import total_seconds
 from botocore.exceptions import ClientError, TokenRetrievalError
 from botocore.tokens import (
@@ -13,6 +14,9 @@ from botocore.tokens import (
     TokenProviderChain,
     _utc_now,
 )
+
+from aiobotocore.config import AioConfig
+from aiobotocore.utils import create_nested_client
 
 logger = logging.getLogger(__name__)
 
@@ -151,6 +155,14 @@ class AioSSOTokenProvider(SSOTokenProvider):
         return FrozenAuthToken(
             token_dict["accessToken"], expiration=expiration
         )
+
+    @property
+    def _client(self):
+        config = AioConfig(
+            region_name=self._sso_config["sso_region"],
+            signature_version=UNSIGNED,
+        )
+        return create_nested_client(self._session, "sso-oidc", config=config)
 
     def load_token(self, **kwargs):
         if self._sso_config is None:
