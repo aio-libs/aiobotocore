@@ -29,6 +29,7 @@ from botocore.credentials import (
     SharedCredentialProvider,
     SSOCredentialFetcher,
     SSOProvider,
+    _get_client_creator,
     create_credential_resolver,
     create_mfa_serial_refresher,
     get_credentials,
@@ -109,6 +110,7 @@ from botocore.utils import (
     S3ExpressIdentityResolver,
     S3RegionRedirector,
     S3RegionRedirectorv2,
+    create_nested_client,
 )
 from botocore.waiter import (
     NormalizedOperationMethod,
@@ -651,6 +653,12 @@ def test_protocol_parsers():
                 'ff0c735a388ac8dd7fe300a32c1e36cdf33c0f56',
             },
         ),
+        (
+            _get_client_creator,
+            {
+                '6274e5675ecf13180b5a18daa0242bb71d6437b6',
+            },
+        ),
         # configprovider.py
         (
             SmartDefaultsConfigStoreFactory.merge_smart_defaults,
@@ -1160,6 +1168,12 @@ def test_protocol_parsers():
             },
         ),
         (
+            SSOTokenProvider._client,
+            {
+                '81899933931b1b52e9ae9cc79e74c019b0b66d1f',
+            },
+        ),
+        (
             SSOTokenProvider.load_token,
             {
                 'fb9114c12952ba47b50e201057e3f5664abdb9d8',
@@ -1351,6 +1365,12 @@ def test_protocol_parsers():
             S3ExpressIdentityResolver.__init__,
             {
                 '148a10274d3268dd42df05d3bcfb98c668f01086',
+            },
+        ),
+        (
+            create_nested_client,
+            {
+                '619a190d84c4871c0e3c4828b0d6ea607d8b89da',
             },
         ),
         # waiter.py
