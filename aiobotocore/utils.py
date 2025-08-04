@@ -772,10 +772,12 @@ async def create_nested_client(session, service_name, **kwargs):
     token = set_plugin_context(ctx)
 
     try:
-        # Create the client context and enter it
+        # Create the client context
         client_context = session.create_client(service_name, **kwargs)
-        async with client_context as client:
-            yield client
     finally:
-        # Always reset plugin context
+        # Reset plugin context immediately after client creation, matching botocore behavior
         reset_plugin_context(token)
+
+    # Enter the client context and yield the client
+    async with client_context as client:
+        yield client
