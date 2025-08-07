@@ -1,6 +1,10 @@
 Changes
 -------
 
+2.24.0 (2025-07-31)
+^^^^^^^^^^^^^^^^^^^
+* bump botocore dependency specification
+
 2.23.2 (2025-07-24)
 ^^^^^^^^^^^^^^^^^^^
 * bump botocore dependency specification

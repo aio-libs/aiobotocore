@@ -251,6 +251,7 @@ class AioSession(_SyncSession):
         monitor = self._get_internal_component('monitor')
         if monitor is not None:
             monitor.register(client.meta.events)
+        self._register_client_plugins(client)
         return client
 
     async def get_available_regions(
