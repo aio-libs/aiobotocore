@@ -407,7 +407,7 @@ def test_protocol_parsers():
         (
             SSOCredentialFetcher._get_credentials,
             {
-                '13ac3b73e0745dfeaa934a8873179ca6c22a164f',
+                'd15db30acdb7295a055e89b6c3bc077847e9b37c',
             },
         ),
         (
