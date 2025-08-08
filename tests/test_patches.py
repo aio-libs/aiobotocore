@@ -907,8 +907,7 @@ def test_protocol_parsers():
         (
             EndpointRulesetResolver.construct_endpoint,
             {
-                'ccbed61e316a0e92e1d0f67c554ee15efa4ee6b8',
-                'ab22bb1ec171713e548567fbe84dd88a3d5f4b76',
+                'f3ad94494006fcfdbd622f6c19e0de9fba0ad199',
             },
         ),
         (
@@ -928,7 +927,7 @@ def test_protocol_parsers():
         (
             StreamingBody,
             {
-                'e6f0cb3b61c8b0a7c6961e77949e27c520b30a5c',
+                'e358f72191c4c1cb37d8fe90871342abf79afde2',
             },
         ),
         (
@@ -1065,8 +1064,7 @@ def test_protocol_parsers():
         (
             S3PostPresigner.generate_presigned_post,
             {
-                '269efc9af054a2fd2728d5b0a27db82c48053d7f',
-                '48418dc6c9b04fdc8689c7cb5b6eb987321a84e3',
+                '01c61dc0f33392a19def738afc634f5def401e32',
             },
         ),
         (
@@ -1158,13 +1156,13 @@ def test_protocol_parsers():
         (
             SSOTokenProvider._refresh_access_token,
             {
-                'cb179d1f262e41cc03a7c218e624e8c7fbeeaf19',
+                '6263c009e6d86011ca1226d61ea95163bbfca258',
             },
         ),
         (
             SSOTokenProvider._refresher,
             {
-                '824d41775dbb8a05184f6e9c7b2ea7202b72f2a9',
+                'd89b3446344826e5b740840c12fd9279810c45d2',
             },
         ),
         (
@@ -1285,7 +1283,7 @@ def test_protocol_parsers():
         (
             S3RegionRedirectorv2.redirect_from_error,
             {
-                '8e3003ec881c7eab0945fe4b6e021ca488fbcd78',
+                '2a715115e94bddcea4cce936bf7c7013f1f6ecdf',
             },
         ),
         (
@@ -1297,8 +1295,7 @@ def test_protocol_parsers():
         (
             S3RegionRedirector.redirect_from_error,
             {
-                '3863b2c6472513b7896bfccc9dfd2567c472f441',
-                'e1d93a4a85dfbfa810b9249da0b22ce14744b99d',
+                '5db904d0311db5c875aed0f6a78278f173ca40a7',
             },
         ),
         (
@@ -1428,8 +1425,7 @@ def test_protocol_parsers():
         (
             EndpointDiscoveryManager.describe_endpoint,
             {
-                'b2f1b29177cf30f299e61b85ddec09eaa070e54e',
-                'cbd237b874daef01cf7be82fef30516557ba17f9',
+                '2d7c40eec571a14e6e3968b710c23677ae3685e6',
             },
         ),
         (
@@ -1524,7 +1520,7 @@ def test_protocol_parsers():
         (
             handle_checksum_body,
             {
-                '040cb48d8ebfb5ca195d41deb55b38d1fcb489f8',
+                'f019114f7fc3a4e200157b9689ed8a1cc9d72825',
             },
         ),
         (
@@ -1644,6 +1640,7 @@ def test_protocol_parsers():
             {
                 'bccf23c3733cc656b909f5130cba80dbc9540b05',
                 '7c01f505134b5ea3f4886e2288ea7f389577efd5',
+                '0ff1c068779d3e8a84c4da0655cfdf5861fe1b2c',
             },
         ),
     ],
