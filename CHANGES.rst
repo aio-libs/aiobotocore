@@ -1,5 +1,10 @@
 Changes
 -------
+
+2.24.2 (2025-08-16)
+^^^^^^^^^^^^^^^^^^^
+* relax botocore dependency specification
+
 2.24.1 (2025-08-15)
 ^^^^^^^^^^^^^^^^^^^
 * fix endpoint circular import error
