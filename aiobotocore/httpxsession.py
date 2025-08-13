@@ -50,10 +50,10 @@ class HttpxSession:
         proxies_config: dict[str, str] | None = None,
         connector_args: dict[str, Any] | None = None,
     ):
-        # if httpx is None:  # pragma: no cover
-        #     raise RuntimeError(
-        #         "Using HttpxSession requires httpx to be installed"
-        #     )
+        if httpx is None:  # pragma: no cover
+            raise RuntimeError(
+                "Using HttpxSession requires httpx to be installed"
+            )
         if proxies or proxies_config:
             raise NotImplementedError(
                 "Proxy support not implemented with httpx as backend."
