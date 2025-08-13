@@ -26,8 +26,9 @@ from botocore.httpsession import (
 from multidict import CIMultiDict
 
 import aiobotocore.awsrequest
-from ._constants import DEFAULT_KEEPALIVE_TIMEOUT
 from aiobotocore._endpoint_helpers import _text
+
+from ._constants import DEFAULT_KEEPALIVE_TIMEOUT
 
 try:
     import httpx

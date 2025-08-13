@@ -3,10 +3,9 @@ import copy
 import botocore.client
 from botocore.exceptions import ParamValidationError
 
+from ._constants import DEFAULT_KEEPALIVE_TIMEOUT
 from .endpoint import DEFAULT_HTTP_SESSION_CLS
 from .httpxsession import HttpxSession
-from ._constants import DEFAULT_KEEPALIVE_TIMEOUT
-
 
 TIMEOUT_ARGS = frozenset(
     ('keepalive_timeout', 'write_timeout', 'pool_timeout')

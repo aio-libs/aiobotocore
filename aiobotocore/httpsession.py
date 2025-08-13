@@ -40,6 +40,7 @@ from botocore.httpsession import (
 from multidict import CIMultiDict
 
 import aiobotocore.awsrequest
+
 from ._constants import DEFAULT_KEEPALIVE_TIMEOUT
 from ._endpoint_helpers import _IOBaseWrapper, _text
 
