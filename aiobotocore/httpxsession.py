@@ -26,7 +26,7 @@ from botocore.httpsession import (
 from multidict import CIMultiDict
 
 import aiobotocore.awsrequest
-import aiobotocore.config  # avoid circular import
+from ._constants import DEFAULT_KEEPALIVE_TIMEOUT
 from aiobotocore._endpoint_helpers import _text
 
 try:
@@ -50,10 +50,10 @@ class HttpxSession:
         proxies_config: dict[str, str] | None = None,
         connector_args: dict[str, Any] | None = None,
     ):
-        if httpx is None:  # pragma: no cover
-            raise RuntimeError(
-                "Using HttpxSession requires httpx to be installed"
-            )
+        # if httpx is None:  # pragma: no cover
+        #     raise RuntimeError(
+        #         "Using HttpxSession requires httpx to be installed"
+        #     )
         if proxies or proxies_config:
             raise NotImplementedError(
                 "Proxy support not implemented with httpx as backend."
@@ -61,7 +61,7 @@ class HttpxSession:
 
         if connector_args is None:
             self._connector_args: dict[str, Any] = {
-                'keepalive_timeout': aiobotocore.config.DEFAULT_KEEPALIVE_TIMEOUT
+                'keepalive_timeout': DEFAULT_KEEPALIVE_TIMEOUT
             }
         else:
             self._connector_args = connector_args
