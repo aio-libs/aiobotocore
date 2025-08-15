@@ -40,8 +40,9 @@ from botocore.httpsession import (
 from multidict import CIMultiDict
 
 import aiobotocore.awsrequest
-import aiobotocore.config
-from aiobotocore._endpoint_helpers import _IOBaseWrapper, _text
+
+from ._constants import DEFAULT_KEEPALIVE_TIMEOUT
+from ._endpoint_helpers import _IOBaseWrapper, _text
 
 
 class AIOHTTPSession:
@@ -85,7 +86,7 @@ class AIOHTTPSession:
         self._connector_args = connector_args
         if self._connector_args is None:
             self._connector_args = dict(
-                keepalive_timeout=aiobotocore.config.DEFAULT_KEEPALIVE_TIMEOUT
+                keepalive_timeout=DEFAULT_KEEPALIVE_TIMEOUT
             )
 
         self._max_pool_connections = max_pool_connections

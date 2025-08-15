@@ -3,14 +3,9 @@ import copy
 import botocore.client
 from botocore.exceptions import ParamValidationError
 
-from aiobotocore.endpoint import DEFAULT_HTTP_SESSION_CLS
-from aiobotocore.httpxsession import HttpxSession
-
-# AWS has a 20 second idle timeout:
-#   https://web.archive.org/web/20150926192339/https://forums.aws.amazon.com/message.jspa?messageID=215367
-# and aiohttp default timeout is 30s so we set it to something
-# reasonable here
-DEFAULT_KEEPALIVE_TIMEOUT = 12
+from ._constants import DEFAULT_KEEPALIVE_TIMEOUT
+from .endpoint import DEFAULT_HTTP_SESSION_CLS
+from .httpxsession import HttpxSession
 
 TIMEOUT_ARGS = frozenset(
     ('keepalive_timeout', 'write_timeout', 'pool_timeout')

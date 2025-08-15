@@ -26,8 +26,9 @@ from botocore.httpsession import (
 from multidict import CIMultiDict
 
 import aiobotocore.awsrequest
-import aiobotocore.config  # avoid circular import
 from aiobotocore._endpoint_helpers import _text
+
+from ._constants import DEFAULT_KEEPALIVE_TIMEOUT
 
 try:
     import httpx
@@ -61,7 +62,7 @@ class HttpxSession:
 
         if connector_args is None:
             self._connector_args: dict[str, Any] = {
-                'keepalive_timeout': aiobotocore.config.DEFAULT_KEEPALIVE_TIMEOUT
+                'keepalive_timeout': DEFAULT_KEEPALIVE_TIMEOUT
             }
         else:
             self._connector_args = connector_args
