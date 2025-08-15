@@ -191,8 +191,9 @@ class AioSession(_SyncSession):
                 aws_session_token, aws_account_id
             ):
                 logger.debug(
-                    f"Ignoring the following credential-related values which were set without "
-                    f"an access key id and secret key on the session or client: {ignored_credentials}"
+                    "Ignoring the following credential-related values which were set without "
+                    "an access key id and secret key on the session or client: %s",
+                    ignored_credentials,
                 )
             credentials = await self.get_credentials()
         auth_token = self.get_auth_token()
