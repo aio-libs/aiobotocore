@@ -1,6 +1,6 @@
 Changes
 -------
-2.24.1 (2025-08-12)
+2.24.1 (2025-08-15)
 ^^^^^^^^^^^^^^^^^^^
 * fix endpoint circular import error
 
