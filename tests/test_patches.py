@@ -1027,13 +1027,13 @@ def test_protocol_parsers():
         (
             RequestSigner.get_auth,
             {
-                '13e90d57d536179621ac012ace97e4c2cbaa096e',
+                '10ba1f446244906daf170e68dbd1f13c54ec2d93',
             },
         ),
         (
             RequestSigner.get_auth_instance,
             {
-                '13e90d57d536179621ac012ace97e4c2cbaa096e',
+                '10ba1f446244906daf170e68dbd1f13c54ec2d93',
             },
         ),
         (
