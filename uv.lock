@@ -13,7 +13,6 @@ source = { editable = "." }
 dependencies = [
     { name = "aiohttp" },
     { name = "aioitertools" },
-    { name = "anyio" },
     { name = "botocore" },
     { name = "jmespath" },
     { name = "multidict" },
@@ -57,7 +56,6 @@ dev = [
 requires-dist = [
     { name = "aiohttp", specifier = ">=3.9.2,<4.0.0" },
     { name = "aioitertools", specifier = ">=0.5.1,<1.0.0" },
-    { name = "anyio", specifier = ">=4.10.0" },
     { name = "awscli", marker = "extra == 'awscli'", specifier = ">=1.41.9,<1.41.12" },
     { name = "boto3", marker = "extra == 'boto3'", specifier = ">=1.39.9,<1.39.12" },
     { name = "botocore", specifier = ">=1.39.9,<1.39.12" },

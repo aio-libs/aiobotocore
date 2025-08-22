@@ -37,7 +37,6 @@ dependencies = [
     "jmespath >= 0.7.1, < 2.0.0",
     "multidict >= 6.0.0, < 7.0.0",
     "wrapt >= 1.10.10, < 2.0.0",
-    "anyio>=4.10.0",
 ]
 
 [project.optional-dependencies]
