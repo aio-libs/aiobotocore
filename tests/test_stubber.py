@@ -1,8 +1,12 @@
+import pytest
+
 from aiobotocore.awsrequest import AioAWSResponse
 from aiobotocore.session import AioSession
 from aiobotocore.stub import AioStubber
 
 from .mock_server import AIOServer
+
+pytestmark = pytest.mark.anyio
 
 
 async def test_add_response():

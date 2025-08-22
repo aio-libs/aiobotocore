@@ -3,6 +3,8 @@ import json
 import botocore
 import pytest
 
+pytestmark = pytest.mark.anyio
+
 
 def _get_topic_policy(topic_arn: str):
     return {

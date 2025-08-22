@@ -13,11 +13,14 @@
 import datetime
 from io import BytesIO
 
+import pytest
 from dateutil.tz import tzutc
 
 from aiobotocore import response
 from aiobotocore.awsrequest import AioAWSResponse
 from tests.botocore_tests.unit import BaseResponseTest
+
+pytestmark = pytest.mark.anyio
 
 XMLBODY1 = (
     b'<?xml version="1.0" encoding="UTF-8"?><Error>'

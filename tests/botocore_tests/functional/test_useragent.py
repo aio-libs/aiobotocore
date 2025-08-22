@@ -1,9 +1,12 @@
-import asyncio
+import anyio
+import pytest
 
 from aiobotocore.session import AioSession
 
 from ...mock_server import AIOServer
 from .. import ClientHTTPStubber
+
+pytestmark = pytest.mark.anyio
 
 
 def get_captured_ua_strings(stubber):
@@ -93,6 +96,8 @@ async def test_registered_feature_ids_dont_bleed_across_threads():
             aws_access_key_id='xxx',
         ) as s3_client,
     ):
+        waiter_features = []
+        paginator_features = []
 
         async def wait():
             with ClientHTTPStubber(s3_client) as stub_client:
@@ -101,7 +106,7 @@ async def test_registered_feature_ids_dont_bleed_across_threads():
                 # The `wait()` method registers `'WAITER': 'B'`
                 await waiter.wait(Bucket='mybucket')
             ua_string = get_captured_ua_strings(stub_client)[0]
-            return parse_registered_feature_ids(ua_string)
+            waiter_features.extend(parse_registered_feature_ids(ua_string))
 
         async def paginate():
             with ClientHTTPStubber(s3_client) as stub_client:
@@ -111,11 +116,11 @@ async def test_registered_feature_ids_dont_bleed_across_threads():
                 async for _ in paginator.paginate():
                     pass
             ua_string = get_captured_ua_strings(stub_client)[0]
-            return parse_registered_feature_ids(ua_string)
+            paginator_features.extend(parse_registered_feature_ids(ua_string))
 
-        waiter_features, paginator_features = await asyncio.gather(
-            wait(), paginate()
-        )
+        async with anyio.create_task_group() as tg:
+            tg.start_soon(wait)
+            tg.start_soon(paginate)
 
         assert 'B' in waiter_features
         assert 'C' not in waiter_features

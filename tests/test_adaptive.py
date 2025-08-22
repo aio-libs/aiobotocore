@@ -11,6 +11,8 @@ from botocore.retries import standard, throttling
 
 from aiobotocore.retries import adaptive, bucket
 
+pytestmark = pytest.mark.anyio
+
 
 class _SleepMethodCalled(Exception):
     """Raised to explicitly fail a test for calling the blocking `sleep` method."""
