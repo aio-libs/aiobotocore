@@ -1,6 +1,5 @@
-import asyncio
-
 import aiohttp.resolver
+import anyio
 import pytest
 from botocore.config import Config
 from botocore.exceptions import ParamValidationError, ReadTimeoutError
@@ -10,6 +9,8 @@ from aiobotocore.httpsession import AIOHTTPSession
 from aiobotocore.httpxsession import HttpxSession
 from aiobotocore.session import AioSession, get_session
 from tests.mock_server import AIOServer
+
+pytestmark = pytest.mark.anyio
 
 
 async def test_connector_args(current_http_backend: str):
@@ -103,20 +104,14 @@ async def test_connector_timeout():
 
         async def get_and_wait():
             await s3_client.get_object(Bucket='foo', Key='bar')
-            await asyncio.sleep(100)
+            await anyio.sleep(100)
 
-        task1 = asyncio.Task(get_and_wait())
-        task2 = asyncio.Task(get_and_wait())
-
-        try:
-            done, pending = await asyncio.wait([task1, task2], timeout=3)
-
-            # second request should not timeout just because there isn't a
-            # connector available
-            assert len(pending) == 2
-        finally:
-            task1.cancel()
-            task2.cancel()
+        # second request should not timeout just because there isn't a
+        # connector available
+        with anyio.move_on_after(3):
+            async with anyio.create_task_group() as tg:
+                tg.start_soon(get_and_wait)
+                tg.start_soon(get_and_wait)
 
 
 async def test_connector_timeout2():

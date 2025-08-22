@@ -24,6 +24,8 @@ from botocore.exceptions import (
 from aiobotocore.session import AioSession
 from aiobotocore.tokens import AioSSOTokenProvider
 
+pytestmark = pytest.mark.anyio
+
 
 def parametrize(cases):
     return pytest.mark.parametrize(

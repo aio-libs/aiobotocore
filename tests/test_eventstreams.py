@@ -1,10 +1,12 @@
-import asyncio
 from contextlib import AsyncExitStack
 
+import anyio
 import pytest
 
 from aiobotocore.eventstream import AioEventStream
 from aiobotocore.parsers import AioEventStreamXMLParser
+
+pytestmark = pytest.mark.anyio
 
 # TODO once Moto supports either S3 Select or Kinesis SubscribeToShard then
 # this can be tested against a real AWS API
@@ -134,7 +136,7 @@ async def test_kinesis_stream_json_parser(
         'ConsumerStatus'
     ] == 'CREATING':
         print("Waiting for stream consumer creation")
-        await asyncio.sleep(1)
+        await anyio.sleep(1)
 
     starting_position = {'Type': 'LATEST'}
     subscribe_response = await kinesis_client.subscribe_to_shard(

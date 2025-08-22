@@ -30,6 +30,8 @@ import aiobotocore.session
 import aiobotocore.signers
 from tests.botocore_tests import assert_url_equal
 
+pytestmark = pytest.mark.anyio
+
 DATE = datetime.datetime(2024, 11, 7, 17, 39, 33, tzinfo=timezone.utc)
 
 

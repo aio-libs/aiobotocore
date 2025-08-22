@@ -1,4 +1,3 @@
-import asyncio
 import io
 from unittest.mock import MagicMock
 
@@ -7,6 +6,8 @@ from botocore.exceptions import IncompleteReadError
 
 from aiobotocore import response
 from aiobotocore.response import AioReadTimeoutError
+
+pytestmark = pytest.mark.anyio
 
 
 # https://github.com/boto/botocore/blob/develop/tests/unit/test_response.py
@@ -107,7 +108,7 @@ async def test_streaming_body_readinto_with_timeout():
             self.url = ""
 
         async def read(self, n: int):
-            raise asyncio.TimeoutError()
+            raise TimeoutError()
 
     stream = response.StreamingBody(TimeoutBody(), content_length=9)
     with pytest.raises(AioReadTimeoutError):

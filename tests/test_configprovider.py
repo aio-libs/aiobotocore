@@ -2,6 +2,8 @@ import pytest
 
 from aiobotocore.session import AioSession
 
+pytestmark = pytest.mark.anyio
+
 
 @pytest.mark.parametrize(
     'defaults_mode,retry_mode',

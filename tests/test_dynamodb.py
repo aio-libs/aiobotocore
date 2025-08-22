@@ -1,9 +1,11 @@
-import asyncio
 import uuid
 
+import anyio
 import pytest
 
 from aiobotocore.waiter import WaiterError
+
+pytestmark = pytest.mark.anyio
 
 
 @pytest.fixture
@@ -113,17 +115,19 @@ async def test_waiter_table_exists_failure(dynamodb_client):
 @pytest.mark.parametrize('signature_version', ['v4'])
 async def test_waiter_table_exists(dynamodb_client, dynamodb_table_def):
     table_name = dynamodb_table_def['TableName']
+    done_event = anyio.Event()
 
     async def _create_table():
-        await asyncio.sleep(2)
+        await anyio.sleep(2)
         await dynamodb_client.create_table(**dynamodb_table_def)
+        done_event.set()
 
-    task = asyncio.create_task(_create_table())
-    assert not task.done()
+    async with anyio.create_task_group() as tg:
+        tg.start_soon(_create_table)
 
-    waiter = dynamodb_client.get_waiter('table_exists')
-    await waiter.wait(
-        TableName=table_name, WaiterConfig=dict(Delay=1, MaxAttempts=5)
-    )
+        waiter = dynamodb_client.get_waiter('table_exists')
+        await waiter.wait(
+            TableName=table_name, WaiterConfig=dict(Delay=1, MaxAttempts=5)
+        )
 
-    assert task.done()
+        assert done_event.is_set()

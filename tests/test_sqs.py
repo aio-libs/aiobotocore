@@ -2,6 +2,8 @@ import time
 
 import pytest
 
+pytestmark = pytest.mark.anyio
+
 
 async def test_list_queues(sqs_client, sqs_queue_url):
     response = await sqs_client.list_queues()

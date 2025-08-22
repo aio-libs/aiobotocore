@@ -29,6 +29,8 @@ from aiobotocore.httpchecksum import (
 from aiobotocore.response import StreamingBody
 from tests.test_response import AsyncBytesIO
 
+pytestmark = pytest.mark.anyio
+
 
 class TestHttpChecksumHandlers:
     def _make_operation_model(
