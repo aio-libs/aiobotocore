@@ -68,7 +68,7 @@ jobs:
         uv run make mototest
     - name: Upload coverage to Codecov
       # yamllint disable-line rule:line-length
-      uses: codecov/codecov-action@18283e04ce6e62d37312384ff67231eb8fd56d24  # v5.4.3
+      uses: codecov/codecov-action@fdcc8476540edceab3de004e990f80d881c6cc00  # v5.5.0
       with:
         token: ${{ secrets.codecov-token }}  # not required for public repos
         files: ./coverage.xml
