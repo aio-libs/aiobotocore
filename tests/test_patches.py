@@ -907,7 +907,7 @@ def test_protocol_parsers():
         (
             EndpointRulesetResolver.construct_endpoint,
             {
-                'f3ad94494006fcfdbd622f6c19e0de9fba0ad199',
+                '05e4f37e807b57bf9ff37dbe870308b684c62c02',
             },
         ),
         (
