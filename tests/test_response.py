@@ -1,3 +1,4 @@
+import asyncio
 import io
 from unittest.mock import MagicMock
 
@@ -108,7 +109,7 @@ async def test_streaming_body_readinto_with_timeout():
             self.url = ""
 
         async def read(self, n: int):
-            raise TimeoutError()
+            raise asyncio.TimeoutError()
 
     stream = response.StreamingBody(TimeoutBody(), content_length=9)
     with pytest.raises(AioReadTimeoutError):
