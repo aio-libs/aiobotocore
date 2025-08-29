@@ -1,4 +1,4 @@
-import asyncio
+from inspect import iscoroutinefunction
 
 import pytest
 
@@ -8,6 +8,8 @@ from aiobotocore.waiter import (
     create_waiter_with_client,
 )
 
+pytestmark = pytest.mark.anyio
+
 
 @pytest.fixture
 def cloudformation_waiter_model(cloudformation_client):
@@ -15,7 +17,7 @@ def cloudformation_waiter_model(cloudformation_client):
     return WaiterModel(config)
 
 
-def test_create_waiter_with_client(
+async def test_create_waiter_with_client(
     cloudformation_client, cloudformation_waiter_model
 ):
     waiter = create_waiter_with_client(
@@ -24,7 +26,7 @@ def test_create_waiter_with_client(
         cloudformation_client,
     )
     assert isinstance(waiter, AIOWaiter)
-    assert asyncio.iscoroutinefunction(waiter.wait)
+    assert iscoroutinefunction(waiter.wait)
 
 
 async def test_sqs(cloudformation_client, current_http_backend: str):

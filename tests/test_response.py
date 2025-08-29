@@ -8,6 +8,8 @@ from botocore.exceptions import IncompleteReadError
 from aiobotocore import response
 from aiobotocore.response import AioReadTimeoutError
 
+pytestmark = pytest.mark.anyio
+
 
 # https://github.com/boto/botocore/blob/develop/tests/unit/test_response.py
 async def assert_lines(line_iterator, expected_lines):

@@ -24,6 +24,8 @@ from botocore.exceptions import (
 from aiobotocore.session import AioSession
 from aiobotocore.tokens import AioSSOTokenProvider
 
+pytestmark = pytest.mark.anyio
+
 
 def parametrize(cases):
     return pytest.mark.parametrize(
@@ -121,7 +123,7 @@ def _run_token_provider_test_case(provider, test_case):
 
 
 @parametrize(sso_provider_resolution_cases)
-def test_sso_token_provider_resolution(test_case):
+async def test_sso_token_provider_resolution(test_case):
     mock_session = _create_mock_session(test_case["config"])
     resolver = AioSSOTokenProvider(mock_session)
 
@@ -129,7 +131,9 @@ def test_sso_token_provider_resolution(test_case):
 
 
 @parametrize(sso_provider_resolution_cases)
-def test_sso_token_provider_profile_name_overrides_session_profile(test_case):
+async def test_sso_token_provider_profile_name_overrides_session_profile(
+    test_case,
+):
     mock_session = _create_mock_session(test_case["config"])
     mock_session.get_config_variable.return_value = "default"
     resolver = AioSSOTokenProvider(mock_session, profile_name='test')

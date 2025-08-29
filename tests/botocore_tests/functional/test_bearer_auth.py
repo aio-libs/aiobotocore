@@ -8,6 +8,8 @@ from tests.botocore_tests.functional.test_useragent import (
     parse_registered_feature_ids,
 )
 
+pytestmark = pytest.mark.anyio
+
 MOCK_SERVICE_MODEL = {
     "version": "2.0",
     "metadata": {
