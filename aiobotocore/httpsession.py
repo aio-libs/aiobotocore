@@ -3,6 +3,7 @@ import contextlib
 import io
 import os
 import socket
+from threading import Lock
 from typing import Optional
 
 import aiohttp  # lgtm [py/import-and-import-from]
@@ -43,6 +44,8 @@ import aiobotocore.awsrequest
 
 from ._constants import DEFAULT_KEEPALIVE_TIMEOUT
 from ._endpoint_helpers import _IOBaseWrapper, _text
+
+_session_lock = Lock()
 
 
 class AIOHTTPSession:
@@ -99,13 +102,29 @@ class AIOHTTPSession:
         # request so don't need proxy manager
 
     async def __aenter__(self):
-        assert not self._sessions
+        with _session_lock:
+            self._aexited = False
 
+        assert not self._sessions
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         self._sessions.clear()
         await self._exit_stack.aclose()
+
+        with _session_lock:
+            self._aexited = True
+
+    @property
+    def _can_create_session(self) -> bool:
+        """Check if a new client session can be created.
+
+        This is true for two cases:
+        - We are inside the context manager of the class.
+        - We have never attempted to enter the context manager.
+        """
+        with _session_lock:
+            return not getattr(self, '_aexited', False)
 
     def _get_ssl_context(self):
         return create_urllib3_context()
@@ -173,6 +192,11 @@ class AIOHTTPSession:
 
     async def _get_session(self, proxy_url):
         if not (session := self._sessions.get(proxy_url)):
+            if not self._can_create_session:
+                raise RuntimeError(
+                    f'Cannot create a new {aiohttp.ClientSession.__name__} '
+                    'when context manager was exited.'
+                )
             connector = self._create_connector(proxy_url)
             self._sessions[proxy_url] = (
                 session

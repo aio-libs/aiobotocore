@@ -1,5 +1,9 @@
 Changes
 -------
+2.24.2 (XXXX-XX-XX)
+^^^^^^^^^^^^^^^^^^^
+* forbid creating loose ``ClientSession`` when ``AioBaseClient`` exits context
+
 2.24.1 (2025-08-15)
 ^^^^^^^^^^^^^^^^^^^
 * fix endpoint circular import error
