@@ -152,6 +152,21 @@ class TestCreateClient(BaseSessionTest):
         async with sts_client_context as sts_client:
             assert isinstance(sts_client, client.AioBaseClient)
 
+    async def test_cannot_create_client_sessions_outside_context(
+        self, session
+    ):
+        s3_client_context = session.create_client('s3', 'us-west-2')
+
+        async with s3_client_context as s3_client:
+            pass
+
+        with pytest.raises(
+            botocore.exceptions.HTTPClientError,
+            match='Cannot create a new ClientSession when context manager was'
+            ' exited',
+        ):
+            await s3_client.list_buckets()
+
     async def test_credential_provider_not_called_when_creds_provided(
         self, session
     ):
