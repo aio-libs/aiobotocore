@@ -1089,14 +1089,18 @@ async def ssl_credential_fetcher_setup():
         self.start_url = 'https://d-92671207e4.awsapps.com/start'
         self.role_name = 'test-role'
         self.account_id = '1234567890'
-        self.access_token = 'some.sso.token'
+        self.access_token = {
+            'accessToken': 'some.sso.token',
+            'expiresAt': '2018-10-18T22:26:40Z',
+        }
         # This is just an arbitrary point in time we can pin to
         self.now = datetime(2008, 9, 23, 12, 26, 40, tzinfo=tzutc())
         # The SSO endpoint uses ms whereas the OIDC endpoint uses seconds
         self.now_timestamp = 1222172800000
+        self.mock_time_fetcher = mock.Mock(return_value=self.now)
 
         self.loader = mock.Mock(spec=SSOTokenLoader)
-        self.loader.return_value = {'accessToken': self.access_token}
+        self.loader.return_value = self.access_token
         self.fetcher = AioSSOCredentialFetcher(
             self.start_url,
             self.sso_region,
@@ -1105,11 +1109,13 @@ async def ssl_credential_fetcher_setup():
             self.mock_session.create_client,
             token_loader=self.loader,
             cache=self.cache,
+            time_fetcher=self.mock_time_fetcher,
         )
 
         tc = TestCase()
         self.assertEqual = tc.assertEqual
         self.assertRaises = tc.assertRaises
+        self.assertFalse = tc.assertFalse
         yield self
 
 
@@ -1292,7 +1298,7 @@ async def test_sso_credential_fetcher_can_fetch_credentials(
     expected_params = {
         'roleName': self.role_name,
         'accountId': self.account_id,
-        'accessToken': self.access_token,
+        'accessToken': self.access_token['accessToken'],
     }
     expected_response = {
         'roleCredentials': {
@@ -1334,7 +1340,7 @@ async def test_sso_cred_fetcher_raises_helpful_message_on_unauthorized_exception
     expected_params = {
         'roleName': self.role_name,
         'accountId': self.account_id,
-        'accessToken': self.access_token,
+        'accessToken': self.access_token['accessToken'],
     }
     self.stubber.add_client_error(
         'get_role_credentials',
@@ -1344,6 +1350,31 @@ async def test_sso_cred_fetcher_raises_helpful_message_on_unauthorized_exception
     with self.assertRaises(botocore.exceptions.UnauthorizedSSOTokenError):
         with self.stubber:
             await self.fetcher.fetch_credentials()
+
+
+async def test_sso_cred_fetcher_expired_legacy_token_has_expected_behavior(
+    ssl_credential_fetcher_setup,
+):
+    self = ssl_credential_fetcher_setup
+    # Mock the current time to be in the future after the access token has expired
+    now = datetime(2018, 10, 19, 12, 26, 40, tzinfo=tzutc())
+    mock_client = mock.AsyncMock()
+    create_mock_client = mock.Mock(return_value=mock_client)
+    fetcher = AioSSOCredentialFetcher(
+        self.start_url,
+        self.sso_region,
+        self.role_name,
+        self.account_id,
+        create_mock_client,
+        token_loader=self.loader,
+        cache=self.cache,
+        time_fetcher=mock.Mock(return_value=now),
+    )
+    # since the cached token is expired, an UnauthorizedSSOTokenError should be
+    # raised and GetRoleCredentials should not be called.
+    with self.assertRaises(botocore.exceptions.UnauthorizedSSOTokenError):
+        await fetcher.fetch_credentials()
+    self.assertFalse(mock_client.get_role_credentials.called)
 
 
 # from TestSSOProvider
