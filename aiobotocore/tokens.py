@@ -125,7 +125,7 @@ class AioSSOTokenProvider(SSOTokenProvider):
 
         expiry = dateutil.parser.parse(token["registrationExpiresAt"])
         if total_seconds(expiry - self._now()) <= 0:
-            logger.info(f"SSO token registration expired at {expiry}")
+            logger.info("SSO token registration expired at %s", expiry)
             return None
 
         try:
@@ -137,10 +137,10 @@ class AioSSOTokenProvider(SSOTokenProvider):
     async def _refresher(self):
         start_url = self._sso_config["sso_start_url"]
         session_name = self._sso_config["session_name"]
-        logger.info(f"Loading cached SSO token for {session_name}")
+        logger.info("Loading cached SSO token for %s", session_name)
         token_dict = self._token_loader(start_url, session_name=session_name)
         expiration = dateutil.parser.parse(token_dict["expiresAt"])
-        logger.debug(f"Cached SSO token expires at {expiration}")
+        logger.debug("Cached SSO token expires at %s", expiration)
 
         remaining = total_seconds(expiration - self._now())
         if remaining < self._REFRESH_WINDOW:

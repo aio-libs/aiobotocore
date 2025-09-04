@@ -44,7 +44,7 @@ async def test_signers_generate_db_auth_token(rds_client):
     clock = datetime.datetime(2016, 11, 7, 17, 39, 33, tzinfo=timezone.utc)
 
     with mock.patch('datetime.datetime') as dt:
-        dt.utcnow.return_value = clock
+        dt.now.return_value = clock
         result = await aiobotocore.signers.generate_db_auth_token(
             rds_client, hostname, port, username
         )
