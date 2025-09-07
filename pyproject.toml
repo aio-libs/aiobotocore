@@ -72,7 +72,7 @@ botocore-dev = [
     # "colorama>0.3.0", # Windows requirement
 ]
 dev = [
-    "anyio >= 4.10.0",
+    "anyio @ https://github.com/agronholm/anyio.git",
     "dill >= 0.3.3, < 0.5", # Used in test_patches.py
     "docker >= 7.1, < 8",
     "docutils >= 0.19, < 0.22", # Used in test_version.py
@@ -101,6 +101,7 @@ include = ["aiobotocore*"]
 
 [tool.pytest.ini_options]
 cache_dir = "/tmp/pytest_aiobotocore_cache"
+anyio_mode = "auto"
 markers = [
     "localonly",
     "config_kwargs",

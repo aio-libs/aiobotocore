@@ -50,8 +50,6 @@ from aiobotocore.session import AioSession
 from tests.botocore_tests import random_chars
 from tests.botocore_tests.helpers import StubbedSession
 
-pytestmark = pytest.mark.anyio
-
 
 # From class TestCredentials(BaseEnvVar):
 @pytest.mark.parametrize(

@@ -17,8 +17,6 @@ import aiobotocore.retries.adaptive
 from aiobotocore import httpsession
 from aiobotocore.response import StreamingBody
 
-pytestmark = pytest.mark.anyio
-
 
 async def fetch_all(pages):
     responses = []

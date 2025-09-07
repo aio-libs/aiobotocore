@@ -13,11 +13,7 @@
 
 from unittest import mock
 
-import pytest
-
 from aiobotocore import handlers
-
-pytestmark = pytest.mark.anyio
 
 
 class TestHandlers:

@@ -14,8 +14,6 @@ import pytest
 from aiobotocore.credentials import _get_client_creator
 from aiobotocore.utils import create_nested_client
 
-pytestmark = pytest.mark.anyio
-
 
 class TestCreateNestedClient:
     """Test the create_nested_client function."""

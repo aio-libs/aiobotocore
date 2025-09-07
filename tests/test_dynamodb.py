@@ -5,8 +5,6 @@ import pytest
 
 from aiobotocore.waiter import WaiterError
 
-pytestmark = pytest.mark.anyio
-
 
 @pytest.fixture
 def dynamodb_table_def():

@@ -27,8 +27,6 @@ from aiobotocore import client
 from aiobotocore.session import ClientCreatorContext
 from tests.botocore_tests import create_session, mock, temporary_file
 
-pytestmark = pytest.mark.anyio
-
 
 class BaseSessionTest:
     @pytest.fixture

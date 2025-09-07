@@ -24,8 +24,6 @@ from tests.test_response import AsyncBytesIO
 # TypeAlias (requires typing_extensions or >=3.10 to annotate)
 Response = tuple[Union[str, object], int]
 
-pytestmark = pytest.mark.anyio
-
 
 # From class TestContainerMetadataFetcher
 def fake_aiohttp_session(responses: list[Response] | Response):

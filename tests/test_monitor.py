@@ -1,8 +1,4 @@
-import pytest
-
 from aiobotocore.session import AioSession
-
-pytestmark = pytest.mark.anyio
 
 
 async def test_monitor_response_received(session: AioSession, s3_client):

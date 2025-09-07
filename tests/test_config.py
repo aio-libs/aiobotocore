@@ -10,8 +10,6 @@ from aiobotocore.httpxsession import HttpxSession
 from aiobotocore.session import AioSession, get_session
 from tests.mock_server import AIOServer
 
-pytestmark = pytest.mark.anyio
-
 
 async def test_connector_args(current_http_backend: str):
     with pytest.raises(ParamValidationError):

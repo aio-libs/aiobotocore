@@ -1,7 +1,5 @@
 import pytest
 
-pytestmark = pytest.mark.anyio
-
 
 async def test_invalid_endpoint_url(session, region):
     endpoint_url = 'invalid_url'

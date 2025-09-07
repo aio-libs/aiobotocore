@@ -1,8 +1,3 @@
-import pytest
-
-pytestmark = pytest.mark.anyio
-
-
 async def test_ec2_snapshot(ec2_client):
     # TODO: this needs to somehow validate the presigned url sent because moto is not
     volume_response = await ec2_client.create_volume(

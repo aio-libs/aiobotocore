@@ -1,8 +1,6 @@
 import pytest
 from botocore.stub import ANY, Stubber
 
-pytestmark = pytest.mark.anyio
-
 _mturk_list_hits_response = {
     'NumResults': 0,
     'HITs': [],

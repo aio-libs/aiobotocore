@@ -73,8 +73,6 @@ from aiobotocore.parsers import (
     AioRpcV2CBORParser,
 )
 
-pytestmark = pytest.mark.anyio
-
 TEST_DIR = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), 'protocols'
 )

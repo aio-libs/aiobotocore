@@ -12,8 +12,6 @@ except ImportError:
     httpx = None
 import pytest
 
-pytestmark = pytest.mark.anyio
-
 
 async def _get_role_arn(iam_client, role_name: str):
     try:

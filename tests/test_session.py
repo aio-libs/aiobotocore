@@ -7,8 +7,6 @@ from aiobotocore import __version__, httpsession
 from aiobotocore.config import AioConfig
 from aiobotocore.session import AioSession
 
-pytestmark = pytest.mark.anyio
-
 
 async def test_get_service_data(session):
     handler_called = False

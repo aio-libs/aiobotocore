@@ -8,8 +8,6 @@ from aiobotocore.waiter import (
     create_waiter_with_client,
 )
 
-pytestmark = pytest.mark.anyio
-
 
 @pytest.fixture
 def cloudformation_waiter_model(cloudformation_client):

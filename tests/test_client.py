@@ -1,8 +1,6 @@
 import pytest
 from botocore.exceptions import OperationNotPageableError
 
-pytestmark = pytest.mark.anyio
-
 
 async def test_get_paginator_not_supported_by_service(sns_client):
     operation_name = 'list_tags_for_resource'

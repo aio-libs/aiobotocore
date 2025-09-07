@@ -31,8 +31,6 @@ from botocore.exceptions import EventStreamError
 from aiobotocore.eventstream import AioEventStream
 from aiobotocore.parsers import AioEventStreamXMLParser
 
-pytestmark = pytest.mark.anyio
-
 EMPTY_MESSAGE = (
     b'\x00\x00\x00\x10\x00\x00\x00\x00\x05\xc2H\xeb}\x98\xc8\xff',
     EventStreamMessage(

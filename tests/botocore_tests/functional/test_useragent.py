@@ -1,12 +1,9 @@
 import anyio
-import pytest
 
 from aiobotocore.session import AioSession
 
 from ...mock_server import AIOServer
 from .. import ClientHTTPStubber
-
-pytestmark = pytest.mark.anyio
 
 
 def get_captured_ua_strings(stubber):

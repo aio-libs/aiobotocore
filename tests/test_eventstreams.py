@@ -6,8 +6,6 @@ import pytest
 from aiobotocore.eventstream import AioEventStream
 from aiobotocore.parsers import AioEventStreamXMLParser
 
-pytestmark = pytest.mark.anyio
-
 # TODO once Moto supports either S3 Select or Kinesis SubscribeToShard then
 # this can be tested against a real AWS API
 
