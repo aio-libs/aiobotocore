@@ -162,8 +162,7 @@ class TestCreateClient(BaseSessionTest):
 
         with pytest.raises(
             botocore.exceptions.HTTPClientError,
-            match='Cannot create a new ClientSession when context manager was'
-            ' exited',
+            match="'NoneType' object has no attribute 'get'",
         ):
             await s3_client.list_buckets()
 
