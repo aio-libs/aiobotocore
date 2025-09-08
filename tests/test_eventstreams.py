@@ -1,6 +1,6 @@
-import asyncio
 from contextlib import AsyncExitStack
 
+import anyio
 import pytest
 
 from aiobotocore.eventstream import AioEventStream
@@ -134,7 +134,7 @@ async def test_kinesis_stream_json_parser(
         'ConsumerStatus'
     ] == 'CREATING':
         print("Waiting for stream consumer creation")
-        await asyncio.sleep(1)
+        await anyio.sleep(1)
 
     starting_position = {'Type': 'LATEST'}
     subscribe_response = await kinesis_client.subscribe_to_shard(

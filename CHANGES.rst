@@ -1,6 +1,10 @@
 Changes
 -------
 
+2.24.3 (TBD)
+^^^^^^^^^^^^
+* switch async test runner from pytest-asyncio to AnyIO
+
 2.24.2 (2025-09-05)
 ^^^^^^^^^^^^^^^^^^^
 * bump botocore dependency specification
