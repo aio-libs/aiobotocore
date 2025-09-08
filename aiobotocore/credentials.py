@@ -49,6 +49,7 @@ from botocore.credentials import (
     parse,
     resolve_imds_endpoint_mode,
 )
+from botocore.useragent import register_feature_id
 
 from aiobotocore._helpers import resolve_awaitable
 from aiobotocore.config import AioConfig
@@ -595,6 +596,7 @@ class AioInstanceMetadataProvider(InstanceMetadataProvider):
         metadata = await fetcher.retrieve_iam_role_credentials()
         if not metadata:
             return None
+        register_feature_id('CREDENTIALS_IMDS')
         logger.info(
             'Found credentials from IAM Role: %s', metadata['role_name']
         )
@@ -995,6 +997,7 @@ class AioContainerProvider(ContainerProvider):
                 response = await self._fetcher.retrieve_full_uri(
                     full_uri, headers=headers
                 )
+                register_feature_id('CREDENTIALS_HTTP')
             except MetadataRetrievalError as e:
                 logger.debug(
                     "Error retrieving container metadata: %s", e, exc_info=True

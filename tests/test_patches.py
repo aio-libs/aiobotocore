@@ -493,13 +493,13 @@ def test_protocol_parsers():
         (
             ContainerProvider._create_fetcher,
             {
-                'f61e3e60fda55de7dbcf4a66865981f7cb0804b8',
+                'f70e2b62a83099aa9863ed31fae7416b8a4c8df5',
             },
         ),
         (
             InstanceMetadataProvider.load,
             {
-                '15becfc0373ccfbc1bb200bd6a34731e61561d06',
+                '8b32da46500dd7b7177e1e6f781a7ce962dd3b66',
             },
         ),
         (
@@ -1027,13 +1027,13 @@ def test_protocol_parsers():
         (
             RequestSigner.get_auth,
             {
-                '10ba1f446244906daf170e68dbd1f13c54ec2d93',
+                '13e90d57d536179621ac012ace97e4c2cbaa096e',
             },
         ),
         (
             RequestSigner.get_auth_instance,
             {
-                '10ba1f446244906daf170e68dbd1f13c54ec2d93',
+                '13e90d57d536179621ac012ace97e4c2cbaa096e',
             },
         ),
         (
