@@ -1,6 +1,10 @@
 Changes
 -------
 
+2.24.3 (2025-09-11)
+^^^^^^^^^^^^^^^^^^^
+* forbid creating loose ``ClientSession`` when ``AioBaseClient`` exits context
+
 2.24.2 (2025-09-05)
 ^^^^^^^^^^^^^^^^^^^
 * bump botocore dependency specification
