@@ -196,8 +196,8 @@ async def handle_checksum_body(
         return
 
     logger.debug(
-        f'Skipping checksum validation. Response did not contain one of the '
-        f'following algorithms: {algorithms}.'
+        'Skipping checksum validation. Response did not contain one of the following algorithms: %s.',
+        algorithms,
     )
 
 

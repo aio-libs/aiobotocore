@@ -5,8 +5,9 @@ import subprocess
 from copy import deepcopy
 
 import botocore.compat
+import dateutil.parser
 from botocore import UNSIGNED
-from botocore.compat import compat_shell_split
+from botocore.compat import compat_shell_split, total_seconds
 from botocore.config import Config
 from botocore.credentials import (
     _DEFAULT_ADVISORY_REFRESH_TIMEOUT,
@@ -1048,7 +1049,16 @@ class AioSSOCredentialFetcher(
                 initial_token_data = self._token_provider.load_token()
                 token = (await initial_token_data.get_frozen_token()).token
             else:
-                token = self._token_loader(self._start_url)['accessToken']
+                token_dict = self._token_loader(self._start_url)
+                token = token_dict['accessToken']
+
+                # raise an UnauthorizedSSOTokenError if the loaded legacy token
+                # is expired to save a call to GetRoleCredentials with an
+                # expired token.
+                expiration = dateutil.parser.parse(token_dict['expiresAt'])
+                remaining = total_seconds(expiration - self._time_fetcher())
+                if remaining <= 0:
+                    raise UnauthorizedSSOTokenError()
 
             kwargs = {
                 'roleName': self._role_name,
