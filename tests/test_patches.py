@@ -469,7 +469,7 @@ def test_protocol_parsers():
         (
             EnvProvider.load,
             {
-                '9c6bb8f48ea4cb3dfbe7df925a269a077205d62b',
+                'da0cfb81a7a27ac1159c9b87920908944d1849f2',
             },
         ),
         (
