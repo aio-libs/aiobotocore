@@ -6,6 +6,7 @@ import os
 import socket
 import ssl
 from collections.abc import AsyncIterable, Iterable
+from concurrent.futures import CancelledError
 from typing import TYPE_CHECKING, Any, cast
 
 import botocore
@@ -266,6 +267,8 @@ class HttpxSession:
 
         except NotImplementedError:
             raise  # Avoid turning it into HTTPClientError.
+        except CancelledError:
+            raise
         except Exception as e:
             message = 'Exception received when sending httpx HTTP request'
             logger.debug(message, exc_info=True)

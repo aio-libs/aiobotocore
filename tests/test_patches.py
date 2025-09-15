@@ -1413,7 +1413,7 @@ def test_protocol_parsers():
         (
             URLLib3Session,
             {
-                '1c418944abceb3a3d76c2c22348b4a39280d27ef',
+                'c65ca250524de59d89a32f213f38c7403666bfef',
             },
         ),
         (
