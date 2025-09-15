@@ -10,6 +10,7 @@ from botocore.session import (
     logger,
 )
 from botocore.session import Session as _SyncSession
+from botocore.useragent import register_feature_id
 
 from . import __version__, retryhandler
 from .client import AioBaseClient, AioClientCreator
@@ -196,6 +197,8 @@ class AioSession(_SyncSession):
                     ignored_credentials,
                 )
             credentials = await self.get_credentials()
+        if getattr(credentials, 'method', None) == 'explicit':
+            register_feature_id('CREDENTIALS_CODE')
         auth_token = self.get_auth_token()
         endpoint_resolver = self._get_internal_component('endpoint_resolver')
         exceptions_factory = self._get_internal_component('exceptions_factory')
