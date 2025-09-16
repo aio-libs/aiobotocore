@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=68.2.0"]
+requires = ["setuptools>=77.0.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -9,13 +9,12 @@ requires-python = ">=3.9"
 authors = [
     { name = "Nikolay Novik", email = "nickolainovik@gmail.com" },
 ]
-license = { text = "Apache-2.0" }
+license = "Apache-2.0"
 classifiers = [
     'Development Status :: 4 - Beta',
     'Intended Audience :: Developers',
     'Intended Audience :: System Administrators',
     'Natural Language :: English',
-    'License :: OSI Approved :: Apache Software License',
     'Programming Language :: Python :: 3',
     'Programming Language :: Python :: 3.9',
     'Programming Language :: Python :: 3.10',
