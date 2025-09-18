@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import multiprocessing
 import os
 import random
@@ -12,15 +11,15 @@ from itertools import chain
 from typing import TYPE_CHECKING, Literal
 from unittest.mock import patch
 
+# Third Party
 import aiohttp
+import anyio
+import pytest
 
 try:
     import httpx
 except ImportError:
     http = None
-
-# Third Party
-import pytest
 
 import aiobotocore.session
 from aiobotocore.config import AioConfig
@@ -46,6 +45,11 @@ def always_spawn():
 )
 def debug(request):
     return request.param
+
+
+@pytest.fixture
+def anyio_backend():
+    return 'asyncio'
 
 
 def random_bucketname():
@@ -98,7 +102,7 @@ async def assert_num_uploads_found(
             return
         else:
             # Sleep and try again.
-            await asyncio.sleep(2)
+            await anyio.sleep(2)
 
         pytest.fail(
             f"Expected to see {num_uploads} uploads, instead saw: {amount_seen}"
@@ -503,7 +507,7 @@ async def create_stream(kinesis_client):
             'StreamStatus'
         ] != 'ACTIVE':
             print("Waiting for stream creation")
-            await asyncio.sleep(1)
+            await anyio.sleep(1)
 
         return stream_name
 
@@ -582,7 +586,7 @@ def create_object(s3_client, bucket_name: str):
 
 
 @pytest.fixture
-def create_multipart_upload(request, s3_client, bucket_name, event_loop):
+async def create_multipart_upload(request, s3_client, bucket_name):
     _key_name = None
     upload_id = None
 
@@ -597,15 +601,10 @@ def create_multipart_upload(request, s3_client, bucket_name, event_loop):
         upload_id = parsed['UploadId']
         return upload_id
 
-    def fin():
-        event_loop.run_until_complete(
-            s3_client.abort_multipart_upload(
-                UploadId=upload_id, Bucket=bucket_name, Key=_key_name
-            )
-        )
-
-    request.addfinalizer(fin)
-    return _f
+    yield _f
+    await s3_client.abort_multipart_upload(
+        UploadId=upload_id, Bucket=bucket_name, Key=_key_name
+    )
 
 
 @pytest.fixture
@@ -643,9 +642,8 @@ def dynamodb_put_item(dynamodb_client, table_name):
 
 
 @pytest.fixture
-def topic_arn(region, create_topic, sns_client, event_loop):
-    arn = event_loop.run_until_complete(create_topic())
-    return arn
+async def topic_arn(region, create_topic, sns_client):
+    return await create_topic()
 
 
 async def delete_topic(sns_client, topic_arn):
@@ -654,7 +652,7 @@ async def delete_topic(sns_client, topic_arn):
 
 
 @pytest.fixture
-def create_topic(request, sns_client, event_loop):
+async def create_topic(request, sns_client):
     _topic_arn = None
 
     async def _f():
@@ -664,11 +662,8 @@ def create_topic(request, sns_client, event_loop):
         assert_status_code(response, 200)
         return _topic_arn
 
-    def fin():
-        event_loop.run_until_complete(delete_topic(sns_client, _topic_arn))
-
-    request.addfinalizer(fin)
-    return _f
+    yield _f
+    await delete_topic(sns_client, _topic_arn)
 
 
 @pytest.fixture
