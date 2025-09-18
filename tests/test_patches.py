@@ -469,7 +469,7 @@ def test_protocol_parsers():
         (
             EnvProvider.load,
             {
-                '9c6bb8f48ea4cb3dfbe7df925a269a077205d62b',
+                'da0cfb81a7a27ac1159c9b87920908944d1849f2',
             },
         ),
         (
@@ -493,13 +493,13 @@ def test_protocol_parsers():
         (
             ContainerProvider._create_fetcher,
             {
-                'f61e3e60fda55de7dbcf4a66865981f7cb0804b8',
+                'f70e2b62a83099aa9863ed31fae7416b8a4c8df5',
             },
         ),
         (
             InstanceMetadataProvider.load,
             {
-                '15becfc0373ccfbc1bb200bd6a34731e61561d06',
+                '8b32da46500dd7b7177e1e6f781a7ce962dd3b66',
             },
         ),
         (
@@ -553,7 +553,7 @@ def test_protocol_parsers():
         (
             ProcessProvider.load,
             {
-                '6691e82aeeccc4e07c30ee484ee31ebba5b6e2fb',
+                'dd8c5de56d32dd05f4e664faac84979ea84086cc',
             },
         ),
         (
@@ -632,7 +632,7 @@ def test_protocol_parsers():
         (
             BotoProvider.load,
             {
-                'e84ebfe3d6698dc4683f0f6699d4a9907c87bebb',
+                'c85411fa3d3ff75b3edb98f38c36426c0ffed3bb',
             },
         ),
         (
@@ -1027,13 +1027,13 @@ def test_protocol_parsers():
         (
             RequestSigner.get_auth,
             {
-                '10ba1f446244906daf170e68dbd1f13c54ec2d93',
+                '13e90d57d536179621ac012ace97e4c2cbaa096e',
             },
         ),
         (
             RequestSigner.get_auth_instance,
             {
-                '10ba1f446244906daf170e68dbd1f13c54ec2d93',
+                '13e90d57d536179621ac012ace97e4c2cbaa096e',
             },
         ),
         (
@@ -1413,7 +1413,7 @@ def test_protocol_parsers():
         (
             URLLib3Session,
             {
-                '1c418944abceb3a3d76c2c22348b4a39280d27ef',
+                'c65ca250524de59d89a32f213f38c7403666bfef',
             },
         ),
         (

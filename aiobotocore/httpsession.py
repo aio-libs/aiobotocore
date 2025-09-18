@@ -3,6 +3,7 @@ import contextlib
 import io
 import os
 import socket
+from concurrent.futures import CancelledError
 from typing import Optional
 
 import aiohttp  # lgtm [py/import-and-import-from]
@@ -277,6 +278,8 @@ class AIOHTTPSession:
             raise EndpointConnectionError(endpoint_url=request.url, error=e)
         except asyncio.TimeoutError as e:
             raise ReadTimeoutError(endpoint_url=request.url, error=e)
+        except CancelledError:
+            raise
         except Exception as e:
             message = 'Exception received when sending urllib3 HTTP request'
             logger.debug(message, exc_info=True)

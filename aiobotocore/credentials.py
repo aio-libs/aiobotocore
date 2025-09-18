@@ -49,6 +49,7 @@ from botocore.credentials import (
     parse,
     resolve_imds_endpoint_mode,
 )
+from botocore.useragent import register_feature_id
 
 from aiobotocore._helpers import resolve_awaitable
 from aiobotocore.config import AioConfig
@@ -536,7 +537,9 @@ class AioProcessProvider(ProcessProvider):
         if credential_process is None:
             return
 
+        register_feature_id('CREDENTIALS_PROFILE_PROCESS')
         creds_dict = await self._retrieve_credentials_using(credential_process)
+        register_feature_id('CREDENTIALS_PROCESS')
         if creds_dict.get('expiry_time') is not None:
             return AioRefreshableCredentials.create_from_metadata(
                 creds_dict,
@@ -595,6 +598,7 @@ class AioInstanceMetadataProvider(InstanceMetadataProvider):
         metadata = await fetcher.retrieve_iam_role_credentials()
         if not metadata:
             return None
+        register_feature_id('CREDENTIALS_IMDS')
         logger.info(
             'Found credentials from IAM Role: %s', metadata['role_name']
         )
@@ -615,6 +619,7 @@ class AioEnvProvider(EnvProvider):
             logger.info('Found credentials in environment variables.')
             fetcher = self._create_credentials_fetcher()
             credentials = fetcher(require_expiry=False)
+            register_feature_id('CREDENTIALS_ENV_VARS')
 
             expiry_time = credentials['expiry_time']
             if expiry_time is not None:
@@ -736,6 +741,7 @@ class AioBotoProvider(BotoProvider):
                     access_key, secret_key = self._extract_creds_from_mapping(
                         credentials, self.ACCESS_KEY, self.SECRET_KEY
                     )
+                    register_feature_id('CREDENTIALS_BOTO2_CONFIG_FILE')
                     return AioCredentials(
                         access_key, secret_key, method=self.METHOD
                     )
@@ -995,6 +1001,7 @@ class AioContainerProvider(ContainerProvider):
                 response = await self._fetcher.retrieve_full_uri(
                     full_uri, headers=headers
                 )
+                register_feature_id('CREDENTIALS_HTTP')
             except MetadataRetrievalError as e:
                 logger.debug(
                     "Error retrieving container metadata: %s", e, exc_info=True

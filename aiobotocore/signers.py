@@ -158,10 +158,6 @@ class AioRequestSigner(RequestSigner):
             return auth
 
         credentials = request_credentials or self._credentials
-        if credentials and (
-            cred_method := getattr(credentials, 'method', None)
-        ):
-            self.check_and_register_feature_id(cred_method)
         if getattr(cls, "REQUIRES_IDENTITY_CACHE", None) is True:
             cache = kwargs["identity_cache"]
             key = kwargs["cache_key"]
