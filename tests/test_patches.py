@@ -553,7 +553,7 @@ def test_protocol_parsers():
         (
             ProcessProvider.load,
             {
-                '6691e82aeeccc4e07c30ee484ee31ebba5b6e2fb',
+                'dd8c5de56d32dd05f4e664faac84979ea84086cc',
             },
         ),
         (
@@ -632,7 +632,7 @@ def test_protocol_parsers():
         (
             BotoProvider.load,
             {
-                'e84ebfe3d6698dc4683f0f6699d4a9907c87bebb',
+                'c85411fa3d3ff75b3edb98f38c36426c0ffed3bb',
             },
         ),
         (
