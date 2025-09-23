@@ -46,7 +46,7 @@ jobs:
         submodules: true
     - name: Install uv
       # yamllint disable-line rule:line-length
-      uses: astral-sh/setup-uv@557e51de59eb14aaaba2ed9621916900a91d50c6  # v6.6.1
+      uses: astral-sh/setup-uv@b75a909f75acd358c2196fb9a5f1299a9a8868a4  # v6.7.0
       with:
         python-version: ${{ inputs.python-version }}
         enable-cache: ${{ inputs.enable-cache }}
