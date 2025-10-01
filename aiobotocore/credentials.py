@@ -49,7 +49,7 @@ from botocore.credentials import (
     parse,
     resolve_imds_endpoint_mode,
 )
-from botocore.useragent import register_feature_id
+from botocore.useragent import register_feature_id, register_feature_ids
 
 from aiobotocore._helpers import resolve_awaitable
 from aiobotocore.config import AioConfig
@@ -466,6 +466,7 @@ class AioAssumeRoleCredentialFetcher(
 ):
     async def _get_credentials(self):
         """Get credentials by calling assume role."""
+        register_feature_ids(self.feature_ids)
         kwargs = self._assume_role_kwargs()
         client = await self._create_client()
         async with client as sts:
@@ -510,6 +511,7 @@ class AioAssumeRoleWithWebIdentityCredentialFetcher(
 
     async def _get_credentials(self):
         """Get credentials by calling assume role."""
+        register_feature_ids(self.feature_ids)
         kwargs = self._assume_role_kwargs()
         # Assume role with web identity does not require credentials other than
         # the token, explicitly configure the client to not sign requests.
@@ -682,6 +684,7 @@ class AioSharedCredentialProvider(SharedCredentialProvider):
                 )
                 token = self._get_session_token(config)
                 account_id = self._get_account_id(config)
+                register_feature_id('CREDENTIALS_PROFILE')
                 return AioCredentials(
                     access_key,
                     secret_key,
@@ -709,6 +712,7 @@ class AioConfigProvider(ConfigProvider):
                 )
                 token = self._get_session_token(profile_config)
                 account_id = self._get_account_id(profile_config)
+                register_feature_id('CREDENTIALS_PROFILE')
                 return AioCredentials(
                     access_key,
                     secret_key,
@@ -786,10 +790,13 @@ class AioAssumeRoleProvider(AssumeRoleProvider):
             mfa_prompter=self._prompter,
             cache=self.cache,
         )
+        fetcher.feature_ids = self._feature_ids.copy()
         refresher = fetcher.fetch_credentials
         if mfa_serial is not None:
             refresher = create_mfa_serial_refresher(refresher)
 
+        self._feature_ids.add('CREDENTIALS_STS_ASSUME_ROLE')
+        register_feature_ids(self._feature_ids)
         # The initial credentials are empty and the expiration time is set
         # to now so that we can delay the call to assume role until it is
         # strictly needed.
@@ -802,17 +809,20 @@ class AioAssumeRoleProvider(AssumeRoleProvider):
     async def _resolve_source_credentials(self, role_config, profile_name):
         credential_source = role_config.get('credential_source')
         if credential_source is not None:
+            self._feature_ids.add('CREDENTIALS_PROFILE_NAMED_PROVIDER')
             return await self._resolve_credentials_from_source(
                 credential_source, profile_name
             )
 
         source_profile = role_config['source_profile']
         self._visited_profiles.append(source_profile)
+        self._feature_ids.add('CREDENTIALS_PROFILE_SOURCE_PROFILE')
         return await self._resolve_credentials_from_profile(source_profile)
 
     async def _resolve_credentials_from_profile(self, profile_name):
         profiles = self._loaded_config.get('profiles', {})
         profile = profiles[profile_name]
+        self._feature_ids.add('CREDENTIALS_PROFILE')
         if (
             self._has_static_credentials(profile)
             and not self._profile_provider_builder
@@ -867,6 +877,11 @@ class AioAssumeRoleProvider(AssumeRoleProvider):
                     f'in profile {profile_name}'
                 ),
             )
+        named_provider_feature_id = self.NAMED_PROVIDER_FEATURE_MAP.get(
+            credential_source
+        )
+        if named_provider_feature_id:
+            self._feature_ids.add(named_provider_feature_id)
         return credentials
 
 
@@ -902,6 +917,10 @@ class AioAssumeRoleWithWebIdentityProvider(AssumeRoleWithWebIdentityProvider):
             extra_args=extra_args,
             cache=self.cache,
         )
+        fetcher.feature_ids = self._feature_ids.copy()
+
+        self._feature_ids.add('CREDENTIALS_STS_ASSUME_ROLE_WEB_ID')
+        register_feature_ids(self._feature_ids)
         # The initial credentials are empty and the expiration time is set
         # to now so that we can delay the call to assume role until it is
         # strictly needed.

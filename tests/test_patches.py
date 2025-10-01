@@ -437,7 +437,7 @@ def test_protocol_parsers():
         (
             AssumeRoleCredentialFetcher._get_credentials,
             {
-                '51e265bebde5b193d79a680706f2c7efc7b56622',
+                '7216e35a401c7bd95f8d95d872f55590ade8aaa7',
             },
         ),
         (
@@ -456,7 +456,7 @@ def test_protocol_parsers():
         (
             AssumeRoleWithWebIdentityCredentialFetcher._get_credentials,
             {
-                '23a7efbaf2022dcf713399649936cd9c2116f6c5',
+                '726f644df3f8e71125c8890193f2fa25bd22e331',
             },
         ),
         (
@@ -535,13 +535,13 @@ def test_protocol_parsers():
         (
             ConfigProvider.load,
             {
-                'dab41451970911f4b578015a3083ff550c6b7beb',
+                'af1d9e127b3d40376570cb48e3cbc8d66dff2041',
             },
         ),
         (
             SharedCredentialProvider.load,
             {
-                '833ec38b8361165e1bb285740e99c7ff7af161a5',
+                'fddbf6610526a41358187a529dbd2c2b82e23224',
             },
         ),
         (
@@ -577,7 +577,7 @@ def test_protocol_parsers():
         (
             AssumeRoleWithWebIdentityProvider._assume_role_with_web_identity,
             {
-                '32c9d720ab5f12054583758b5cd5d287f652ccd3',
+                '90c6a54d339f439988856f439dbaea9f371202f7',
             },
         ),
         (
@@ -589,19 +589,19 @@ def test_protocol_parsers():
         (
             AssumeRoleProvider._load_creds_via_assume_role,
             {
-                '85116d63561c9a8bfdfffdbf837b8a7e61b47ea3',
+                'bc9c38d6320b5f9712570ec8570f467e5288340d',
             },
         ),
         (
             AssumeRoleProvider._resolve_source_credentials,
             {
-                '105c0c011e23d76a3b8bd3d9b91b6d945c8307a1',
+                '1c2018d648dc72ab165cd1ffe1adc6b65856aa6b',
             },
         ),
         (
             AssumeRoleProvider._resolve_credentials_from_profile,
             {
-                '3e4e6371dabe4deb3445495aeb702eed8a3fba63',
+                'a5a2808e315b45957cb881b31b73624eba44ade6',
             },
         ),
         (
@@ -613,8 +613,7 @@ def test_protocol_parsers():
         (
             AssumeRoleProvider._resolve_credentials_from_source,
             {
-                'de41138b36bfc74d7f8a21f6002b55279d3de017',
-                '2f083f5c046de432194a2925fafc9478a5977586',
+                'b3144366432c11cee4bca286bd5ff10c3449b97b',
             },
         ),
         (

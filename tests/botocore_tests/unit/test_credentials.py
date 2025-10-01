@@ -290,6 +290,33 @@ async def test_assumerolefetcher_account_id_with_invalid_arn():
     assert response['account_id'] is None
 
 
+@mock.patch('aiobotocore.credentials.register_feature_ids')
+async def test_assumerolefetcher_feature_ids_registered_during_get_credentials(
+    mock_register,
+):
+    response = {
+        'Credentials': {
+            'AccessKeyId': 'foo',
+            'SecretAccessKey': 'bar',
+            'SessionToken': 'baz',
+            'Expiration': some_future_time(),
+        }
+    }
+    client_creator = assume_role_client_creator(with_response=response)
+    fetcher = credentials.AioAssumeRoleCredentialFetcher(
+        client_creator,
+        credentials.AioCredentials('a', 'b', 'c'),
+        'myrole',
+    )
+
+    test_feature_ids = {'test_feature_1', 'test_feature_2'}
+    fetcher.feature_ids = test_feature_ids
+
+    await fetcher.fetch_credentials()
+    # Verify register_credential_feature_ids was called with test feature IDs
+    mock_register.assert_called_once_with(test_feature_ids)
+
+
 async def test_recursive_assume_role(assume_role_setup):
     self = assume_role_setup
 
@@ -448,6 +475,35 @@ async def test_webidentfetcher_account_id_with_invalid_arn():
     response = await refresher.fetch_credentials()
     assert response == expected_response
     assert response['account_id'] is None
+
+
+@mock.patch('aiobotocore.credentials.register_feature_ids')
+async def test_webidentfetcher_feature_ids_registered_during_get_credentials(
+    mock_register,
+):
+    response = {
+        'Credentials': {
+            'AccessKeyId': 'foo',
+            'SecretAccessKey': 'bar',
+            'SessionToken': 'baz',
+            'Expiration': some_future_time(),
+        }
+    }
+    client_creator = assume_role_web_identity_client_creator(
+        with_response=response
+    )
+    fetcher = credentials.AioAssumeRoleWithWebIdentityCredentialFetcher(
+        client_creator,
+        lambda: 'totally.a.token',
+        'myrole',
+    )
+
+    test_feature_ids = {'test_feature_1', 'test_feature_2'}
+    fetcher.feature_ids = test_feature_ids
+
+    await fetcher.fetch_credentials()
+    # Verify register_credential_feature_ids was called with test feature IDs
+    mock_register.assert_called_once_with(test_feature_ids)
 
 
 async def test_credresolver_load_credentials_single_provider(
