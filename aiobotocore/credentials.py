@@ -1092,6 +1092,7 @@ class AioSSOCredentialFetcher(
                 'accessToken': token,
             }
             try:
+                register_feature_ids(self.feature_ids)
                 response = await client.get_role_credentials(**kwargs)
             except client.exceptions.UnauthorizedException:
                 raise UnauthorizedSSOTokenError()
@@ -1127,12 +1128,23 @@ class AioSSOProvider(SSOProvider):
             'token_loader': SSOTokenLoader(cache=self._token_cache),
             'cache': self.cache,
         }
-        if 'sso_session' in sso_config:
+        sso_session_in_config = 'sso_session' in sso_config
+        if sso_session_in_config:
             fetcher_kwargs['sso_session_name'] = sso_config['sso_session']
             fetcher_kwargs['token_provider'] = self._token_provider
+            self._feature_ids.add('CREDENTIALS_PROFILE_SSO')
+        else:
+            self._feature_ids.add('CREDENTIALS_PROFILE_SSO_LEGACY')
 
         sso_fetcher = AioSSOCredentialFetcher(**fetcher_kwargs)
+        sso_fetcher.feature_ids = self._feature_ids.copy()
 
+        if sso_session_in_config:
+            self._feature_ids.add('CREDENTIALS_SSO')
+        else:
+            self._feature_ids.add('CREDENTIALS_SSO_LEGACY')
+
+        register_feature_ids(self._feature_ids)
         return AioDeferredRefreshableCredentials(
             method=self.METHOD,
             refresh_using=sso_fetcher.fetch_credentials,
