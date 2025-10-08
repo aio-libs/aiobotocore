@@ -1,7 +1,7 @@
-import asyncio
 import base64
 import hashlib
 from collections import defaultdict
+from inspect import iscoroutine
 from typing import Callable
 
 import aioitertools
@@ -144,7 +144,7 @@ async def test_can_paginate_iterator(s3_client, bucket_name, create_object):
     async for page in paginator.paginate(
         PaginationConfig={'PageSize': 1}, Bucket=bucket_name
     ):
-        assert not asyncio.iscoroutine(page)
+        assert not iscoroutine(page)
         responses.append(page)
     assert len(responses) == 5, responses
     data = [r for r in responses]

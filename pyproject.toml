@@ -71,6 +71,7 @@ botocore-dev = [
     # "colorama>0.3.0", # Windows requirement
 ]
 dev = [
+    "anyio >= 4.11.0",
     "dill >= 0.3.3, < 0.5", # Used in test_patches.py
     "docker >= 7.1, < 8",
     "docutils >= 0.19, < 0.22", # Used in test_version.py
@@ -78,7 +79,6 @@ dev = [
     "packaging >= 24.1, < 26", # Used in test_version.py
     "pip >= 24.3.1, < 26", # Used in test_version.py
     "pre-commit >= 3.5.0, < 5",
-    "pytest-asyncio >= 0.23.8, < 2",
     "requests >= 2.32.3, < 3", # Used in test_version.py
     "time-machine >= 2.15.0, < 3", # Used in test_signers.py
     "tomli; python_version<'3.11'", # Used in test_version.py
@@ -99,8 +99,8 @@ readme = { file = ["README.rst", "CHANGES.rst"] }
 include = ["aiobotocore*"]
 
 [tool.pytest.ini_options]
-asyncio_mode = "auto"
 cache_dir = "/tmp/pytest_aiobotocore_cache"
+anyio_mode = "auto"
 markers = [
     "localonly",
     "config_kwargs",
