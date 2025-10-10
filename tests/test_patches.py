@@ -168,7 +168,7 @@ def test_protocol_parsers():
         (
             ClientArgsCreator.get_client_args,
             {
-                'd651b5c3d81738b7f2072b984eef8b5d4cfacd22',
+                '3dfe4ed858d06ca35b5033c0f5dc9531e12090c2',
             },
         ),
         (
