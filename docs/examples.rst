@@ -37,7 +37,7 @@ DynamoDB
    examples/dynamo_db/tables
 
 Cognito Identity Provider
---------------------------
+-------------------------
 .. toctree::
    :maxdepth: 2
 
