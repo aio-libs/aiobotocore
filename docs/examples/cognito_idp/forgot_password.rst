@@ -1,5 +1,5 @@
-Forgot Password Example
--------------------
+Forgot Password
+---------------
 
 Amazon Cognito Identity Provider (IdP) allows you to manage user authentication and user management for your applications.
 
