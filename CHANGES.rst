@@ -5,6 +5,16 @@ Changes
 ^^^^^^^^^^^^^^^^^^^
 * forbid creating loose ``ClientSession`` when ``AioBaseClient`` exits context
 
+2.25.0 (2025-10-10)
+^^^^^^^^^^^^^^^^^^^
+* switch async test runner from pytest-asyncio to AnyIO
+* turn ``AioClientArgsCreator.get_client_args()`` and ``AioClientCreator._get_client_args()`` into asynchronous methods
+* bump botocore dependency specification
+
+2.24.3 (2025-10-06)
+^^^^^^^^^^^^^^^^^^^
+* bump botocore dependency specification
+
 2.24.2 (2025-09-05)
 ^^^^^^^^^^^^^^^^^^^
 * bump botocore dependency specification

@@ -290,6 +290,33 @@ async def test_assumerolefetcher_account_id_with_invalid_arn():
     assert response['account_id'] is None
 
 
+@mock.patch('aiobotocore.credentials.register_feature_ids')
+async def test_assumerolefetcher_feature_ids_registered_during_get_credentials(
+    mock_register,
+):
+    response = {
+        'Credentials': {
+            'AccessKeyId': 'foo',
+            'SecretAccessKey': 'bar',
+            'SessionToken': 'baz',
+            'Expiration': some_future_time(),
+        }
+    }
+    client_creator = assume_role_client_creator(with_response=response)
+    fetcher = credentials.AioAssumeRoleCredentialFetcher(
+        client_creator,
+        credentials.AioCredentials('a', 'b', 'c'),
+        'myrole',
+    )
+
+    test_feature_ids = {'test_feature_1', 'test_feature_2'}
+    fetcher.feature_ids = test_feature_ids
+
+    await fetcher.fetch_credentials()
+    # Verify register_credential_feature_ids was called with test feature IDs
+    mock_register.assert_called_once_with(test_feature_ids)
+
+
 async def test_recursive_assume_role(assume_role_setup):
     self = assume_role_setup
 
@@ -448,6 +475,35 @@ async def test_webidentfetcher_account_id_with_invalid_arn():
     response = await refresher.fetch_credentials()
     assert response == expected_response
     assert response['account_id'] is None
+
+
+@mock.patch('aiobotocore.credentials.register_feature_ids')
+async def test_webidentfetcher_feature_ids_registered_during_get_credentials(
+    mock_register,
+):
+    response = {
+        'Credentials': {
+            'AccessKeyId': 'foo',
+            'SecretAccessKey': 'bar',
+            'SessionToken': 'baz',
+            'Expiration': some_future_time(),
+        }
+    }
+    client_creator = assume_role_web_identity_client_creator(
+        with_response=response
+    )
+    fetcher = credentials.AioAssumeRoleWithWebIdentityCredentialFetcher(
+        client_creator,
+        lambda: 'totally.a.token',
+        'myrole',
+    )
+
+    test_feature_ids = {'test_feature_1', 'test_feature_2'}
+    fetcher.feature_ids = test_feature_ids
+
+    await fetcher.fetch_credentials()
+    # Verify register_credential_feature_ids was called with test feature IDs
+    mock_register.assert_called_once_with(test_feature_ids)
 
 
 async def test_credresolver_load_credentials_single_provider(
@@ -1089,14 +1145,18 @@ async def ssl_credential_fetcher_setup():
         self.start_url = 'https://d-92671207e4.awsapps.com/start'
         self.role_name = 'test-role'
         self.account_id = '1234567890'
-        self.access_token = 'some.sso.token'
+        self.access_token = {
+            'accessToken': 'some.sso.token',
+            'expiresAt': '2018-10-18T22:26:40Z',
+        }
         # This is just an arbitrary point in time we can pin to
         self.now = datetime(2008, 9, 23, 12, 26, 40, tzinfo=tzutc())
         # The SSO endpoint uses ms whereas the OIDC endpoint uses seconds
         self.now_timestamp = 1222172800000
+        self.mock_time_fetcher = mock.Mock(return_value=self.now)
 
         self.loader = mock.Mock(spec=SSOTokenLoader)
-        self.loader.return_value = {'accessToken': self.access_token}
+        self.loader.return_value = self.access_token
         self.fetcher = AioSSOCredentialFetcher(
             self.start_url,
             self.sso_region,
@@ -1105,11 +1165,13 @@ async def ssl_credential_fetcher_setup():
             self.mock_session.create_client,
             token_loader=self.loader,
             cache=self.cache,
+            time_fetcher=self.mock_time_fetcher,
         )
 
         tc = TestCase()
         self.assertEqual = tc.assertEqual
         self.assertRaises = tc.assertRaises
+        self.assertFalse = tc.assertFalse
         yield self
 
 
@@ -1292,7 +1354,7 @@ async def test_sso_credential_fetcher_can_fetch_credentials(
     expected_params = {
         'roleName': self.role_name,
         'accountId': self.account_id,
-        'accessToken': self.access_token,
+        'accessToken': self.access_token['accessToken'],
     }
     expected_response = {
         'roleCredentials': {
@@ -1334,7 +1396,7 @@ async def test_sso_cred_fetcher_raises_helpful_message_on_unauthorized_exception
     expected_params = {
         'roleName': self.role_name,
         'accountId': self.account_id,
-        'accessToken': self.access_token,
+        'accessToken': self.access_token['accessToken'],
     }
     self.stubber.add_client_error(
         'get_role_credentials',
@@ -1344,6 +1406,75 @@ async def test_sso_cred_fetcher_raises_helpful_message_on_unauthorized_exception
     with self.assertRaises(botocore.exceptions.UnauthorizedSSOTokenError):
         with self.stubber:
             await self.fetcher.fetch_credentials()
+
+
+async def test_sso_cred_fetcher_expired_legacy_token_has_expected_behavior(
+    ssl_credential_fetcher_setup,
+):
+    self = ssl_credential_fetcher_setup
+    # Mock the current time to be in the future after the access token has expired
+    now = datetime(2018, 10, 19, 12, 26, 40, tzinfo=tzutc())
+    mock_client = mock.AsyncMock()
+    create_mock_client = mock.Mock(return_value=mock_client)
+    fetcher = AioSSOCredentialFetcher(
+        self.start_url,
+        self.sso_region,
+        self.role_name,
+        self.account_id,
+        create_mock_client,
+        token_loader=self.loader,
+        cache=self.cache,
+        time_fetcher=mock.Mock(return_value=now),
+    )
+    # since the cached token is expired, an UnauthorizedSSOTokenError should be
+    # raised and GetRoleCredentials should not be called.
+    with self.assertRaises(botocore.exceptions.UnauthorizedSSOTokenError):
+        await fetcher.fetch_credentials()
+    self.assertFalse(mock_client.get_role_credentials.called)
+
+
+@mock.patch('aiobotocore.credentials.register_feature_ids')
+async def test_sso_cred_fetcher_feature_ids_registered_during_get_credentials(
+    mock_register, ssl_credential_fetcher_setup
+):
+    self = ssl_credential_fetcher_setup
+    response = {
+        'roleCredentials': {
+            'accessKeyId': 'foo',
+            'secretAccessKey': 'bar',
+            'sessionToken': 'baz',
+            'expiration': self.now_timestamp + 1000000,
+        }
+    }
+    params = {
+        'roleName': self.role_name,
+        'accountId': self.account_id,
+        'accessToken': self.access_token['accessToken'],
+    }
+    self.stubber.add_response(
+        'get_role_credentials',
+        response,
+        expected_params=params,
+    )
+
+    self.stubber.activate()
+    try:
+        fetcher = AioSSOCredentialFetcher(
+            self.start_url,
+            self.sso_region,
+            self.role_name,
+            self.account_id,
+            self.mock_session.create_client,
+            token_loader=self.loader,
+            cache=self.cache,
+            time_fetcher=self.mock_time_fetcher,
+        )
+        test_feature_ids = {'test_feature_1', 'test_feature_2'}
+        fetcher.feature_ids = test_feature_ids
+        await fetcher.fetch_credentials()
+        mock_register.assert_called_once_with(test_feature_ids)
+    finally:
+        self.stubber.deactivate()
 
 
 # from TestSSOProvider

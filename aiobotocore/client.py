@@ -85,7 +85,7 @@ class AioClientCreator(ClientCreator):
             service_model.signing_name
         ):
             auth_token = token
-        client_args = self._get_client_args(
+        client_args = await self._get_client_args(
             service_model,
             region_name,
             is_secure,
@@ -272,7 +272,7 @@ class AioClientCreator(ClientCreator):
             'before-parameter-build.s3', self._inject_s3_input_parameters
         )
 
-    def _get_client_args(
+    async def _get_client_args(
         self,
         service_model,
         region_name,
@@ -298,7 +298,7 @@ class AioClientCreator(ClientCreator):
             config_store=self._config_store,
             user_agent_creator=self._user_agent_creator,
         )
-        return args_creator.get_client_args(
+        return await args_creator.get_client_args(
             service_model,
             region_name,
             is_secure,

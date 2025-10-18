@@ -2,6 +2,7 @@ import datetime
 
 import botocore
 import botocore.auth
+from botocore.compat import get_current_datetime
 from botocore.exceptions import ParamValidationError, UnknownClientMethodError
 from botocore.signers import (
     RequestSigner,
@@ -368,7 +369,7 @@ class AioS3PostPresigner(S3PostPresigner):
         policy = {}
 
         # Create an expiration date for the policy
-        datetime_now = datetime.datetime.utcnow()
+        datetime_now = get_current_datetime()
         expire_date = datetime_now + datetime.timedelta(seconds=expires_in)
         policy['expiration'] = expire_date.strftime(botocore.auth.ISO8601)
 

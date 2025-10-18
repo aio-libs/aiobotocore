@@ -14,7 +14,7 @@ from .signers import AioRequestSigner
 class AioClientArgsCreator(ClientArgsCreator):
     # NOTE: we override this so we can pull out the custom AioConfig params and
     #       use an AioEndpointCreator
-    def get_client_args(
+    async def get_client_args(
         self,
         service_model,
         region_name,
@@ -92,8 +92,22 @@ class AioClientArgsCreator(ClientArgsCreator):
             connector_args=new_config.connector_args,
         )
 
+        # Emit event to allow service-specific or customer customization of serializer kwargs
+        event_name = f'creating-serializer.{service_name}'
+        serializer_kwargs = {
+            'timestamp_precision': botocore.serialize.TIMESTAMP_PRECISION_DEFAULT
+        }
+        await event_emitter.emit(
+            event_name,
+            protocol_name=protocol,
+            service_model=service_model,
+            serializer_kwargs=serializer_kwargs,
+        )
+
         serializer = botocore.serialize.create_serializer(
-            protocol, parameter_validation
+            protocol,
+            parameter_validation,
+            timestamp_precision=serializer_kwargs['timestamp_precision'],
         )
         response_parser = create_parser(protocol)
 

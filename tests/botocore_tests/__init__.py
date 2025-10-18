@@ -165,6 +165,12 @@ class ClientHTTPStubber(BaseHTTPStubber):
         return self._obj_with_event_emitter.meta.events
 
 
+class SessionHTTPStubber(BaseHTTPStubber):
+    @property
+    def _events(self):
+        return self._obj_with_event_emitter.get_component('event_emitter')
+
+
 def patch_load_service_model(
     session, monkeypatch, service_model_json, ruleset_json
 ):

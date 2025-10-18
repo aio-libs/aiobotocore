@@ -486,16 +486,21 @@ class AioS3RegionRedirectorv2(S3RegionRedirectorv2):
 
         if new_region is None:
             logger.debug(
-                f"S3 client configured for region {client_region} but the "
-                f"bucket {bucket} is not in that region and the proper region "
-                "could not be automatically determined."
+                "S3 client configured for region %s but the "
+                "bucket %s is not in that region and the proper region "
+                "could not be automatically determined.",
+                client_region,
+                bucket,
             )
             return
 
         logger.debug(
-            f"S3 client configured for region {client_region} but the bucket {bucket} "
-            f"is in region {new_region}; Please configure the proper region to "
-            f"avoid multiple unnecessary redirects and signing attempts."
+            "S3 client configured for region %s but the bucket %s "
+            "is in region %s; Please configure the proper region to "
+            "avoid multiple unnecessary redirects and signing attempts.",
+            client_region,
+            bucket,
+            new_region,
         )
         # Adding the new region to _cache will make construct_endpoint() to
         # use the new region as value for the AWS::Region builtin parameter.
@@ -622,16 +627,21 @@ class AioS3RegionRedirector(S3RegionRedirector):
 
         if new_region is None:
             logger.debug(
-                f"S3 client configured for region {client_region} but the bucket {bucket} is not "
+                "S3 client configured for region %s but the bucket %s is not "
                 "in that region and the proper region could not be "
-                "automatically determined."
+                "automatically determined.",
+                client_region,
+                bucket,
             )
             return
 
         logger.debug(
-            f"S3 client configured for region {client_region} but the bucket {bucket} is in region"
-            f" {new_region}; Please configure the proper region to avoid multiple "
-            "unnecessary redirects and signing attempts."
+            "S3 client configured for region %s but the bucket %s is in region"
+            " %s; Please configure the proper region to avoid multiple "
+            "unnecessary redirects and signing attempts.",
+            client_region,
+            bucket,
+            new_region,
         )
         endpoint = self._endpoint_resolver.resolve('s3', new_region)
         endpoint = endpoint['endpoint_url']
