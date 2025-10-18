@@ -1,7 +1,7 @@
 Changes
 -------
 
-2.24.3 (2025-09-11)
+3.0.0 (2025-10-20)
 ^^^^^^^^^^^^^^^^^^^
 * forbid creating loose ``ClientSession`` when ``AioBaseClient`` exits context
 
