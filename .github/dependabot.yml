@@ -10,13 +10,19 @@ updates:
   directory: "/"
   schedule:
     interval: "weekly"
+  cooldown:
+    default-days: 4
 
 - package-ecosystem: "pip"
   directory: "/docs"
   schedule:
     interval: "weekly"
+  cooldown:
+    default-days: 4
 
 - package-ecosystem: "uv"
   directory: "/"
   schedule:
     interval: "weekly"
+  cooldown:
+    default-days: 4
