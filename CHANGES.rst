@@ -1,6 +1,10 @@
 Changes
 -------
 
+3.0.0 (2025-10-20)
+^^^^^^^^^^^^^^^^^^^
+* forbid creating loose ``ClientSession`` when ``AioBaseClient`` exits context
+
 2.25.0 (2025-10-10)
 ^^^^^^^^^^^^^^^^^^^
 * switch async test runner from pytest-asyncio to AnyIO
