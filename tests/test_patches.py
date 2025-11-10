@@ -300,7 +300,7 @@ def test_protocol_parsers():
         (
             Config,
             {
-                'da2d8b797568604449695cdcf803e344bdf887eb',
+                'a3abd6cb69883934f48403acfaa5ef598c548982',
             },
         ),
         # context.py
