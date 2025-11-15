@@ -79,6 +79,7 @@ dev = [
     "packaging >= 24.1, < 26", # Used in test_version.py
     "pip >= 24.3.1, < 26", # Used in test_version.py
     "pre-commit >= 3.5.0, < 5",
+    "pytest-rerunfailures >= 16.0.1, < 17", # Used in test_lambda.py
     "requests >= 2.32.3, < 3", # Used in test_version.py
     "time-machine >= 2.15.0, < 3", # Used in test_signers.py
     "tomli; python_version<'3.11'", # Used in test_version.py
