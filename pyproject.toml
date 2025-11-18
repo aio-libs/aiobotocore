@@ -39,9 +39,6 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-awscli = [
-    "awscli >= 1.42.46, < 1.42.71",
-]
 boto3 = [
     "boto3 >= 1.40.46, < 1.40.71",
 ]

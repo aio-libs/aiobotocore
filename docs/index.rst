@@ -78,14 +78,14 @@ Basic Example
     loop.run_until_complete(go())
 
 
-awscli
+boto3
 ------
 
-awscli depends on a single version of botocore, however aiobotocore only supports a
+boto3 depends on a single version of botocore, however aiobotocore only supports a
 specific range of botocore versions. To ensure you install the latest version of
-awscli that your specific combination or aiobotocore and botocore can support use::
+boto3 that your specific combination of aiobotocore and botocore can support use::
 
-    pip install -U aiobotocore[awscli]
+    pip install -U aiobotocore[boto3]
 
 Contents
 --------
