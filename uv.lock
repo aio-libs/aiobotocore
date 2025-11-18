@@ -21,9 +21,6 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
-boto3 = [
-    { name = "boto3" },
-]
 httpx = [
     { name = "httpx" },
 ]
@@ -50,7 +47,6 @@ dev = [
     { name = "pre-commit", version = "4.5.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "pytest-rerunfailures", version = "16.0.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "pytest-rerunfailures", version = "16.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
-    { name = "requests" },
     { name = "time-machine", version = "2.19.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "time-machine", version = "3.1.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "tomli", marker = "python_full_version < '3.11'" },
@@ -60,7 +56,6 @@ dev = [
 requires-dist = [
     { name = "aiohttp", specifier = ">=3.9.2,<4.0.0" },
     { name = "aioitertools", specifier = ">=0.5.1,<1.0.0" },
-    { name = "boto3", marker = "extra == 'boto3'", specifier = ">=1.41.0,<1.42.2" },
     { name = "botocore", specifier = ">=1.41.0,<1.42.2" },
     { name = "httpx", marker = "extra == 'httpx'", specifier = ">=0.25.1,<0.29" },
     { name = "jmespath", specifier = ">=0.7.1,<2.0.0" },
@@ -68,7 +63,7 @@ requires-dist = [
     { name = "python-dateutil", specifier = ">=2.1,<3.0.0" },
     { name = "wrapt", specifier = ">=1.10.10,<3.0.0" },
 ]
-provides-extras = ["boto3", "httpx"]
+provides-extras = ["httpx"]
 
 [package.metadata.requires-dev]
 awscrt = [{ name = "botocore", extras = ["crt"] }]
@@ -88,7 +83,6 @@ dev = [
     { name = "pip", specifier = ">=24.3.1,<26" },
     { name = "pre-commit", specifier = ">=3.5.0,<5" },
     { name = "pytest-rerunfailures", specifier = ">=16.0.1,<17" },
-    { name = "requests", specifier = ">=2.32.3,<3" },
     { name = "time-machine", specifier = ">=2.15.0,<4" },
     { name = "tomli", marker = "python_full_version < '3.11'" },
 ]

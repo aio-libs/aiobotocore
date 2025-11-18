@@ -77,16 +77,6 @@ Basic Example
     loop = asyncio.get_event_loop()
     loop.run_until_complete(go())
 
-
-boto3
-------
-
-boto3 depends on a single version of botocore, however aiobotocore only supports a
-specific range of botocore versions. To ensure you install the latest version of
-boto3 that your specific combination of aiobotocore and botocore can support use::
-
-    pip install -U aiobotocore[boto3]
-
 Contents
 --------
 
