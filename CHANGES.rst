@@ -1,6 +1,10 @@
 Changes
 -------
 
+3.0.0 (2025-11-18)
+^^^^^^^^^^^^^^^^^^^
+* BREAKING CHANGE: Remove `awscli` packaging extra. Instead of ``pip install aiobotocore[awscli]``, use ``pip install aiobotocore awscli`` or similar to install compatible versions of `aiobotocore`, `botocore` and `awscli`.
+
 2.25.2 (2025-11-10)
 ^^^^^^^^^^^^^^^^^^^
 * relax botocore dependency specification
