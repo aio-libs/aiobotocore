@@ -216,13 +216,3 @@ Requirements
 .. _Pylance: https://marketplace.visualstudio.com/items?itemName=ms-python.vscode-pylance
 .. _pyright: https://github.com/microsoft/pyright
 .. _mypy: http://mypy-lang.org/
-
-boto3
---------------
-
-boto3 depends on a single version, or a narrow range of versions, of botocore.
-However, aiobotocore only supports a specific range of botocore versions. To ensure you
-install the latest version of boto3 that your specific combination of
-aiobotocore and botocore can support use::
-
-    pip install -U 'aiobotocore[boto3]'
