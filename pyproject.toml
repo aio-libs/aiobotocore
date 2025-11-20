@@ -84,6 +84,9 @@ dev = [
     "time-machine >= 2.15.0, < 3", # Used in test_signers.py
     "tomli; python_version<'3.11'", # Used in test_version.py
 ]
+awscrt = [
+    "botocore[crt]",
+]
 
 [tool.uv]
 default-groups = [
