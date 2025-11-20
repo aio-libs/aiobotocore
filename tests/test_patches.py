@@ -22,6 +22,8 @@ from botocore.credentials import (
     DeferredRefreshableCredentials,
     EnvProvider,
     InstanceMetadataProvider,
+    LoginCredentialFetcher,
+    LoginProvider,
     OriginalEC2Provider,
     ProcessProvider,
     ProfileProviderBuilder,
@@ -418,6 +420,18 @@ def test_protocol_parsers():
             },
         ),
         (
+            LoginCredentialFetcher.refresh_credentials,
+            {
+                '059e31ce9f0ec8b78a9fa813272ee9d241c182ef',
+            },
+        ),
+        (
+            LoginProvider.load,
+            {
+                '282680f216dd21a68c165dd36d16cbcaaae7bf2a',
+            },
+        ),
+        (
             CachedCredentialFetcher._get_credentials,
             {
                 '02a7d13599d972e3f258d2b53f87eeda4cc3e3a4',
@@ -531,6 +545,12 @@ def test_protocol_parsers():
             ProfileProviderBuilder._create_sso_provider,
             {
                 'e463160179add7a1a513e46ee848447a216504aa',
+            },
+        ),
+        (
+            ProfileProviderBuilder._create_login_provider,
+            {
+                '4bf3a53db99700f0dee84d02470d2a52a8ad5ca8',
             },
         ),
         (
