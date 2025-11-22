@@ -18,15 +18,36 @@ import random
 import shutil
 import tempfile
 import time
+import unittest
 from unittest import mock  # noqa: F401
 
 import botocore.loaders
-from botocore.compat import parse_qs, urlparse
+from botocore.compat import HAS_CRT, parse_qs, urlparse
 
 import aiobotocore.session
 from aiobotocore.awsrequest import AioAWSResponse
 
 _LOADER = botocore.loaders.Loader()
+
+
+def requires_crt(reason=None):
+    if reason is None:
+        reason = "Test requires awscrt to be installed"
+
+    def decorator(func):
+        return unittest.skipIf(not HAS_CRT, reason)(func)
+
+    return decorator
+
+
+def skip_if_crt(reason=None):
+    if reason is None:
+        reason = "Test requires awscrt to NOT be installed"
+
+    def decorator(func):
+        return unittest.skipIf(HAS_CRT, reason)(func)
+
+    return decorator
 
 
 def random_chars(num_chars):

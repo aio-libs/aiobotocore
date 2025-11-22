@@ -8,6 +8,7 @@ import asyncio
 import json
 import logging
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -27,6 +28,11 @@ from botocore.credentials import (
     JSONFileCache,
     ReadOnlyCredentials,
 )
+from botocore.exceptions import (
+    ClientError,
+    LoginError,
+    MissingDependencyException,
+)
 from botocore.stub import Stubber
 from botocore.utils import (
     FileWebIdentityTokenLoader,
@@ -42,13 +48,22 @@ from aiobotocore.credentials import (
     AioContainerProvider,
     AioEnvProvider,
     AioInstanceMetadataProvider,
+    AioLoginProvider,
     AioProfileProviderBuilder,
     AioSSOCredentialFetcher,
     AioSSOProvider,
 )
 from aiobotocore.session import AioSession
-from tests.botocore_tests import random_chars
+from tests.botocore_tests import random_chars, requires_crt, skip_if_crt
 from tests.botocore_tests.helpers import StubbedSession
+
+SAMPLE_SIGN_IN_DPOP_PEM = (
+    '-----BEGIN EC PRIVATE KEY-----\n'
+    'MHcCAQEEIDXxfh2F6vl+AX+tK/jvY5ll6aZ9n8sI2ODsWCmrsx'
+    'SDoAoGCCqGSM49\nAwEHoUQDQgAERKnl1X15pEx7ebbMQ0dFw6'
+    'VeOuCjEuh3NT8dwnBHYyF/7YDy8+Fu\nCx+4wgiSs9sRD3LaDK'
+    'CjIbbmEq07Jw59YQ==\n-----END EC PRIVATE KEY-----\n'
+)
 
 
 # From class TestCredentials(BaseEnvVar):
@@ -1481,68 +1496,74 @@ async def test_sso_cred_fetcher_feature_ids_registered_during_get_credentials(
 @pytest.fixture
 async def sso_provider_setup():
     self = Self()
-    async with AioSession().create_client(
-        'sso', region_name='us-east-1'
-    ) as sso:
-        self.sso = sso
-        self.stubber = Stubber(self.sso)
-        self.mock_session = mock.Mock(spec=AioSession)
-        self.mock_session.create_client.return_value = _AsyncCtx(sso)
+    with mock.patch(
+        'aiobotocore.credentials.AioLoginProvider.load',
+        return_value=None,
+    ):
+        async with AioSession().create_client(
+            'sso', region_name='us-east-1'
+        ) as sso:
+            self.sso = sso
+            self.stubber = Stubber(self.sso)
+            self.mock_session = mock.Mock(spec=AioSession)
+            self.mock_session.create_client.return_value = _AsyncCtx(sso)
 
-        self.sso_region = 'us-east-1'
-        self.start_url = 'https://d-92671207e4.awsapps.com/start'
-        self.role_name = 'test-role'
-        self.account_id = '1234567890'
-        self.access_token = 'some.sso.token'
+            self.sso_region = 'us-east-1'
+            self.start_url = 'https://d-92671207e4.awsapps.com/start'
+            self.role_name = 'test-role'
+            self.account_id = '1234567890'
+            self.access_token = 'some.sso.token'
 
-        self.profile_name = 'sso-profile'
-        self.config = {
-            'sso_region': self.sso_region,
-            'sso_start_url': self.start_url,
-            'sso_role_name': self.role_name,
-            'sso_account_id': self.account_id,
-        }
-        self.expires_at = datetime.now(tzlocal()) + timedelta(hours=24)
-        self.cached_creds_key = '048db75bbe50955c16af7aba6ff9c41a3131bb7e'
-        self.cached_token_key = '13f9d35043871d073ab260e020f0ffde092cb14b'
-        self.cache = {
-            self.cached_token_key: {
+            self.profile_name = 'sso-profile'
+            self.config = {
+                'sso_region': self.sso_region,
+                'sso_start_url': self.start_url,
+                'sso_role_name': self.role_name,
+                'sso_account_id': self.account_id,
+            }
+            self.expires_at = datetime.now(tzlocal()) + timedelta(hours=24)
+            self.cached_creds_key = '048db75bbe50955c16af7aba6ff9c41a3131bb7e'
+            self.cached_token_key = '13f9d35043871d073ab260e020f0ffde092cb14b'
+            self.cache = {
+                self.cached_token_key: {
+                    'accessToken': self.access_token,
+                    'expiresAt': self.expires_at.strftime(
+                        '%Y-%m-%dT%H:%M:%S%Z'
+                    ),
+                }
+            }
+            self._mock_load_config = partial(_mock_load_config, self)
+            self._add_get_role_credentials_response = partial(
+                _add_get_role_credentials_response, self
+            )
+            self.provider = AioSSOProvider(
+                load_config=self._mock_load_config,
+                client_creator=self.mock_session.create_client,
+                profile_name=self.profile_name,
+                cache=self.cache,
+                token_cache=self.cache,
+            )
+
+            self.expected_get_role_credentials_params = {
+                'roleName': self.role_name,
+                'accountId': self.account_id,
                 'accessToken': self.access_token,
-                'expiresAt': self.expires_at.strftime('%Y-%m-%dT%H:%M:%S%Z'),
             }
-        }
-        self._mock_load_config = partial(_mock_load_config, self)
-        self._add_get_role_credentials_response = partial(
-            _add_get_role_credentials_response, self
-        )
-        self.provider = AioSSOProvider(
-            load_config=self._mock_load_config,
-            client_creator=self.mock_session.create_client,
-            profile_name=self.profile_name,
-            cache=self.cache,
-            token_cache=self.cache,
-        )
-
-        self.expected_get_role_credentials_params = {
-            'roleName': self.role_name,
-            'accountId': self.account_id,
-            'accessToken': self.access_token,
-        }
-        expiration = datetime2timestamp(self.expires_at)
-        self.expected_get_role_credentials_response = {
-            'roleCredentials': {
-                'accessKeyId': 'foo',
-                'secretAccessKey': 'bar',
-                'sessionToken': 'baz',
-                'expiration': int(expiration * 1000),
+            expiration = datetime2timestamp(self.expires_at)
+            self.expected_get_role_credentials_response = {
+                'roleCredentials': {
+                    'accessKeyId': 'foo',
+                    'secretAccessKey': 'bar',
+                    'sessionToken': 'baz',
+                    'expiration': int(expiration * 1000),
+                }
             }
-        }
 
-        tc = TestCase()
-        self.assertEqual = tc.assertEqual
-        self.assertRaises = tc.assertRaises
+            tc = TestCase()
+            self.assertEqual = tc.assertEqual
+            self.assertRaises = tc.assertRaises
 
-        yield self
+            yield self
 
 
 def _mock_load_config(self):
@@ -2126,3 +2147,322 @@ async def test_session_credentials():
         session = AioSession()
         creds = await session.get_credentials()
         assert creds == 'somecreds'
+
+
+def _load_login_test_cases():
+    test_dir = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        'login',
+        'login-provider-test-cases.json',
+    )
+    with open(test_dir) as f:
+        data = json.load(f)
+    return data
+
+
+class TestAioLoginProvider:
+    FROZEN_TIME = datetime(2025, 11, 19, 0, 0, 0, tzinfo=tzutc())
+
+    @requires_crt()
+    @pytest.mark.parametrize(
+        "test_case", _load_login_test_cases(), ids=lambda x: x["documentation"]
+    )
+    async def test_login_credentials(self, test_case):
+        tempdir = tempfile.mkdtemp()
+        config_file = os.path.join(tempdir, 'config')
+        cache_dir = os.path.join(tempdir, 'cache')
+        os.makedirs(cache_dir)
+
+        config_contents = test_case.get('configContents')
+        with open(config_file, 'w') as f:
+            f.write(config_contents)
+
+        cache_contents = test_case.get('cacheContents', {})
+        for filename, cache_data in cache_contents.items():
+            cache_file_path = os.path.join(cache_dir, filename)
+            with open(cache_file_path, 'w') as f:
+                json.dump(cache_data, f)
+
+        original_config_file = os.environ.get('AWS_CONFIG_FILE')
+        original_cache_dir = os.environ.get('AWS_LOGIN_CACHE_DIRECTORY')
+
+        os.environ['AWS_CONFIG_FILE'] = config_file
+        os.environ['AWS_LOGIN_CACHE_DIRECTORY'] = cache_dir
+
+        try:
+            session = AioSession(profile='signin')
+            token_cache = JSONFileCache(cache_dir)
+
+            def load_config():
+                profile_config = session.get_scoped_config()
+                return {'profiles': {'signin': profile_config}}
+
+            mock_client = mock.AsyncMock()
+            mock_client.__aenter__.return_value = mock_client
+            mock_client.exceptions.AccessDeniedException = (
+                botocore.exceptions.ClientError
+            )
+
+            for api_call in test_case.get('mockApiCalls', []):
+                if (
+                    'responseCode' in api_call
+                    and api_call['responseCode'] >= 400
+                ):
+                    mock_client.create_o_auth2_token.side_effect = ClientError(
+                        {}, 'CreateOAuth2Token'
+                    )
+                else:
+                    mock_client.create_o_auth2_token.return_value = api_call[
+                        'response'
+                    ]
+
+            with mock.patch(
+                'aiobotocore.credentials._local_now',
+                return_value=self.FROZEN_TIME,
+            ):
+                provider = credentials.AioLoginProvider(
+                    load_config=load_config,
+                    client_creator=lambda service_name, **kwargs: mock_client,
+                    profile_name='signin',
+                    token_cache=token_cache,
+                )
+
+                try:
+                    # Get frozen credentials to trigger the refresh if needed
+                    refreshable_creds = await provider.load()
+                    frozen_creds = (
+                        await refreshable_creds.get_frozen_credentials()
+                    )
+
+                    outcomes = test_case.get('outcomes', [])
+                    for outcome in outcomes:
+                        if outcome.get('result') == 'credentials':
+                            self._validate_creds(frozen_creds, outcome)
+
+                        elif outcome.get('result') == 'cacheContents':
+                            for (
+                                cache_filename,
+                                expected_cache_data,
+                            ) in outcome.items():
+                                if cache_filename == 'result':
+                                    continue
+
+                                self._validate_cached_token_contents(
+                                    cache_dir,
+                                    cache_filename,
+                                    expected_cache_data,
+                                )
+
+                    self._validate_refresh_calls(
+                        mock_client, test_case.get('mockApiCalls', [])
+                    )
+
+                except LoginError as e:
+                    if any(
+                        outcome.get('result') == 'error'
+                        for outcome in test_case.get('outcomes')
+                    ):
+                        pass  # verify that an error was raised as expected
+                    else:
+                        raise e  # pragma: no cover
+
+        finally:
+            if original_config_file is not None:
+                os.environ['AWS_CONFIG_FILE'] = (  # pragma: no cover
+                    original_config_file
+                )
+            elif 'AWS_CONFIG_FILE' in os.environ:
+                del os.environ['AWS_CONFIG_FILE']
+
+            if original_cache_dir is not None:
+                os.environ['AWS_LOGIN_CACHE_DIRECTORY'] = (  # pragma: no cover
+                    original_cache_dir
+                )
+            elif 'AWS_LOGIN_CACHE_DIRECTORY' in os.environ:
+                del os.environ['AWS_LOGIN_CACHE_DIRECTORY']
+
+            shutil.rmtree(tempdir)
+
+    @staticmethod
+    def _validate_refresh_calls(mock_client, mock_api_calls):
+        if not mock_api_calls:
+            mock_client.create_o_auth2_token.assert_not_called()
+            return
+
+        call_args_list = mock_client.create_o_auth2_token.call_args_list
+
+        for i, expected_api_call in enumerate(mock_api_calls):
+            actual_call = call_args_list[i]
+            actual_kwargs = actual_call.kwargs if actual_call.kwargs else {}
+            expected_request = expected_api_call['request']
+
+            assert 'tokenInput' in actual_kwargs
+            assert (
+                expected_request['tokenInput'] == actual_kwargs['tokenInput']
+            )
+
+    @staticmethod
+    def _validate_cached_token_contents(
+        cache_dir, cache_filename, expected_cache_data
+    ):
+        cache_file_path = os.path.join(cache_dir, cache_filename)
+        assert os.path.exists(cache_file_path)
+
+        with open(cache_file_path) as f:
+            actual_cache_data = json.load(f)
+
+        assert actual_cache_data == expected_cache_data
+
+    @staticmethod
+    def _validate_creds(resolved_credentials, expected_output):
+        assert resolved_credentials is not None
+
+        if 'accessKeyId' in expected_output:
+            assert (
+                resolved_credentials.access_key
+                == expected_output['accessKeyId']
+            )
+
+        if 'secretAccessKey' in expected_output:
+            assert (
+                resolved_credentials.secret_key
+                == expected_output['secretAccessKey']
+            )
+
+        if 'sessionToken' in expected_output:
+            assert (
+                resolved_credentials.token == expected_output['sessionToken']
+            )
+
+        if 'accountId' in expected_output:
+            assert (
+                resolved_credentials.account_id == expected_output['accountId']
+            )
+
+
+@requires_crt()
+async def test_login_provider_feature_ids_in_context(client_context):
+    profile_name = 'test-profile'
+    mock_token_cache = mock.Mock()
+    mock_client_creator = mock.Mock()
+    mock_load_config = mock.Mock()
+
+    mock_load_config.return_value = {
+        'profiles': {
+            profile_name: {
+                'login_session': 'my-session',
+                'region': 'us-east-1',
+            }
+        }
+    }
+
+    with (
+        mock.patch('botocore.credentials.LoginTokenLoader'),
+        mock.patch(
+            'aiobotocore.credentials.AioLoginCredentialFetcher'
+        ) as mock_fetcher_class,
+    ):
+        mock_fetcher = mock.Mock()
+        date_in_future = datetime.utcnow() + timedelta(hours=1)
+        expiry_time = date_in_future.isoformat() + 'Z'
+        expected_creds = {
+            'access_key': 'test-access-key',
+            'secret_key': 'test-secret-key',
+            'token': 'test-token',
+            'expiry_time': expiry_time,
+            'account_id': '123456789012',
+        }
+        mock_fetcher.load_cached_credentials.return_value = expected_creds
+        mock_fetcher_class.return_value = mock_fetcher
+
+        provider = AioLoginProvider(
+            load_config=mock_load_config,
+            client_creator=mock_client_creator,
+            profile_name=profile_name,
+            token_cache=mock_token_cache,
+        )
+
+        result = await provider.load()
+        result = await result.get_frozen_credentials()
+
+        assert result is not None
+        assert result.access_key == expected_creds['access_key']
+        assert result.secret_key == expected_creds['secret_key']
+
+        mock_fetcher.load_cached_credentials.assert_called_once()
+
+        assert 'AC' in client_context.features
+        assert 'AD' in client_context.features
+
+
+@requires_crt()
+@pytest.mark.parametrize(
+    'error_type,expected_exception',
+    [
+        ('TOKEN_EXPIRED', botocore.exceptions.LoginRefreshRequired),
+        (
+            'USER_CREDENTIALS_CHANGED',
+            botocore.exceptions.LoginRefreshRequired,
+        ),
+        (
+            'INSUFFICIENT_PERMISSIONS',
+            botocore.exceptions.LoginInsufficientPermissions,
+        ),
+        ('UNKNOWN_ERROR', botocore.exceptions.LoginError),
+    ],
+)
+async def test_login_credential_fetcher_access_denied_errors(
+    error_type, expected_exception
+):
+    token_loader = mock.Mock()
+    client_creator = mock.Mock()
+
+    base_token = {
+        'clientId': 'test-client',
+        'refreshToken': 'test-refresh-token',
+        'dpopKey': SAMPLE_SIGN_IN_DPOP_PEM,
+        'accessToken': {'expiresAt': '2020-01-01T00:00:00Z'},
+    }
+    token_loader.load_token.return_value = base_token
+
+    client = mock.AsyncMock()
+    client.__aenter__.return_value = client
+    client.exceptions.AccessDeniedException = ClientError
+    client.create_o_auth2_token.side_effect = ClientError(
+        {'Error': {'Code': 'AccessDeniedException'}, 'error': error_type},
+        'CreateOAuth2Token',
+    )
+    client_creator.return_value = client
+
+    fetcher = credentials.AioLoginCredentialFetcher(
+        session_name='test-session',
+        token_loader=token_loader,
+        client_creator=client_creator,
+    )
+
+    with pytest.raises(expected_exception):
+        await fetcher.refresh_credentials()
+
+
+@skip_if_crt()
+async def test_login_throws_exception_with_no_crt():
+    profile_name = 'test-profile'
+    mock_load_config = mock.Mock()
+    mock_load_config.return_value = {
+        'profiles': {
+            profile_name: {
+                'login_session': 'my-session',
+                'region': 'us-east-1',
+            }
+        }
+    }
+
+    provider = AioLoginProvider(
+        load_config=mock_load_config,
+        client_creator=mock.Mock(),
+        profile_name=profile_name,
+        token_cache=mock.Mock(),
+    )
+
+    with pytest.raises(MissingDependencyException):
+        await provider.load()

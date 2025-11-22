@@ -1,4 +1,5 @@
 import asyncio
+import datetime
 import logging
 import os
 import subprocess
@@ -7,7 +8,11 @@ from copy import deepcopy
 import botocore.compat
 import dateutil.parser
 from botocore import UNSIGNED
-from botocore.compat import compat_shell_split, total_seconds
+from botocore.compat import (
+    EC,
+    compat_shell_split,
+    total_seconds,
+)
 from botocore.config import Config
 from botocore.credentials import (
     _DEFAULT_ADVISORY_REFRESH_TIMEOUT,
@@ -29,7 +34,15 @@ from botocore.credentials import (
     EnvProvider,
     InstanceMetadataProvider,
     InvalidConfigError,
+    LoginCredentialFetcher,
+    LoginError,
+    LoginInsufficientPermissions,
+    LoginProvider,
+    LoginRefreshRequired,
+    LoginTokenLoader,
+    LoginTokenLoadError,
     MetadataRetrievalError,
+    MissingDependencyException,
     OriginalEC2Provider,
     PartialCredentialsError,
     ProcessProvider,
@@ -43,6 +56,7 @@ from botocore.credentials import (
     SSOTokenLoader,
     UnauthorizedSSOTokenError,
     UnknownCredentialError,
+    _build_add_dpop_header_handler,
     _local_now,
     _parse_if_needed,
     _serialize_if_needed,
@@ -50,6 +64,7 @@ from botocore.credentials import (
     resolve_imds_endpoint_mode,
 )
 from botocore.useragent import register_feature_id, register_feature_ids
+from dateutil.tz import tzutc
 
 from aiobotocore._helpers import resolve_awaitable
 from aiobotocore.config import AioConfig
@@ -201,6 +216,14 @@ class AioProfileProviderBuilder(ProfileProviderBuilder):
                 cache=self._sso_token_cache,
                 profile_name=profile_name,
             ),
+        )
+
+    def _create_login_provider(self, profile_name):
+        return AioLoginProvider(
+            load_config=lambda: self._session.full_config,
+            client_creator=self._session.create_client,
+            profile_name=profile_name,
+            token_cache=self._login_token_cache,
         )
 
 
@@ -1148,6 +1171,135 @@ class AioSSOProvider(SSOProvider):
         return AioDeferredRefreshableCredentials(
             method=self.METHOD,
             refresh_using=sso_fetcher.fetch_credentials,
+        )
+
+
+class AioLoginCredentialFetcher(LoginCredentialFetcher):
+    async def refresh_credentials(self):
+        """Refreshes login credentials, including saving them to the cache."""
+        if self.feature_ids:
+            register_feature_ids(self.feature_ids)
+        # Reload the token from disk, we need the refresh info
+        token = self._token_loader.load_token(self._session_name)
+        private_key = self._load_private_key(token)
+
+        # Check if token has already been refreshed and is still valid
+        if (
+            token
+            and 'accessToken' in token
+            and 'expiresAt' in token['accessToken']
+        ):
+            expiry_time = _parse_if_needed(token['accessToken']['expiresAt'])
+            remaining_time = total_seconds(expiry_time - self._time_fetcher())
+            if remaining_time > self._REFRESH_THRESHOLD:
+                return self._token_to_credentials(token)
+
+        config = AioConfig(
+            signature_version=botocore.UNSIGNED,
+        )
+        async with self._client_creator(
+            'signin',
+            config=config,
+        ) as client:
+            client.meta.events.register(
+                'before-call.signin.CreateOAuth2Token',
+                _build_add_dpop_header_handler(private_key),
+            )
+
+            try:
+                response = await client.create_o_auth2_token(
+                    tokenInput={
+                        'clientId': token['clientId'],
+                        'refreshToken': token['refreshToken'],
+                        'grantType': 'refresh_token',
+                    },
+                )
+            except client.exceptions.AccessDeniedException as e:
+                error_type = e.response.get('error', '')
+                if error_type in ('TOKEN_EXPIRED', 'USER_CREDENTIALS_CHANGED'):
+                    raise LoginRefreshRequired() from e
+                elif error_type == 'INSUFFICIENT_PERMISSIONS':
+                    raise LoginInsufficientPermissions() from e
+                raise LoginError() from e
+
+            if response is None or 'tokenOutput' not in response:
+                raise LoginTokenLoadError(
+                    error_msg=(
+                        "Unable to refresh access token due to an invalid service response. "
+                        "Please try running 'aws login' again. If the issue persists, there "
+                        "may be a temporary signin service problem."
+                    )
+                )
+
+        output = response.get('tokenOutput')
+
+        expires_timestamp = self._time_fetcher().astimezone(
+            tzutc()
+        ) + datetime.timedelta(seconds=output['expiresIn'])
+
+        # Overwrite token with refreshed fields
+        token.update(
+            {
+                'accessToken': {
+                    'accessKeyId': output['accessToken']['accessKeyId'],
+                    'secretAccessKey': output['accessToken'][
+                        'secretAccessKey'
+                    ],
+                    'sessionToken': output['accessToken']['sessionToken'],
+                    'accountId': token['accessToken']['accountId'],
+                    'expiresAt': expires_timestamp.strftime(
+                        '%Y-%m-%dT%H:%M:%SZ'
+                    ),
+                },
+                'refreshToken': output['refreshToken'],
+            }
+        )
+        self._token_loader.save_token(self._session_name, token)
+
+        return self._token_to_credentials(token)
+
+
+class AioLoginProvider(LoginProvider):
+    async def load(self):
+        loaded_config = self._load_config()
+        profiles = loaded_config.get('profiles', {})
+        profile_config = profiles.get(self._profile_name, {})
+
+        if 'login_session' not in profile_config:
+            return None
+
+        if EC is None:
+            raise MissingDependencyException(
+                msg=(
+                    "Using the login credential provider requires an "
+                    "additional dependency. You will need to pip install "
+                    "\"botocore[crt]\" before proceeding."
+                )
+            )
+
+        fetcher = AioLoginCredentialFetcher(
+            session_name=profile_config['login_session'],
+            token_loader=LoginTokenLoader(self._token_cache),
+            client_creator=self._client_creator,
+            time_fetcher=_local_now,
+            feature_ids=self._feature_ids,
+        )
+
+        register_feature_ids(self._feature_ids)
+
+        # Return the current cached credentials initially,
+        # regardless if they're expired
+        cached_credentials = fetcher.load_cached_credentials()
+
+        return AioRefreshableCredentials(
+            access_key=cached_credentials['access_key'],
+            secret_key=cached_credentials['secret_key'],
+            token=cached_credentials['token'],
+            expiry_time=_parse_if_needed(cached_credentials['expiry_time']),
+            account_id=cached_credentials['account_id'],
+            method=self.METHOD,
+            refresh_using=fetcher.refresh_credentials,
+            time_fetcher=_local_now,
         )
 
 
