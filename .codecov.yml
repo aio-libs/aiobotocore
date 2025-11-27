@@ -2,6 +2,9 @@
 codecov:
   branch: master
 
+  notify:
+    manual_trigger: true  # prevent notifications until we notify Codecov
+
 coverage:
   range: "95..100"
 
