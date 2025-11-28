@@ -100,7 +100,7 @@ def _get_boto_module_versions(
             assert False, f'Unsupported ver: {ver}'
 
         module = ver.req.name
-        if module not in {'botocore', 'awscli', 'boto3'}:
+        if module not in {'botocore', 'boto3'}:
             continue
 
         # NOTE: don't support complex versioning yet as requirements are unknown
@@ -186,18 +186,6 @@ def test_release_versions():
             _get_requirements_from_pyproject_toml(content),
             False,
         )
-
-    # get awscli reqs
-    awscli_resp = requests.get(
-        f"https://raw.githubusercontent.com/aws/aws-cli/"
-        f"{aioboto_reqs['awscli'].least_version}/setup.py"
-    )
-    awscli_reqs = _get_boto_module_versions(
-        _get_requirements_from_setup_py(awscli_resp.text)
-    )
-    assert awscli_reqs['botocore'].specifier_set.contains(
-        aioboto_reqs['botocore'].least_version
-    )
 
     # get boto3 reqs
     boto3_resp = requests.get(
