@@ -3,7 +3,7 @@ Changes
 
 3.0.0 (2025-11-30)
 ^^^^^^^^^^^^^^^^^^^
-* forbid creating loose ``ClientSession`` when ``AioBaseClient`` exits context
+* BREAKING: forbid creating loose ``ClientSession`` when ``AioBaseClient`` exits context
 
 2.26.0 (2025-11-27)
 ^^^^^^^^^^^^^^^^^^^
