@@ -31,7 +31,7 @@ dynamic = ["version", "readme"]
 dependencies = [
     "aiohttp >= 3.9.2, < 4.0.0",
     "aioitertools >= 0.5.1, < 1.0.0",
-    "botocore >= 1.40.46, < 1.40.71", # NOTE: When updating, always keep `project.optional-dependencies` aligned
+    "botocore >= 1.41.0, < 1.41.6", # NOTE: When updating, always keep `project.optional-dependencies` aligned
     "python-dateutil >= 2.1, < 3.0.0",
     "jmespath >= 0.7.1, < 2.0.0",
     "multidict >= 6.0.0, < 7.0.0",
@@ -40,10 +40,10 @@ dependencies = [
 
 [project.optional-dependencies]
 awscli = [
-    "awscli >= 1.42.46, < 1.42.71",
+    "awscli >= 1.43.0, < 1.43.6",
 ]
 boto3 = [
-    "boto3 >= 1.40.46, < 1.40.71",
+    "boto3 >= 1.41.0, < 1.41.6",
 ]
 httpx = [
     "httpx >= 0.25.1, < 0.29"
@@ -83,6 +83,9 @@ dev = [
     "requests >= 2.32.3, < 3", # Used in test_version.py
     "time-machine >= 2.15.0, < 3", # Used in test_signers.py
     "tomli; python_version<'3.11'", # Used in test_version.py
+]
+awscrt = [
+    "botocore[crt]",
 ]
 
 [tool.uv]

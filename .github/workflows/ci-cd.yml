@@ -42,6 +42,8 @@ jobs:
         os:
         - ubuntu-24.04
         - ubuntu-24.04-arm
+        with-awscrt:
+        - false
         no-httpx:
         - false
         experimental:
@@ -49,7 +51,13 @@ jobs:
         include:
         - python-version: 3.14  # add a no-httpx run
           os: ubuntu-24.04
+          with-awscrt: false
           no-httpx: true
+          experimental: false
+        - python-version: 3.14  # add a with-awscrt run
+          os: ubuntu-24.04
+          with-awscrt: true
+          no-httpx: false
           experimental: false
       fail-fast: false
     uses: ./.github/workflows/reusable-test.yml
@@ -58,6 +66,7 @@ jobs:
       os: ${{ matrix.os }}
       continue-on-error: ${{ matrix.experimental }}
       enable-cache: ${{ github.ref_type == 'tag' && 'false' || 'auto' }}
+      with-awscrt: ${{ matrix.with-awscrt }}
       no-httpx: ${{ matrix.no-httpx }}
     secrets:
       codecov-token: ${{ secrets.CODECOV_TOKEN }}
