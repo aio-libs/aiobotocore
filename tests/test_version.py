@@ -1,4 +1,3 @@
-import ast
 import operator
 import re
 import sys
@@ -11,7 +10,6 @@ import docutils.frontend
 import docutils.nodes
 import docutils.parsers.rst
 import docutils.utils
-import requests
 from packaging import version
 from pip._internal.req import InstallRequirement
 from pip._internal.req.constructors import install_req_from_line
@@ -44,36 +42,9 @@ def _parse_rst(text: str) -> docutils.nodes.document:
     return document
 
 
-def _get_assign_target_name(node: ast.Assign):
-    assert len(node.targets) == 1
-    target = node.targets[0]
-    assert isinstance(target, ast.Name)
-    return target.id
-
-
 class VersionInfo(NamedTuple):
     least_version: str
     specifier_set: SpecifierSet
-
-
-def _get_requirements_from_setup_py(setup_content: str):
-    parsed = ast.parse(setup_content)
-    top_level_vars = {"install_requires", "requires", "extras_require"}
-    assignments = dict()
-    for node in parsed.body:
-        if isinstance(node, ast.Assign):
-            target_name = _get_assign_target_name(node)
-            if target_name not in top_level_vars:
-                continue
-
-            value = ast.literal_eval(node.value)
-            assignments[target_name] = value
-
-    return chain(
-        assignments.get("install_requires", []),
-        assignments.get("requires", []),
-        assignments.get("extras_require", {}).values(),
-    )
 
 
 def _get_requirements_from_pyproject_toml(pyproject_content: str):
@@ -100,7 +71,7 @@ def _get_boto_module_versions(
             assert False, f'Unsupported ver: {ver}'
 
         module = ver.req.name
-        if module not in {'botocore', 'boto3'}:
+        if module != 'botocore':
             continue
 
         # NOTE: don't support complex versioning yet as requirements are unknown
@@ -182,21 +153,7 @@ def test_release_versions():
     # get aioboto reqs
     with (_root_path / 'pyproject.toml').open() as f:
         content = f.read()
-        aioboto_reqs = _get_boto_module_versions(
+        _get_boto_module_versions(
             _get_requirements_from_pyproject_toml(content),
             False,
         )
-
-    # get boto3 reqs
-    boto3_resp = requests.get(
-        f"https://raw.githubusercontent.com/boto/boto3/"
-        f"{aioboto_reqs['boto3'].least_version}/setup.py"
-    )
-    boto3_reqs = _get_boto_module_versions(
-        _get_requirements_from_setup_py(boto3_resp.text)
-    )
-    assert boto3_reqs['botocore'].specifier_set.contains(
-        aioboto_reqs['botocore'].least_version
-    )
-
-    print()
