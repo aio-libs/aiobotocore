@@ -63,6 +63,7 @@ from botocore.httpchecksum import (
     handle_checksum_body,
 )
 from botocore.httpsession import URLLib3Session
+from botocore.loaders import instance_cache
 from botocore.paginate import PageIterator, ResultKeyIterator
 from botocore.parsers import (
     PROTOCOL_PARSERS,
@@ -805,6 +806,13 @@ def test_protocol_parsers():
             EventAliaser.emit_until_response,
             {
                 '0d635bf7ae5022b1fdde891cd9a91cd4c449fd49',
+            },
+        ),
+        # loaders.py
+        (
+            instance_cache,
+            {
+                'f112ee26c1f2ff697982406e5cf36bc3f9c589f0',
             },
         ),
         # paginate.py

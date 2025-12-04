@@ -202,4 +202,5 @@ def patch_load_service_model(
             return ruleset_json
 
     loader = session.get_component('data_loader')
+    mock_load_service_model.__self__ = loader
     monkeypatch.setattr(loader, 'load_service_model', mock_load_service_model)
