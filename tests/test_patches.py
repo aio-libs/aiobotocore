@@ -188,10 +188,22 @@ def test_protocol_parsers():
             },
         ),
         (
+            ClientCreator.create_client_class,
+            {
+                'd0367f8df6c9bd06169b5f06395b3890217e7fde',
+            },
+        ),
+        (
             ClientCreator._create_client_class,
             {
                 'fcecaf8d4f2c1ac3c5d0eb50c573233ef86d641d',
                 '320c74206570605ff55ca32535b3f6108a7d8c1f',
+            },
+        ),
+        (
+            ClientCreator._load_service_model,
+            {
+                '4e2569e43d9a3dfd9964b227ef95abcd3a6f4128',
             },
         ),
         (

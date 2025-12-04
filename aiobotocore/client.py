@@ -13,6 +13,7 @@ from botocore.discovery import block_endpoint_discovery_required_operations
 from botocore.exceptions import OperationNotPageableError, UnknownServiceError
 from botocore.history import get_global_history_recorder
 from botocore.hooks import first_non_none_response
+from botocore.model import ServiceModel
 from botocore.useragent import register_feature_id
 from botocore.utils import get_service_module_name
 from botocore.waiter import xform_name
@@ -23,6 +24,7 @@ from .context import with_current_context
 from .credentials import AioRefreshableCredentials
 from .discovery import AioEndpointDiscoveryHandler, AioEndpointDiscoveryManager
 from .httpchecksum import apply_request_checksum
+from .loaders import instance_cached
 from .paginate import AioPaginator
 from .retries import adaptive, standard
 from .utils import AioS3ExpressIdentityResolver, AioS3RegionRedirectorv2
@@ -48,7 +50,9 @@ class AioClientCreator(ClientCreator):
             'choose-service-name', service_name=service_name
         )
         service_name = first_non_none_response(responses, default=service_name)
-        service_model = self._load_service_model(service_name, api_version)
+        service_model = await self._load_service_model(
+            service_name, api_version
+        )
         try:
             endpoints_ruleset_data = self._load_service_endpoints_ruleset(
                 service_name, api_version
@@ -116,6 +120,12 @@ class AioClientCreator(ClientCreator):
         )
         return service_client
 
+    async def create_client_class(self, service_name, api_version=None):
+        service_model = await self._load_service_model(
+            service_name, api_version
+        )
+        return await self._create_client_class(service_name, service_model)
+
     async def _create_client_class(self, service_name, service_model):
         class_attributes = self._create_methods(service_model)
         py_name_to_operation_name = self._create_name_mapping(service_model)
@@ -130,6 +140,16 @@ class AioClientCreator(ClientCreator):
         class_name = get_service_module_name(service_model)
         cls = type(str(class_name), tuple(bases), class_attributes)
         return cls
+
+    async def _load_service_model(self, service_name, api_version=None):
+        json_model = await instance_cached(
+            self._loader.load_service_model,
+            service_name,
+            'service-2',
+            api_version=api_version,
+        )
+        service_model = ServiceModel(json_model, service_name=service_name)
+        return service_model
 
     def _register_retries(self, client):
         # botocore retry handlers may block. We add our own implementation here.
