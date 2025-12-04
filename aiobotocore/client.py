@@ -54,8 +54,10 @@ class AioClientCreator(ClientCreator):
             service_name, api_version
         )
         try:
-            endpoints_ruleset_data = self._load_service_endpoints_ruleset(
-                service_name, api_version
+            endpoints_ruleset_data = (
+                await self._load_service_endpoints_ruleset(
+                    service_name, api_version
+                )
             )
             partition_data = self._loader.load_data('partitions')
         except UnknownServiceError:
@@ -150,6 +152,16 @@ class AioClientCreator(ClientCreator):
         )
         service_model = ServiceModel(json_model, service_name=service_name)
         return service_model
+
+    async def _load_service_endpoints_ruleset(
+        self, service_name, api_version=None
+    ):
+        return await instance_cached(
+            self._loader.load_service_model,
+            service_name,
+            'endpoint-rule-set-1',
+            api_version=api_version,
+        )
 
     def _register_retries(self, client):
         # botocore retry handlers may block. We add our own implementation here.

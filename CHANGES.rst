@@ -3,7 +3,7 @@ Changes
 
 3.1.0 (2025-12-10)
 ^^^^^^^^^^^^^^^^^^^
-* patch ``AioClientCreator.create_client_class()`` and ``AioClientCreator._load_service_model()``
+* patch ``AioClientCreator.create_client_class()``, ``AioClientCreator._load_service_model()`` and ``AioClientCreator._load_service_endpoints_ruleset()``
 
 3.0.0 (2025-12-09)
 ^^^^^^^^^^^^^^^^^^^
