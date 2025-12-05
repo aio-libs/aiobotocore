@@ -1,7 +1,7 @@
 Changes
 -------
 
-3.0.0 (2025-12-03)
+3.0.0 (2025-12-09)
 ^^^^^^^^^^^^^^^^^^^
 * BREAKING: forbid creating loose ``ClientSession`` when ``AioBaseClient`` exits context
 * BREAKING: remove `awscli` packaging extra. Instead of ``pip install aiobotocore[awscli]``, use ``pip install aiobotocore awscli`` or similar to install compatible versions of `aiobotocore`, `botocore` and `awscli`.
