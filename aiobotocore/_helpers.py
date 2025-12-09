@@ -1,4 +1,7 @@
 import inspect
+from asyncio import AbstractEventLoop
+from concurrent.futures import Executor
+from typing import Callable
 
 
 async def resolve_awaitable(obj):
@@ -14,3 +17,12 @@ async def async_any(items):
             return True
 
     return False
+
+
+async def optionally_run_in_executor(
+    loop: AbstractEventLoop, executor: Executor | None, func: Callable, *args
+):
+    if executor:
+        return await loop.run_in_executor(executor, func, *args)
+
+    return func(*args)
