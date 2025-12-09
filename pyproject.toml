@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "aiobotocore"
 description = "Async client for aws services using botocore and aiohttp"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 authors = [
     { name = "Nikolay Novik", email = "nickolainovik@gmail.com" },
 ]
@@ -16,7 +16,6 @@ classifiers = [
     'Intended Audience :: System Administrators',
     'Natural Language :: English',
     'Programming Language :: Python :: 3',
-    'Programming Language :: Python :: 3.9',
     'Programming Language :: Python :: 3.10',
     'Programming Language :: Python :: 3.11',
     'Programming Language :: Python :: 3.12',

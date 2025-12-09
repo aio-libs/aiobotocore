@@ -53,7 +53,7 @@ async def test_run_lambda(
     role_arn = await _get_role_arn(iam_client, 'test-iam-role')
     lambda_response = await lambda_client.create_function(
         FunctionName=function_name,
-        Runtime='python3.9',
+        Runtime='python3.10',
         Role=role_arn,
         Handler='lambda_function.lambda_handler',
         Timeout=10,
