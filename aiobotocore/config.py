@@ -1,11 +1,12 @@
 import copy
 import ssl
 from concurrent.futures import Executor
-from typing import NotRequired, TypedDict
+from typing import TypedDict
 
 import botocore.client
 from aiohttp.abc import AbstractResolver
 from botocore.exceptions import ParamValidationError
+from typing_extensions import NotRequired
 
 from ._constants import DEFAULT_KEEPALIVE_TIMEOUT
 from .endpoint import DEFAULT_HTTP_SESSION_CLS
