@@ -1,5 +1,8 @@
 Changes
 -------
+3.0.1 (2025-12-09)
+^^^^^^^^^^^^^^^^^^^
+* Add ability to specify executor on AioConfig to run file load events on
 
 3.0.0 (2025-12-03)
 ^^^^^^^^^^^^^^^^^^^

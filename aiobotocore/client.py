@@ -1,3 +1,5 @@
+import asyncio
+
 from botocore.auth import resolve_auth_type
 from botocore.awsrequest import prepare_request_dict
 from botocore.client import (
@@ -18,6 +20,7 @@ from botocore.utils import get_service_module_name
 from botocore.waiter import xform_name
 
 from . import waiter
+from ._helpers import optionally_run_in_executor
 from .args import AioClientArgsCreator
 from .context import with_current_context
 from .credentials import AioRefreshableCredentials
@@ -48,12 +51,30 @@ class AioClientCreator(ClientCreator):
             'choose-service-name', service_name=service_name
         )
         service_name = first_non_none_response(responses, default=service_name)
-        service_model = self._load_service_model(service_name, api_version)
+        loop = asyncio.get_event_loop()
+        load_executor = client_config and getattr(
+            client_config, 'load_executor', None
+        )
+
+        service_model = await optionally_run_in_executor(
+            loop,
+            load_executor,
+            self._load_service_model,
+            service_name,
+            api_version,
+        )
+
         try:
-            endpoints_ruleset_data = self._load_service_endpoints_ruleset(
-                service_name, api_version
+            endpoints_ruleset_data = await optionally_run_in_executor(
+                loop,
+                load_executor,
+                self._load_service_endpoints_ruleset,
+                service_name,
+                api_version,
             )
-            partition_data = self._loader.load_data('partitions')
+            partition_data = await optionally_run_in_executor(
+                loop, load_executor, self._loader.load_data, 'partitions'
+            )
         except UnknownServiceError:
             endpoints_ruleset_data = None
             partition_data = None

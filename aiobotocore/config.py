@@ -1,10 +1,15 @@
 import copy
+import ssl
+from concurrent.futures import Executor
+from typing import NotRequired, TypedDict
 
 import botocore.client
+from aiohttp.abc import AbstractResolver
 from botocore.exceptions import ParamValidationError
 
 from ._constants import DEFAULT_KEEPALIVE_TIMEOUT
 from .endpoint import DEFAULT_HTTP_SESSION_CLS
+from .httpsession import AIOHTTPSession
 from .httpxsession import HttpxSession
 
 TIMEOUT_ARGS = frozenset(
@@ -12,20 +17,42 @@ TIMEOUT_ARGS = frozenset(
 )
 
 
+class _ConnectorArgsType(TypedDict):
+    use_dns_cache: NotRequired[bool]
+    ttl_dns_cache: NotRequired[int | None]
+    keepalive_timeout: NotRequired[float | int | None]
+    write_timeout: NotRequired[float | int | None]
+    pool_timeout: NotRequired[float | int | None]
+    force_close: NotRequired[bool]
+    ssl_context: NotRequired[ssl.SSLContext]
+    resolver: NotRequired[AbstractResolver]
+
+
+_HttpSessionTypes = AIOHTTPSession | HttpxSession
+
+
 class AioConfig(botocore.client.Config):
     def __init__(
         self,
-        connector_args=None,
-        http_session_cls=DEFAULT_HTTP_SESSION_CLS,
+        connector_args: _ConnectorArgsType | None = None,
+        http_session_cls: _HttpSessionTypes = DEFAULT_HTTP_SESSION_CLS,
+        load_executor: Executor | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
 
         self._validate_connector_args(connector_args, http_session_cls)
-        self.connector_args = copy.copy(connector_args)
+
+        if load_executor and not isinstance(load_executor, Executor):
+            raise ParamValidationError(
+                report='load_executor value must be an instance of an Executor.'
+            )
+
+        self.load_executor = load_executor
+        self.connector_args = (
+            copy.copy(connector_args) if connector_args else dict()
+        )
         self.http_session_cls = http_session_cls
-        if not self.connector_args:
-            self.connector_args = dict()
 
         if 'keepalive_timeout' not in self.connector_args:
             self.connector_args['keepalive_timeout'] = (
@@ -39,7 +66,9 @@ class AioConfig(botocore.client.Config):
         return AioConfig(self.connector_args, **config_options)
 
     @staticmethod
-    def _validate_connector_args(connector_args, http_session_cls):
+    def _validate_connector_args(
+        connector_args: _ConnectorArgsType, http_session_cls: _HttpSessionTypes
+    ):
         if connector_args is None:
             return
 
@@ -82,8 +111,6 @@ class AioConfig(botocore.client.Config):
                         report=f'{k} must be an SSLContext instance'
                     )
             elif k == "resolver":
-                from aiohttp.abc import AbstractResolver
-
                 if http_session_cls is HttpxSession:
                     raise ParamValidationError(
                         report=f'Httpx backend does not support {k}.'

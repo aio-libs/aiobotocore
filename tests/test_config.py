@@ -1,3 +1,5 @@
+import concurrent.futures
+
 import aiohttp.resolver
 import anyio
 import pytest
@@ -69,11 +71,20 @@ async def test_connector_args(current_http_backend: str):
     ):
         AioConfig({'resolver': True}, http_session_cls=HttpxSession)
 
+    with pytest.raises(
+        ParamValidationError,
+        match='load_executor value must be an instance of an Executor.',
+    ):
+        AioConfig(load_executor='abc')
+
     # Test valid configs:
     AioConfig({"ttl_dns_cache": None})
     AioConfig({"ttl_dns_cache": 1})
     AioConfig({"resolver": aiohttp.resolver.DefaultResolver()})
     AioConfig({'keepalive_timeout': None})
+
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        AioConfig(load_executor=executor)
 
     # test merge
     cfg = Config(read_timeout=75)
@@ -171,3 +182,22 @@ async def test_config_http_session_cls():
     ):
         with pytest.raises(SuccessExc):
             await s3_client.get_object(Bucket='foo', Key='bar')
+
+
+async def test_config_load_executor():
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        config = AioConfig(load_executor=executor)
+
+        session = AioSession()
+        async with (
+            AIOServer() as server,
+            session.create_client(
+                's3',
+                config=config,
+                endpoint_url=server.endpoint_url,
+                aws_secret_access_key='xxx',
+                aws_access_key_id='xxx',
+            ) as s3_client,
+        ):
+            response = await s3_client.get_object(Bucket='foo', Key='bar')
+            assert response['Body']
