@@ -1,7 +1,6 @@
 import aiohttp.resolver
 import anyio
 import pytest
-from botocore.config import Config
 from botocore.exceptions import ParamValidationError, ReadTimeoutError
 
 from aiobotocore.config import AioConfig
@@ -76,7 +75,7 @@ async def test_connector_args(current_http_backend: str):
     AioConfig({'keepalive_timeout': None})
 
     # test merge
-    cfg = Config(read_timeout=75)
+    cfg = AioConfig(read_timeout=75)
     aio_cfg = AioConfig({'keepalive_timeout': 75})
     aio_cfg.merge(cfg)
 
