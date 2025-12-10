@@ -1,3 +1,4 @@
+import collections.abc
 import copy
 
 import botocore.client
@@ -91,6 +92,17 @@ class AioConfig(botocore.client.Config):
                 if not isinstance(v, AbstractResolver):
                     raise ParamValidationError(
                         report=f'{k} must be an instance of a AbstractResolver'
+                    )
+            elif k == "socket_factory":
+                if http_session_cls is HttpxSession:
+                    raise ParamValidationError(
+                        report=f'Httpx backend does not support {k}.'
+                    )
+                if v is not None and not isinstance(
+                    v, collections.abc.Callable
+                ):
+                    raise ParamValidationError(
+                        report=f'{k} must be a callable'
                     )
             else:
                 raise ParamValidationError(report=f'invalid connector_arg:{k}')
