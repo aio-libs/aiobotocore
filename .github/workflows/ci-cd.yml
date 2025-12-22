@@ -130,7 +130,7 @@ jobs:
 
     steps:
     - name: Download distribution 📦
-      uses: actions/download-artifact@v6
+      uses: actions/download-artifact@v7
       with:
         name: python-package-distributions
         path: dist/
