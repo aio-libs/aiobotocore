@@ -13,7 +13,6 @@ from botocore.compat import (
     compat_shell_split,
     total_seconds,
 )
-from botocore.config import Config
 from botocore.credentials import (
     _DEFAULT_ADVISORY_REFRESH_TIMEOUT,
     AssumeRoleCredentialFetcher,
@@ -1089,7 +1088,7 @@ class AioSSOCredentialFetcher(
 ):
     async def _get_credentials(self):
         """Get credentials by calling SSO get role credentials."""
-        config = Config(
+        config = AioConfig(
             signature_version=UNSIGNED,
             region_name=self._sso_region,
         )
