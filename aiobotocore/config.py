@@ -1,7 +1,7 @@
 import copy
 import ssl
 from concurrent.futures import Executor
-from typing import TypedDict, Union
+from typing import Optional, TypedDict, Union
 
 import botocore.client
 from aiohttp.abc import AbstractResolver
@@ -20,10 +20,10 @@ TIMEOUT_ARGS = frozenset(
 
 class _ConnectorArgsType(TypedDict):
     use_dns_cache: NotRequired[bool]
-    ttl_dns_cache: NotRequired[int | None]
-    keepalive_timeout: NotRequired[float | int | None]
-    write_timeout: NotRequired[float | int | None]
-    pool_timeout: NotRequired[float | int | None]
+    ttl_dns_cache: NotRequired[Optional[int]]
+    keepalive_timeout: NotRequired[Union[float, int, None]]
+    write_timeout: NotRequired[Union[float, int, None]]
+    pool_timeout: NotRequired[Union[float, int, None]]
     force_close: NotRequired[bool]
     ssl_context: NotRequired[ssl.SSLContext]
     resolver: NotRequired[AbstractResolver]
@@ -35,9 +35,9 @@ _HttpSessionTypes = Union[AIOHTTPSession, HttpxSession]
 class AioConfig(botocore.client.Config):
     def __init__(
         self,
-        connector_args: _ConnectorArgsType | None = None,
+        connector_args: Optional[_ConnectorArgsType] = None,
         http_session_cls: _HttpSessionTypes = DEFAULT_HTTP_SESSION_CLS,
-        load_executor: Executor | None = None,
+        load_executor: Optional[Executor] = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
