@@ -1,7 +1,7 @@
 import copy
 import ssl
 from concurrent.futures import Executor
-from typing import TypedDict
+from typing import TypedDict, Union
 
 import botocore.client
 from aiohttp.abc import AbstractResolver
@@ -29,7 +29,7 @@ class _ConnectorArgsType(TypedDict):
     resolver: NotRequired[AbstractResolver]
 
 
-_HttpSessionTypes = AIOHTTPSession | HttpxSession
+_HttpSessionTypes = Union[AIOHTTPSession, HttpxSession]
 
 
 class AioConfig(botocore.client.Config):
