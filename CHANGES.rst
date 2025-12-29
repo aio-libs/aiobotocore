@@ -3,7 +3,6 @@ Changes
 3.1.0 (2025-12-09)
 ^^^^^^^^^^^^^^^^^^^
 * Add ability to specify executor on AioConfig to run file load events on
-* Removing support for python 3.9 as it's EOL
 
 3.0.0 (2025-12-03)
 ^^^^^^^^^^^^^^^^^^^
