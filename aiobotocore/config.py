@@ -1,9 +1,11 @@
+import collections.abc
 import copy
 import ssl
 import sys
 from typing import Optional, TypedDict, Union
 
 import botocore.client
+from aiohttp import SocketFactoryType
 from aiohttp.abc import AbstractResolver
 from botocore.exceptions import ParamValidationError
 
@@ -31,6 +33,7 @@ class _ConnectorArgs(TypedDict):
     force_close: NotRequired[bool]
     ssl_context: NotRequired[ssl.SSLContext]
     resolver: NotRequired[AbstractResolver]
+    socket_factory: NotRequired[Optional[SocketFactoryType]]
 
 
 _HttpSessionType = Union[AIOHTTPSession, HttpxSession]
@@ -113,6 +116,17 @@ class AioConfig(botocore.client.Config):
                 if not isinstance(v, AbstractResolver):
                     raise ParamValidationError(
                         report=f'{k} must be an instance of a AbstractResolver'
+                    )
+            elif k == "socket_factory":
+                if http_session_cls is HttpxSession:
+                    raise ParamValidationError(
+                        report=f'Httpx backend does not support {k}.'
+                    )
+                if v is not None and not isinstance(
+                    v, collections.abc.Callable
+                ):
+                    raise ParamValidationError(
+                        report=f'{k} must be a callable'
                     )
             else:
                 raise ParamValidationError(report=f'invalid connector_arg:{k}')

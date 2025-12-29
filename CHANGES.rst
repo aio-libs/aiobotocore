@@ -1,6 +1,10 @@
 Changes
 -------
 
+3.1.0 (2026-01-01)
+^^^^^^^^^^^^^^^^^^^
+* support passing `socket_factory` as part of `connector_args` in `AioConfig`
+
 3.0.0 (2025-12-09)
 ^^^^^^^^^^^^^^^^^^^
 * BREAKING: forbid creating loose ``ClientSession`` when ``AioBaseClient`` exits context
