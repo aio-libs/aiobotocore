@@ -1,6 +1,6 @@
 import inspect
 from asyncio import AbstractEventLoop
-from concurrent.futures import Executor
+from concurrent.futures import ThreadPoolExecutor
 from typing import Callable, Optional
 
 
@@ -21,7 +21,7 @@ async def async_any(items):
 
 async def optionally_run_in_executor(
     loop: AbstractEventLoop,
-    executor: Optional[Executor],
+    executor: Optional[ThreadPoolExecutor],
     func: Callable,
     *args,
 ):

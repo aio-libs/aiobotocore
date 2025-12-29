@@ -1,6 +1,6 @@
 import copy
 import ssl
-from concurrent.futures import Executor
+from concurrent.futures import ThreadPoolExecutor
 from typing import Optional, TypedDict, Union
 
 import botocore.client
@@ -37,14 +37,14 @@ class AioConfig(botocore.client.Config):
         self,
         connector_args: Optional[_ConnectorArgsType] = None,
         http_session_cls: _HttpSessionTypes = DEFAULT_HTTP_SESSION_CLS,
-        load_executor: Optional[Executor] = None,
+        load_executor: Optional[ThreadPoolExecutor] = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
 
         self._validate_connector_args(connector_args, http_session_cls)
 
-        if load_executor and not isinstance(load_executor, Executor):
+        if load_executor and not isinstance(load_executor, ThreadPoolExecutor):
             raise ParamValidationError(
                 report='load_executor value must be an instance of an Executor.'
             )
