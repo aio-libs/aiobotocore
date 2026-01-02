@@ -1,3 +1,5 @@
+import socket
+
 import aiohttp.resolver
 import anyio
 import pytest
@@ -48,6 +50,11 @@ async def test_connector_args(current_http_backend: str):
         AioConfig(connector_args)
 
     with pytest.raises(ParamValidationError):
+        # invalid socket factory
+        connector_args = dict(socket_factory="1")
+        AioConfig(connector_args)
+
+    with pytest.raises(ParamValidationError):
         # invalid key
         connector_args = dict(foo="1")
         AioConfig(connector_args)
@@ -69,11 +76,19 @@ async def test_connector_args(current_http_backend: str):
     ):
         AioConfig({'resolver': True}, http_session_cls=HttpxSession)
 
+    with pytest.raises(
+        ParamValidationError,
+        match='Httpx backend does not support socket_factory.',
+    ):
+        AioConfig({'socket_factory': True}, http_session_cls=HttpxSession)
+
     # Test valid configs:
     AioConfig({"ttl_dns_cache": None})
     AioConfig({"ttl_dns_cache": 1})
     AioConfig({"resolver": aiohttp.resolver.DefaultResolver()})
     AioConfig({'keepalive_timeout': None})
+    AioConfig({'socket_factory': None})
+    AioConfig({'socket_factory': socket.socket})
 
     # test merge
     cfg = Config(read_timeout=75)
