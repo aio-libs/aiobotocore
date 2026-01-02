@@ -14,8 +14,8 @@ from botocore.endpoint import (
 )
 from botocore.hooks import first_non_none_response
 
+from aiobotocore._types import DEFAULT_HTTP_SESSION_CLS
 from aiobotocore.httpchecksum import handle_checksum_body
-from aiobotocore.httpsession import AIOHTTPSession
 from aiobotocore.parsers import AioResponseParserFactory
 from aiobotocore.response import HttpxStreamingBody, StreamingBody
 
@@ -23,8 +23,6 @@ try:
     import httpx
 except ImportError:
     httpx = None
-
-DEFAULT_HTTP_SESSION_CLS = AIOHTTPSession
 
 
 async def convert_to_response_dict(http_response, operation_model):

@@ -11,7 +11,7 @@ from aiohttp.abc import AbstractResolver
 from botocore.exceptions import ParamValidationError
 
 from ._constants import DEFAULT_KEEPALIVE_TIMEOUT
-from .endpoint import DEFAULT_HTTP_SESSION_CLS
+from ._types import DEFAULT_HTTP_SESSION_CLS
 from .httpsession import AIOHTTPSession
 from .httpxsession import HttpxSession
 
