@@ -19,6 +19,8 @@ from botocore.useragent import register_feature_id
 from botocore.utils import get_service_module_name
 from botocore.waiter import xform_name
 
+from aiobotocore.config import PARAM_SENTINAL
+
 from . import waiter
 from ._helpers import optionally_run_in_executor
 from .args import AioClientArgsCreator
@@ -53,7 +55,7 @@ class AioClientCreator(ClientCreator):
         service_name = first_non_none_response(responses, default=service_name)
         loop = asyncio.get_event_loop()
         load_executor = client_config and getattr(
-            client_config, 'load_executor', None
+            client_config, 'load_executor', PARAM_SENTINAL
         )
 
         service_model = await optionally_run_in_executor(

@@ -35,10 +35,11 @@ class _ConnectorArgs(TypedDict):
     ssl_context: NotRequired[ssl.SSLContext]
     resolver: NotRequired[AbstractResolver]
     socket_factory: NotRequired[Optional[SocketFactoryType]]
-    resolver: NotRequired[AbstractResolver]
 
 
 _HttpSessionType = Union[AIOHTTPSession, HttpxSession]
+
+PARAM_SENTINAL = object()
 
 
 class AioConfig(botocore.client.Config):
@@ -46,14 +47,16 @@ class AioConfig(botocore.client.Config):
         self,
         connector_args: Optional[_ConnectorArgs] = None,
         http_session_cls: type[_HttpSessionType] = DEFAULT_HTTP_SESSION_CLS,
-        load_executor: Optional[ThreadPoolExecutor] = None,
+        load_executor: Optional[ThreadPoolExecutor] = PARAM_SENTINAL,
         **kwargs,
     ):
         super().__init__(**kwargs)
 
         self._validate_connector_args(connector_args, http_session_cls)
 
-        if load_executor and not isinstance(load_executor, ThreadPoolExecutor):
+        if load_executor not in (None, PARAM_SENTINAL) and not isinstance(
+            load_executor, ThreadPoolExecutor
+        ):
             raise ParamValidationError(
                 report='load_executor value must be an instance of an Executor.'
             )
