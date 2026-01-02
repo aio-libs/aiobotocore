@@ -4,7 +4,11 @@ Changes
 ^^^^^^^^^^^^^^^^^^^
 * Add ability to specify executor on AioConfig to run file load events on
 
-3.0.0 (2025-12-03)
+3.1.0 (2026-01-01)
+^^^^^^^^^^^^^^^^^^^
+* support passing `socket_factory` as part of `connector_args` in `AioConfig`
+
+3.0.0 (2025-12-09)
 ^^^^^^^^^^^^^^^^^^^
 * BREAKING: forbid creating loose ``ClientSession`` when ``AioBaseClient`` exits context
 * BREAKING: remove `awscli` packaging extra. Instead of ``pip install aiobotocore[awscli]``, use ``pip install aiobotocore awscli`` or similar to install compatible versions of `aiobotocore`, `botocore` and `awscli`.

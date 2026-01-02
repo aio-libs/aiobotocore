@@ -1,9 +1,12 @@
+import collections.abc
 import copy
 import ssl
+import sys
 from concurrent.futures import ThreadPoolExecutor
 from typing import Optional, TypedDict, Union
 
 import botocore.client
+from aiohttp import SocketFactoryType
 from aiohttp.abc import AbstractResolver
 from botocore.exceptions import ParamValidationError
 from typing_extensions import NotRequired
@@ -13,30 +16,37 @@ from .endpoint import DEFAULT_HTTP_SESSION_CLS
 from .httpsession import AIOHTTPSession
 from .httpxsession import HttpxSession
 
+if sys.version_info >= (3, 11):
+    from typing import NotRequired
+else:
+    from typing_extensions import NotRequired
+
 TIMEOUT_ARGS = frozenset(
     ('keepalive_timeout', 'write_timeout', 'pool_timeout')
 )
 
 
-class _ConnectorArgsType(TypedDict):
+class _ConnectorArgs(TypedDict):
     use_dns_cache: NotRequired[bool]
     ttl_dns_cache: NotRequired[Optional[int]]
-    keepalive_timeout: NotRequired[Union[float, int, None]]
-    write_timeout: NotRequired[Union[float, int, None]]
-    pool_timeout: NotRequired[Union[float, int, None]]
+    keepalive_timeout: NotRequired[Optional[float]]
+    write_timeout: NotRequired[Optional[float]]
+    pool_timeout: NotRequired[Optional[float]]
     force_close: NotRequired[bool]
     ssl_context: NotRequired[ssl.SSLContext]
     resolver: NotRequired[AbstractResolver]
+    socket_factory: NotRequired[Optional[SocketFactoryType]]
+    resolver: NotRequired[AbstractResolver]
 
 
-_HttpSessionTypes = Union[AIOHTTPSession, HttpxSession]
+_HttpSessionType = Union[AIOHTTPSession, HttpxSession]
 
 
 class AioConfig(botocore.client.Config):
     def __init__(
         self,
-        connector_args: Optional[_ConnectorArgsType] = None,
-        http_session_cls: _HttpSessionTypes = DEFAULT_HTTP_SESSION_CLS,
+        connector_args: Optional[_ConnectorArgs] = None,
+        http_session_cls: type[_HttpSessionType] = DEFAULT_HTTP_SESSION_CLS,
         load_executor: Optional[ThreadPoolExecutor] = None,
         **kwargs,
     ):
@@ -50,10 +60,11 @@ class AioConfig(botocore.client.Config):
             )
 
         self.load_executor = load_executor
-        self.connector_args = (
-            copy.copy(connector_args) if connector_args else dict()
+
+        self.connector_args: _ConnectorArgs = (
+            copy.copy(connector_args) if connector_args else {}
         )
-        self.http_session_cls = http_session_cls
+        self.http_session_cls: type[_HttpSessionType] = http_session_cls
 
         if 'keepalive_timeout' not in self.connector_args:
             self.connector_args['keepalive_timeout'] = (
@@ -68,8 +79,9 @@ class AioConfig(botocore.client.Config):
 
     @staticmethod
     def _validate_connector_args(
-        connector_args: _ConnectorArgsType, http_session_cls: _HttpSessionTypes
-    ):
+        connector_args: _ConnectorArgs,
+        http_session_cls: type[_HttpSessionType],
+    ) -> None:
         if connector_args is None:
             return
 
@@ -105,8 +117,6 @@ class AioConfig(botocore.client.Config):
                     )
             # limit is handled by max_pool_connections
             elif k == 'ssl_context':
-                import ssl
-
                 if not isinstance(v, ssl.SSLContext):
                     raise ParamValidationError(
                         report=f'{k} must be an SSLContext instance'
@@ -119,6 +129,17 @@ class AioConfig(botocore.client.Config):
                 if not isinstance(v, AbstractResolver):
                     raise ParamValidationError(
                         report=f'{k} must be an instance of a AbstractResolver'
+                    )
+            elif k == "socket_factory":
+                if http_session_cls is HttpxSession:
+                    raise ParamValidationError(
+                        report=f'Httpx backend does not support {k}.'
+                    )
+                if v is not None and not isinstance(
+                    v, collections.abc.Callable
+                ):
+                    raise ParamValidationError(
+                        report=f'{k} must be a callable'
                     )
             else:
                 raise ParamValidationError(report=f'invalid connector_arg:{k}')

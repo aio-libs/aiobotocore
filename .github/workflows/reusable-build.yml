@@ -21,7 +21,7 @@ jobs:
         persist-credentials: false
     - name: Install uv
       # yamllint disable-line rule:line-length
-      uses: astral-sh/setup-uv@1e862dfacbd1d6d858c55d9b792c756523627244  # v7.1.4
+      uses: astral-sh/setup-uv@681c641aba71e4a1c380be3ab5e12ad51f415867  # v7.1.6
       with:
         # yamllint disable-line rule:line-length
         enable-cache: | # zizmor: ignore[cache-poisoning] cache is disabled when publishing to prevent poisoning
@@ -31,7 +31,7 @@ jobs:
     - name: Check distribution 📦
       run: uvx twine check --strict dist/*
     - name: Upload distribution 📦
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v6
       with:
         name: python-package-distributions
         path: dist/
