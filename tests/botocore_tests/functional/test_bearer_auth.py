@@ -1,7 +1,7 @@
 import botocore
 import pytest
-from botocore.config import Config
 
+from aiobotocore.config import AioConfig
 from tests.botocore_tests import ClientHTTPStubber, patch_load_service_model
 from tests.botocore_tests.functional.test_useragent import (
     get_captured_ua_strings,
@@ -117,15 +117,15 @@ async def test_service_uses_bearer_auth(
         ({"AWS_BEARER_TOKEN_FOO_SERVICE": "foo-service-token"}, None),
         (
             {"AWS_BEARER_TOKEN_BEARER_SERVICE": "bearer-service-token"},
-            Config(signature_version="v4"),
+            AioConfig(signature_version="v4"),
         ),
         (
             {"AWS_BEARER_TOKEN_BEARER_SERVICE": "bearer-service-token"},
-            Config(auth_scheme_preference="sigv4"),
+            AioConfig(auth_scheme_preference="sigv4"),
         ),
         (
             {"AWS_BEARER_TOKEN_BEARER_SERVICE": "bearer-service-token"},
-            Config(signature_version=botocore.UNSIGNED),
+            AioConfig(signature_version=botocore.UNSIGNED),
         ),
     ],
     ids=[
@@ -199,15 +199,15 @@ async def test_user_agent_has_bearer_service_env_vars_feature_id(
         ({"AWS_BEARER_TOKEN_FOO_SERVICE": "foo-service-token"}, None),
         (
             {"AWS_BEARER_TOKEN_BEARER_SERVICE": "bearer-service-token"},
-            Config(signature_version="v4"),
+            AioConfig(signature_version="v4"),
         ),
         (
             {"AWS_BEARER_TOKEN_BEARER_SERVICE": "bearer-service-token"},
-            Config(auth_scheme_preference="sigv4"),
+            AioConfig(auth_scheme_preference="sigv4"),
         ),
         (
             {"AWS_BEARER_TOKEN_BEARER_SERVICE": "bearer-service-token"},
-            Config(signature_version=botocore.UNSIGNED),
+            AioConfig(signature_version=botocore.UNSIGNED),
         ),
     ],
     ids=[
