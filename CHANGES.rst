@@ -1,6 +1,10 @@
 Changes
 -------
 
+3.2.0 (2026-01-03)
+^^^^^^^^^^^^^^^^^^^
+* support `warm_up_loader_caches` in `AioConfig`
+
 3.1.0 (2026-01-02)
 ^^^^^^^^^^^^^^^^^^^
 * support passing `socket_factory` as part of `connector_args` in `AioConfig`
