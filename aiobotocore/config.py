@@ -9,7 +9,6 @@ import botocore.client
 from aiohttp import SocketFactoryType
 from aiohttp.abc import AbstractResolver
 from botocore.exceptions import ParamValidationError
-from typing_extensions import NotRequired
 
 from ._constants import DEFAULT_KEEPALIVE_TIMEOUT
 from .endpoint import DEFAULT_HTTP_SESSION_CLS
