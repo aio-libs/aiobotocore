@@ -185,3 +185,20 @@ async def test_config_http_session_cls():
     ):
         with pytest.raises(SuccessExc):
             await s3_client.get_object(Bucket='foo', Key='bar')
+
+
+@pytest.mark.parametrize(
+    "warm_up_loader_caches, expected",
+    [
+        (None, False),
+        (False, False),
+        (True, True),
+    ],
+)
+def test_config_warm_up_loader_caches(warm_up_loader_caches, expected):
+    if warm_up_loader_caches is None:
+        config = AioConfig()
+    else:
+        config = AioConfig(warm_up_loader_caches=warm_up_loader_caches)
+
+    assert config.warm_up_loader_caches is expected

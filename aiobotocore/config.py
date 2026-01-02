@@ -44,6 +44,7 @@ class AioConfig(botocore.client.Config):
         self,
         connector_args: Optional[_ConnectorArgs] = None,
         http_session_cls: type[_HttpSessionType] = DEFAULT_HTTP_SESSION_CLS,
+        warm_up_loader_caches: bool = False,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -52,6 +53,7 @@ class AioConfig(botocore.client.Config):
             copy.copy(connector_args) if connector_args else {}
         )
         self.http_session_cls: type[_HttpSessionType] = http_session_cls
+        self.warm_up_loader_caches: bool = warm_up_loader_caches
         self._validate_connector_args(
             self.connector_args, self.http_session_cls
         )
