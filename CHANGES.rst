@@ -1,6 +1,10 @@
 Changes
 -------
 
+3.1.1 (2026-01-19)
+^^^^^^^^^^^^^^^^^^^
+* relax botocore dependency specification
+
 3.1.0 (2026-01-02)
 ^^^^^^^^^^^^^^^^^^^
 * support passing `socket_factory` as part of `connector_args` in `AioConfig`
