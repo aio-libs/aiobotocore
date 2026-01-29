@@ -1,6 +1,10 @@
 Changes
 -------
 
+3.2.0 (2026-01-29)
+^^^^^^^^^^^^^^^^^^^
+* support `warm_up_loader_caches` in `AioConfig`
+
 3.1.1 (2026-01-19)
 ^^^^^^^^^^^^^^^^^^^
 * relax botocore dependency specification
