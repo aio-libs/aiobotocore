@@ -1,6 +1,10 @@
 Changes
 -------
 
+3.1.2 (2026-02-05)
+^^^^^^^^^^^^^^^^^^^
+* relax botocore dependency specification to support ``"botocore >= 1.41.0, < 1.42.43"``
+
 3.1.1 (2026-01-19)
 ^^^^^^^^^^^^^^^^^^^
 * relax botocore dependency specification
