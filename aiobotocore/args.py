@@ -4,8 +4,10 @@ import botocore.parsers
 import botocore.serialize
 from botocore.args import ClientArgsCreator, EPRBuiltins
 
+from aiobotocore._types import DEFAULT_HTTP_SESSION_CLS
+
 from .config import AioConfig
-from .endpoint import DEFAULT_HTTP_SESSION_CLS, AioEndpointCreator
+from .endpoint import AioEndpointCreator
 from .parsers import create_parser
 from .regions import AioEndpointRulesetResolver
 from .signers import AioRequestSigner

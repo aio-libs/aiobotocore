@@ -1,4 +1,9 @@
 import inspect
+from asyncio import AbstractEventLoop
+from concurrent.futures import ThreadPoolExecutor
+from typing import Callable, Optional
+
+from aiobotocore.config import PARAM_SENTINAL
 
 
 async def resolve_awaitable(obj):
@@ -14,3 +19,15 @@ async def async_any(items):
             return True
 
     return False
+
+
+async def optionally_run_in_executor(
+    loop: AbstractEventLoop,
+    executor: Optional[ThreadPoolExecutor],
+    func: Callable,
+    *args,
+):
+    if executor != PARAM_SENTINAL:
+        return await loop.run_in_executor(executor, func, *args)
+
+    return func(*args)

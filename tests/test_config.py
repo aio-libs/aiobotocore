@@ -1,3 +1,4 @@
+import concurrent.futures
 import socket
 
 import aiohttp.resolver
@@ -81,6 +82,12 @@ async def test_connector_args(current_http_backend: str):
     ):
         AioConfig({'socket_factory': True}, http_session_cls=HttpxSession)
 
+    with pytest.raises(
+        ParamValidationError,
+        match='load_executor value must be an instance of an Executor.',
+    ):
+        AioConfig(load_executor='abc')
+
     # Test valid configs:
     AioConfig({"ttl_dns_cache": None})
     AioConfig({"ttl_dns_cache": 1})
@@ -88,6 +95,10 @@ async def test_connector_args(current_http_backend: str):
     AioConfig({'keepalive_timeout': None})
     AioConfig({'socket_factory': None})
     AioConfig({'socket_factory': socket.socket})
+
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        AioConfig(load_executor=executor)
+        AioConfig(load_executor=None)
 
     # test merge
     cfg = AioConfig(read_timeout=75)
@@ -185,3 +196,37 @@ async def test_config_http_session_cls():
     ):
         with pytest.raises(SuccessExc):
             await s3_client.get_object(Bucket='foo', Key='bar')
+
+
+async def test_config_load_executor():
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        config = AioConfig(load_executor=executor)
+
+        session = AioSession()
+        async with (
+            AIOServer() as server,
+            session.create_client(
+                's3',
+                config=config,
+                endpoint_url=server.endpoint_url,
+                aws_secret_access_key='xxx',
+                aws_access_key_id='xxx',
+            ) as s3_client,
+        ):
+            response = await s3_client.get_object(Bucket='foo', Key='bar')
+            assert response['Body']
+
+    config = AioConfig(load_executor=None)
+    session = AioSession()
+    async with (
+        AIOServer() as server,
+        session.create_client(
+            's3',
+            config=config,
+            endpoint_url=server.endpoint_url,
+            aws_secret_access_key='xxx',
+            aws_access_key_id='xxx',
+        ) as s3_client,
+    ):
+        response = await s3_client.get_object(Bucket='foo', Key='bar')
+        assert response['Body']

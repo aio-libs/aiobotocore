@@ -17,6 +17,7 @@ Changes
 ^^^^^^^^^^^^^^^^^^^
 * support passing `socket_factory` as part of `connector_args` in `AioConfig`
 * relax botocore dependency specification
+* Add ability to specify executor on AioConfig to run file load events on
 
 3.0.0 (2025-12-09)
 ^^^^^^^^^^^^^^^^^^^
