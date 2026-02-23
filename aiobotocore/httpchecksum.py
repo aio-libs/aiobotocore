@@ -5,7 +5,6 @@ from botocore.httpchecksum import (
     AwsChunkedWrapper,
     FlexibleChecksumError,
     _apply_request_header_checksum,
-    _register_checksum_algorithm_feature_id,
     base64,
     conditionally_calculate_md5,
     determine_content_length,
@@ -279,7 +278,6 @@ def _apply_request_trailer_checksum(request):
     else:
         headers["Content-Encoding"] = "aws-chunked"
     headers["X-Amz-Trailer"] = location_name
-    _register_checksum_algorithm_feature_id(algorithm)
 
     content_length = determine_content_length(body)
     if content_length is not None:
