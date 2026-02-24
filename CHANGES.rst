@@ -1,25 +1,29 @@
 Changes
 -------
 
+3.2.0 (2026-02-23)
+^^^^^^^^^^^^^^^^^^
+* bump botocore dependency specification to support ``"botocore >= 1.42.53, < 1.42.56"``
+
 3.1.3 (2026-02-14)
-^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^
 * relax botocore dependency specification to support ``"botocore >= 1.41.0, < 1.42.50"``
 
 3.1.2 (2026-02-05)
-^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^
 * relax botocore dependency specification to support ``"botocore >= 1.41.0, < 1.42.43"``
 
 3.1.1 (2026-01-19)
-^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^
 * relax botocore dependency specification
 
 3.1.0 (2026-01-02)
-^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^
 * support passing `socket_factory` as part of `connector_args` in `AioConfig`
 * relax botocore dependency specification
 
 3.0.0 (2025-12-09)
-^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^
 * BREAKING: forbid creating loose ``ClientSession`` when ``AioBaseClient`` exits context
 * BREAKING: remove `awscli` packaging extra. Instead of ``pip install aiobotocore[awscli]``, use ``pip install aiobotocore awscli`` or similar to install compatible versions of `aiobotocore`, `botocore` and `awscli`.
 * BREAKING: remove `boto3` packaging extra. Instead of ``pip install aiobotocore[boto3]``, use ``pip install aiobotocore boto3`` or similar to install compatible versions of `aiobotocore`, `botocore` and `boto3`.
