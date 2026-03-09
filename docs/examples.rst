@@ -2,7 +2,7 @@ Examples
 =============================
 
 Below is a list of examples from `aiobotocore/examples
-<https://github.com/aio-libs/aiobotocore/tree/master/examples>`_
+<https://github.com/aio-libs/aiobotocore/tree/main/examples>`_
 
 Every example is a correct tiny python program.
 

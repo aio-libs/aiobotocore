@@ -1,6 +1,6 @@
 ---
 codecov:
-  branch: master
+  branch: main
 
   notify:
     manual_trigger: true  # prevent notifications until we notify Codecov
