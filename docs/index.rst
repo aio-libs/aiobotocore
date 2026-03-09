@@ -5,11 +5,11 @@
 
 aiobotocore's documentation!
 ============================
-.. image:: https://github.com/aio-libs/aiobotocore/actions/workflows/ci-cd.yml/badge.svg?branch=master
+.. image:: https://github.com/aio-libs/aiobotocore/actions/workflows/ci-cd.yml/badge.svg?branch=main
     :target: https://github.com/aio-libs/aiobotocore/actions/workflows/ci-cd.yml
-.. image:: https://results.pre-commit.ci/badge/github/aio-libs/aiobotocore/master.svg
-    :target: https://results.pre-commit.ci/latest/github/aio-libs/aiobotocore/master
-.. image:: https://codecov.io/gh/aio-libs/aiobotocore/branch/master/graph/badge.svg
+.. image:: https://results.pre-commit.ci/badge/github/aio-libs/aiobotocore/main.svg
+    :target: https://results.pre-commit.ci/latest/github/aio-libs/aiobotocore/main
+.. image:: https://codecov.io/gh/aio-libs/aiobotocore/branch/main/graph/badge.svg
     :target: https://codecov.io/gh/aio-libs/aiobotocore
 .. image:: https://img.shields.io/pypi/v/aiobotocore.svg
     :target: https://pypi.python.org/pypi/aiobotocore
