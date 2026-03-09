@@ -88,7 +88,6 @@ jobs:
       with:
         fail_ci_if_error: true
         run_command: send-notifications
-        token: ${{ secrets.CODECOV_TOKEN }}  # not required for public repos
 
   zizmor:
     name: 🌈 zizmor
