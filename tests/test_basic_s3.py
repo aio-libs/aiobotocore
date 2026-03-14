@@ -374,7 +374,6 @@ async def test_paginate_within_page_boundaries(
     assert fourth['Contents'][-1]['Key'] == 'd'
 
 
-@pytest.mark.localonly
 async def test_unicode_key_put_list(s3_client, bucket_name, create_object):
     # Verify we can upload a key with a unicode char and list it as well.
     key_name = '\u2713'
@@ -415,7 +414,6 @@ async def test_non_normalized_key_paths(s3_client, bucket_name, create_object):
 
 
 @pytest.mark.skipif(True, reason='Not supported')
-@pytest.mark.localonly
 async def test_reset_stream_on_redirects(region, create_bucket):
     # Create a bucket in a non classic region.
     bucket_name = await create_bucket(region)
@@ -559,7 +557,6 @@ async def test_presign_with_existing_query_string_values(
 
 @pytest.mark.parametrize('region', ['us-east-1'])
 @pytest.mark.parametrize('signature_version', ['s3v4'])
-@pytest.mark.localonly
 async def test_presign_sigv4(
     moto_server, s3_client, bucket_name, aio_session, create_object
 ):
@@ -585,7 +582,6 @@ async def test_presign_sigv4(
 
 
 @pytest.mark.parametrize('signature_version', ['s3v4'])
-@pytest.mark.localonly
 async def test_can_follow_signed_url_redirect(
     alternative_s3_client, create_object, bucket_name
 ):
@@ -605,7 +601,6 @@ async def test_can_follow_signed_url_redirect(
 
 @pytest.mark.parametrize('region', ['eu-west-1'])
 @pytest.mark.parametrize('alternative_region', ['us-west-2'])
-@pytest.mark.localonly
 async def test_bucket_redirect(
     s3_client, alternative_s3_client, region, create_bucket
 ):
