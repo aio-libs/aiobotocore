@@ -95,7 +95,7 @@ async def test_eventstream_no_iter(s3_client):
 @pytest.mark.localonly
 async def test_kinesis_stream_json_parser(
     exit_stack: AsyncExitStack, kinesis_client, create_stream
-):
+):  # pragma: no cover
     # unfortunately moto doesn't support kinesis register_stream_consumer +
     # subscribe_to_shard yet
     stream_name = await create_stream(ShardCount=1)

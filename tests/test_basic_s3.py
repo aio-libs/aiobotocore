@@ -53,7 +53,9 @@ async def test_fail_proxy_request(
 
 
 @pytest.mark.localonly
-async def test_succeed_proxy_request(aa_succeed_proxy_config, s3_client):
+async def test_succeed_proxy_request(
+    aa_succeed_proxy_config, s3_client
+):  # pragma: no cover
     result = await s3_client.list_buckets()
     actual_keys = sorted(list(result.keys()))
     assert actual_keys == ['Buckets', 'Owner', 'ResponseMetadata']
@@ -388,7 +390,9 @@ async def test_unicode_key_put_list(s3_client, bucket_name, create_object):
 
 
 @pytest.mark.localonly
-async def test_unicode_system_character(s3_client, bucket_name, create_object):
+async def test_unicode_system_character(
+    s3_client, bucket_name, create_object
+):  # pragma: no cover
     # Verify we can use a unicode system character which would normally
     # break the xml parser
     key_name = 'foo\x08'
@@ -529,7 +533,7 @@ async def test_copy_with_s3_metadata(s3_client, create_object, bucket_name):
 @pytest.mark.localonly
 async def test_presign_with_existing_query_string_values(
     s3_client, bucket_name, aio_session, create_object
-):
+):  # pragma: no cover
     key_name = 'foo.txt'
     await create_object(key_name=key_name)
     content_disposition = 'attachment; filename=foo.txt;'
