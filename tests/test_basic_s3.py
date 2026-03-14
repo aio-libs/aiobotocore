@@ -383,8 +383,8 @@ async def test_unicode_key_put_list(s3_client, bucket_name, create_object):
     assert len(parsed['Contents']) == 1
     assert parsed['Contents'][0]['Key'] == key_name
     parsed = await s3_client.get_object(Bucket=bucket_name, Key=key_name)
-    data = await parsed['Body'].read()
-    await parsed['Body'].aclose()
+    async with parsed['Body'] as stream:
+        data = await stream.read()
     assert data == b'foo'
 
 
