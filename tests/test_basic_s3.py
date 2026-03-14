@@ -559,10 +559,9 @@ async def test_presign_with_existing_query_string_values(
 
 @pytest.mark.parametrize('region', ['us-east-1'])
 @pytest.mark.parametrize('signature_version', ['s3v4'])
-# moto host will be localhost
 @pytest.mark.localonly
 async def test_presign_sigv4(
-    s3_client, bucket_name, aio_session, create_object
+    moto_server, s3_client, bucket_name, aio_session, create_object
 ):
     key = 'myobject'
     await create_object(key_name=key)
@@ -570,12 +569,10 @@ async def test_presign_sigv4(
         'get_object', Params={'Bucket': bucket_name, 'Key': key}
     )
     msg = (
-        "Host was suppose to be the us-east-1 endpoint, "
+        "Host was supposed to be the local moto server, "
         f"instead got: {presigned_url}"
     )
-    assert presigned_url.startswith(
-        f'https://{bucket_name}.s3.amazonaws.com/{key}'
-    ), msg
+    assert presigned_url.startswith(f'{moto_server}/{bucket_name}/{key}'), msg
 
     # Try to retrieve the object using the presigned url.
     if httpx and isinstance(aio_session, httpx.AsyncClient):
