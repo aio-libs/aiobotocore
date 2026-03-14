@@ -52,7 +52,6 @@ async def test_fail_proxy_request(
         await s3_client.list_buckets()
 
 
-@pytest.mark.parametrize('mocking_test', [False])
 @pytest.mark.localonly
 async def test_succeed_proxy_request(aa_succeed_proxy_config, s3_client):
     result = await s3_client.list_buckets()
@@ -375,7 +374,6 @@ async def test_paginate_within_page_boundaries(
     assert fourth['Contents'][-1]['Key'] == 'd'
 
 
-@pytest.mark.parametrize('mocking_test', [False])
 @pytest.mark.localonly
 async def test_unicode_key_put_list(s3_client, bucket_name, create_object):
     # Verify we can upload a key with a unicode char and list it as well.
@@ -390,7 +388,6 @@ async def test_unicode_key_put_list(s3_client, bucket_name, create_object):
     assert data == b'foo'
 
 
-@pytest.mark.parametrize('mocking_test', [False])
 @pytest.mark.localonly
 async def test_unicode_system_character(s3_client, bucket_name, create_object):
     # Verify we can use a unicode system character which would normally
@@ -531,7 +528,6 @@ async def test_copy_with_s3_metadata(s3_client, create_object, bucket_name):
 @pytest.mark.parametrize('region', ['us-east-1'])
 @pytest.mark.parametrize('signature_version', ['s3'])
 # 'Content-Disposition' not supported by moto yet
-@pytest.mark.parametrize('mocking_test', [False])
 @pytest.mark.localonly
 async def test_presign_with_existing_query_string_values(
     s3_client, bucket_name, aio_session, create_object
@@ -564,7 +560,6 @@ async def test_presign_with_existing_query_string_values(
 @pytest.mark.parametrize('region', ['us-east-1'])
 @pytest.mark.parametrize('signature_version', ['s3v4'])
 # moto host will be localhost
-@pytest.mark.parametrize('mocking_test', [False])
 @pytest.mark.localonly
 async def test_presign_sigv4(
     s3_client, bucket_name, aio_session, create_object
@@ -593,7 +588,6 @@ async def test_presign_sigv4(
 
 
 @pytest.mark.parametrize('signature_version', ['s3v4'])
-@pytest.mark.parametrize('mocking_test', [False])
 @pytest.mark.localonly
 async def test_can_follow_signed_url_redirect(
     alternative_s3_client, create_object, bucket_name
@@ -614,7 +608,6 @@ async def test_can_follow_signed_url_redirect(
 
 @pytest.mark.parametrize('region', ['eu-west-1'])
 @pytest.mark.parametrize('alternative_region', ['us-west-2'])
-@pytest.mark.parametrize('mocking_test', [False])
 @pytest.mark.localonly
 async def test_bucket_redirect(
     s3_client, alternative_s3_client, region, create_bucket
