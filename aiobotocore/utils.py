@@ -35,6 +35,7 @@ from botocore.utils import (
     reset_plugin_context,
     resolve_imds_endpoint_mode,
     set_plugin_context,
+    validate_region_name,
 )
 
 import aiobotocore.httpsession
@@ -546,22 +547,20 @@ class AioS3RegionRedirectorv2(S3RegionRedirectorv2):
         service_response = response[1]
         response_headers = service_response['ResponseMetadata']['HTTPHeaders']
         if 'x-amz-bucket-region' in response_headers:
-            return response_headers['x-amz-bucket-region']
-
+            region = response_headers['x-amz-bucket-region']
         # Next, check the error body
-        region = service_response.get('Error', {}).get('Region', None)
-        if region is not None:
-            return region
-
-        # Finally, HEAD the bucket. No other choice sadly.
-        try:
-            # NOTE: we don't need to aenter/aexit as we have a ref to the base client
-            response = await self._client.head_bucket(Bucket=bucket)
-            headers = response['ResponseMetadata']['HTTPHeaders']
-        except ClientError as e:
-            headers = e.response['ResponseMetadata']['HTTPHeaders']
-
-        region = headers.get('x-amz-bucket-region', None)
+        elif r := service_response.get('Error', {}).get('Region', None):
+            region = r
+        else:
+            # Finally, HEAD the bucket. No other choice sadly.
+            try:
+                # NOTE: we don't need to aenter/aexit as we have a ref to the base client
+                response = await self._client.head_bucket(Bucket=bucket)
+                headers = response['ResponseMetadata']['HTTPHeaders']
+            except ClientError as e:
+                headers = e.response['ResponseMetadata']['HTTPHeaders']
+            region = headers.get('x-amz-bucket-region', None)
+        validate_region_name(region)
         return region
 
 

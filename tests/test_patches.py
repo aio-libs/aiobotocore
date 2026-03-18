@@ -1310,7 +1310,7 @@ def test_protocol_parsers():
         (
             S3RegionRedirectorv2.get_bucket_region,
             {
-                'b5bbc8b010576668dc2812d657c4b48af79e8f99',
+                'aae697b2fe83786f161df120606e06c3665e6508',
             },
         ),
         (
