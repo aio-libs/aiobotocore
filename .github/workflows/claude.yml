@@ -48,8 +48,6 @@ jobs:
        github.event.issue.author_association))
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    # continue-on-error so PRs that modify this workflow
-    # file aren't blocked by the validation check
     continue-on-error: true
     environment: claude
     permissions:
@@ -65,48 +63,30 @@ jobs:
         fetch-depth: 1
         persist-credentials: false
 
+    - name: Read prompt
+      id: prompt
+      # yamllint disable-line rule:line-length
+      env:
+        REPO: ${{ github.repository }}
+        # yamllint disable-line rule:line-length
+        PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
+        EVENT_NAME: ${{ github.event_name }}
+      run: |
+        # Substitute env vars into prompt
+        prompt=$(envsubst < .github/claude-review-prompt.md)
+        {
+          echo 'PROMPT<<PROMPT_EOF'
+          echo "$prompt"
+          echo 'PROMPT_EOF'
+        } >> "$GITHUB_OUTPUT"
+
     # yamllint disable-line rule:line-length
     - uses: anthropics/claude-code-action@df37d2f0760a4b5683a6e617c9325bc1a36443f6
       with:
         anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
         display_report: true
         show_full_output: true
-        # yamllint disable rule:line-length
-        prompt: |
-          REPO: ${{ github.repository }}
-          PR NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
-          EVENT: ${{ github.event_name }}
-
-          This is aiobotocore, a Python async library wrapping botocore for asyncio.
-
-          If EVENT is pull_request, review this PR now. Focus on:
-          - Code correctness and potential bugs
-          - Security implications
-          - Performance considerations
-          - Python best practices and async patterns
-          - Resource cleanup (async context managers, session/client lifecycle)
-
-          Use `gh pr diff` to read the changes and post your review using
-          `gh pr comment` for top-level feedback and
-          `mcp__github_inline_comment__create_inline_comment` (with `confirmed: true`)
-          for inline code comments.
-
-          Check the PR author: if the PR was created by a bot
-          (github-actions[bot], claude[bot], dependabot[bot], etc.),
-          attempt to fix straightforward issues by pushing a commit.
-          If the PR was created by a human, review only — never push commits.
-
-          If EVENT is issue_comment, pull_request_review_comment,
-          or pull_request_review, respond to the @claude request.
-
-          If EVENT is issues, you may create branches and pull requests
-          to implement fixes or features. Use branch prefix `claude/`.
-
-          IMPORTANT: Never merge or close pull requests. Never close issues.
-          These actions require human approval.
-
-          Use the repository's CLAUDE.md for guidance on style and conventions.
-        # yamllint enable rule:line-length
+        prompt: ${{ steps.prompt.outputs.PROMPT }}
         settings: |
           {
             "permissions": {
