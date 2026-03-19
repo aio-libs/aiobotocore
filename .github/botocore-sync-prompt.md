@@ -7,8 +7,8 @@ update aiobotocore to support botocore $LATEST_BOTOCORE
 The detect job already determined these — use them directly,
 do NOT query PyPI or re-parse pyproject.toml for version info:
 - Target botocore version: $LATEST_BOTOCORE
-- Current exclusive upper bound: $CURRENT_UPPER
-  (last supported version is one patch below this)
+- Current supported range: $CURRENT_LOWER — $LAST_SUPPORTED
+- Exclusive upper bound: $CURRENT_UPPER
 
 ## Configuration
 
@@ -169,13 +169,9 @@ update type, then:
 
 ## Step 2: Analyze the botocore diff
 
-Compute the last supported version from the pre-computed
-upper bound: subtract one from the patch version of
-$CURRENT_UPPER (e.g. 1.42.71 → 1.42.70).
-
 Download both versions and diff botocore source:
 ```
-pip download botocore==LAST_SUPPORTED \
+pip download botocore==$LAST_SUPPORTED \
   --no-deps -d /tmp/old
 pip download botocore==$LATEST_BOTOCORE \
   --no-deps -d /tmp/new
