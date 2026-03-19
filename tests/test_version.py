@@ -38,9 +38,7 @@ def test_release_versions():
     assert str(init_version) == aiobotocore.__version__
 
     changes_path = _root_path / 'CHANGES.rst'
-
-    with changes_path.open('r') as f:
-        changes_doc = _parse_rst(f.read())
+    changes_doc = _parse_rst(changes_path.read_text())
 
     rst_ver_str = changes_doc[0][1][0][0]  # ex: 0.11.1 (2020-01-03)
     rst_prev_ver_str = changes_doc[0][2][0][0]
