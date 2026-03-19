@@ -1,0 +1,190 @@
+---
+name: Botocore Sync
+
+# yamllint disable-line rule:line-length
+run-name: "Botocore Sync${{ inputs.botocore_version && format(': {0}', inputs.botocore_version) || '' }}"
+
+permissions: {}
+
+on:
+  schedule:
+  # Every 3 days at 10:00 UTC
+  - cron: '0 10 */3 * *'
+  workflow_dispatch:
+    inputs:
+      botocore_version:
+        description: >-
+          Target botocore version
+          (leave empty to auto-detect latest)
+        required: false
+        type: string
+      enable_bump:
+        description: >-
+          Enable bump path (code changes).
+          When false, bumps create a feedback
+          issue instead of attempting code changes.
+        required: false
+        type: boolean
+        default: false
+      dry_run:
+        description: >-
+          Analyze only — output results to the
+          workflow run log. No branches, PRs, or
+          code changes.
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: botocore-sync
+
+jobs:
+  detect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      latest_botocore: >-
+        ${{ steps.check.outputs.latest_botocore }}
+      current_upper: >-
+        ${{ steps.check.outputs.current_upper }}
+      needs_update: >-
+        ${{ steps.check.outputs.needs_update }}
+    steps:
+    # yamllint disable-line rule:line-length
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      with:
+        persist-credentials: false
+
+    - name: Check for new botocore version
+      id: check
+      env:
+        INPUT_VERSION: ${{ inputs.botocore_version }}
+      run: |
+        # Get latest botocore version from PyPI
+        pypi_latest=$(curl -s https://pypi.org/pypi/botocore/json \
+          | python3 -c \
+          "import sys,json; \
+          print(json.load(sys.stdin)['info']['version'])")
+
+        # Validate manual input if provided
+        if [ -n "$INPUT_VERSION" ]; then
+          pattern='^[0-9]+\.[0-9]+\.[0-9]+$'
+          if ! echo "$INPUT_VERSION" | grep -qE "$pattern"; then
+            echo "::error::Invalid version format"
+            exit 1
+          fi
+          latest="$INPUT_VERSION"
+        else
+          latest="$pypi_latest"
+        fi
+        echo "latest_botocore=$latest" >> "$GITHUB_OUTPUT"
+        echo "pypi_latest=$pypi_latest" >> "$GITHUB_OUTPUT"
+
+        # Get current bounds from pyproject.toml
+        read -r lower upper << BOUNDS
+        $(python3 -c "
+        import re
+        text = open('pyproject.toml').read()
+        m = re.search(
+            r'botocore\s*>=\s*([\d.]+),\s*<\s*([\d.]+)',
+            text)
+        print(m.group(1), m.group(2))
+        ")
+        BOUNDS
+        echo "current_lower=$lower" >> "$GITHUB_OUTPUT"
+        echo "current_upper=$upper" >> "$GITHUB_OUTPUT"
+
+        # Compare versions (tuple comparison, no deps)
+        LATEST="$latest" LOWER="$lower" UPPER="$upper" \
+          PYPI_LATEST="$pypi_latest" \
+          MANUAL="${INPUT_VERSION:+true}" \
+          python3 << 'PYEOF'
+        import os, sys
+        def ver(s):
+            return tuple(int(x) for x in s.split("."))
+        latest = os.environ["LATEST"]
+        lower = os.environ["LOWER"]
+        upper = os.environ["UPPER"]
+        pypi = os.environ["PYPI_LATEST"]
+        manual = os.environ.get("MANUAL") == "true"
+        if manual:
+            if ver(latest) > ver(pypi):
+                print(f"::error::{latest} does not exist "
+                      f"(latest PyPI release: {pypi})")
+                sys.exit(1)
+            if ver(latest) < ver(lower):
+                print(f"::error::{latest} is older than "
+                      f"current lower bound {lower}")
+                sys.exit(1)
+        if ver(latest) < ver(upper):
+            if manual:
+                print(f"::error::{latest} is already "
+                      f"within supported range "
+                      f"(upper bound: {upper})")
+                sys.exit(1)
+            print(f"Up to date: {latest} < {upper}")
+            needs = "false"
+        else:
+            print(f"Update needed: {latest} >= {upper}")
+            needs = "true"
+        with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+            f.write(f"needs_update={needs}\n")
+        summary = os.environ["GITHUB_STEP_SUMMARY"]
+        with open(summary, "a") as f:
+            f.write(f"## Botocore Sync Detection\n")
+            f.write(f"| | Version |\n|-|-|\n")
+            f.write(f"| PyPI latest | {pypi} |\n")
+            f.write(f"| Target | {latest} |\n")
+            f.write(f"| Supported range | "
+                    f"{lower} — {upper} |\n")
+            action = "**Update needed**" if needs == "true" \
+                else "Up to date"
+            f.write(f"| Action | {action} |\n")
+        PYEOF
+
+  sync:
+    needs: detect
+    if: needs.detect.outputs.needs_update == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment: claude
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      id-token: write
+      actions: read
+    steps:
+    # yamllint disable-line rule:line-length
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      with:
+        fetch-depth: 0
+        persist-credentials: false
+
+    - name: Read prompt
+      id: prompt
+      run: |
+        {
+          echo 'PROMPT<<PROMPT_EOF'
+          cat .github/botocore-sync-prompt.md
+          echo 'PROMPT_EOF'
+        } >> "$GITHUB_OUTPUT"
+
+    # yamllint disable-line rule:line-length
+    - uses: anthropics/claude-code-action@df37d2f0760a4b5683a6e617c9325bc1a36443f6
+      env:
+        LATEST_BOTOCORE: >-
+          ${{ needs.detect.outputs.latest_botocore }}
+        CURRENT_UPPER: >-
+          ${{ needs.detect.outputs.current_upper }}
+        ENABLE_BUMP: >-
+          ${{ inputs.enable_bump || 'false' }}
+        DRY_RUN: >-
+          ${{ inputs.dry_run || 'false' }}
+      with:
+        anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+        prompt: ${{ steps.prompt.outputs.PROMPT }}
+        claude_args: |
+          --max-turns 50

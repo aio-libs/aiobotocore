@@ -1,0 +1,101 @@
+---
+name: Claude Code
+
+permissions: {}
+
+on:
+  pull_request:
+    types:
+    - opened
+    - synchronize
+  issue_comment:
+    types:
+    - created
+  pull_request_review_comment:
+    types:
+    - created
+  pull_request_review:
+    types:
+    - submitted
+  issues:
+    types:
+    - opened
+    - assigned
+
+jobs:
+  claude:
+    # Only trusted authors can trigger @claude interactions.
+    # Auto-review on pull_request events is unrestricted.
+    # yamllint disable-line rule:line-length
+    if: >-
+      (github.event_name == 'pull_request') ||
+      (github.event_name == 'issue_comment' &&
+       contains(github.event.comment.body, '@claude') &&
+       contains(fromJSON('["MEMBER","OWNER","COLLABORATOR"]'),
+       github.event.comment.author_association)) ||
+      (github.event_name == 'pull_request_review_comment' &&
+       contains(github.event.comment.body, '@claude') &&
+       contains(fromJSON('["MEMBER","OWNER","COLLABORATOR"]'),
+       github.event.comment.author_association)) ||
+      (github.event_name == 'pull_request_review' &&
+       contains(github.event.review.body, '@claude') &&
+       contains(fromJSON('["MEMBER","OWNER","COLLABORATOR"]'),
+       github.event.review.author_association)) ||
+      (github.event_name == 'issues' &&
+       (contains(github.event.issue.body, '@claude') ||
+       contains(github.event.issue.title, '@claude')) &&
+       contains(fromJSON('["MEMBER","OWNER","COLLABORATOR"]'),
+       github.event.issue.author_association))
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: claude
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      id-token: write
+      actions: read
+    steps:
+    # yamllint disable-line rule:line-length
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      with:
+        fetch-depth: 1
+        persist-credentials: false
+
+    # yamllint disable-line rule:line-length
+    - uses: anthropics/claude-code-action@df37d2f0760a4b5683a6e617c9325bc1a36443f6
+      with:
+        anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+        # yamllint disable rule:line-length
+        prompt: |
+          This is aiobotocore, a Python async library wrapping botocore for asyncio.
+
+          When reviewing pull requests, focus on:
+          - Code correctness and potential bugs
+          - Security implications
+          - Performance considerations
+          - Python best practices and async patterns
+          - Resource cleanup (async context managers, session/client lifecycle)
+
+          Check the PR author type with:
+          `gh pr view $PR_NUMBER --json author --jq '.author.login'`
+
+          If the PR was created by a bot (github-actions[bot], claude[bot],
+          dependabot[bot], etc.), after posting your review, attempt to fix
+          any straightforward issues you found by pushing a commit to the
+          PR branch. Only fix clear-cut issues (style, missing types,
+          simple bugs). Do not attempt complex refactors.
+
+          If the PR was created by a human, review only. Never push
+          commits to human PRs during auto-review.
+
+          When working on issues, you may create branches and pull requests
+          to implement fixes or features. Use branch prefix `claude/`.
+
+          IMPORTANT: Never merge or close pull requests. Never close issues.
+          These actions require human approval.
+
+          Use the repository's CLAUDE.md for guidance on style and conventions.
+        claude_args: |
+          --disallowedTools "Bash(gh pr merge:*),Bash(gh pr close:*),Bash(gh issue close:*)"
+        # yamllint enable rule:line-length
