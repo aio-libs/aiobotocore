@@ -89,13 +89,13 @@ async def assert_num_uploads_found(
         if amount_seen == num_uploads:
             # Test passed.
             return
-        else:
-            # Sleep and try again.
-            await anyio.sleep(2)
 
-        pytest.fail(
-            f"Expected to see {num_uploads} uploads, instead saw: {amount_seen}"
-        )
+        # Sleep and try again.
+        await anyio.sleep(2)  # pragma: no cover
+
+    pytest.fail(  # pragma: no cover
+        f"Expected to see {num_uploads} uploads, instead saw: {amount_seen}"
+    )
 
 
 # Used by test_fail_proxy_request as it will fail during setup, so needs to
