@@ -541,7 +541,8 @@ async def create_table(dynamodb_client):
 
         response = await dynamodb_client.create_table(**table_kwargs)
         while not (await _is_table_ready(table_name)):
-            pass
+            # will rarely hit this
+            pass  # pragma: no cover
 
         assert_status_code(response, 200)
         return table_name
