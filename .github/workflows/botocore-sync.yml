@@ -16,6 +16,9 @@ on:
         required: false
         type: string
 
+concurrency:
+  group: botocore-sync
+
 jobs:
   detect:
     runs-on: ubuntu-latest
