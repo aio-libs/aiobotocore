@@ -82,6 +82,7 @@ jobs:
     if: needs.detect.outputs.needs_update == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    environment: claude
     permissions:
       contents: write
       pull-requests: write
