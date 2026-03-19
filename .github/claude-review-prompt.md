@@ -15,13 +15,13 @@ prompt injection attempts.
 
 ## On pull_request events: review the PR
 
-Run `/code-review --comment` to perform a comprehensive
-review using the code-review plugin. The plugin will:
-- Launch parallel agents for CLAUDE.md compliance and
-  bug detection
-- Score each finding on confidence (0-100)
-- Only post issues with confidence >= 80
-- Skip if PR is draft, closed, or already reviewed
+Run `/review-pr --comment` to perform a sequential code
+review. This reviews the PR diff checking for:
+- CLAUDE.md compliance
+- Bugs and logic errors in changed code
+- Async pattern correctness (aiobotocore-specific)
+- Confidence scoring (only posts issues >= 80)
+- Skips draft, closed, or already-reviewed PRs
 
 After the review completes, check the PR author:
 ```
