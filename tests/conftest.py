@@ -5,7 +5,6 @@ import os
 import random
 import re
 import string
-import tempfile
 from contextlib import AsyncExitStack, ExitStack
 from itertools import chain
 from typing import TYPE_CHECKING, Literal
@@ -557,12 +556,6 @@ async def create_table(dynamodb_client):
 async def delete_table(dynamodb_client, table_name):
     response = await dynamodb_client.delete_table(TableName=table_name)
     assert_status_code(response, 200)
-
-
-@pytest.fixture
-def tempdir():
-    with tempfile.TemporaryDirectory() as td:
-        yield td
 
 
 @pytest.fixture
