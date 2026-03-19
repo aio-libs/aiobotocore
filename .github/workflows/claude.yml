@@ -77,6 +77,18 @@ jobs:
           - Python best practices and async patterns
           - Resource cleanup (async context managers, session/client lifecycle)
 
+          Check the PR author type with:
+          `gh pr view $PR_NUMBER --json author --jq '.author.login'`
+
+          If the PR was created by a bot (github-actions[bot], claude[bot],
+          dependabot[bot], etc.), after posting your review, attempt to fix
+          any straightforward issues you found by pushing a commit to the
+          PR branch. Only fix clear-cut issues (style, missing types,
+          simple bugs). Do not attempt complex refactors.
+
+          If the PR was created by a human, review only. Never push
+          commits to human PRs during auto-review.
+
           When working on issues, you may create branches and pull requests
           to implement fixes or features. Use branch prefix `claude/`.
 
