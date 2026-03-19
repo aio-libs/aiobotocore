@@ -84,7 +84,6 @@ jobs:
       with:
         anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
         display_report: true
-        show_full_output: true
         prompt: ${{ steps.prompt.outputs.PROMPT }}
         # yamllint disable rule:line-length
         plugin_marketplaces: "https://github.com/anthropics/claude-plugins-official.git"
