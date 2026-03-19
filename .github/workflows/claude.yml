@@ -98,35 +98,4 @@ jobs:
       env:
         EXEC_FILE: >-
           ${{ steps.claude.outputs.execution_file }}
-      run: |
-        python3 << 'PYEOF'
-        import json, os
-        ef = os.environ.get("EXEC_FILE", "")
-        if not ef or not os.path.exists(ef):
-            print("No execution file found")
-            exit(0)
-        data = json.load(open(ef))
-        usage = data.get("modelUsage", {})
-        if not usage:
-            print("No usage data")
-            exit(0)
-        summary = os.environ["GITHUB_STEP_SUMMARY"]
-        total = sum(m.get("costUSD", 0) for m in usage.values())
-        with open(summary, "a") as f:
-            f.write("\n## Usage\n")
-            f.write("| Model | Input | Output |")
-            f.write(" Cache read | Cost |\n")
-            f.write("|-|-|-|-|-|\n")
-            for model, m in usage.items():
-                name = model.split("-")[1].title()
-                f.write(
-                    f"| {name} "
-                    f"| {m.get('inputTokens',0):,} "
-                    f"| {m.get('outputTokens',0):,} "
-                    f"| {m.get('cacheReadInputTokens',0):,} "
-                    f"| ${m.get('costUSD',0):.2f} |\n"
-                )
-            f.write(f"| **Total** | | | "
-                    f"| **${total:.2f}** |\n")
-        print(f"Total cost: ${total:.2f}")
-        PYEOF
+      run: python3 .github/usage-summary.py
