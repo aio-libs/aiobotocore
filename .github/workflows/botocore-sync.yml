@@ -211,6 +211,7 @@ jobs:
           ${{ inputs.dry_run || 'false' }}
       with:
         anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+        use_commit_signing: true
         display_report: true
         prompt: ${{ steps.prompt.outputs.PROMPT }}
         claude_args: |
