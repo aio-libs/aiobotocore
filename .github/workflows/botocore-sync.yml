@@ -1,0 +1,232 @@
+---
+name: Botocore Sync
+
+permissions: {}
+
+on:
+  schedule:
+  # Every 3 days at 10:00 UTC
+  - cron: '0 10 */3 * *'
+  workflow_dispatch:
+    inputs:
+      botocore_version:
+        description: >-
+          Target botocore version (leave empty to auto-detect latest)
+        required: false
+        type: string
+
+jobs:
+  detect:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      latest_botocore: ${{ steps.check.outputs.latest_botocore }}
+      current_upper: ${{ steps.check.outputs.current_upper }}
+      needs_update: ${{ steps.check.outputs.needs_update }}
+    steps:
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+
+    - name: Check for new botocore version
+      id: check
+      env:
+        INPUT_VERSION: ${{ inputs.botocore_version }}
+      run: |
+        # Validate manual input if provided
+        if [ -n "$INPUT_VERSION" ]; then
+          if ! echo "$INPUT_VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::Invalid version format: $INPUT_VERSION"
+            exit 1
+          fi
+          latest="$INPUT_VERSION"
+        else
+          latest=$(curl -s https://pypi.org/pypi/botocore/json \
+            | python3 -c "import sys,json; print(json.load(sys.stdin)['info']['version'])")
+        fi
+        echo "latest_botocore=$latest" >> "$GITHUB_OUTPUT"
+
+        # Get current upper bound from pyproject.toml
+        upper=$(python3 -c "
+        import re
+        text = open('pyproject.toml').read()
+        m = re.search(r'botocore\s*>=\s*[\d.]+,\s*<\s*([\d.]+)', text)
+        print(m.group(1))
+        ")
+        echo "current_upper=$upper" >> "$GITHUB_OUTPUT"
+
+        # Compare versions using env vars (not string interpolation)
+        LATEST="$latest" UPPER="$upper" python3 << 'PYEOF'
+        import os
+        from packaging.version import Version
+        latest = os.environ["LATEST"]
+        upper = os.environ["UPPER"]
+        needs = "true" if Version(latest) >= Version(upper) else "false"
+        print(f"Latest: {latest}, upper bound: {upper}, needs update: {needs}")
+        with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+            f.write(f"needs_update={needs}\n")
+        PYEOF
+
+  sync:
+    needs: detect
+    if: needs.detect.outputs.needs_update == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      actions: read
+    steps:
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+      with:
+        fetch-depth: 0
+
+    - uses: anthropics/claude-code-action@df37d2f0760a4b5683a6e617c9325bc1a36443f6  # v1
+      env:
+        LATEST_BOTOCORE: ${{ needs.detect.outputs.latest_botocore }}
+        CURRENT_UPPER: ${{ needs.detect.outputs.current_upper }}
+      with:
+        anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+        prompt: |
+          You are a botocore sync bot for aiobotocore. Update aiobotocore to
+          support botocore version $LATEST_BOTOCORE (current upper bound is
+          $CURRENT_UPPER).
+
+          ## Background
+
+          aiobotocore adds async functionality to botocore by subclassing and
+          monkey-patching botocore classes. The aiobotocore source files mirror
+          botocore's file structure (e.g. `aiobotocore/credentials.py` overrides
+          classes from `botocore/credentials.py`). Because of this tight
+          coupling, aiobotocore pins to a narrow range of botocore versions.
+
+          `tests/test_patches.py` contains SHA1 hashes of specific botocore
+          source code that aiobotocore depends on. When botocore changes code
+          that aiobotocore patches, hashes break, signaling porting is needed.
+
+          Read `CONTRIBUTING.rst` for the full upgrade process documentation.
+
+          ## Step 1: Set up the branch
+
+          ```
+          git fetch origin botocore-sync 2>/dev/null && git checkout botocore-sync && git reset --hard origin/main || git checkout -b botocore-sync origin/main
+          ```
+
+          ## Step 2: Install and test
+
+          ```
+          pip install uv
+          uv sync --all-extras
+          uv pip install "botocore==$LATEST_BOTOCORE"
+          uv run pytest tests/test_patches.py -x -v 2>&1
+          ```
+
+          ## Step 3: Determine update type
+
+          - If ALL tests pass → **relax** (extend upper bound only)
+          - If ANY tests fail → **bump** (code changes required)
+
+          ## Step 4a: Relax path (all hashes pass)
+
+          1. `pyproject.toml`: change the botocore upper bound from
+             `< $CURRENT_UPPER` to `< X` where X is one patch above
+             $LATEST_BOTOCORE. Keep the lower bound unchanged.
+          2. `aiobotocore/__init__.py`: increment the PATCH version.
+          3. `CHANGES.rst`: add entry at top with today's date:
+             ```
+             X.Y.Z (YYYY-MM-DD)
+             ^^^^^^^^^^^^^^^^^^^
+             * relax botocore dependency specification
+             ```
+             The `^` underline must match the header length exactly.
+          4. If any new botocore functions appear that we depend on, add
+             their hashes to `test_patches.py`.
+          5. Run `uv lock` to update `uv.lock`.
+
+          ## Step 4b: Bump path (hash failures)
+
+          1. From test failures, identify which botocore functions changed.
+          2. For each changed function:
+             a. Get the botocore source for the OLD version ($CURRENT_UPPER
+                minus one patch) and NEW version ($LATEST_BOTOCORE).
+                Use `pip download botocore==VERSION --no-deps -d /tmp/boto_dl`
+                then extract and compare, or use inspect.getsource().
+             b. Diff old vs new to understand the changes.
+             c. Find the corresponding aiobotocore file. Our files mirror
+                botocore's structure: `botocore/X.py` → `aiobotocore/X.py`.
+             d. Port changes to the aiobotocore version:
+                - Convert synchronous calls to async/await
+                - Subclass new classes with `Aio` prefix
+                - Register new async classes where botocore registers sync ones
+                - Keep method signatures identical
+                - Keep diffs from botocore as small as possible
+             e. Update the hash in `test_patches.py`.
+          3. Port relevant botocore tests to `tests/botocore_tests/`.
+             Check existing files there for the async test pattern.
+          4. `pyproject.toml`: update BOTH lower and upper bounds.
+             Lower = $LATEST_BOTOCORE, upper = one patch above.
+          5. `aiobotocore/__init__.py`: increment the MINOR version, reset
+             patch to 0.
+          6. `CHANGES.rst`: add entry:
+             ```
+             X.Y.0 (YYYY-MM-DD)
+             ^^^^^^^^^^^^^^^^^^^
+             * bump botocore dependency specification
+             ```
+          7. Run `uv lock` to update `uv.lock`.
+
+          ## Step 5: Validate
+
+          Run `uv run pytest tests/test_patches.py -x -v` again. Fix any
+          remaining failures. Repeat until passing.
+
+          ## Step 6: Commit, push, and create/update PR
+
+          Commit all changes. Push to the `botocore-sync` branch.
+
+          Build the botocore diff URL:
+          `https://github.com/boto/botocore/compare/OLD...NEW`
+          where OLD is the previous upper bound minus one patch version,
+          and NEW is $LATEST_BOTOCORE.
+
+          Check if a PR already exists:
+          ```
+          gh pr list --head botocore-sync --json number --jq '.[0].number'
+          ```
+
+          If a PR exists, push will update it. If not, create one:
+          - Base: `main`
+          - Title: `Relax botocore dependency specification` or
+                   `Bump botocore dependency specification`
+          - Body template:
+            ```
+            ### Description of Change
+            This PR intends to improve general compatibility of `aiobotocore`
+            within the Python ecosystem by [relaxing/bumping] the dependency
+            specification of `botocore`.
+
+            ### Assumptions
+            Upstream contains [no changes that require/minor changes that
+            require/several changes that require] adjustments to the
+            aiobotocore codebase.
+
+            ### Checklist when updating botocore versions
+            * [x] I have read and followed CONTRIBUTING.rst
+            * [x] I have updated test_patches.py where/if appropriate
+            * [x] I have added URL to diff: DIFF_URL
+
+            ### Changes
+            [List the specific changes made, if any]
+            ```
+
+          ## Step 7: Handle failures
+
+          If you cannot resolve test failures after reasonable effort, open
+          a GitHub issue:
+          - Title: `Botocore sync: manual intervention needed for VERSION`
+          - Body: explain what failed, which functions changed, what you
+            attempted, and include the botocore diff URL.
+          - Do NOT leave the PR in a broken state — either fix it or don't
+            push broken changes.
+        claude_args: |
+          --max-turns 50
