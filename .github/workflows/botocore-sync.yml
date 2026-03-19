@@ -201,5 +201,8 @@ jobs:
         display_report: true
         show_full_output: true
         prompt: ${{ steps.prompt.outputs.PROMPT }}
+        # yamllint disable rule:line-length
         claude_args: |
           --max-turns 50
+          --allowedTools "Bash(*),Read,Write,Edit,MultiEdit,Glob,Grep,WebFetch,mcp__github_inline_comment__create_inline_comment"
+        # yamllint enable rule:line-length
