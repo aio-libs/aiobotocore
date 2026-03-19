@@ -49,6 +49,10 @@ jobs:
         ${{ steps.check.outputs.latest_botocore }}
       current_upper: >-
         ${{ steps.check.outputs.current_upper }}
+      current_lower: >-
+        ${{ steps.check.outputs.current_lower }}
+      last_supported: >-
+        ${{ steps.check.outputs.last_supported }}
       needs_update: >-
         ${{ steps.check.outputs.needs_update }}
     steps:
@@ -140,7 +144,11 @@ jobs:
             print(f"Update needed: {latest} not in {spec}")
             needs = "true"
 
+        # Last supported = highest version in the spec
+        uv = Version(upper)
+        last = f"{uv.major}.{uv.minor}.{uv.micro - 1}"
         with open(out, "a") as f:
+            f.write(f"last_supported={last}\n")
             f.write(f"needs_update={needs}\n")
 
         # Job summary
@@ -192,6 +200,10 @@ jobs:
           ${{ needs.detect.outputs.latest_botocore }}
         CURRENT_UPPER: >-
           ${{ needs.detect.outputs.current_upper }}
+        CURRENT_LOWER: >-
+          ${{ needs.detect.outputs.current_lower }}
+        LAST_SUPPORTED: >-
+          ${{ needs.detect.outputs.last_supported }}
         ENABLE_BUMP: >-
           ${{ inputs.enable_bump || 'false' }}
         DRY_RUN: >-

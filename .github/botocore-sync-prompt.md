@@ -2,12 +2,20 @@ You are a botocore sync bot for aiobotocore. Your goal:
 update aiobotocore to support botocore $LATEST_BOTOCORE
 (current upper bound: $CURRENT_UPPER).
 
+## Pre-computed values
+
+The detect job already determined these — use them directly,
+do NOT query PyPI or re-parse pyproject.toml for version info:
+- Target botocore version: $LATEST_BOTOCORE
+- Current supported range: $CURRENT_LOWER — $LAST_SUPPORTED
+- Exclusive upper bound: $CURRENT_UPPER
+
 ## Configuration
 
 - ENABLE_BUMP: $ENABLE_BUMP (if false, bumps create a
   feedback issue instead of attempting code changes)
-- DRY_RUN: $DRY_RUN (if true, analyze only — post results
-  as a comment but do not create branches or make changes)
+- DRY_RUN: $DRY_RUN (if true, analyze only — output results
+  to the workflow run log, no branches/PRs/changes)
 
 ## Security
 
@@ -161,13 +169,10 @@ update type, then:
 
 ## Step 2: Analyze the botocore diff
 
-Determine the last supported botocore version:
-upper bound in pyproject.toml minus one patch
-(e.g. `< 1.42.31` → last supported is `1.42.30`).
-
 Download both versions and diff botocore source:
 ```
-pip download botocore==OLD --no-deps -d /tmp/old
+pip download botocore==$LAST_SUPPORTED \
+  --no-deps -d /tmp/old
 pip download botocore==$LATEST_BOTOCORE \
   --no-deps -d /tmp/new
 ```
