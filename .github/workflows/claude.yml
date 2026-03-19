@@ -88,6 +88,6 @@ jobs:
         show_full_output: true
         prompt: ${{ steps.prompt.outputs.PROMPT }}
         # yamllint disable-line rule:line-length
-        plugins: "code-review@claude-code-plugins"
+        plugins: "code-review@claude-plugins-official"
         claude_args: |
           --dangerously-skip-permissions
