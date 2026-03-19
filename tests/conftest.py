@@ -19,7 +19,7 @@ import pytest
 try:
     import httpx
 except ImportError:
-    http = None
+    httpx = None
 
 import aiobotocore.session
 from aiobotocore.config import AioConfig
