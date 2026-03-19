@@ -68,14 +68,25 @@ jobs:
         echo "current_upper=$upper" >> "$GITHUB_OUTPUT"
 
         # Compare versions (tuple comparison, no deps)
-        LATEST="$latest" UPPER="$upper" python3 << 'PYEOF'
-        import os
+        LATEST="$latest" UPPER="$upper" \
+          MANUAL="${INPUT_VERSION:+true}" \
+          python3 << 'PYEOF'
+        import os, sys
         def ver(s):
             return tuple(int(x) for x in s.split("."))
         latest = os.environ["LATEST"]
         upper = os.environ["UPPER"]
-        needs = "true" if ver(latest) >= ver(upper) else "false"
-        print(f"Latest: {latest}, upper: {upper}, update: {needs}")
+        manual = os.environ.get("MANUAL") == "true"
+        if ver(latest) < ver(upper):
+            if manual:
+                print(f"::error::Version {latest} is older "
+                      f"than current upper bound {upper}")
+                sys.exit(1)
+            print(f"Up to date: {latest} < {upper}")
+            needs = "false"
+        else:
+            print(f"Update needed: {latest} >= {upper}")
+            needs = "true"
         with open(os.environ["GITHUB_OUTPUT"], "a") as f:
             f.write(f"needs_update={needs}\n")
         PYEOF
