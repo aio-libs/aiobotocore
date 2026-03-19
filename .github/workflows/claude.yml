@@ -84,7 +84,11 @@ jobs:
       id: claude
       with:
         anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-        use_commit_signing: true
+        # yamllint disable rule:line-length
+        ssh_signing_key: ${{ secrets.SSH_SIGNING_KEY }}
+        # yamllint enable rule:line-length
+        bot_id: "4001789"
+        bot_name: "thehesiod"
         display_report: true
         prompt: ${{ steps.prompt.outputs.PROMPT }}
         claude_args: |
