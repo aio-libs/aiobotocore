@@ -73,34 +73,44 @@ jobs:
         show_full_output: true
         # yamllint disable rule:line-length
         prompt: |
+          REPO: ${{ github.repository }}
+          PR NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
+          EVENT: ${{ github.event_name }}
+
           This is aiobotocore, a Python async library wrapping botocore for asyncio.
 
-          When reviewing pull requests, focus on:
+          If EVENT is pull_request, review this PR now. Focus on:
           - Code correctness and potential bugs
           - Security implications
           - Performance considerations
           - Python best practices and async patterns
           - Resource cleanup (async context managers, session/client lifecycle)
 
-          Check the PR author type with:
-          `gh pr view $PR_NUMBER --json author --jq '.author.login'`
+          Use `gh pr diff` to read the changes and post your review using
+          `gh pr comment` for top-level feedback and
+          `mcp__github_inline_comment__create_inline_comment` (with `confirmed: true`)
+          for inline code comments.
 
-          If the PR was created by a bot (github-actions[bot], claude[bot],
-          dependabot[bot], etc.), after posting your review, attempt to fix
-          any straightforward issues you found by pushing a commit to the
-          PR branch. Only fix clear-cut issues (style, missing types,
-          simple bugs). Do not attempt complex refactors.
+          Check the PR author: if the PR was created by a bot
+          (github-actions[bot], claude[bot], dependabot[bot], etc.),
+          attempt to fix straightforward issues by pushing a commit.
+          If the PR was created by a human, review only — never push commits.
 
-          If the PR was created by a human, review only. Never push
-          commits to human PRs during auto-review.
+          If EVENT is issue_comment, pull_request_review_comment,
+          or pull_request_review, respond to the @claude request.
 
-          When working on issues, you may create branches and pull requests
+          If EVENT is issues, you may create branches and pull requests
           to implement fixes or features. Use branch prefix `claude/`.
 
           IMPORTANT: Never merge or close pull requests. Never close issues.
           These actions require human approval.
 
           Use the repository's CLAUDE.md for guidance on style and conventions.
-        claude_args: |
-          --disallowedTools "Bash(gh pr merge:*),Bash(gh pr close:*),Bash(gh issue close:*)"
         # yamllint enable rule:line-length
+        settings: |
+          {
+            "permissions": {
+              "allow": ["*"],
+              "deny": []
+            }
+          }
