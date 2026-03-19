@@ -67,6 +67,7 @@ jobs:
       with:
         anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
         display_report: true
+        show_full_output: true
         # yamllint disable rule:line-length
         prompt: |
           This is aiobotocore, a Python async library wrapping botocore for asyncio.
