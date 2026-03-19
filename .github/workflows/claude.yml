@@ -26,39 +26,45 @@ jobs:
   claude:
     # Only trusted authors can trigger @claude interactions.
     # Auto-review on pull_request events is unrestricted.
+    # yamllint disable-line rule:line-length
     if: >-
       (github.event_name == 'pull_request') ||
       (github.event_name == 'issue_comment' &&
        contains(github.event.comment.body, '@claude') &&
        contains(fromJSON('["MEMBER","OWNER","COLLABORATOR"]'),
-                github.event.comment.author_association)) ||
+       github.event.comment.author_association)) ||
       (github.event_name == 'pull_request_review_comment' &&
        contains(github.event.comment.body, '@claude') &&
        contains(fromJSON('["MEMBER","OWNER","COLLABORATOR"]'),
-                github.event.comment.author_association)) ||
+       github.event.comment.author_association)) ||
       (github.event_name == 'pull_request_review' &&
        contains(github.event.review.body, '@claude') &&
        contains(fromJSON('["MEMBER","OWNER","COLLABORATOR"]'),
-                github.event.review.author_association)) ||
+       github.event.review.author_association)) ||
       (github.event_name == 'issues' &&
        (contains(github.event.issue.body, '@claude') ||
-        contains(github.event.issue.title, '@claude')) &&
+       contains(github.event.issue.title, '@claude')) &&
        contains(fromJSON('["MEMBER","OWNER","COLLABORATOR"]'),
-                github.event.issue.author_association))
+       github.event.issue.author_association))
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: write
       pull-requests: write
       issues: write
+      id-token: write
       actions: read
     steps:
-    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+    # yamllint disable-line rule:line-length
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
       with:
         fetch-depth: 1
 
-    - uses: anthropics/claude-code-action@df37d2f0760a4b5683a6e617c9325bc1a36443f6  # v1
+    # yamllint disable-line rule:line-length
+    - uses: anthropics/claude-code-action@df37d2f0760a4b5683a6e617c9325bc1a36443f6
       with:
         anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+        # yamllint disable rule:line-length
         prompt: |
           This is aiobotocore, a Python async library wrapping botocore for asyncio.
 
@@ -78,3 +84,4 @@ jobs:
           Use the repository's CLAUDE.md for guidance on style and conventions.
         claude_args: |
           --disallowedTools "Bash(gh pr merge:*),Bash(gh pr close:*),Bash(gh issue close:*)"
+        # yamllint enable rule:line-length
