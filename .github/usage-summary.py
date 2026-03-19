@@ -39,9 +39,7 @@ def main():
             f"| {m.get('cacheReadInputTokens', 0):,} "
             f"| ${m.get('costUSD', 0):.2f} |\n"
         )
-    out.write(
-        f"| **Total** | | | | **${total:.2f}** |\n"
-    )
+    out.write(f"| **Total** | | | | **${total:.2f}** |\n")
 
     if out is not sys.stdout:
         out.close()
