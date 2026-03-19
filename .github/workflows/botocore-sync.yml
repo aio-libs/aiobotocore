@@ -377,12 +377,55 @@ jobs:
           - Base: `main`
           - Title: `Relax botocore dependency specification`
             or `Bump botocore dependency specification`
-          - Body MUST include:
-            - Description of change (relax or bump)
-            - Botocore diff URL
-            - Summary of what changed in botocore
-            - List of aiobotocore changes made (if bump)
-            - Checklist referencing CONTRIBUTING.rst
+          - Body format:
+            ```
+            ### Description of Change
+            This PR [relaxes/bumps] the botocore dependency
+            to support version [VERSION].
+
+            **Type:** [Relax (patch) / Bump (minor)]
+            **Botocore diff:** [link between last supported
+            version and new target]
+
+            ### What changed in botocore
+            [Summary of upstream changes, categorized:
+            schema-only, patched code, new logic, etc.]
+
+            ### What changed in aiobotocore
+            [For bumps: list of files modified, new classes
+            added, tests ported. For relax: "Version bounds
+            updated only, no code changes."]
+
+            ### Reviewer checklist
+            Please verify before approving:
+            - [ ] Botocore diff reviewed — changes correctly
+                  categorized as relax vs bump
+            - [ ] For bumps: async overrides follow patterns
+                  in `docs/override-patterns.md`
+            - [ ] For bumps: new/changed tests pass and cover
+                  the ported functionality
+            - [ ] `test_patches.py` hashes are up to date
+            - [ ] Version bump in `__init__.py` is correct
+                  (patch for relax, minor for bump)
+            - [ ] `CHANGES.rst` entry added
+            - [ ] No unrelated changes included
+
+            ### How to help
+            - Review the botocore diff link above
+            - Check the aiobotocore changes match the
+              botocore changes
+            - If something looks wrong, leave a review
+              comment — the bot will attempt to fix
+              straightforward issues automatically
+            - Use `@claude` in a comment to ask questions
+              about the changes or request modifications
+            - Approve and merge when satisfied
+
+            ### Checklist
+            * [x] Followed CONTRIBUTING.rst
+            * [x] Updated test_patches.py
+            * [x] Botocore diff: [URL]
+            ```
 
           ## Step 7: Request feedback or handle failures
 
