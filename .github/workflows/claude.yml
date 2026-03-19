@@ -91,6 +91,7 @@ jobs:
 
     - name: Usage summary
       if: always()
+      continue-on-error: true
       env:
         EXEC_FILE: >-
           ${{ steps.claude.outputs.execution_file }}
