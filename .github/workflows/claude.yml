@@ -89,10 +89,5 @@ jobs:
         prompt: ${{ steps.prompt.outputs.PROMPT }}
         # yamllint disable-line rule:line-length
         plugins: "code-review@anthropics/claude-code-plugins"
-        settings: |
-          {
-            "permissions": {
-              "allow": ["*"],
-              "deny": []
-            }
-          }
+        claude_args: |
+          --dangerously-skip-permissions

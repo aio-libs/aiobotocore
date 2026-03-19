@@ -202,11 +202,5 @@ jobs:
         show_full_output: true
         prompt: ${{ steps.prompt.outputs.PROMPT }}
         claude_args: |
+          --dangerously-skip-permissions
           --max-turns 50
-        settings: |
-          {
-            "permissions": {
-              "allow": ["*"],
-              "deny": []
-            }
-          }
