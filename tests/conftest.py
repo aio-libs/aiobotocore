@@ -114,7 +114,8 @@ def aa_fail_proxy_config(monkeypatch):
 
 
 @pytest.fixture
-def aa_succeed_proxy_config(monkeypatch):
+# only used in `localonly` tests
+def aa_succeed_proxy_config(monkeypatch):  # pragma: no cover
     # NOTE: name of this fixture must be alphabetically first to run first
     monkeypatch.setenv('HTTP_PROXY', f'http://{host}:54321')
     monkeypatch.setenv('HTTPS_PROXY', f'http://{host}:54321')
@@ -397,7 +398,8 @@ async def ec2_client(
 
 
 @pytest.fixture
-async def kinesis_client(
+# only used in `localonly` tests
+async def kinesis_client(  # pragma: no cover
     session, region, config, moto_server, mocking_test, aws_auth
 ):
     kw = {'endpoint_url': moto_server, **aws_auth} if mocking_test else {}
@@ -467,7 +469,8 @@ async def create_bucket(s3_client):
 
 
 @pytest.fixture
-async def create_stream(kinesis_client):
+# only used in `localonly` tests
+async def create_stream(kinesis_client):  # pragma: no cover
     _stream_name = None
 
     async def _f(stream_name=None, **kwargs):
@@ -503,7 +506,8 @@ async def create_stream(kinesis_client):
         await delete_stream(kinesis_client, _stream_name)
 
 
-async def delete_stream(kinesis_client, stream_name):
+# only used in `localonly` tests
+async def delete_stream(kinesis_client, stream_name):  # pragma: no cover
     response = await kinesis_client.delete_stream(StreamName=stream_name)
     assert_status_code(response, 200)
 
@@ -660,7 +664,8 @@ async def sqs_queue_url(sqs_client):
 
 
 @pytest.fixture
-async def exit_stack():
+# only used in `localonly` tests
+async def exit_stack():  # pragma: no cover
     async with AsyncExitStack() as es:
         yield es
 
