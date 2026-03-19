@@ -67,13 +67,14 @@ jobs:
         ")
         echo "current_upper=$upper" >> "$GITHUB_OUTPUT"
 
-        # Compare versions
+        # Compare versions (tuple comparison, no deps)
         LATEST="$latest" UPPER="$upper" python3 << 'PYEOF'
         import os
-        from packaging.version import Version
+        def ver(s):
+            return tuple(int(x) for x in s.split("."))
         latest = os.environ["LATEST"]
         upper = os.environ["UPPER"]
-        needs = "true" if Version(latest) >= Version(upper) else "false"
+        needs = "true" if ver(latest) >= ver(upper) else "false"
         print(f"Latest: {latest}, upper: {upper}, update: {needs}")
         with open(os.environ["GITHUB_OUTPUT"], "a") as f:
             f.write(f"needs_update={needs}\n")
@@ -109,59 +110,111 @@ jobs:
         anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
         # yamllint disable rule:line-length
         prompt: |
-          You are a botocore sync bot for aiobotocore. Update
-          aiobotocore to support botocore $LATEST_BOTOCORE
+          You are a botocore sync bot for aiobotocore. Your goal:
+          update aiobotocore to support botocore $LATEST_BOTOCORE
           (current upper bound: $CURRENT_UPPER).
 
           ## Background
 
           aiobotocore adds async functionality to botocore by
-          subclassing and monkey-patching botocore classes. Source
-          files mirror botocore's structure (e.g.
-          `aiobotocore/credentials.py` overrides classes from
-          `botocore/credentials.py`). Because of this tight
-          coupling, aiobotocore pins to a narrow botocore range.
+          subclassing (never monkey-patching). Source files mirror
+          botocore's structure. See `docs/override-patterns.md`
+          for the full pattern reference. See `CONTRIBUTING.rst`
+          for the upgrade process.
 
-          `tests/test_patches.py` hashes specific botocore source
-          that aiobotocore depends on. Hash failures signal that
-          patched code changed. However, hashes alone are NOT
-          sufficient — new botocore logic (new classes, network
-          calls, I/O, or use of classes we override) may also
-          need async overrides even if no existing hashes break.
+          `tests/test_patches.py` hashes botocore source we
+          depend on. Hash failures are a SIGNAL (not a gate) that
+          patched code changed. New botocore logic may also need
+          async overrides even if no existing hashes break.
 
-          Read `CONTRIBUTING.rst` for full upgrade documentation.
+          ## Step 1: Check existing PR state
 
-          ## Step 1: Set up the branch
-
+          Check for an existing `botocore-sync` PR:
           ```
-          git fetch origin botocore-sync 2>/dev/null \
-            && git checkout botocore-sync \
-            && git reset --hard origin/main \
-            || git checkout -b botocore-sync origin/main
+          gh pr list --head botocore-sync --state all \
+            --json number,state,comments,reviews,commits \
+            --jq '.[0]'
           ```
+
+          Determine the scenario:
+
+          **No PR or closed/merged PR:**
+          - If merged: check if the merged version already
+            covers $LATEST_BOTOCORE. If so, exit — no action.
+          - Otherwise: proceed to Step 2. Create a fresh
+            `botocore-sync` branch from `origin/main`.
+
+          **Open PR — check if "dirty":**
+          A PR is dirty if ANY of these are true:
+          - Has commits not authored by github-actions[bot]
+            or claude[bot]
+          - Has review comments or review threads
+          - Has requested-changes reviews
+
+          Check with:
+          ```
+          # Non-bot commits
+          gh pr view PR_NUM --json commits --jq \
+            '[.commits[] | select(
+              .authors[0].login != "github-actions[bot]" and
+              .authors[0].login != "claude[bot]"
+            )] | length'
+
+          # Review comments
+          gh api repos/REPO/pulls/PR_NUM/comments \
+            --jq 'length'
+
+          # Reviews with comments or requested changes
+          gh api repos/REPO/pulls/PR_NUM/reviews \
+            --jq '[.[] | select(
+              .state == "CHANGES_REQUESTED" or
+              (.state == "COMMENTED" and .body != "")
+            )] | length'
+          ```
+
+          **Open + clean:** Reset branch to origin/main,
+          proceed to Step 2.
+
+          **Open + dirty:** Proceed to Step 2 to determine
+          update type, then:
+          - If **relax**: safe to apply in-place on the dirty
+            branch. Only update `pyproject.toml` upper bound,
+            `aiobotocore/__init__.py` version, `CHANGES.rst`,
+            and `uv.lock`. Do NOT reset the branch. Update
+            the PR title and description.
+          - If **bump**: do NOT modify the branch. Post a
+            comment on the PR (replacing any previous
+            botocore-sync-bot comment) stating:
+            "Botocore $LATEST_BOTOCORE is available but
+            requires code changes. Upgrade is blocked on
+            this PR. [botocore diff link]"
+            To replace a previous comment, search for
+            comments containing "botocore-sync-bot" and
+            delete them before posting the new one.
+            Then exit.
 
           ## Step 2: Analyze the botocore diff
 
           Determine the last supported botocore version:
-          the upper bound in pyproject.toml minus one patch
-          (e.g. if `< 1.42.31` then last supported is `1.42.30`).
+          upper bound in pyproject.toml minus one patch
+          (e.g. `< 1.42.31` → last supported is `1.42.30`).
 
-          Download both versions and diff the botocore source:
+          Download both versions and diff botocore source:
           ```
           pip download botocore==OLD --no-deps -d /tmp/old
-          pip download botocore==$LATEST_BOTOCORE --no-deps \
-            -d /tmp/new
+          pip download botocore==$LATEST_BOTOCORE \
+            --no-deps -d /tmp/new
           ```
           Extract and diff the `botocore/` directories.
 
           Categorize changes:
-          a) JSON schema/model updates only (service definitions)
-          b) Changes to code we already patch (files that have a
+          a) JSON schema/model updates only (no action)
+          b) Changes to code we already patch (files with a
              corresponding `aiobotocore/*.py` override)
-          c) New logic in files we override: new classes, methods,
-             network calls, I/O operations, blocking code, or
+          c) New logic in files we override: new classes,
+             methods, network calls, I/O, blocking code, or
              new use of classes we subclass
-          d) New logic in files we don't override (no action)
+          d) Changes in files we don't override (no action)
 
           ## Step 3: Determine update type
 
@@ -173,29 +226,28 @@ jobs:
           uv run pytest tests/test_patches.py -x -v 2>&1
           ```
 
-          Combine the diff analysis with hash test results:
+          Combine diff analysis with hash results:
 
-          **Relax** (patch version bump): ALL of these are true:
+          **Relax** (patch version bump) — ALL true:
           - All test_patches.py hashes pass
-          - No new logic in files we override needs async
-            treatment
-          - Changes are limited to JSON schemas, docs, or
-            files we don't touch
+          - No new logic in overridden files needs async
+          - Changes limited to schemas, docs, or untouched files
 
-          **Bump** (minor version bump): ANY of these are true:
+          **Bump** (minor version bump) — ANY true:
           - Hash tests fail (patched code changed)
-          - New classes/methods/logic in files we override
-            needs async conversion
+          - New logic in overridden files needs async
 
-          **Major bump**: breaking API changes that affect
-          aiobotocore's public interface (rare, flag for human
-          review if detected).
+          **Major bump**: breaking API changes affecting
+          aiobotocore's public interface (rare — flag for
+          human review if detected).
+
+          If this is a dirty PR, apply the dirty-PR logic
+          from Step 1 now and potentially exit.
 
           ## Step 4a: Relax path
 
-          1. `pyproject.toml`: change botocore upper bound to
-             one patch above $LATEST_BOTOCORE. Keep lower bound
-             unchanged.
+          1. `pyproject.toml`: change upper bound to one patch
+             above $LATEST_BOTOCORE. Keep lower bound unchanged.
           2. `aiobotocore/__init__.py`: increment PATCH version.
           3. `CHANGES.rst`: add entry at top with today's date:
              ```
@@ -203,28 +255,31 @@ jobs:
              ^^^^^^^^^^^^^^^^^^^
              * relax botocore dependency specification
              ```
-             The `^` underline must match header length exactly.
-          4. If new botocore functions appear that we depend on,
+             `^` underline must match header length exactly.
+          4. If new botocore functions we depend on appear,
              add their hashes to `test_patches.py`.
           5. Run `uv lock` to update `uv.lock`.
 
           ## Step 4b: Bump path
 
+          Read `docs/override-patterns.md` for the patterns.
+
           1. For each changed/new function needing porting:
-             a. Diff old vs new botocore source to understand
-                what changed.
-             b. Find the corresponding `aiobotocore/*.py` file.
-             c. Port changes:
-                - Convert synchronous calls to async/await
-                - Subclass new classes with `Aio` prefix
-                - Register new async classes where botocore
-                  registers sync ones
+             a. Diff old vs new botocore source.
+             b. Find corresponding `aiobotocore/*.py` file.
+             c. Port changes following the patterns:
+                - Subclass with `Aio` prefix
+                - Override sync methods as async
+                - Use `resolve_awaitable()` for mixed callbacks
+                - Register async components at session init
                 - Keep method signatures identical
                 - Keep diffs from botocore minimal
              d. Update hashes in `test_patches.py`.
           2. Port relevant botocore tests to
-             `tests/botocore_tests/`. Follow existing async
-             test patterns there.
+             `tests/botocore_tests/`. Follow existing patterns:
+             - `async def test_*()` (no pytest.mark.asyncio)
+             - Use `AioSession`, `StubbedSession`
+             - Use `AioAWSResponse` for mocked responses
           3. `pyproject.toml`: update BOTH bounds. Lower =
              $LATEST_BOTOCORE, upper = one patch above.
           4. `aiobotocore/__init__.py`: increment MINOR version,
@@ -239,15 +294,15 @@ jobs:
 
           ## Step 5: Validate
 
-          Run `uv run pytest tests/test_patches.py -x -v` again.
-          Fix any remaining failures. Repeat until passing.
+          Run `uv run pytest tests/test_patches.py -x -v`.
+          Fix remaining failures. Repeat until passing.
 
           ## Step 6: Commit, push, and create/update PR
 
           Commit all changes. Push to `botocore-sync` branch.
 
-          Build the botocore diff URL between the last supported
-          version and the new target:
+          Build botocore diff URL between last supported version
+          and new target:
           `https://github.com/boto/botocore/compare/OLD...NEW`
 
           Check if a PR already exists:
@@ -256,14 +311,13 @@ jobs:
             --jq '.[0].number'
           ```
 
-          If a PR exists, update its body. If not, create one:
+          Create or update the PR:
           - Base: `main`
-          - Title: `Relax botocore dependency specification` or
-                   `Bump botocore dependency specification`
+          - Title: `Relax botocore dependency specification`
+            or `Bump botocore dependency specification`
           - Body MUST include:
             - Description of change (relax or bump)
-            - Botocore diff URL (between last supported version
-              and new target)
+            - Botocore diff URL
             - Summary of what changed in botocore
             - List of aiobotocore changes made (if bump)
             - Checklist referencing CONTRIBUTING.rst
@@ -273,8 +327,8 @@ jobs:
           If you cannot resolve failures after reasonable effort,
           open a GitHub issue:
           - Title: Botocore sync: manual intervention needed
-          - Body: what failed, which functions changed, what you
-            tried, and the botocore diff URL.
+          - Body: what failed, which functions changed, what
+            you tried, and the botocore diff URL.
           - Do NOT push broken changes.
         # yamllint enable rule:line-length
         claude_args: |
