@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import multiprocessing
-import os
 import random
 import re
 import string
@@ -29,8 +28,6 @@ if TYPE_CHECKING:
     from _pytest.nodes import Node
 
 host = '127.0.0.1'
-
-_PYCHARM_HOSTED = os.environ.get('PYCHARM_HOSTED') == '1'
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -186,8 +183,6 @@ def config(request, region, signature_version):
     config_kwargs = read_kwargs(request.node)
 
     connect_timeout = read_timout = 5
-    if _PYCHARM_HOSTED:
-        connect_timeout = read_timout = 180
 
     return AioConfig(
         region_name=region,
