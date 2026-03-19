@@ -195,6 +195,7 @@ jobs:
 
     # yamllint disable-line rule:line-length
     - uses: anthropics/claude-code-action@df37d2f0760a4b5683a6e617c9325bc1a36443f6
+      id: claude
       env:
         LATEST_BOTOCORE: >-
           ${{ needs.detect.outputs.latest_botocore }}
@@ -211,8 +212,14 @@ jobs:
       with:
         anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
         display_report: true
-        show_full_output: true
         prompt: ${{ steps.prompt.outputs.PROMPT }}
         claude_args: |
           --dangerously-skip-permissions
           --max-turns 50
+
+    - name: Usage summary
+      if: always()
+      env:
+        EXEC_FILE: >-
+          ${{ steps.claude.outputs.execution_file }}
+      run: python3 .github/usage-summary.py
