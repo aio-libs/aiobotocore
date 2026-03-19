@@ -11,40 +11,50 @@ def main():
         print("No execution file found")
         return
 
-    data = json.load(open(ef))
-    usage = data.get("modelUsage", {})
+    with open(ef) as f:
+        data = json.load(f)
+
+    # execution_file is a JSON array of messages.
+    # The last entry with type "result" has the summary.
+    result = {}
+    entries = data if isinstance(data, list) else [data]
+    for entry in entries:
+        if isinstance(entry, dict) and entry.get("type") == "result":
+            result = entry
+
+    usage = result.get("modelUsage", {})
     if not usage:
-        print("No usage data")
+        print("No usage data found")
         return
 
-    total = sum(m.get("costUSD", 0) for m in usage.values())
+    total = result.get("total_cost_usd", 0)
+    turns = result.get("num_turns", 0)
+    duration_s = result.get("duration_ms", 0) / 1000
 
     summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
-    if not summary_path:
-        # Print to stdout if no summary file
-        out = sys.stdout
-    else:
-        out = open(summary_path, "a")
+    out = open(summary_path, "a") if summary_path else sys.stdout
 
     out.write("\n## Usage\n")
+    out.write(f"Turns: {turns} | Duration: {duration_s:.0f}s")
+    out.write(f" | Total: **${total:.2f}**\n\n")
     out.write("| Model | Input | Output |")
-    out.write(" Cache read | Cost |\n")
-    out.write("|-|-|-|-|-|\n")
+    out.write(" Cache read | Cache create | Cost |\n")
+    out.write("|-|-|-|-|-|-|\n")
     for model, m in usage.items():
         name = model.split("-")[1].title()
         out.write(
-            f"| {name} "
-            f"| {m.get('inputTokens', 0):,} "
-            f"| {m.get('outputTokens', 0):,} "
-            f"| {m.get('cacheReadInputTokens', 0):,} "
-            f"| ${m.get('costUSD', 0):.2f} |\n"
+            f"| {name}"
+            f" | {m.get('inputTokens', 0):,}"
+            f" | {m.get('outputTokens', 0):,}"
+            f" | {m.get('cacheReadInputTokens', 0):,}"
+            f" | {m.get('cacheCreationInputTokens', 0):,}"
+            f" | ${m.get('costUSD', 0):.2f} |\n"
         )
-    out.write(f"| **Total** | | | | **${total:.2f}** |\n")
 
     if out is not sys.stdout:
         out.close()
 
-    print(f"Total cost: ${total:.2f}")
+    print(f"Turns: {turns} | ${total:.2f}")
 
 
 if __name__ == "__main__":
