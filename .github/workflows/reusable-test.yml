@@ -44,13 +44,13 @@ jobs:
 
     steps:
     - name: Checkout
-      uses: actions/checkout@v6
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
       with:
         persist-credentials: false
         submodules: true
     - name: Install uv
       # yamllint disable-line rule:line-length
-      uses: astral-sh/setup-uv@681c641aba71e4a1c380be3ab5e12ad51f415867  # v7.1.6
+      uses: astral-sh/setup-uv@5a095e7a2014a4212f075830d4f7277575a9d098  # v7.3.1
       with:
         python-version: ${{ inputs.python-version }}
         enable-cache: ${{ inputs.enable-cache }}
@@ -78,7 +78,6 @@ jobs:
       # yamllint disable-line rule:line-length
       uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de  # v5.5.2
       with:
-        token: ${{ secrets.codecov-token }}  # not required for public repos
         files: ./coverage.xml
         # yamllint disable-line rule:line-length
         flags: unittests,os-${{ inputs.os }},python-${{ inputs.python-version }}${{ inputs.with-awscrt && ',with-awscrt' || '' }}${{ inputs.no-httpx && ',no-httpx' || '' }}  # optional

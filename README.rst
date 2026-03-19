@@ -1,14 +1,14 @@
 aiobotocore
 ===========
-.. |ci badge| image:: https://github.com/aio-libs/aiobotocore/actions/workflows/ci-cd.yml/badge.svg?branch=master
+.. |ci badge| image:: https://github.com/aio-libs/aiobotocore/actions/workflows/ci-cd.yml/badge.svg?branch=main
     :target: https://github.com/aio-libs/aiobotocore/actions/workflows/ci-cd.yml
-    :alt: CI status of master branch
-.. |pre-commit badge| image:: https://results.pre-commit.ci/badge/github/aio-libs/aiobotocore/master.svg
-    :target: https://results.pre-commit.ci/latest/github/aio-libs/aiobotocore/master
+    :alt: CI status of main branch
+.. |pre-commit badge| image:: https://results.pre-commit.ci/badge/github/aio-libs/aiobotocore/main.svg
+    :target: https://results.pre-commit.ci/latest/github/aio-libs/aiobotocore/main
     :alt: pre-commit.ci status
-.. |coverage badge| image:: https://codecov.io/gh/aio-libs/aiobotocore/branch/master/graph/badge.svg
+.. |coverage badge| image:: https://codecov.io/gh/aio-libs/aiobotocore/branch/main/graph/badge.svg
     :target: https://codecov.io/gh/aio-libs/aiobotocore
-    :alt: Coverage status on master branch
+    :alt: Coverage status on main branch
 .. |docs badge| image:: https://readthedocs.org/projects/aiobotocore/badge/?version=latest
     :target: https://aiobotocore.readthedocs.io/en/latest/?badge=latest
     :alt: Documentation Status

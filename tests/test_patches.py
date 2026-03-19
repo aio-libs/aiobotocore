@@ -304,6 +304,7 @@ def test_protocol_parsers():
             {
                 'da2d8b797568604449695cdcf803e344bdf887eb',
                 'a3abd6cb69883934f48403acfaa5ef598c548982',
+                '935dfd04e7bf5c29a6d4044a296c84e95c06e04a',
             },
         ),
         # context.py
@@ -1309,7 +1310,7 @@ def test_protocol_parsers():
         (
             S3RegionRedirectorv2.get_bucket_region,
             {
-                'b5bbc8b010576668dc2812d657c4b48af79e8f99',
+                'aae697b2fe83786f161df120606e06c3665e6508',
             },
         ),
         (
@@ -1434,6 +1435,7 @@ def test_protocol_parsers():
             URLLib3Session,
             {
                 'c65ca250524de59d89a32f213f38c7403666bfef',
+                'e997fded0da29c9682417ca0c7a3be2dd0bf78bc',
             },
         ),
         (
@@ -1590,7 +1592,7 @@ def test_protocol_parsers():
         (
             _apply_request_trailer_checksum,
             {
-                '6c45ef3db14240dcaa98bd48b59076d6859c0b57',
+                '45f483dd8520bf67616a063bdf6386865aad3591',
             },
         ),
         # retryhandler.py

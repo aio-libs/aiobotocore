@@ -212,10 +212,9 @@ def aws_auth():
 
 
 @pytest.fixture
-def mocking_test():
+def mocking_test(request) -> bool:
     # change this flag for test with real aws
-    # TODO: this should be merged with pytest.mark.moto
-    return True
+    return request.node.get_closest_marker("localonly") is None
 
 
 @pytest.fixture
