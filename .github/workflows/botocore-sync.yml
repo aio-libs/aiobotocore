@@ -161,6 +161,26 @@ jobs:
           patched code changed. New botocore logic may also need
           async overrides even if no existing hashes break.
 
+          ## Step 0: Check for feedback issue
+
+          Check for an open feedback issue:
+          ```
+          gh issue list --label botocore-sync-feedback \
+            --state open --json number,title,body,comments \
+            --jq '.[0]'
+          ```
+
+          If an open feedback issue exists:
+          - Read the issue body and ALL comments
+          - Look for human responses (not bot-authored)
+          - If humans answered questions: use those answers
+            to guide your decisions in subsequent steps.
+            If the answers reveal reusable patterns, update
+            `CLAUDE.md` or `docs/override-patterns.md`.
+          - If questions are still unanswered: do NOT create
+            a duplicate. Later steps may add new questions
+            as a comment (see Step 7).
+
           ## Step 1: Check existing PR state
 
           Check for an existing `botocore-sync` PR:
@@ -297,6 +317,14 @@ jobs:
           ## Step 4b: Bump path
 
           Read `docs/override-patterns.md` for the patterns.
+          Check Step 0 for any human guidance from the
+          feedback issue.
+
+          If you encounter ambiguities or design decisions
+          where multiple valid approaches exist (e.g. how to
+          handle a new botocore class, whether something needs
+          async override, how to structure the port), go to
+          Step 7 to request feedback instead of guessing.
 
           1. For each changed/new function needing porting:
              a. Diff old vs new botocore source.
@@ -356,14 +384,90 @@ jobs:
             - List of aiobotocore changes made (if bump)
             - Checklist referencing CONTRIBUTING.rst
 
-          ## Step 7: Handle failures
+          ## Step 7: Request feedback or handle failures
 
-          If you cannot resolve failures after reasonable effort,
-          open a GitHub issue:
-          - Title: Botocore sync: manual intervention needed
-          - Body: what failed, which functions changed, what
-            you tried, and the botocore diff URL.
-          - Do NOT push broken changes.
+          Use this step when you encounter ambiguities,
+          design decisions, or unresolvable failures.
+
+          Check for an existing open feedback issue:
+          ```
+          gh issue list --label botocore-sync-feedback \
+            --state open --json number,body,comments \
+            --jq '.[0]'
+          ```
+
+          **If no open issue exists:** create one:
+          - Title: `Botocore sync: feedback needed for
+            $LATEST_BOTOCORE`
+          - Label: `botocore-sync-feedback`
+          - Body format:
+            ```
+            ## Botocore sync needs your input
+
+            Botocore [VERSION] introduces changes that
+            require design decisions before porting.
+
+            **Botocore diff:** [link]
+            **Sync PR:** [link if exists]
+
+            ## Questions
+
+            [Numbered list of specific questions, each with:
+            - Context: what changed and why it matters
+            - Options: the valid approaches considered
+            - Trade-offs: pros/cons of each option]
+
+            ## How to respond
+
+            Reply to this issue with your answers. You can:
+            - Answer questions directly
+            - Ask `@claude` for more context about any
+              question (e.g. "@claude show me the botocore
+              diff for question 2")
+            - Provide partial answers — the bot will
+              proceed with what it can and ask follow-ups
+            - Suggest a different approach entirely
+
+            Once all questions are resolved, the bot will
+            apply your decisions on its next run. A
+            maintainer should close this issue when done.
+            ```
+
+          **If an open issue exists:** read the body and
+          all comments. Check if your current questions
+          have already been asked or answered:
+          - Already asked and unanswered: do not repeat.
+          - Already answered: use the answer (should have
+            been picked up in Step 0).
+          - New questions: add a comment with the new
+            questions, botocore diff URL, and context.
+            Delete any previous bot comment that is now
+            stale before posting the new one (so it
+            appears at the bottom).
+
+          Do NOT push broken changes. If you requested
+          feedback, exit without modifying the branch.
+
+          ## Step 8: Learn and document patterns
+
+          After completing any bump (Step 4b), or after
+          receiving feedback that resolves an ambiguity,
+          check if the decision reveals a reusable pattern.
+
+          If so, update the appropriate doc:
+          - `CLAUDE.md`: for quick-reference additions
+          - `docs/override-patterns.md`: for new patterns
+
+          Examples of learnable patterns:
+          - "New credential provider types always need
+            async override"
+          - "Changes to retry logic require updating
+            both retryhandler.py and the hash"
+          - "New HTTP features need both AIOHTTPSession
+            and HttpxSession implementations"
+
+          Include these doc updates in the same commit
+          as the bump changes.
         # yamllint enable rule:line-length
         claude_args: |
           --max-turns 50
