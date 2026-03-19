@@ -82,66 +82,79 @@ jobs:
         echo "latest_botocore=$latest" >> "$GITHUB_OUTPUT"
         echo "pypi_latest=$pypi_latest" >> "$GITHUB_OUTPUT"
 
-        # Get current bounds from pyproject.toml
-        read -r lower upper << BOUNDS
-        $(python3 -c "
-        import re
-        text = open('pyproject.toml').read()
-        m = re.search(
-            r'botocore\s*>=\s*([\d.]+),\s*<\s*([\d.]+)',
-            text)
-        print(m.group(1), m.group(2))
-        ")
-        BOUNDS
-        echo "current_lower=$lower" >> "$GITHUB_OUTPUT"
-        echo "current_upper=$upper" >> "$GITHUB_OUTPUT"
-
-        # Compare versions (tuple comparison, no deps)
-        LATEST="$latest" LOWER="$lower" UPPER="$upper" \
-          PYPI_LATEST="$pypi_latest" \
+        # Parse botocore specifier from pyproject.toml and
+        # check if target version is already supported.
+        # Uses packaging.specifiers for correct handling of
+        # <, <=, >=, ==, != operators.
+        LATEST="$latest" PYPI_LATEST="$pypi_latest" \
           MANUAL="${INPUT_VERSION:+true}" \
           python3 << 'PYEOF'
         import os, sys
-        def ver(s):
-            return tuple(int(x) for x in s.split("."))
+        from packaging.requirements import Requirement
+        from packaging.version import Version
+
         latest = os.environ["LATEST"]
-        lower = os.environ["LOWER"]
-        upper = os.environ["UPPER"]
         pypi = os.environ["PYPI_LATEST"]
         manual = os.environ.get("MANUAL") == "true"
+
+        # Parse botocore dependency from pyproject.toml
+        text = open("pyproject.toml").read()
+        for line in text.splitlines():
+            stripped = line.strip().strip(",").strip('"')
+            if stripped.startswith("botocore "):
+                req = Requirement(stripped)
+                break
+        spec = req.specifier
+        for s in spec:
+            if s.operator == ">=":
+                lower = str(s.version)
+            elif s.operator == "<":
+                upper = str(s.version)
+
+        out = os.environ["GITHUB_OUTPUT"]
+        with open(out, "a") as f:
+            f.write(f"current_lower={lower}\n")
+            f.write(f"current_upper={upper}\n")
+
+        # Validate manual input
         if manual:
-            if ver(latest) > ver(pypi):
+            if Version(latest) > Version(pypi):
                 print(f"::error::{latest} does not exist "
                       f"(latest PyPI release: {pypi})")
                 sys.exit(1)
-            if ver(latest) < ver(lower):
+            if Version(latest) < Version(lower):
                 print(f"::error::{latest} is older than "
                       f"current lower bound {lower}")
                 sys.exit(1)
-        if ver(latest) < ver(upper):
+
+        # Check if target is already supported
+        supported = Version(latest) in spec
+        if supported:
             if manual:
                 print(f"::error::{latest} is already "
-                      f"within supported range "
-                      f"(upper bound: {upper})")
+                      f"within supported range ({spec})")
                 sys.exit(1)
-            print(f"Up to date: {latest} < {upper}")
+            print(f"Up to date: {latest} in {spec}")
             needs = "false"
         else:
-            print(f"Update needed: {latest} >= {upper}")
+            print(f"Update needed: {latest} not in {spec}")
             needs = "true"
-        with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+
+        with open(out, "a") as f:
             f.write(f"needs_update={needs}\n")
+
+        # Job summary
         summary = os.environ["GITHUB_STEP_SUMMARY"]
         with open(summary, "a") as f:
-            f.write(f"## Botocore Sync Detection\n")
-            f.write(f"| | Version |\n|-|-|\n")
+            f.write("## Botocore Sync Detection\n")
+            f.write("| | Version |\n|-|-|\n")
             f.write(f"| PyPI latest | {pypi} |\n")
             f.write(f"| Target | {latest} |\n")
-            f.write(f"| Supported range | "
-                    f"{lower} — {upper} |\n")
-            action = "**Update needed**" if needs == "true" \
-                else "Up to date"
-            f.write(f"| Action | {action} |\n")
+            f.write(f"| Supported range | {spec} |\n")
+            sv = f"**{latest} is supported**"
+            nv = f"**{latest} needs update**"
+            f.write(f"| Status | "
+                    f"{sv if supported else nv} |\n")
         PYEOF
 
   sync:
@@ -185,6 +198,8 @@ jobs:
           ${{ inputs.dry_run || 'false' }}
       with:
         anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+        display_report: true
+        show_full_output: true
         prompt: ${{ steps.prompt.outputs.PROMPT }}
         claude_args: |
           --max-turns 50

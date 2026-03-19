@@ -48,6 +48,9 @@ jobs:
        github.event.issue.author_association))
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # continue-on-error so PRs that modify this workflow
+    # file aren't blocked by the validation check
+    continue-on-error: true
     environment: claude
     permissions:
       contents: write
@@ -66,6 +69,8 @@ jobs:
     - uses: anthropics/claude-code-action@df37d2f0760a4b5683a6e617c9325bc1a36443f6
       with:
         anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+        display_report: true
+        show_full_output: true
         # yamllint disable rule:line-length
         prompt: |
           This is aiobotocore, a Python async library wrapping botocore for asyncio.
