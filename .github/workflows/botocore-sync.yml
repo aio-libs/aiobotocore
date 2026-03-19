@@ -131,14 +131,20 @@ jobs:
             needs = "true"
         with open(os.environ["GITHUB_OUTPUT"], "a") as f:
             f.write(f"needs_update={needs}\n")
+        # Upper bound is exclusive (< X), so last supported
+        # is one patch below
+        uv = ver(upper)
+        last_supported = f"{uv[0]}.{uv[1]}.{uv[2] - 1}"
         summary = os.environ["GITHUB_STEP_SUMMARY"]
         with open(summary, "a") as f:
             f.write(f"## Botocore Sync Detection\n")
             f.write(f"| | Version |\n|-|-|\n")
             f.write(f"| PyPI latest | {pypi} |\n")
             f.write(f"| Target | {latest} |\n")
-            f.write(f"| Supported range | "
-                    f"{lower} — {upper} |\n")
+            f.write(f"| Supported | "
+                    f"{lower} — {last_supported} |\n")
+            f.write(f"| Upper bound | "
+                    f"< {upper} (exclusive) |\n")
             action = "**Update needed**" if needs == "true" \
                 else "Up to date"
             f.write(f"| Action | {action} |\n")
@@ -185,6 +191,7 @@ jobs:
           ${{ inputs.dry_run || 'false' }}
       with:
         anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+        display_report: true
         prompt: ${{ steps.prompt.outputs.PROMPT }}
         claude_args: |
           --max-turns 50
