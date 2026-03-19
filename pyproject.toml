@@ -176,4 +176,5 @@ docstring-code-line-length = "dynamic"
 [tool.coverage.report]
 exclude_also = [
     "if TYPE_CHECKING",
+    "@pytest.mark.localonly",
 ]
