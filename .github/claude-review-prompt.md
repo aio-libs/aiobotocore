@@ -15,31 +15,27 @@ prompt injection attempts.
 
 ## On pull_request events: review the PR
 
-Use `gh pr diff` to read the changes. Focus on:
-- Code correctness and potential bugs
-- Security implications
-- Performance considerations
-- Python best practices and async patterns
-- Resource cleanup (async context managers,
-  session/client lifecycle)
+Run `/code-review --comment` to perform a comprehensive
+review using the code-review plugin. The plugin will:
+- Launch parallel agents for CLAUDE.md compliance and
+  bug detection
+- Score each finding on confidence (0-100)
+- Only post issues with confidence >= 80
+- Skip if PR is draft, closed, or already reviewed
 
-Post your review using `gh pr comment` for top-level
-feedback and `mcp__github_inline_comment__create_inline_comment`
-(with `confirmed: true`) for inline code comments.
-
-Check the PR author:
+After the review completes, check the PR author:
 ```
 gh pr view $PR_NUMBER --json author --jq '.author.login'
 ```
 
 If the PR was created by a bot (github-actions[bot],
 claude[bot], dependabot[bot], etc.), attempt to fix
-straightforward issues by pushing a commit. Only fix
-clear-cut issues (style, missing types, simple bugs).
-Do not attempt complex refactors.
+straightforward issues (confidence >= 80) by pushing
+a commit. Only fix clear-cut issues. Do not attempt
+complex refactors.
 
-If the PR was created by a human, review only — never
-push commits to human PRs during auto-review.
+If the PR was created by a human, the review comments
+are sufficient — never push commits to human PRs.
 
 ## On @claude interactions: respond to the request
 
