@@ -40,13 +40,6 @@ def always_spawn():
     multiprocessing.set_start_method("spawn", force=True)
 
 
-@pytest.fixture(
-    scope="session", params=[True, False], ids=['debug[true]', 'debug[false]']
-)
-def debug(request):
-    return request.param
-
-
 @pytest.fixture
 def anyio_backend():
     return 'asyncio'
