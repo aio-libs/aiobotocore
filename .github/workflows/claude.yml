@@ -87,7 +87,9 @@ jobs:
         display_report: true
         show_full_output: true
         prompt: ${{ steps.prompt.outputs.PROMPT }}
-        # yamllint disable-line rule:line-length
+        # yamllint disable rule:line-length
+        plugin_marketplaces: "https://github.com/anthropics/claude-plugins-official.git"
         plugins: "code-review@claude-plugins-official"
+        # yamllint enable rule:line-length
         claude_args: |
           --dangerously-skip-permissions
