@@ -48,8 +48,6 @@ jobs:
        github.event.issue.author_association))
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    # continue-on-error so PRs that modify this workflow
-    # file aren't blocked by the validation check
     continue-on-error: true
     environment: claude
     permissions:
@@ -65,42 +63,36 @@ jobs:
         fetch-depth: 1
         persist-credentials: false
 
+    - name: Read prompt
+      id: prompt
+      # yamllint disable-line rule:line-length
+      env:
+        REPO: ${{ github.repository }}
+        # yamllint disable-line rule:line-length
+        PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
+        EVENT_NAME: ${{ github.event_name }}
+      run: |
+        # Substitute env vars into prompt
+        prompt=$(envsubst < .github/claude-review-prompt.md)
+        {
+          echo 'PROMPT<<PROMPT_EOF'
+          echo "$prompt"
+          echo 'PROMPT_EOF'
+        } >> "$GITHUB_OUTPUT"
+
     # yamllint disable-line rule:line-length
     - uses: anthropics/claude-code-action@df37d2f0760a4b5683a6e617c9325bc1a36443f6
       with:
         anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
         display_report: true
         show_full_output: true
-        # yamllint disable rule:line-length
-        prompt: |
-          This is aiobotocore, a Python async library wrapping botocore for asyncio.
-
-          When reviewing pull requests, focus on:
-          - Code correctness and potential bugs
-          - Security implications
-          - Performance considerations
-          - Python best practices and async patterns
-          - Resource cleanup (async context managers, session/client lifecycle)
-
-          Check the PR author type with:
-          `gh pr view $PR_NUMBER --json author --jq '.author.login'`
-
-          If the PR was created by a bot (github-actions[bot], claude[bot],
-          dependabot[bot], etc.), after posting your review, attempt to fix
-          any straightforward issues you found by pushing a commit to the
-          PR branch. Only fix clear-cut issues (style, missing types,
-          simple bugs). Do not attempt complex refactors.
-
-          If the PR was created by a human, review only. Never push
-          commits to human PRs during auto-review.
-
-          When working on issues, you may create branches and pull requests
-          to implement fixes or features. Use branch prefix `claude/`.
-
-          IMPORTANT: Never merge or close pull requests. Never close issues.
-          These actions require human approval.
-
-          Use the repository's CLAUDE.md for guidance on style and conventions.
-        claude_args: |
-          --disallowedTools "Bash(gh pr merge:*),Bash(gh pr close:*),Bash(gh issue close:*)"
-        # yamllint enable rule:line-length
+        prompt: ${{ steps.prompt.outputs.PROMPT }}
+        # yamllint disable-line rule:line-length
+        plugins: "code-review@anthropics/claude-code-plugins"
+        settings: |
+          {
+            "permissions": {
+              "allow": ["*"],
+              "deny": []
+            }
+          }
