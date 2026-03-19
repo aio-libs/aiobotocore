@@ -89,21 +89,22 @@ jobs:
         LATEST="$latest" PYPI_LATEST="$pypi_latest" \
           MANUAL="${INPUT_VERSION:+true}" \
           python3 << 'PYEOF'
-        import os, re, sys
-        from packaging.specifiers import SpecifierSet
+        import os, sys
+        from packaging.requirements import Requirement
         from packaging.version import Version
 
         latest = os.environ["LATEST"]
         pypi = os.environ["PYPI_LATEST"]
         manual = os.environ.get("MANUAL") == "true"
 
-        # Parse specifier from pyproject.toml
+        # Parse botocore dependency from pyproject.toml
         text = open("pyproject.toml").read()
-        m = re.search(
-            r'"botocore\s*(>=\s*[\d.]+\s*,\s*<\s*[\d.]+)"',
-            text)
-        spec = SpecifierSet(m.group(1).replace(" ", ""))
-        # Extract bounds for display/output
+        for line in text.splitlines():
+            stripped = line.strip().strip(",").strip('"')
+            if stripped.startswith("botocore "):
+                req = Requirement(stripped)
+                break
+        spec = req.specifier
         for s in spec:
             if s.operator == ">=":
                 lower = str(s.version)
