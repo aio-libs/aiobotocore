@@ -37,14 +37,25 @@ complex refactors.
 If the PR was created by a human, the review comments
 are sufficient — never push commits to human PRs.
 
-## Commit signing requirement
+## Git operations
 
-IMPORTANT: Never use `git commit` or `git push` to
-create commits. Always use the `mcp__github_file_ops__commit_files`
-MCP tool to commit changes. This creates commits via
-the GitHub API which are automatically signed and
-verified. Using git CLI creates unsigned commits that
-will be rejected by branch protection.
+### Commit signing
+IMPORTANT: Never use `git commit` to create commits.
+Always use `mcp__github_file_ops__commit_files` with
+an explicit `branch` parameter. This creates commits
+via the GitHub API which are automatically signed.
+Git CLI commits are unsigned and will be rejected.
+
+### Branch naming
+Always use `claude/` prefix for branches you create.
+Never push to `main` — it is protected.
+
+### Avoiding pitfalls
+- `mcp__github_file_ops__commit_files` defaults to the
+  default branch if no `branch` is specified. ALWAYS
+  specify `branch` explicitly.
+- When fixing bot PRs, commit to the PR's existing
+  branch — don't create a new one.
 
 ## On @claude interactions: respond to the request
 

@@ -35,14 +35,42 @@ gh api repos/REPO/issues/NUM/comments --jq \
   )]'
 ```
 
-## Commit signing requirement
+## Git operations
 
-IMPORTANT: Never use `git commit` or `git push` to
-create commits. Always use the `mcp__github_file_ops__commit_files`
-MCP tool to commit changes. This creates commits via
-the GitHub API which are automatically signed and
-verified. Using git CLI creates unsigned commits that
-will be rejected by branch protection.
+### Commit signing
+IMPORTANT: Never use `git commit` to create commits.
+Always use `mcp__github_file_ops__commit_files` with
+an explicit `branch` parameter. This creates commits
+via the GitHub API which are automatically signed.
+Git CLI commits are unsigned and will be rejected.
+
+Example:
+```
+mcp__github_file_ops__commit_files({
+  branch: "claude/botocore-sync",
+  message: "Relax botocore dependency specification",
+  files: [
+    {path: "pyproject.toml", content: "..."},
+    {path: "aiobotocore/__init__.py", content: "..."}
+  ]
+})
+```
+
+### Branch naming
+Always use the `claude/` prefix for branches:
+- WIP branch: `claude/botocore-sync-wip`
+- Final branch: `claude/botocore-sync`
+- Never push to `main` — it is protected.
+- Never push to branches without `claude/` prefix.
+
+### Avoiding pitfalls
+- `mcp__github_file_ops__commit_files` defaults to the
+  repo's default branch if no `branch` is specified.
+  ALWAYS specify the `branch` parameter explicitly.
+- Do NOT try to push to `main` or any protected branch.
+- `git push` is OK for pushing branches (not commits).
+  Use it after creating the branch with `gh api` or
+  `git checkout -b`.
 
 ## Background
 
@@ -61,12 +89,12 @@ async overrides even if no existing hashes break.
 
 This bot uses two PRs for complex changes:
 
-**WIP PR** (branch: `botocore-sync-wip`, draft):
+**WIP PR** (branch: `claude/botocore-sync-wip`, draft):
 Accumulates work across multiple runs. The PR
 description tracks progress and state for handoff
 between runs. Messy incremental commits are fine.
 
-**Final PR** (branch: `botocore-sync`, ready):
+**Final PR** (branch: `claude/botocore-sync`, ready):
 Clean result for human review. Created only when
 work is complete and tests pass. Changes are
 squashed from the WIP branch.
@@ -100,12 +128,12 @@ If an open feedback issue exists:
 Check for BOTH PRs:
 ```
 # WIP PR
-gh pr list --head botocore-sync-wip --state open \
+gh pr list --head claude/botocore-sync-wip --state open \
   --json number,title,body,commits,comments \
   --jq '.[0]'
 
 # Final PR
-gh pr list --head botocore-sync --state all \
+gh pr list --head claude/botocore-sync --state all \
   --json number,state,comments,reviews,commits \
   --jq '.[0]'
 ```
@@ -113,7 +141,7 @@ gh pr list --head botocore-sync --state all \
 **If a WIP PR exists:**
 This is a continuation of previous work. Read the
 WIP PR description to understand progress and
-remaining tasks. Checkout `botocore-sync-wip`,
+remaining tasks. Checkout `claude/botocore-sync-wip`,
 skip to Step 4b and continue from where the
 previous run left off. If $LATEST_BOTOCORE differs
 from what the WIP targets, ignore the newer version
@@ -311,8 +339,8 @@ Step 5b to save progress.
 
 You did not finish in this run. Save your work:
 
-1. Commit all changes to `botocore-sync-wip`.
-2. Push to `botocore-sync-wip` branch.
+1. Commit all changes to `claude/botocore-sync-wip`.
+2. Push to `claude/botocore-sync-wip` branch.
 3. Create or update the WIP draft PR with a
    description that contains ALL information
    needed for the next run to continue:
@@ -363,14 +391,14 @@ version and new target:
 **If a WIP PR exists:** squash the WIP branch
 changes into a single commit on `botocore-sync`:
 ```
-git checkout -B botocore-sync origin/main
-git merge --squash botocore-sync-wip
-git commit
-git push origin botocore-sync --force-with-lease
+git checkout -B claude/botocore-sync origin/main
+git merge --squash claude/botocore-sync-wip
+# Then use mcp__github_file_ops__commit_files with
+# branch: "claude/botocore-sync" to create a signed commit
 ```
 
 **If no WIP PR:** commit directly to
-`botocore-sync` and push.
+`claude/botocore-sync` and push.
 
 Create or update the final PR:
 - Base: `main`
