@@ -237,15 +237,24 @@ uv pip install "botocore==$LATEST_BOTOCORE"
 uv run pytest tests/test_patches.py -x -v 2>&1
 ```
 
-Combine diff analysis with hash results:
+Combine diff analysis with hash test results.
+The diff analysis is the PRIMARY factor for
+determining relax vs bump. Hash tests are a
+SIGNAL that helps confirm the analysis — they
+catch changes to code we already patch, but do
+NOT catch new logic that needs async overrides.
 
-**Relax** (patch version bump) — ALL true:
-- All test_patches.py hashes pass
-- No new logic in overridden files needs async
+**Relax** (patch version bump) — based on diff:
+- No code changes in files we override
+- No new logic needing async treatment
 - Changes limited to schemas, docs, untouched files
+- Hash tests passing CONFIRMS this (but hashes
+  passing alone is NOT sufficient for relax)
 
 **Bump** (minor version bump) — ANY true:
-- Hash tests fail (patched code changed)
+- Code changes in files we override (hashes may
+  or may not fail depending on whether we patch
+  the specific changed function)
 - New logic in overridden files needs async
 
 **Major bump**: breaking API changes affecting

@@ -34,6 +34,10 @@ straightforward issues (confidence >= 80) by pushing
 a commit. Only fix clear-cut issues. Do not attempt
 complex refactors.
 
+Also check for review comments from other bots
+(github-advanced-security[bot], zizmor, etc.) and
+address their findings if they are actionable.
+
 If the PR was created by a human, the review comments
 are sufficient — never push commits to human PRs.
 
