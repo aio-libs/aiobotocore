@@ -86,6 +86,7 @@ jobs:
         anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
         use_commit_signing: true
         display_report: true
+        show_full_output: true
         allowed_bots: "claude[bot]"
         prompt: ${{ steps.prompt.outputs.PROMPT }}
         claude_args: |
