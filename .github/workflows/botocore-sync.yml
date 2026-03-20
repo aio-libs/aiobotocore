@@ -233,7 +233,7 @@ jobs:
         prompt: ${{ steps.prompt.outputs.PROMPT }}
         claude_args: |
           --dangerously-skip-permissions
-          --max-turns 50
+          --max-turns 100
         # yamllint disable rule:line-length
         settings: |
           {
