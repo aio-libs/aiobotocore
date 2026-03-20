@@ -35,6 +35,16 @@ gh api repos/REPO/issues/NUM/comments --jq \
   )]'
 ```
 
+## Pre-commit checks
+
+Before committing ANY changes, run:
+```
+uv run pre-commit run --all --show-diff-on-failure
+```
+Fix any failures before committing. This catches
+yamllint, ruff format, trailing whitespace, and
+other issues that would fail CI.
+
 ## Git operations
 
 ### Commit signing
