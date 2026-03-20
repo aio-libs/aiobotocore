@@ -7,7 +7,7 @@ uv run pre-commit run --all --show-diff-on-failure
 ```
 
 Key constraints:
-- YAML lines must be ≤80 chars (`# yamllint disable-line rule:line-length` for exceptions)
+- YAML lines must be ≤120 chars (`# yamllint disable-line rule:line-length` for exceptions)
 - All workflow jobs must have `timeout-minutes`
 - Python code formatted with `ruff`
 

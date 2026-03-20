@@ -1,6 +1,20 @@
 ---
 name: Claude Code
 
+run-name: >-
+  Claude:
+  ${{
+    github.event_name == 'pull_request'
+      && format('Review PR #{0}',
+         github.event.pull_request.number)
+    || github.event_name == 'issues'
+      && format('Issue #{0}',
+         github.event.issue.number)
+    || format('PR #{0} comment',
+       github.event.issue.number
+       || github.event.pull_request.number)
+  }}
+
 permissions: {}
 
 on:
@@ -25,7 +39,6 @@ jobs:
   claude:
     # Only trusted authors can trigger @claude interactions.
     # Auto-review on pull_request events is unrestricted.
-    # yamllint disable-line rule:line-length
     if: >-
       (github.event_name == 'pull_request') ||
       (github.event_name == 'issue_comment' &&
@@ -56,7 +69,6 @@ jobs:
       id-token: write
       actions: read
     steps:
-    # yamllint disable-line rule:line-length
     - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
       with:
         fetch-depth: 1
@@ -64,10 +76,8 @@ jobs:
 
     - name: Read prompt
       id: prompt
-      # yamllint disable-line rule:line-length
       env:
         REPO: ${{ github.repository }}
-        # yamllint disable-line rule:line-length
         PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
         EVENT_NAME: ${{ github.event_name }}
       run: |
@@ -79,7 +89,6 @@ jobs:
           echo 'PROMPT_EOF'
         } >> "$GITHUB_OUTPUT"
 
-    # yamllint disable-line rule:line-length
     - uses: anthropics/claude-code-action@df37d2f0760a4b5683a6e617c9325bc1a36443f6
       id: claude
       with:
