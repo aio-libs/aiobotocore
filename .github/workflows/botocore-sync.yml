@@ -184,6 +184,22 @@ jobs:
         fetch-depth: 0
         persist-credentials: false
 
+    - name: Cache botocore repo
+      uses: actions/cache@v4
+      with:
+        path: /tmp/botocore
+        key: botocore-repo
+
+    - name: Clone or update botocore
+      run: |
+        if [ -d /tmp/botocore/.git ]; then
+          git -C /tmp/botocore fetch --tags --prune
+        else
+          git clone --bare \
+            https://github.com/boto/botocore.git \
+            /tmp/botocore
+        fi
+
     - name: Read prompt
       id: prompt
       run: |

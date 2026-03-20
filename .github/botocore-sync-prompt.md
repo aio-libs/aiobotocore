@@ -178,14 +178,17 @@ update type, then:
 
 ## Step 2: Analyze the botocore diff
 
-Download both versions and diff botocore source:
+A bare clone of botocore is cached at `/tmp/botocore`.
+Diff between the two versions using git:
 ```
-pip download botocore==$LAST_SUPPORTED \
-  --no-deps -d /tmp/old
-pip download botocore==$LATEST_BOTOCORE \
-  --no-deps -d /tmp/new
+git -C /tmp/botocore diff $LAST_SUPPORTED..$LATEST_BOTOCORE \
+  -- botocore/
 ```
-Extract and diff the `botocore/` directories.
+
+To view a specific file at a version:
+```
+git -C /tmp/botocore show $VERSION:botocore/path/file.py
+```
 
 Categorize changes:
 a) JSON schema/model updates only (no action)
