@@ -37,6 +37,15 @@ complex refactors.
 If the PR was created by a human, the review comments
 are sufficient — never push commits to human PRs.
 
+## Commit signing requirement
+
+IMPORTANT: Never use `git commit` or `git push` to
+create commits. Always use the `mcp__github_file_ops__commit_files`
+MCP tool to commit changes. This creates commits via
+the GitHub API which are automatically signed and
+verified. Using git CLI creates unsigned commits that
+will be rejected by branch protection.
+
 ## On @claude interactions: respond to the request
 
 For issue_comment, pull_request_review_comment, or

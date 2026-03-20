@@ -86,10 +86,22 @@ jobs:
         anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
         use_commit_signing: true
         display_report: true
+        show_full_output: true
         allowed_bots: "claude[bot]"
         prompt: ${{ steps.prompt.outputs.PROMPT }}
         claude_args: |
           --dangerously-skip-permissions
+        # yamllint disable rule:line-length
+        settings: |
+          {
+            "hooks": {
+              "PreToolUse": [{
+                "matcher": "Bash",
+                "command": "if echo \"$TOOL_INPUT\" | grep -qE '\\bgit commit\\b'; then echo 'BLOCKED: Use mcp__github_file_ops__commit_files instead of git commit. This ensures commits are signed.' >&2; exit 2; fi"
+              }]
+            }
+          }
+        # yamllint enable rule:line-length
 
     - name: Usage summary
       if: always()
