@@ -1,6 +1,7 @@
 ---
 name: Claude Code
 
+# yamllint disable-line rule:line-length
 run-name: "Claude: ${{ github.event_name == 'pull_request' && format('Review PR #{0}', github.event.pull_request.number) || github.event_name == 'issues' && format('Issue #{0}', github.event.issue.number) || format('PR #{0} comment', github.event.issue.number || github.event.pull_request.number) }}"
 
 permissions: {}
