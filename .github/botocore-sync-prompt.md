@@ -35,6 +35,15 @@ gh api repos/REPO/issues/NUM/comments --jq \
   )]'
 ```
 
+## Commit signing requirement
+
+IMPORTANT: Never use `git commit` or `git push` to
+create commits. Always use the `mcp__github_file_ops__commit_files`
+MCP tool to commit changes. This creates commits via
+the GitHub API which are automatically signed and
+verified. Using git CLI creates unsigned commits that
+will be rejected by branch protection.
+
 ## Background
 
 aiobotocore adds async functionality to botocore by
