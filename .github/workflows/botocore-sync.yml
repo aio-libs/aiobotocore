@@ -189,7 +189,7 @@ jobs:
 
     - name: Clone or update botocore
       run: |
-        if [ -d /tmp/botocore/.git ]; then
+        if [ -f /tmp/botocore/HEAD ]; then
           git -C /tmp/botocore fetch --tags --prune
         else
           git clone --bare \
