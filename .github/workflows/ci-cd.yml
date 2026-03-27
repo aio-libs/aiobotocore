@@ -31,6 +31,8 @@ jobs:
     name: test${{ '' }}  # zizmor: ignore[obfuscation] nest jobs under the same sidebar category
     strategy:
       matrix:
+        # 3.9 supported until 2026-04-29.
+        # See https://github.com/boto/botocore?tab=readme-ov-file#notices
         python-version:
         - 3.9
         - >-

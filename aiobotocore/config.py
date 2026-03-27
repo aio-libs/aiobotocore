@@ -2,6 +2,7 @@ import collections.abc
 import copy
 import ssl
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from typing import Optional, TypedDict, Union
 
 import botocore.client
@@ -10,7 +11,7 @@ from aiohttp.abc import AbstractResolver
 from botocore.exceptions import ParamValidationError
 
 from ._constants import DEFAULT_KEEPALIVE_TIMEOUT
-from .endpoint import DEFAULT_HTTP_SESSION_CLS
+from ._types import DEFAULT_HTTP_SESSION_CLS
 from .httpsession import AIOHTTPSession
 from .httpxsession import HttpxSession
 
@@ -38,23 +39,34 @@ class _ConnectorArgs(TypedDict):
 
 _HttpSessionType = Union[AIOHTTPSession, HttpxSession]
 
+PARAM_SENTINAL = object()
+
 
 class AioConfig(botocore.client.Config):
     def __init__(
         self,
         connector_args: Optional[_ConnectorArgs] = None,
         http_session_cls: type[_HttpSessionType] = DEFAULT_HTTP_SESSION_CLS,
+        load_executor: Optional[ThreadPoolExecutor] = PARAM_SENTINAL,
         **kwargs,
     ):
         super().__init__(**kwargs)
+
+        self._validate_connector_args(connector_args, http_session_cls)
+
+        if load_executor not in (None, PARAM_SENTINAL) and not isinstance(
+            load_executor, ThreadPoolExecutor
+        ):
+            raise ParamValidationError(
+                report='load_executor value must be an instance of an Executor.'
+            )
+
+        self.load_executor = load_executor
 
         self.connector_args: _ConnectorArgs = (
             copy.copy(connector_args) if connector_args else {}
         )
         self.http_session_cls: type[_HttpSessionType] = http_session_cls
-        self._validate_connector_args(
-            self.connector_args, self.http_session_cls
-        )
 
         if 'keepalive_timeout' not in self.connector_args:
             self.connector_args['keepalive_timeout'] = (
@@ -72,6 +84,9 @@ class AioConfig(botocore.client.Config):
         connector_args: _ConnectorArgs,
         http_session_cls: type[_HttpSessionType],
     ) -> None:
+        if connector_args is None:
+            return
+
         for k, v in connector_args.items():
             # verify_ssl is handled by verify parameter to create_client
             if k == 'use_dns_cache':
