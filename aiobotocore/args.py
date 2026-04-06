@@ -51,6 +51,9 @@ class AioClientArgsCreator(ClientArgsCreator):
         signing_region = endpoint_config['signing_region']
         endpoint_region_name = endpoint_config['region_name']
         account_id_endpoint_mode = config_kwargs['account_id_endpoint_mode']
+        s3_disable_express_session_auth = config_kwargs[
+            's3_disable_express_session_auth'
+        ]
 
         event_emitter = copy.copy(self._event_emitter)
         signer = AioRequestSigner(
@@ -125,6 +128,7 @@ class AioClientArgsCreator(ClientArgsCreator):
             event_emitter,
             credentials,
             account_id_endpoint_mode,
+            s3_disable_express_session_auth,
         )
 
         # Copy the session's user agent factory and adds client configuration.
@@ -164,6 +168,7 @@ class AioClientArgsCreator(ClientArgsCreator):
         event_emitter,
         credentials,
         account_id_endpoint_mode,
+        s3_disable_express_session_auth,
     ):
         if endpoints_ruleset_data is None:
             return None
@@ -190,6 +195,7 @@ class AioClientArgsCreator(ClientArgsCreator):
             legacy_endpoint_url=endpoint.host,
             credentials=credentials,
             account_id_endpoint_mode=account_id_endpoint_mode,
+            s3_disable_express_session_auth=s3_disable_express_session_auth,
         )
 
         # replace with async version
@@ -206,6 +212,10 @@ class AioClientArgsCreator(ClientArgsCreator):
             client_context = {}
         if self._is_s3_service(service_name_raw):
             client_context.update(s3_config_raw)
+            if s3_disable_express_session_auth is not None:
+                client_context['disable_s3_express_session_auth'] = (
+                    s3_disable_express_session_auth
+                )
 
         sig_version = (
             client_config.signature_version
