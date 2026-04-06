@@ -1592,7 +1592,7 @@ def test_protocol_parsers():
         (
             _apply_request_trailer_checksum,
             {
-                '45f483dd8520bf67616a063bdf6386865aad3591',
+                '975eaba079bbf07fe425a1515b327ff90461b1c2',
             },
         ),
         # retryhandler.py
