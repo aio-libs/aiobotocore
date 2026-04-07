@@ -1,5 +1,5 @@
 REPO: $REPO
-NUMBER: $PR_NUMBER
+NUMBER: $NUMBER
 EVENT: $EVENT_NAME
 
 NOTE: NUMBER above is a PR number when EVENT is
@@ -31,7 +31,7 @@ review. This reviews the PR diff checking for:
 
 After the review completes, check the PR author:
 ```
-gh pr view $PR_NUMBER --json author --jq '.author.login'
+gh pr view $NUMBER --json author --jq '.author.login'
 ```
 
 If the PR was created by a bot (github-actions[bot],
