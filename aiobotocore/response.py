@@ -145,6 +145,9 @@ class StreamingBody:
     def close(self):
         self._raw_stream.close()
 
+    async def aclose(self):
+        self._raw_stream.close()
+
 
 class HttpxStreamingBody:
     """Async wrapper class for an HTTP response body (httpx backend).
@@ -287,6 +290,8 @@ class HttpxStreamingBody:
 
     async def close(self):
         await self._raw_stream.aclose()
+
+    aclose = close
 
     async def __aenter__(self):
         return self
