@@ -131,9 +131,8 @@ class StreamingBody:
             yield current_chunk
 
     def _verify_content_length(self):
-        if (
-            self._content_length is not None
-            and self._amount_read != int(self._content_length)
+        if self._content_length is not None and self._amount_read != int(
+            self._content_length
         ):
             raise IncompleteReadError(
                 actual_bytes=self._amount_read,
@@ -272,9 +271,8 @@ class HttpxStreamingBody:
             yield current_chunk
 
     def _verify_content_length(self):
-        if (
-            self._content_length is not None
-            and self._amount_read != int(self._content_length)
+        if self._content_length is not None and self._amount_read != int(
+            self._content_length
         ):
             raise IncompleteReadError(
                 actual_bytes=self._amount_read,
