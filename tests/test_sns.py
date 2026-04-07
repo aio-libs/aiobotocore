@@ -22,7 +22,6 @@ def _get_topic_policy(topic_arn: str):
                     "SNS:Subscribe",
                     "SNS:ListSubscriptionsByTopic",
                     "SNS:Publish",
-                    "SNS:Receive",
                 ],
                 'Resource': topic_arn,
                 'Condition': {
@@ -33,8 +32,6 @@ def _get_topic_policy(topic_arn: str):
     }
 
 
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_topic_attributes(sns_client, topic_arn):
     response = await sns_client.list_topics()
     pytest.aio.assert_status_code(response, 200)
@@ -56,8 +53,6 @@ async def test_topic_attributes(sns_client, topic_arn):
     assert attributes['DisplayName'] == display_name
 
 
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_creating_subscription(sns_client, topic_arn):
     response = await sns_client.subscribe(
         TopicArn=topic_arn, Protocol="http", Endpoint="http://httpbin.org/"
@@ -71,8 +66,6 @@ async def test_creating_subscription(sns_client, topic_arn):
     assert len([s for s in subscriptions if s['Protocol'] == 'http']) == 0
 
 
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_publish_to_http(sns_client, topic_arn):
     response = await sns_client.subscribe(
         TopicArn=topic_arn,
@@ -90,15 +83,11 @@ async def test_publish_to_http(sns_client, topic_arn):
     await sns_client.unsubscribe(SubscriptionArn=subscription_arn)
 
 
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_get_missing_endpoint_attributes(sns_client):
     with pytest.raises(botocore.exceptions.ClientError):
         await sns_client.get_endpoint_attributes(EndpointArn="arn1")
 
 
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_platform_applications(sns_client):
     await sns_client.create_platform_application(
         Name="app1",

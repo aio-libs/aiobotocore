@@ -1,8 +1,8 @@
 """An async reimplementation of the blocking elements from botocore.retries.bucket."""
+
 import asyncio
 
 from botocore.exceptions import CapacityNotAvailableError
-
 from botocore.retries.bucket import Clock as Clock  # reexport # noqa
 
 

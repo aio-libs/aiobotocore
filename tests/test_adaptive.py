@@ -54,13 +54,11 @@ class TestAsyncClientRateLimiter:
         )
         return rate_limiter
 
-    @pytest.mark.asyncio
     async def test_bucket_bucket_acquisition_only_if_enabled(self):
         rate_limiter = self.create_client_limiter()
         await rate_limiter.on_sending_request(request=mock.sentinel.request)
         assert not self.token_bucket.acquire.called
 
-    @pytest.mark.asyncio
     async def test_token_bucket_enabled_on_throttling_error(self):
         rate_limiter = self.create_client_limiter()
         self.throttling_detector.is_throttling_error.return_value = True
@@ -73,16 +71,14 @@ class TestAsyncClientRateLimiter:
         await rate_limiter.on_sending_request(request=mock.sentinel.request)
         assert self.token_bucket.acquire.called
 
-    @pytest.mark.asyncio
     async def test_max_rate_updated_on_success_response(self):
         rate_limiter = self.create_client_limiter()
         self.throttling_detector.is_throttling_error.return_value = False
         self.rate_adjustor.success_received.return_value = 20
         self.rate_clocker.record.return_value = 21
         await rate_limiter.on_receiving_response()
-        assert await self.token_bucket.set_max_rate.called_with(20)
+        self.token_bucket.set_max_rate.assert_called_with(20)
 
-    @pytest.mark.asyncio
     async def test_max_rate_cant_exceed_20_percent_max(self):
         rate_limiter = self.create_client_limiter()
         self.throttling_detector.is_throttling_error.return_value = False
@@ -93,7 +89,7 @@ class TestAsyncClientRateLimiter:
 
         # The most we should go up is 2.0 * 20
         await rate_limiter.on_receiving_response()
-        assert await self.token_bucket.set_max_rate.called_with(2.0 * 20)
+        self.token_bucket.set_max_rate.assert_called_with(2.0 * 20)
 
 
 class TestAsyncTokenBucket:
@@ -107,7 +103,6 @@ class TestAsyncTokenBucket:
             max_rate=max_rate, clock=self.clock, min_rate=min_rate
         )
 
-    @pytest.mark.asyncio
     async def test_can_acquire_amount(self):
         self.timestamp_sequences.extend(
             [
@@ -124,7 +119,6 @@ class TestAsyncTokenBucket:
         for _ in range(5):
             assert await token_bucket.acquire(1, block=False)
 
-    @pytest.mark.asyncio
     async def test_can_change_max_capacity_lower(self):
         # Requests at 1 TPS.
         self.timestamp_sequences.extend([1, 2, 3, 4, 5])
@@ -140,7 +134,6 @@ class TestAsyncTokenBucket:
         for _ in range(5):
             assert await token_bucket.acquire(1, block=False)
 
-    @pytest.mark.asyncio
     async def test_max_capacity_is_at_least_one(self):
         token_bucket = self.create_token_bucket()
         self.timestamp_sequences.append(1)
@@ -148,7 +141,6 @@ class TestAsyncTokenBucket:
         assert token_bucket._fill_rate == 0.5
         assert token_bucket._max_capacity == 1
 
-    @pytest.mark.asyncio
     async def test_acquire_fails_on_non_block_mode_returns_false(self):
         self.timestamp_sequences.extend(
             [
@@ -162,7 +154,6 @@ class TestAsyncTokenBucket:
         with pytest.raises(CapacityNotAvailableError):
             await token_bucket.acquire(100, block=False)
 
-    @pytest.mark.asyncio
     async def test_can_retrieve_at_max_send_rate(self):
         self.timestamp_sequences.extend(
             [
@@ -175,7 +166,6 @@ class TestAsyncTokenBucket:
         for _ in range(20):
             assert await token_bucket.acquire(1, block=False)
 
-    @pytest.mark.asyncio
     async def test_acquiring_blocks_when_capacity_reached(self):
         # This is 1 token every 0.1 seconds.
         token_bucket = self.create_token_bucket(max_rate=10)
@@ -201,7 +191,6 @@ class TestAsyncTokenBucket:
         assert token_bucket._current_capacity == 0
         assert await token_bucket.acquire(1, block=False)
 
-    @pytest.mark.asyncio
     async def test_rate_cant_go_below_min(self):
         token_bucket = self.create_token_bucket(max_rate=1, min_rate=0.2)
         self.timestamp_sequences.append(1)

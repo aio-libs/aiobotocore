@@ -1,5 +1,257 @@
 Changes
 -------
+
+3.4.0 (2026-04-07)
+^^^^^^^^^^^^^^^^^^
+* bump botocore dependency specification to support ``"botocore >= 1.42.79, < 1.42.85"``
+
+3.3.0 (2026-03-18)
+^^^^^^^^^^^^^^^^^^
+* bump botocore dependency specification to support ``"botocore >= 1.42.62, < 1.42.71"``
+
+3.2.1 (2026-03-04)
+^^^^^^^^^^^^^^^^^^
+* relax botocore dependency specification to support ``"botocore >= 1.42.53, < 1.42.62"``
+
+3.2.0 (2026-02-23)
+^^^^^^^^^^^^^^^^^^
+* bump botocore dependency specification to support ``"botocore >= 1.42.53, < 1.42.56"``
+
+3.1.3 (2026-02-14)
+^^^^^^^^^^^^^^^^^^
+* relax botocore dependency specification to support ``"botocore >= 1.41.0, < 1.42.50"``
+
+3.1.2 (2026-02-05)
+^^^^^^^^^^^^^^^^^^
+* relax botocore dependency specification to support ``"botocore >= 1.41.0, < 1.42.43"``
+
+3.1.1 (2026-01-19)
+^^^^^^^^^^^^^^^^^^
+* relax botocore dependency specification
+
+3.1.0 (2026-01-02)
+^^^^^^^^^^^^^^^^^^
+* support passing `socket_factory` as part of `connector_args` in `AioConfig`
+* relax botocore dependency specification
+
+3.0.0 (2025-12-09)
+^^^^^^^^^^^^^^^^^^
+* BREAKING: forbid creating loose ``ClientSession`` when ``AioBaseClient`` exits context
+* BREAKING: remove `awscli` packaging extra. Instead of ``pip install aiobotocore[awscli]``, use ``pip install aiobotocore awscli`` or similar to install compatible versions of `aiobotocore`, `botocore` and `awscli`.
+* BREAKING: remove `boto3` packaging extra. Instead of ``pip install aiobotocore[boto3]``, use ``pip install aiobotocore boto3`` or similar to install compatible versions of `aiobotocore`, `botocore` and `boto3`.
+* relax botocore dependency specification
+
+2.26.0 (2025-11-27)
+^^^^^^^^^^^^^^^^^^^
+* bump botocore dependency specification
+
+2.25.2 (2025-11-10)
+^^^^^^^^^^^^^^^^^^^
+* relax botocore dependency specification
+
+2.25.1 (2025-10-28)
+^^^^^^^^^^^^^^^^^^^
+* relax botocore dependency specification
+
+2.25.0 (2025-10-10)
+^^^^^^^^^^^^^^^^^^^
+* switch async test runner from pytest-asyncio to AnyIO
+* turn ``AioClientArgsCreator.get_client_args()`` and ``AioClientCreator._get_client_args()`` into asynchronous methods
+* bump botocore dependency specification
+
+2.24.3 (2025-10-06)
+^^^^^^^^^^^^^^^^^^^
+* bump botocore dependency specification
+
+2.24.2 (2025-09-05)
+^^^^^^^^^^^^^^^^^^^
+* bump botocore dependency specification
+
+2.24.1 (2025-08-15)
+^^^^^^^^^^^^^^^^^^^
+* fix endpoint circular import error
+
+2.24.0 (2025-07-31)
+^^^^^^^^^^^^^^^^^^^
+* bump botocore dependency specification
+
+2.23.2 (2025-07-24)
+^^^^^^^^^^^^^^^^^^^
+* bump botocore dependency specification
+
+2.23.1 (2025-07-16)
+^^^^^^^^^^^^^^^^^^^
+* bump botocore dependency specification
+
+2.23.0 (2025-06-12)
+^^^^^^^^^^^^^^^^^^^
+* drop support for Python 3.8 (EOL)
+* bump botocore dependency specification
+* add experimental support for ``httpx``. The backend can be activated when creating a new session: ``session.create_client(..., config=AioConfig(http_session_cls=aiobotocore.httpxsession.HttpxSession))``. It's not fully tested and some features from aiohttp have not been ported, but feedback on what you're missing and bug reports are very welcome.
+
+2.22.0 (2025-04-29)
+^^^^^^^^^^^^^^^^^^^
+* fully patch ``ClientArgsCreator.get_client_args()``
+* patch ``AioEndpoint.__init__()``
+* patch ``EventStream._parse_event()``, ``ResponseParser`` and subclasses
+* use SPDX license identifier for project metadata
+* upstream support for the smithy-rpc-v2-cbor protocol
+* bump botocore dependency specification
+
+2.21.1 (2025-03-04)
+^^^^^^^^^^^^^^^^^^^
+* fix for refreshable credential account-id lookup
+
+2.21.0 (2025-02-28)
+^^^^^^^^^^^^^^^^^^^
+* make `AioDeferredRefreshableCredentials` subclass of `DeferredRefreshableCredentials`
+* make `AioSSOCredentialFetcher` subclass of `SSOCredentialFetcher`
+* bump botocore dependency specification
+
+2.20.1.dev0 (2025-02-24)
+^^^^^^^^^^^^^^^^^^^^^^^^
+* upstream http response header fixes to be more in-line with botocore
+
+2.20.0 (2025-02-19)
+^^^^^^^^^^^^^^^^^^^
+* patch `AwsChunkedWrapper.read`
+* bump botocore dependency specification
+
+2.19.0 (2025-01-22)
+^^^^^^^^^^^^^^^^^^^
+* support custom `ttl_dns_cache` connector configuration
+* relax botocore dependency specification
+
+2.18.0 (2025-01-17)
+^^^^^^^^^^^^^^^^^^^
+* bump botocore dependency specification
+
+2.17.0 (2025-01-06)
+^^^^^^^^^^^^^^^^^^^
+* relax botocore dependency specification
+* add missing dependencies `python-dateutil`, `jmespath`, `multidict`, and `urllib3`
+
+2.16.1 (2024-12-26)
+^^^^^^^^^^^^^^^^^^^
+* relax botocore dependency specification
+
+2.16.0 (2024-12-16)
+^^^^^^^^^^^^^^^^^^^
+* bump botocore dependency specification
+
+2.15.2 (2024-10-09)
+^^^^^^^^^^^^^^^^^^^
+* relax botocore dependency specification
+
+2.15.1 (2024-09-19)
+^^^^^^^^^^^^^^^^^^^
+* relax botocore dependency specification
+
+2.15.0 (2024-09-10)
+^^^^^^^^^^^^^^^^^^^
+* bump botocore dependency specification
+
+2.14.0 (2024-08-28)
+^^^^^^^^^^^^^^^^^^^
+* bump botocore dependency specification
+
+2.13.3 (2024-08-22)
+^^^^^^^^^^^^^^^^^^^
+* fix ``create_waiter_with_client()``
+* relax botocore dependency specification
+
+2.13.2 (2024-07-18)
+^^^^^^^^^^^^^^^^^^^
+* fix for #1125 due to missing patch of StreamingChecksumBody
+
+2.13.1 (2024-06-24)
+^^^^^^^^^^^^^^^^^^^
+* bump botocore dependency specification
+
+2.13.0 (2024-05-16)
+^^^^^^^^^^^^^^^^^^^
+* address breaking change introduced in `aiohttp==3.9.2` #882
+
+2.12.4 (2024-05-16)
+^^^^^^^^^^^^^^^^^^^
+* bump botocore dependency specification
+
+2.12.3 (2024-04-11)
+^^^^^^^^^^^^^^^^^^^
+* relax botocore dependency specification
+
+2.12.2 (2024-04-01)
+^^^^^^^^^^^^^^^^^^^
+* expose configuration of ``http_session_cls`` in ``AioConfig``
+
+2.12.1 (2024-03-04)
+^^^^^^^^^^^^^^^^^^^
+* fix use of proxies #1070
+
+2.12.0 (2024-02-28)
+^^^^^^^^^^^^^^^^^^^
+* bump botocore dependency specification
+
+2.11.2 (2024-02-02)
+^^^^^^^^^^^^^^^^^^^
+* bump botocore dependency specification
+
+2.11.1 (2024-01-25)
+^^^^^^^^^^^^^^^^^^^
+* bump botocore dependency specification
+
+2.11.0 (2024-01-19)
+^^^^^^^^^^^^^^^^^^^
+* send project-specific `User-Agent` HTTP header #853
+
+2.10.0 (2024-01-18)
+^^^^^^^^^^^^^^^^^^^
+* bump botocore dependency specification
+
+2.9.1 (2024-01-17)
+^^^^^^^^^^^^^^^^^^
+* fix race condition in S3 Express identity cache #1072
+
+2.9.0 (2023-12-12)
+^^^^^^^^^^^^^^^^^^
+* bump botocore dependency specification
+
+2.8.0 (2023-11-28)
+^^^^^^^^^^^^^^^^^^
+* add AioStubber that returns AioAWSResponse()
+* remove confusing `aiobotocore.session.Session` symbol
+* bump botocore dependency specification
+
+2.7.0 (2023-10-17)
+^^^^^^^^^^^^^^^^^^
+* add support for Python 3.12
+* drop more Python 3.7 support (EOL)
+* relax botocore dependency specification
+
+2.6.0 (2023-08-11)
+^^^^^^^^^^^^^^^^^^
+* bump aiohttp minimum version to 3.7.4.post0
+* drop python 3.7 support (EOL)
+
+2.5.4 (2023-08-07)
+^^^^^^^^^^^^^^^^^^
+* fix __aenter__ attribute error introduced in refresh bugfix (#1031)
+
+2.5.3 (2023-08-06)
+^^^^^^^^^^^^^^^^^^
+* add more support for Python 3.11
+* bump botocore to 1.31.17
+* add waiter.wait return
+* fix SSO token refresh bug #1025
+
+2.5.2 (2023-07-06)
+^^^^^^^^^^^^^^^^^^
+* fix issue #1020
+
+2.5.1 (2023-06-27)
+^^^^^^^^^^^^^^^^^^
+* bump botocore to 1.29.161
+
 2.5.0 (2023-03-06)
 ^^^^^^^^^^^^^^^^^^
 * bump botocore to 1.29.76 (thanks @jakob-keller #999)

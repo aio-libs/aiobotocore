@@ -2,7 +2,7 @@ Examples
 =============================
 
 Below is a list of examples from `aiobotocore/examples
-<https://github.com/jettify/aiobotocore/tree/master/examples>`_
+<https://github.com/aio-libs/aiobotocore/tree/main/examples>`_
 
 Every example is a correct tiny python program.
 
@@ -35,3 +35,10 @@ DynamoDB
 
    examples/dynamo_db/insertions
    examples/dynamo_db/tables
+
+Cognito Identity Provider
+-------------------------
+.. toctree::
+   :maxdepth: 2
+
+   examples/cognito_idp/forgot_password

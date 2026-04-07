@@ -1,0 +1,121 @@
+---
+name: Claude Code
+
+run-name: >-
+  Claude:
+  ${{
+    github.event_name == 'pull_request'
+      && format('Review PR #{0}',
+         github.event.pull_request.number)
+    || github.event_name == 'issues'
+      && format('Issue #{0}',
+         github.event.issue.number)
+    || format('PR #{0} comment',
+       github.event.issue.number
+       || github.event.pull_request.number)
+  }}
+
+permissions: {}
+
+on:
+  pull_request:
+    types:
+    - opened
+  issue_comment:
+    types:
+    - created
+  pull_request_review_comment:
+    types:
+    - created
+  pull_request_review:
+    types:
+    - submitted
+  issues:
+    types:
+    - opened
+    - assigned
+
+jobs:
+  claude:
+    # Only trusted authors can trigger @claude interactions.
+    # Auto-review on pull_request events is unrestricted.
+    if: >-
+      (github.event_name == 'pull_request') ||
+      (github.event_name == 'issue_comment' &&
+       contains(github.event.comment.body, '@claude') &&
+       contains(fromJSON('["MEMBER","OWNER","COLLABORATOR"]'),
+       github.event.comment.author_association)) ||
+      (github.event_name == 'pull_request_review_comment' &&
+       contains(github.event.comment.body, '@claude') &&
+       contains(fromJSON('["MEMBER","OWNER","COLLABORATOR"]'),
+       github.event.comment.author_association)) ||
+      (github.event_name == 'pull_request_review' &&
+       contains(github.event.review.body, '@claude') &&
+       contains(fromJSON('["MEMBER","OWNER","COLLABORATOR"]'),
+       github.event.review.author_association)) ||
+      (github.event_name == 'issues' &&
+       (contains(github.event.issue.body, '@claude') ||
+       contains(github.event.issue.title, '@claude')) &&
+       contains(fromJSON('["MEMBER","OWNER","COLLABORATOR"]'),
+       github.event.issue.author_association))
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    continue-on-error: true
+    environment: claude
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      id-token: write
+      actions: read
+    steps:
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      with:
+        fetch-depth: 1
+        persist-credentials: false
+
+    - name: Read prompt
+      id: prompt
+      env:
+        REPO: ${{ github.repository }}
+        NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
+        EVENT_NAME: ${{ github.event_name }}
+      run: |
+        # Substitute env vars into prompt
+        prompt=$(envsubst < .github/claude-review-prompt.md)
+        {
+          echo 'PROMPT<<PROMPT_EOF'
+          echo "$prompt"
+          echo 'PROMPT_EOF'
+        } >> "$GITHUB_OUTPUT"
+
+    - uses: anthropics/claude-code-action@df37d2f0760a4b5683a6e617c9325bc1a36443f6
+      id: claude
+      with:
+        anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+        use_commit_signing: true
+        display_report: true
+        show_full_output: true
+        allowed_bots: "claude[bot]"
+        prompt: ${{ steps.prompt.outputs.PROMPT }}
+        claude_args: |
+          --dangerously-skip-permissions
+        # yamllint disable rule:line-length
+        settings: |
+          {
+            "hooks": {
+              "PreToolUse": [{
+                "matcher": "Bash",
+                "command": "if echo \"$TOOL_INPUT\" | grep -qE '\\bgit commit\\b'; then echo 'BLOCKED: Use mcp__github_file_ops__commit_files instead of git commit. This ensures commits are signed.' >&2; exit 2; fi"
+              }]
+            }
+          }
+        # yamllint enable rule:line-length
+
+    - name: Usage summary
+      if: always()
+      continue-on-error: true
+      env:
+        EXEC_FILE: >-
+          ${{ steps.claude.outputs.execution_file }}
+      run: python3 .github/usage-summary.py

@@ -1,7 +1,10 @@
-import botocore.parsers
+from contextlib import AsyncExitStack
+
+import anyio
 import pytest
 
 from aiobotocore.eventstream import AioEventStream
+from aiobotocore.parsers import AioEventStreamXMLParser
 
 # TODO once Moto supports either S3 Select or Kinesis SubscribeToShard then
 # this can be tested against a real AWS API
@@ -43,8 +46,6 @@ class FakeStreamReader:
         return self.ChunkedIterator(self.chunks)
 
 
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_eventstream_chunking(s3_client):
     # These are the options passed to the EventStream class
     # during a normal run with botocore.
@@ -52,7 +53,7 @@ async def test_eventstream_chunking(s3_client):
     outputshape = s3_client._service_model.operation_model(
         operation_name
     ).output_shape.members['Payload']
-    parser = botocore.parsers.EventStreamXMLParser()
+    parser = AioEventStreamXMLParser()
     sr = FakeStreamReader(TEST_STREAM_DATA)
 
     event_stream = AioEventStream(sr, outputshape, parser, operation_name)
@@ -74,8 +75,6 @@ async def test_eventstream_chunking(s3_client):
     assert 'End' in event3
 
 
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_eventstream_no_iter(s3_client):
     # These are the options passed to the EventStream class
     # during a normal run with botocore.
@@ -83,7 +82,7 @@ async def test_eventstream_no_iter(s3_client):
     outputshape = s3_client._service_model.operation_model(
         operation_name
     ).output_shape.members['Payload']
-    parser = botocore.parsers.EventStreamXMLParser()
+    parser = AioEventStreamXMLParser()
     sr = FakeStreamReader(TEST_STREAM_DATA)
 
     event_stream = AioEventStream(sr, outputshape, parser, operation_name)
@@ -91,3 +90,58 @@ async def test_eventstream_no_iter(s3_client):
     with pytest.raises(NotImplementedError):
         for _ in event_stream:
             pass
+
+
+@pytest.mark.localonly
+async def test_kinesis_stream_json_parser(
+    exit_stack: AsyncExitStack, kinesis_client, create_stream
+):
+    # unfortunately moto doesn't support kinesis register_stream_consumer +
+    # subscribe_to_shard yet
+    stream_name = await create_stream(ShardCount=1)
+
+    describe_response = await kinesis_client.describe_stream(
+        StreamName=stream_name
+    )
+
+    shard_id = describe_response["StreamDescription"]["Shards"][0]["ShardId"]
+    stream_arn = describe_response["StreamDescription"]["StreamARN"]
+
+    consumer_arn = None
+    consumer_name = 'consumer'
+
+    # Create some data
+    keys = [str(i) for i in range(1, 5)]
+    for k in keys:
+        await kinesis_client.put_record(
+            StreamName=stream_name, Data=k, PartitionKey=k
+        )
+
+    register_response = await kinesis_client.register_stream_consumer(
+        StreamARN=stream_arn, ConsumerName=consumer_name
+    )
+    consumer_arn = register_response['Consumer']['ConsumerARN']
+
+    while (
+        describe_response := (
+            await kinesis_client.describe_stream_consumer(  # noqa: E231, E999, E251, E501
+                StreamARN=stream_arn,
+                ConsumerName=consumer_name,
+                ConsumerARN=consumer_arn,
+            )
+        )
+    ) and describe_response['ConsumerDescription'][
+        'ConsumerStatus'
+    ] == 'CREATING':
+        print("Waiting for stream consumer creation")
+        await anyio.sleep(1)
+
+    starting_position = {'Type': 'LATEST'}
+    subscribe_response = await kinesis_client.subscribe_to_shard(
+        ConsumerARN=consumer_arn,
+        ShardId=shard_id,
+        StartingPosition=starting_position,
+    )
+    async for event in subscribe_response['EventStream']:
+        assert event['SubscribeToShardEvent']['Records'] == []
+        break

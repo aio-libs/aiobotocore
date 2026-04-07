@@ -21,6 +21,31 @@ except ImportError:
 
 
 class AioAwsChunkedWrapper(AwsChunkedWrapper):
+    async def read(self, size=None):
+        # Normalize "read all" size values to None
+        if size is not None and size <= 0:
+            size = None
+
+        # If the underlying body is done and we have nothing left then
+        # end the stream
+        if self._complete and not self._remaining:
+            return b""
+
+        # While we're not done and want more bytes
+        want_more_bytes = size is None or size > len(self._remaining)
+        while not self._complete and want_more_bytes:
+            self._remaining += await self._make_chunk()
+            want_more_bytes = size is None or size > len(self._remaining)
+
+        # If size was None, we want to return everything
+        if size is None:
+            size = len(self._remaining)
+
+        # Return a chunk up to the size asked for
+        to_return = self._remaining[:size]
+        self._remaining = self._remaining[size:]
+        return to_return
+
     async def _make_chunk(self):
         # NOTE: Chunk size is not deterministic as read could return less. This
         # means we cannot know the content length of the encoded aws-chunked
@@ -82,9 +107,8 @@ class _ChecksumMixin:
     def _validate_checksum(self):
         if self._checksum.digest() != base64.b64decode(self._expected):
             error_msg = (
-                "Expected checksum %s did not match calculated "
-                "checksum: %s"
-                % (self._expected, self._checksum.b64digest())
+                f"Expected checksum {self._expected} did not match calculated "
+                f"checksum: {self._checksum.b64digest()}"
             )
             raise FlexibleChecksumError(error_msg=error_msg)
 
@@ -107,7 +131,7 @@ class HttpxStreamingChecksumBody(_ChecksumMixin, HttpxStreamingBody):
 
 def _handle_streaming_response(http_response, response, algorithm):
     checksum_cls = _CHECKSUM_CLS.get(algorithm)
-    header_name = "x-amz-checksum-%s" % algorithm
+    header_name = f"x-amz-checksum-{algorithm}"
     if httpx is not None and isinstance(http_response.raw, httpx.Response):
         streaming_cls = HttpxStreamingChecksumBody
     else:
@@ -131,7 +155,7 @@ async def handle_checksum_body(
         return
 
     for algorithm in algorithms:
-        header_name = "x-amz-checksum-%s" % algorithm
+        header_name = f"x-amz-checksum-{algorithm}"
         # If the header is not found, check the next algorithm
         if header_name not in headers:
             continue
@@ -157,26 +181,23 @@ async def handle_checksum_body(
         response["context"]["checksum"] = checksum_context
         return
 
-    logger.info(
-        f'Skipping checksum validation. Response did not contain one of the '
-        f'following algorithms: {algorithms}.'
+    logger.debug(
+        'Skipping checksum validation. Response did not contain one of the following algorithms: %s.',
+        algorithms,
     )
 
 
 async def _handle_bytes_response(http_response, response, algorithm):
     body = await http_response.content
-    header_name = "x-amz-checksum-%s" % algorithm
+    header_name = f"x-amz-checksum-{algorithm}"
     checksum_cls = _CHECKSUM_CLS.get(algorithm)
     checksum = checksum_cls()
     checksum.update(body)
     expected = response["headers"][header_name]
     if checksum.digest() != base64.b64decode(expected):
         error_msg = (
-            "Expected checksum %s did not match calculated checksum: %s"
-            % (
-                expected,
-                checksum.b64digest(),
-            )
+            f"Expected checksum {expected} did not match calculated "
+            f"checksum: {checksum.b64digest()}"
         )
         raise FlexibleChecksumError(error_msg=error_msg)
     return body
@@ -198,7 +219,12 @@ def apply_request_checksum(request):
         _apply_request_trailer_checksum(request)
     else:
         raise FlexibleChecksumError(
-            error_msg="Unknown checksum variant: %s" % algorithm["in"]
+            error_msg="Unknown checksum variant: {}".format(algorithm["in"])
+        )
+    if "request_algorithm_header" in checksum_context:
+        request_algorithm_header = checksum_context["request_algorithm_header"]
+        request["headers"][request_algorithm_header["name"]] = (
+            request_algorithm_header["value"]
         )
 
 
@@ -226,10 +252,22 @@ def _apply_request_trailer_checksum(request):
     headers["X-Amz-Trailer"] = location_name
 
     content_length = determine_content_length(body)
+    if content_length is None and "Content-Length" in headers:
+        # determine_content_length() cannot resolve the length of non-seekable
+        # bodies, but the caller may have set Content-Length explicitly. Reuse
+        # that value for X-Amz-Decoded-Content-Length before the header is
+        # removed for chunked transfer encoding.
+        content_length = int(headers["Content-Length"])
     if content_length is not None:
         # Send the decoded content length if we can determine it. Some
         # services such as S3 may require the decoded content length
         headers["X-Amz-Decoded-Content-Length"] = str(content_length)
+
+    if "Content-Length" in headers:
+        del headers["Content-Length"]
+        logger.debug(
+            "Removing the Content-Length header since 'chunked' is specified for Transfer-Encoding."
+        )
 
     if isinstance(body, (bytes, bytearray)):
         body = io.BytesIO(body)

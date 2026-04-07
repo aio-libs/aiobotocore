@@ -1,14 +1,21 @@
-import asyncio
 import base64
 import hashlib
 from collections import defaultdict
+from inspect import iscoroutine
+from typing import Callable
 
 import aioitertools
 import botocore.retries.adaptive
+
+try:
+    import httpx
+except ImportError:
+    httpx = None
 import pytest
 
 import aiobotocore.retries.adaptive
 from aiobotocore import httpsession
+from aiobotocore.response import StreamingBody
 
 
 async def fetch_all(pages):
@@ -18,8 +25,6 @@ async def fetch_all(pages):
     return responses
 
 
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_can_make_request(s3_client):
     # Basic smoke test to ensure we can talk to s3.
     result = await s3_client.list_buckets()
@@ -29,9 +34,7 @@ async def test_can_make_request(s3_client):
     assert actual_keys == ['Buckets', 'Owner', 'ResponseMetadata']
 
 
-@pytest.mark.moto
 @pytest.mark.parametrize('s3_verify', [False])
-@pytest.mark.asyncio
 async def test_can_make_request_no_verify(s3_client):
     # Basic smoke test to ensure we can talk to s3.
     result = await s3_client.list_buckets()
@@ -41,26 +44,21 @@ async def test_can_make_request_no_verify(s3_client):
     assert actual_keys == ['Buckets', 'Owner', 'ResponseMetadata']
 
 
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_fail_proxy_request(
-    aa_fail_proxy_config, s3_client, monkeypatch
+    skip_httpx, aa_fail_proxy_config, s3_client, monkeypatch
 ):
     # based on test_can_make_request
     with pytest.raises(httpsession.ProxyConnectionError):
         await s3_client.list_buckets()
 
 
-@pytest.mark.asyncio
-@pytest.mark.parametrize('mocking_test', [False])
+@pytest.mark.localonly
 async def test_succeed_proxy_request(aa_succeed_proxy_config, s3_client):
     result = await s3_client.list_buckets()
     actual_keys = sorted(list(result.keys()))
     assert actual_keys == ['Buckets', 'Owner', 'ResponseMetadata']
 
 
-@pytest.mark.asyncio
-@pytest.mark.moto
 async def test_can_get_bucket_location(s3_client, bucket_name):
     result = await s3_client.get_bucket_location(Bucket=bucket_name)
     assert 'LocationConstraint' in result
@@ -69,8 +67,6 @@ async def test_can_get_bucket_location(s3_client, bucket_name):
     assert result['LocationConstraint'] in [None, 'us-west-2', 'us-east-1']
 
 
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_can_delete_urlencoded_object(
     s3_client, bucket_name, create_object
 ):
@@ -91,11 +87,9 @@ async def test_can_delete_urlencoded_object(
     pytest.aio.assert_status_code(response, 204)
 
 
-@pytest.mark.asyncio
-@pytest.mark.moto
 async def test_can_paginate(s3_client, bucket_name, create_object):
     for i in range(5):
-        key_name = 'key%s' % i
+        key_name = f'key{i}'
         await create_object(key_name)
 
     paginator = s3_client.get_paginator('list_objects')
@@ -107,13 +101,11 @@ async def test_can_paginate(s3_client, bucket_name, create_object):
     assert key_names == ['key0', 'key1', 'key2', 'key3', 'key4']
 
 
-@pytest.mark.asyncio
-@pytest.mark.moto
 async def test_can_paginate_with_page_size(
     s3_client, bucket_name, create_object
 ):
     for i in range(5):
-        key_name = 'key%s' % i
+        key_name = f'key{i}'
         await create_object(key_name)
 
     paginator = s3_client.get_paginator('list_objects')
@@ -128,12 +120,10 @@ async def test_can_paginate_with_page_size(
     assert key_names == ['key0', 'key1', 'key2', 'key3', 'key4']
 
 
-@pytest.mark.asyncio
-@pytest.mark.moto
 async def test_can_search_paginate(s3_client, bucket_name, create_object):
     keys = []
     for i in range(5):
-        key_name = 'key%s' % i
+        key_name = f'key{i}'
         keys.append(key_name)
         await create_object(key_name)
 
@@ -143,11 +133,9 @@ async def test_can_search_paginate(s3_client, bucket_name, create_object):
         assert key_name in keys
 
 
-@pytest.mark.asyncio
-@pytest.mark.moto
 async def test_can_paginate_iterator(s3_client, bucket_name, create_object):
     for i in range(5):
-        key_name = 'key%s' % i
+        key_name = f'key{i}'
         await create_object(key_name)
 
     paginator = s3_client.get_paginator('list_objects')
@@ -155,7 +143,7 @@ async def test_can_paginate_iterator(s3_client, bucket_name, create_object):
     async for page in paginator.paginate(
         PaginationConfig={'PageSize': 1}, Bucket=bucket_name
     ):
-        assert not asyncio.iscoroutine(page)
+        assert not iscoroutine(page)
         responses.append(page)
     assert len(responses) == 5, responses
     data = [r for r in responses]
@@ -163,13 +151,11 @@ async def test_can_paginate_iterator(s3_client, bucket_name, create_object):
     assert key_names == ['key0', 'key1', 'key2', 'key3', 'key4']
 
 
-@pytest.mark.asyncio
-@pytest.mark.moto
 async def test_result_key_iters(s3_client, bucket_name, create_object):
     for i in range(5):
         key_name = f'key/{i}/{i}'
         await create_object(key_name)
-        key_name2 = 'key/%s' % i
+        key_name2 = f'key/{i}'
         await create_object(key_name2)
 
     paginator = s3_client.get_paginator('list_objects')
@@ -194,19 +180,33 @@ async def test_result_key_iters(s3_client, bucket_name, create_object):
     assert 'CommonPrefixes' in response
 
 
-@pytest.mark.moto
-@pytest.mark.asyncio
-async def test_can_get_and_put_object(s3_client, create_object, bucket_name):
-    await create_object('foobarbaz', body='body contents')
-    resp = await s3_client.get_object(Bucket=bucket_name, Key='foobarbaz')
+async def test_can_get_and_put_object(
+    s3_client: aiobotocore.client.AioBaseClient,
+    create_object: Callable,
+    bucket_name: str,
+):
+    key_name = 'foobarbaz'
+    await create_object(key_name, body='body contents')
+
+    resp = await s3_client.get_object(Bucket=bucket_name, Key=key_name)
     data = await resp['Body'].read()
     # TODO: think about better api and make behavior like in aiohttp
-    resp['Body'].close()
+    if isinstance(resp['Body'], StreamingBody):
+        resp['Body'].close()
+    else:
+        await resp['Body'].aclose()
     assert data == b'body contents'
 
+    # now test checksum'd file
+    key_name = 'foobarbaz_cs'
+    await create_object(key_name, b'abcd', ChecksumAlgorithm="sha1")
+    resp = await s3_client.get_object(
+        Bucket=bucket_name, Key=key_name, ChecksumMode="ENABLED"
+    )
+    data = await resp['Body'].read()
+    assert data == b'abcd'
 
-@pytest.mark.moto
-@pytest.mark.asyncio
+
 @pytest.mark.patch_attributes(
     [
         dict(
@@ -259,34 +259,40 @@ async def test_adaptive_retry(
     patch_attributes[3].assert_not_called()
 
 
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_get_object_stream_wrapper(
     s3_client, create_object, bucket_name
 ):
     await create_object('foobarbaz', body='body contents')
     response = await s3_client.get_object(Bucket=bucket_name, Key='foobarbaz')
     body = response['Body']
-    chunk1 = await body.read(1)
-    chunk2 = await body.read()
+    if httpx and isinstance(body, httpx.Response):
+        # httpx does not support `.aread(1)`
+        byte_iterator = body.aiter_raw(1)
+        chunk1 = await byte_iterator.__anext__()
+        chunk2 = b""
+        async for b in byte_iterator:
+            chunk2 += b
+    else:
+        chunk1 = await body.read(1)
+        chunk2 = await body.read()
     assert chunk1 == b'b'
     assert chunk2 == b'ody contents'
-    response['Body'].close()
+    if isinstance(body, StreamingBody):
+        body.close()
+    else:
+        await body.aclose()
 
 
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_get_object_stream_context(
     s3_client, create_object, bucket_name
 ):
     await create_object('foobarbaz', body='body contents')
     response = await s3_client.get_object(Bucket=bucket_name, Key='foobarbaz')
     async with response['Body'] as stream:
-        await stream.read()
+        data = await stream.read()
+    assert data == b'body contents'
 
 
-@pytest.mark.asyncio
-@pytest.mark.moto
 async def test_paginate_max_items(
     s3_client, create_multipart_upload, bucket_name
 ):
@@ -326,8 +332,6 @@ async def test_paginate_max_items(
     assert len(full_result['Uploads']) == 1
 
 
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_paginate_within_page_boundaries(
     s3_client, create_object, bucket_name
 ):
@@ -370,8 +374,6 @@ async def test_paginate_within_page_boundaries(
     assert fourth['Contents'][-1]['Key'] == 'd'
 
 
-@pytest.mark.asyncio
-@pytest.mark.parametrize('mocking_test', [False])
 async def test_unicode_key_put_list(s3_client, bucket_name, create_object):
     # Verify we can upload a key with a unicode char and list it as well.
     key_name = '\u2713'
@@ -380,13 +382,12 @@ async def test_unicode_key_put_list(s3_client, bucket_name, create_object):
     assert len(parsed['Contents']) == 1
     assert parsed['Contents'][0]['Key'] == key_name
     parsed = await s3_client.get_object(Bucket=bucket_name, Key=key_name)
-    data = await parsed['Body'].read()
-    parsed['Body'].close()
+    async with parsed['Body'] as stream:
+        data = await stream.read()
     assert data == b'foo'
 
 
-@pytest.mark.asyncio
-@pytest.mark.parametrize('mocking_test', [False])
+@pytest.mark.localonly
 async def test_unicode_system_character(s3_client, bucket_name, create_object):
     # Verify we can use a unicode system character which would normally
     # break the xml parser
@@ -403,8 +404,6 @@ async def test_unicode_system_character(s3_client, bucket_name, create_object):
     assert parsed['Contents'][0]['Key'] == 'foo%08'
 
 
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_non_normalized_key_paths(s3_client, bucket_name, create_object):
     # The create_object method has assertEqual checks for 200 status.
     await create_object('key./././name')
@@ -415,7 +414,6 @@ async def test_non_normalized_key_paths(s3_client, bucket_name, create_object):
 
 
 @pytest.mark.skipif(True, reason='Not supported')
-@pytest.mark.asyncio
 async def test_reset_stream_on_redirects(region, create_bucket):
     # Create a bucket in a non classic region.
     bucket_name = await create_bucket(region)
@@ -423,8 +421,6 @@ async def test_reset_stream_on_redirects(region, create_bucket):
     assert bucket_name
 
 
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_copy_with_quoted_char(s3_client, create_object, bucket_name):
     key_name = 'a+b/foo'
     await create_object(key_name=key_name)
@@ -438,12 +434,13 @@ async def test_copy_with_quoted_char(s3_client, create_object, bucket_name):
     # Now verify we can retrieve the copied object.
     resp = await s3_client.get_object(Bucket=bucket_name, Key=key_name2)
     data = await resp['Body'].read()
-    resp['Body'].close()
+    if isinstance(resp['Body'], StreamingBody):
+        resp['Body'].close()
+    else:
+        await resp['Body'].aclose()
     assert data == b'foo'
 
 
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_copy_with_query_string(s3_client, create_object, bucket_name):
     key_name = 'a+b/foo?notVersionid=bar'
     await create_object(key_name=key_name)
@@ -458,12 +455,13 @@ async def test_copy_with_query_string(s3_client, create_object, bucket_name):
     # Now verify we can retrieve the copied object.
     resp = await s3_client.get_object(Bucket=bucket_name, Key=key_name2)
     data = await resp['Body'].read()
-    resp['Body'].close()
+    if isinstance(resp['Body'], StreamingBody):
+        resp['Body'].close()
+    else:
+        await resp['Body'].aclose()
     assert data == b'foo'
 
 
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_can_copy_with_dict_form(s3_client, create_object, bucket_name):
     key_name = 'a+b/foo?versionId=abcd'
     await create_object(key_name=key_name)
@@ -478,12 +476,13 @@ async def test_can_copy_with_dict_form(s3_client, create_object, bucket_name):
     # Now verify we can retrieve the copied object.
     resp = await s3_client.get_object(Bucket=bucket_name, Key=key_name2)
     data = await resp['Body'].read()
-    resp['Body'].close()
+    if isinstance(resp['Body'], StreamingBody):
+        resp['Body'].close()
+    else:
+        await resp['Body'].aclose()
     assert data == b'foo'
 
 
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_can_copy_with_dict_form_with_version(
     s3_client, create_object, bucket_name
 ):
@@ -503,12 +502,13 @@ async def test_can_copy_with_dict_form_with_version(
     # Now verify we can retrieve the copied object.
     resp = await s3_client.get_object(Bucket=bucket_name, Key=key_name2)
     data = await resp['Body'].read()
-    resp['Body'].close()
+    if isinstance(resp['Body'], StreamingBody):
+        resp['Body'].close()
+    else:
+        await resp['Body'].aclose()
     assert data == b'foo'
 
 
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_copy_with_s3_metadata(s3_client, create_object, bucket_name):
     key_name = 'foo.txt'
     await create_object(key_name=key_name)
@@ -526,8 +526,7 @@ async def test_copy_with_s3_metadata(s3_client, create_object, bucket_name):
 @pytest.mark.parametrize('region', ['us-east-1'])
 @pytest.mark.parametrize('signature_version', ['s3'])
 # 'Content-Disposition' not supported by moto yet
-@pytest.mark.parametrize('mocking_test', [False])
-@pytest.mark.asyncio
+@pytest.mark.localonly
 async def test_presign_with_existing_query_string_values(
     s3_client, bucket_name, aio_session, create_object
 ):
@@ -543,20 +542,23 @@ async def test_presign_with_existing_query_string_values(
         'get_object', Params=params
     )
     # Try to retrieve the object using the presigned url.
-
-    async with aio_session.get(presigned_url) as resp:
-        data = await resp.read()
-        assert resp.headers['Content-Disposition'] == content_disposition
-        assert data == b'foo'
+    # TODO: compatibility layer between httpx.AsyncClient and aiohttp.ClientSession?
+    if httpx and isinstance(aio_session, httpx.AsyncClient):
+        async with aio_session.stream("GET", presigned_url) as resp:
+            data = await resp.aread()
+            headers = resp.headers
+    else:
+        async with aio_session.get(presigned_url) as resp:
+            data = await resp.read()
+            headers = resp.headers
+    assert headers['Content-Disposition'] == content_disposition
+    assert data == b'foo'
 
 
 @pytest.mark.parametrize('region', ['us-east-1'])
 @pytest.mark.parametrize('signature_version', ['s3v4'])
-# moto host will be localhost
-@pytest.mark.parametrize('mocking_test', [False])
-@pytest.mark.asyncio
 async def test_presign_sigv4(
-    s3_client, bucket_name, aio_session, create_object
+    moto_server, s3_client, bucket_name, aio_session, create_object
 ):
     key = 'myobject'
     await create_object(key_name=key)
@@ -564,22 +566,22 @@ async def test_presign_sigv4(
         'get_object', Params={'Bucket': bucket_name, 'Key': key}
     )
     msg = (
-        "Host was suppose to be the us-east-1 endpoint, "
-        "instead got: %s" % presigned_url
+        "Host was supposed to be the local moto server, "
+        f"instead got: {presigned_url}"
     )
-    assert presigned_url.startswith(
-        f'https://{bucket_name}.s3.amazonaws.com/{key}'
-    ), msg
+    assert presigned_url.startswith(f'{moto_server}/{bucket_name}/{key}'), msg
 
     # Try to retrieve the object using the presigned url.
-    async with aio_session.get(presigned_url) as resp:
-        data = await resp.read()
-        assert data == b'foo'
+    if httpx and isinstance(aio_session, httpx.AsyncClient):
+        async with aio_session.stream("GET", presigned_url) as resp:
+            data = await resp.aread()
+    else:
+        async with aio_session.get(presigned_url) as resp:
+            data = await resp.read()
+    assert data == b'foo'
 
 
 @pytest.mark.parametrize('signature_version', ['s3v4'])
-@pytest.mark.parametrize('mocking_test', [False])
-@pytest.mark.asyncio
 async def test_can_follow_signed_url_redirect(
     alternative_s3_client, create_object, bucket_name
 ):
@@ -590,14 +592,15 @@ async def test_can_follow_signed_url_redirect(
         Bucket=bucket_name, Key='foobarbaz'
     )
     data = await resp['Body'].read()
-    resp['Body'].close()
+    if isinstance(resp['Body'], StreamingBody):
+        resp['Body'].close()
+    else:
+        await resp['Body'].aclose()
     assert data == b'foo'
 
 
 @pytest.mark.parametrize('region', ['eu-west-1'])
 @pytest.mark.parametrize('alternative_region', ['us-west-2'])
-@pytest.mark.parametrize('mocking_test', [False])
-@pytest.mark.asyncio
 async def test_bucket_redirect(
     s3_client, alternative_s3_client, region, create_bucket
 ):
@@ -617,8 +620,6 @@ async def test_bucket_redirect(
 
 
 @pytest.mark.parametrize('signature_version', ['s3v4'])
-@pytest.mark.asyncio
-@pytest.mark.moto
 async def test_head_object_keys(s3_client, create_object, bucket_name):
     await create_object('foobarbaz')
 
@@ -627,6 +628,7 @@ async def test_head_object_keys(s3_client, create_object, bucket_name):
     # this is to ensure things like:
     # https://github.com/aio-libs/aiobotocore/issues/131 don't happen again
     assert set(resp.keys()) == {
+        'AcceptRanges',
         'ETag',
         'ContentType',
         'Metadata',
@@ -637,16 +639,11 @@ async def test_head_object_keys(s3_client, create_object, bucket_name):
     }
 
 
-@pytest.mark.xfail(
-    reason="moto does not yet support Checksum: https://github.com/spulec/moto/issues/5719"
-)
 @pytest.mark.parametrize('server_scheme', ['https'])
 @pytest.mark.parametrize('s3_verify', [False])
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_put_object_sha256(s3_client, bucket_name):
     data = b'test1234'
-    digest = hashlib.sha256(data).digest().hex()
+    digest = hashlib.sha256(data).digest()
 
     resp = await s3_client.put_object(
         Bucket=bucket_name,

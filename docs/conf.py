@@ -27,26 +27,19 @@
 #
 # needs_sphinx = '1.0'
 
-import pathlib
+import importlib.metadata
 import re
 
-_docs_path = pathlib.Path(__file__).parent
-_version_path = _docs_path / '../aiobotocore/__init__.py'
-
-
-with _version_path.open() as fp:
-    try:
-        _version_info = re.search(
-            r"^__version__ = '"
-            r"(?P<major>\d+)"
-            r"\.(?P<minor>\d+)"
-            r"\.(?P<patch>\d+)"
-            r"(?P<tag>.*)?'$",
-            fp.read(),
-            re.M,
-        ).groupdict()
-    except IndexError:
-        raise RuntimeError('Unable to determine version.')
+try:
+    _version_info = re.fullmatch(
+        r"(?P<major>\d+)"
+        r"\.(?P<minor>\d+)"
+        r"\.(?P<patch>\d+)"
+        r"(?P<tag>.*)?",
+        importlib.metadata.version('aiobotocore'),
+    ).groupdict()
+except IndexError:
+    raise RuntimeError('Unable to determine version.')
 
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
@@ -89,7 +82,7 @@ release = '{major}.{minor}.{patch}-{tag}'.format(**_version_info)
 #
 # This is also used if you do content translation via gettext catalogs.
 # Usually you set "language" from the command line for these cases.
-language = None
+language = "en"
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
@@ -123,10 +116,6 @@ html_theme_options = {
     'github_type': 'star',
     'github_banner': True,
 }
-# Add any paths that contain custom static files (such as style sheets) here,
-# relative to this directory. They are copied after the builtin static files,
-# so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ['_static']
 
 
 # -- Options for HTMLHelp output ------------------------------------------
@@ -194,4 +183,6 @@ texinfo_documents = [
 
 
 # Example configuration for intersphinx: refer to the Python standard library.
-intersphinx_mapping = {'https://docs.python.org/': None}
+intersphinx_mapping = {'python': ('https://docs.python.org/3', None)}
+
+default_role = 'any'

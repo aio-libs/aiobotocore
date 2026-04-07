@@ -4,6 +4,8 @@ import logging
 from botocore.exceptions import EndpointProviderError
 from botocore.regions import EndpointRulesetResolver
 
+from aiobotocore._helpers import resolve_awaitable
+
 LOG = logging.getLogger(__name__)
 
 
@@ -25,7 +27,7 @@ class AioEndpointRulesetResolver(EndpointRulesetResolver):
             operation_model, call_args, request_context
         )
         LOG.debug(
-            'Calling endpoint provider with parameters: %s' % provider_params
+            'Calling endpoint provider with parameters: %s', provider_params
         )
         try:
             provider_result = self._provider.resolve_endpoint(
@@ -39,10 +41,14 @@ class AioEndpointRulesetResolver(EndpointRulesetResolver):
                 raise
             else:
                 raise botocore_exception from ex
-        LOG.debug('Endpoint provider result: %s' % provider_result.url)
+        LOG.debug('Endpoint provider result: %s', provider_result.url)
 
         # The endpoint provider does not support non-secure transport.
-        if not self._use_ssl and provider_result.url.startswith('https://'):
+        if (
+            not self._use_ssl
+            and provider_result.url.startswith('https://')
+            and 'Endpoint' not in provider_params
+        ):
             provider_result = provider_result._replace(
                 url=f'http://{provider_result.url[8:]}'
             )
@@ -82,12 +88,15 @@ class AioEndpointRulesetResolver(EndpointRulesetResolver):
                 call_args=call_args,
             )
             if param_val is None and param_def.builtin is not None:
-                param_val = self._resolve_param_as_builtin(
-                    builtin_name=param_def.builtin,
-                    builtins=customized_builtins,
+                param_val = await resolve_awaitable(
+                    self._resolve_param_as_builtin(
+                        builtin_name=param_def.builtin,
+                        builtins=customized_builtins,
+                    )
                 )
             if param_val is not None:
                 provider_params[param_name] = param_val
+                self._register_endpoint_feature_ids(param_name, param_val)
 
         return provider_params
 
@@ -98,7 +107,7 @@ class AioEndpointRulesetResolver(EndpointRulesetResolver):
         customized_builtins = copy.copy(self._builtins)
         # Handlers are expected to modify the builtins dict in place.
         await self._event_emitter.emit(
-            'before-endpoint-resolution.%s' % service_id,
+            f'before-endpoint-resolution.{service_id}',
             builtins=customized_builtins,
             model=operation_model,
             params=call_args,

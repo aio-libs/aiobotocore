@@ -1,0 +1,17 @@
+---
+extends: default
+
+rules:
+  line-length:
+    max: 120
+  indentation:
+    level: error
+    indent-sequences: false
+  truthy:
+    allowed-values:
+    - >-
+      false
+    - >-
+      true
+    - >-  # Allow "on" key name in GHA CI/CD workflow definitions
+      on

@@ -5,9 +5,11 @@
 
 aiobotocore's documentation!
 ============================
-.. image:: https://travis-ci.org/aio-libs/aiobotocore.svg?branch=master
-    :target: https://travis-ci.org/aio-libs/aiobotocore
-.. image:: https://codecov.io/gh/aio-libs/aiobotocore/branch/master/graph/badge.svg
+.. image:: https://github.com/aio-libs/aiobotocore/actions/workflows/ci-cd.yml/badge.svg?branch=main
+    :target: https://github.com/aio-libs/aiobotocore/actions/workflows/ci-cd.yml
+.. image:: https://results.pre-commit.ci/badge/github/aio-libs/aiobotocore/main.svg
+    :target: https://results.pre-commit.ci/latest/github/aio-libs/aiobotocore/main
+.. image:: https://codecov.io/gh/aio-libs/aiobotocore/branch/main/graph/badge.svg
     :target: https://codecov.io/gh/aio-libs/aiobotocore
 .. image:: https://img.shields.io/pypi/v/aiobotocore.svg
     :target: https://pypi.python.org/pypi/aiobotocore
@@ -74,16 +76,6 @@ Basic Example
 
     loop = asyncio.get_event_loop()
     loop.run_until_complete(go())
-
-
-awscli
-------
-
-awscli depends on a single version of botocore, however aiobotocore only supports a
-specific range of botocore versions. To ensure you install the latest version of
-awscli that your specific combination or aiobotocore and botocore can support use::
-
-    pip install -U aiobotocore[awscli]
 
 Contents
 --------

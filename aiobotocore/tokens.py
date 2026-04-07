@@ -3,30 +3,34 @@ import logging
 from datetime import timedelta
 
 import dateutil.parser
+from botocore import UNSIGNED
 from botocore.compat import total_seconds
 from botocore.exceptions import ClientError, TokenRetrievalError
 from botocore.tokens import (
     DeferredRefreshableToken,
     FrozenAuthToken,
+    ScopedEnvTokenProvider,
     SSOTokenProvider,
     TokenProviderChain,
     _utc_now,
 )
+
+from aiobotocore.config import AioConfig
+from aiobotocore.utils import create_nested_client
 
 logger = logging.getLogger(__name__)
 
 
 def create_token_resolver(session):
     providers = [
+        ScopedEnvTokenProvider(session),
         AioSSOTokenProvider(session),
     ]
     return TokenProviderChain(providers=providers)
 
 
 class AioDeferredRefreshableToken(DeferredRefreshableToken):
-    def __init__(
-        self, method, refresh_using, time_fetcher=_utc_now
-    ):  # noqa: E501, lgtm [py/missing-call-to-init]
+    def __init__(self, method, refresh_using, time_fetcher=_utc_now):  # noqa: E501, lgtm [py/missing-call-to-init]
         self._time_fetcher = time_fetcher
         self._refresh_using = refresh_using
         self.method = method
@@ -83,12 +87,13 @@ class AioDeferredRefreshableToken(DeferredRefreshableToken):
 
 class AioSSOTokenProvider(SSOTokenProvider):
     async def _attempt_create_token(self, token):
-        response = await self._client.create_token(
-            grantType=self._GRANT_TYPE,
-            clientId=token["clientId"],
-            clientSecret=token["clientSecret"],
-            refreshToken=token["refreshToken"],
-        )
+        async with self._client as client:
+            response = await client.create_token(
+                grantType=self._GRANT_TYPE,
+                clientId=token["clientId"],
+                clientSecret=token["clientSecret"],
+                refreshToken=token["refreshToken"],
+            )
         expires_in = timedelta(seconds=response["expiresIn"])
         new_token = {
             "startUrl": self._sso_config["sso_start_url"],
@@ -120,7 +125,7 @@ class AioSSOTokenProvider(SSOTokenProvider):
 
         expiry = dateutil.parser.parse(token["registrationExpiresAt"])
         if total_seconds(expiry - self._now()) <= 0:
-            logger.info(f"SSO token registration expired at {expiry}")
+            logger.info("SSO token registration expired at %s", expiry)
             return None
 
         try:
@@ -132,10 +137,10 @@ class AioSSOTokenProvider(SSOTokenProvider):
     async def _refresher(self):
         start_url = self._sso_config["sso_start_url"]
         session_name = self._sso_config["session_name"]
-        logger.info(f"Loading cached SSO token for {session_name}")
+        logger.info("Loading cached SSO token for %s", session_name)
         token_dict = self._token_loader(start_url, session_name=session_name)
         expiration = dateutil.parser.parse(token_dict["expiresAt"])
-        logger.debug(f"Cached SSO token expires at {expiration}")
+        logger.debug("Cached SSO token expires at %s", expiration)
 
         remaining = total_seconds(expiration - self._now())
         if remaining < self._REFRESH_WINDOW:
@@ -151,7 +156,15 @@ class AioSSOTokenProvider(SSOTokenProvider):
             token_dict["accessToken"], expiration=expiration
         )
 
-    def load_token(self):
+    @property
+    def _client(self):
+        config = AioConfig(
+            region_name=self._sso_config["sso_region"],
+            signature_version=UNSIGNED,
+        )
+        return create_nested_client(self._session, "sso-oidc", config=config)
+
+    def load_token(self, **kwargs):
         if self._sso_config is None:
             return None
 

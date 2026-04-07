@@ -1,19 +1,34 @@
 aiobotocore
 ===========
-.. image:: https://travis-ci.com/aio-libs/aiobotocore.svg?branch=master
-    :target: https://travis-ci.com/aio-libs/aiobotocore
-.. image:: https://codecov.io/gh/aio-libs/aiobotocore/branch/master/graph/badge.svg
+.. |ci badge| image:: https://github.com/aio-libs/aiobotocore/actions/workflows/ci-cd.yml/badge.svg?branch=main
+    :target: https://github.com/aio-libs/aiobotocore/actions/workflows/ci-cd.yml
+    :alt: CI status of main branch
+.. |pre-commit badge| image:: https://results.pre-commit.ci/badge/github/aio-libs/aiobotocore/main.svg
+    :target: https://results.pre-commit.ci/latest/github/aio-libs/aiobotocore/main
+    :alt: pre-commit.ci status
+.. |coverage badge| image:: https://codecov.io/gh/aio-libs/aiobotocore/branch/main/graph/badge.svg
     :target: https://codecov.io/gh/aio-libs/aiobotocore
-.. image:: https://readthedocs.org/projects/aiobotocore/badge/?version=latest
+    :alt: Coverage status on main branch
+.. |docs badge| image:: https://readthedocs.org/projects/aiobotocore/badge/?version=latest
     :target: https://aiobotocore.readthedocs.io/en/latest/?badge=latest
     :alt: Documentation Status
-.. image:: https://img.shields.io/pypi/v/aiobotocore.svg
+.. |pypi badge| image:: https://img.shields.io/pypi/v/aiobotocore.svg
     :target: https://pypi.python.org/pypi/aiobotocore
-.. image:: https://badges.gitter.im/Join%20Chat.svg
+    :alt: Latest version on pypi
+.. |gitter badge| image:: https://badges.gitter.im/Join%20Chat.svg
     :target: https://gitter.im/aio-libs/aiobotocore
     :alt: Chat on Gitter
+.. |pypi downloads badge| image:: https://img.shields.io/pypi/dm/aiobotocore.svg?label=PyPI%20downloads
+    :target: https://pypi.org/project/aiobotocore/
+    :alt: Downloads Last Month
+.. |conda badge| image:: https://img.shields.io/conda/dn/conda-forge/aiobotocore.svg?label=Conda%20downloads
+    :target: https://anaconda.org/conda-forge/aiobotocore
+    :alt: Conda downloads
+.. |stackoverflow badge| image:: https://img.shields.io/badge/stackoverflow-Ask%20questions-blue.svg
+    :target: https://stackoverflow.com/questions/tagged/aiobotocore
+    :alt: Stack Overflow
 
-
+|ci badge| |pre-commit badge| |coverage badge| |docs badge| |pypi badge| |gitter badge| |pypi downloads badge| |conda badge| |stackoverflow badge|
 
 Async client for amazon services using botocore_ and aiohttp_/asyncio_.
 
@@ -67,7 +82,7 @@ Basic Example
                 assert await stream.read() == data
 
             # list s3 objects using paginator
-            paginator = client.get_paginator('list_objects')
+            paginator = client.get_paginator('list_objects_v2')
             async for result in paginator.paginate(Bucket=bucket, Prefix=folder):
                 for c in result.get('Contents', []):
                     print(c)
@@ -143,36 +158,16 @@ commonly used methods.
 | Kinesis        | Basic methods tested  |
 +----------------+-----------------------+
 
-Due to the way boto3 is implemented, its highly likely that even if services are not listed above that you can take any `boto3.client('service')` and
-stick `await` infront of methods to make them async, e.g. `await client.list_named_queries()` would asynchronous list all of the named Athena queries.
+Due to the way boto3 is implemented, its highly likely that even if services are not listed above that you can take any ``boto3.client('service')`` and
+stick ``await`` in front of methods to make them async, e.g. ``await client.list_named_queries()`` would asynchronous list all of the named Athena queries.
 
 If a service is not listed here and you could do with some tests or examples feel free to raise an issue.
-
-Run Tests
----------
-
-Make sure you have development requirements installed and your amazon key and
-secret accessible via environment variables:
-
-::
-
-    $ cd aiobotocore
-    $ export AWS_ACCESS_KEY_ID=xxx
-    $ export AWS_SECRET_ACCESS_KEY=xxx
-    $ pipenv sync --dev
-
-Execute tests suite:
-
-::
-
-    $ py.test -v tests
-
 
 
 Enable type checking and code completion
 ----------------------------------------
 
-Install types-aiobotocore_ that contains type annotations for `aiobotocore`
+Install types-aiobotocore_ that contains type annotations for ``aiobotocore``
 and all supported botocore_ services.
 
 .. code:: bash
@@ -191,7 +186,7 @@ and all supported botocore_ services.
 Now you should be able to run Pylance_, pyright_, or mypy_ for type checking
 as well as code completion in your IDE.
 
-For `types-aiobotocore-lite` package use explicit type annotations:
+For ``types-aiobotocore-lite`` package use explicit type annotations:
 
 .. code:: python
 
@@ -204,18 +199,12 @@ For `types-aiobotocore-lite` package use explicit type annotations:
         # type checking and code completion is now enabled for client
 
 
-Full documentation for `types-aiobotocore` can be found here: https://youtype.github.io/types_aiobotocore_docs/
-
-
-Mailing List
-------------
-
-https://groups.google.com/forum/#!forum/aio-libs
+Full documentation for ``types-aiobotocore`` can be found here: https://youtype.github.io/types_aiobotocore_docs/
 
 
 Requirements
 ------------
-* Python_ 3.7+
+* Python_ 3.9+
 * aiohttp_
 * botocore_
 
@@ -227,16 +216,3 @@ Requirements
 .. _Pylance: https://marketplace.visualstudio.com/items?itemName=ms-python.vscode-pylance
 .. _pyright: https://github.com/microsoft/pyright
 .. _mypy: http://mypy-lang.org/
-
-awscli & boto3
---------------
-
-awscli and boto3 depend on a single version, or a narrow range of versions, of botocore.
-However, aiobotocore only supports a specific range of botocore versions. To ensure you
-install the latest version of awscli and boto3 that your specific combination or
-aiobotocore and botocore can support use::
-
-    pip install -U 'aiobotocore[awscli,boto3]'
-
-If you only need awscli and not boto3 (or vice versa) you can just install one extra or
-the other.

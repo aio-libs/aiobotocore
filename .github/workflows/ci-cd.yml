@@ -1,0 +1,139 @@
+---
+name: CI/CD
+
+permissions: {}
+
+on:
+  merge_group:
+  push:
+    branches:
+    - main
+    tags:
+    - >-
+      [0-9]+.[0-9]+.[0-9]+
+    - >-
+      [0-9]+.[0-9]+.[0-9]+.dev[0-9]+
+  pull_request:
+    branches:
+    - main
+    - >-
+      [0-9].[0-9]+.[0-9]+
+
+env:
+  FORCE_COLOR: 1
+
+jobs:
+  build:
+    uses: ./.github/workflows/reusable-build.yml
+
+  test:
+    name: test${{ '' }}  # zizmor: ignore[obfuscation] nest jobs under the same sidebar category
+    strategy:
+      matrix:
+        python-version:
+        - 3.9
+        - >-
+          3.10
+        - 3.11
+        - 3.12
+        - 3.13
+        - 3.14
+        os:
+        - ubuntu-24.04
+        - ubuntu-24.04-arm
+        with-awscrt:
+        - false
+        no-httpx:
+        - false
+        experimental:
+        - false
+        include:
+        - python-version: 3.14  # add a no-httpx run
+          os: ubuntu-24.04
+          with-awscrt: false
+          no-httpx: true
+          experimental: false
+        - python-version: 3.14  # add a with-awscrt run
+          os: ubuntu-24.04
+          with-awscrt: true
+          no-httpx: false
+          experimental: false
+      fail-fast: false
+    uses: ./.github/workflows/reusable-test.yml
+    with:
+      python-version: ${{ matrix.python-version }}
+      os: ${{ matrix.os }}
+      continue-on-error: ${{ matrix.experimental }}
+      enable-cache: ${{ github.ref_type == 'tag' && 'false' || 'auto' }}
+      with-awscrt: ${{ matrix.with-awscrt }}
+      no-httpx: ${{ matrix.no-httpx }}
+    secrets:
+      codecov-token: ${{ secrets.CODECOV_TOKEN }}
+
+  coverage-summary:
+    name: Coverage processing
+    if: >-
+      !cancelled()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 1
+    needs:
+    - test
+    steps:
+    - name: Notify Codecov that all coverage reports have been uploaded
+      if: >-
+        !cancelled()
+      uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2  # v6.0.0
+      with:
+        fail_ci_if_error: true
+        run_command: send-notifications
+
+  zizmor:
+    name: 🌈 zizmor
+    permissions:
+      security-events: write
+
+    uses: zizmorcore/workflow/.github/workflows/reusable-zizmor.yml@3bb5e95068d0f44b6d2f3f7e91379bed1d2f96a8
+
+  check:  # This job does nothing and is only used for the branch protection
+    if: always()
+    needs:
+    - build
+    - test
+    - zizmor
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+
+    steps:
+    - name: Decide whether the needed jobs succeeded or failed
+      uses: re-actors/alls-green@05ac9388f0aebcb5727afa17fcccfecd6f8ec5fe  # v1.2.2
+      with:
+        jobs: ${{ toJSON(needs) }}
+
+  pypi-publish:
+    name: Publish Python 🐍 distribution 📦 to PyPI
+    if: github.ref_type == 'tag'  # only publish on tag pushes
+    needs:
+    - check
+    runs-on: ubuntu-24.04
+    environment:
+      name: pypi
+      url: https://pypi.org/project/aiobotocore/${{ github.ref_name }}
+    permissions:
+      # IMPORTANT: this permission is mandatory for trusted publishing
+      id-token: write
+    timeout-minutes: 5
+
+    steps:
+    - name: Download distribution 📦
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+      with:
+        name: python-package-distributions
+        path: dist/
+    - name: Check if distribution 📦 names match git tag
+      run: |
+        test -f "dist/aiobotocore-${REF_NAME}.tar.gz"
+        test -f "dist/aiobotocore-${REF_NAME}-py3-none-any.whl"
+      env:
+        REF_NAME: ${{ github.ref_name }}
+    - name: Publish distribution 📦 to PyPI
+      uses: pypa/gh-action-pypi-publish@ed0c53931b1dc9bd32cbe73a98c7f6766f8a527e  # v1.13.0

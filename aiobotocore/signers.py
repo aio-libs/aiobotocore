@@ -2,7 +2,8 @@ import datetime
 
 import botocore
 import botocore.auth
-from botocore.exceptions import UnknownClientMethodError
+from botocore.compat import get_current_datetime
+from botocore.exceptions import ParamValidationError, UnknownClientMethodError
 from botocore.signers import (
     RequestSigner,
     S3PostPresigner,
@@ -12,6 +13,7 @@ from botocore.signers import (
     create_request_object,
     prepare_request_dict,
 )
+from botocore.tokens import FrozenAuthToken
 from botocore.utils import ArnParser
 
 
@@ -45,9 +47,7 @@ class AioRequestSigner(RequestSigner):
 
         # Allow mutating request before signing
         await self._event_emitter.emit(
-            'before-sign.{}.{}'.format(
-                self._service_id.hyphenize(), operation_name
-            ),
+            f'before-sign.{self._service_id.hyphenize()}.{operation_name}',
             request=request,
             signing_name=signing_name,
             region_name=self._region_name,
@@ -69,6 +69,16 @@ class AioRequestSigner(RequestSigner):
                 kwargs['region_name'] = signing_context['region']
             if signing_context.get('signing_name'):
                 kwargs['signing_name'] = signing_context['signing_name']
+            if signing_context.get('request_credentials'):
+                kwargs['request_credentials'] = signing_context[
+                    'request_credentials'
+                ]
+            if signing_context.get('identity_cache') is not None:
+                self._resolve_identity_cache(
+                    kwargs,
+                    signing_context['identity_cache'],
+                    signing_context['cache_key'],
+                )
             try:
                 auth = await self.get_auth_instance(**kwargs)
             except UnknownSignatureVersionError as e:
@@ -101,9 +111,7 @@ class AioRequestSigner(RequestSigner):
             signature_version += suffix
 
         handler, response = await self._event_emitter.emit_until_response(
-            'choose-signer.{}.{}'.format(
-                self._service_id.hyphenize(), operation_name
-            ),
+            f'choose-signer.{self._service_id.hyphenize()}.{operation_name}',
             signing_name=signing_name,
             region_name=region_name,
             signature_version=signature_version,
@@ -123,7 +131,12 @@ class AioRequestSigner(RequestSigner):
         return signature_version
 
     async def get_auth_instance(
-        self, signing_name, region_name, signature_version=None, **kwargs
+        self,
+        signing_name,
+        region_name,
+        signature_version=None,
+        request_credentials=None,
+        **kwargs,
     ):
         if signature_version is None:
             signature_version = self._signature_version
@@ -135,17 +148,25 @@ class AioRequestSigner(RequestSigner):
             )
 
         if cls.REQUIRES_TOKEN is True:
-            frozen_token = None
-            if self._auth_token is not None:
+            if self._auth_token and not isinstance(
+                self._auth_token, FrozenAuthToken
+            ):
                 frozen_token = await self._auth_token.get_frozen_token()
+            else:
+                frozen_token = self._auth_token
             auth = cls(frozen_token)
             return auth
 
+        credentials = request_credentials or self._credentials
+        if getattr(cls, "REQUIRES_IDENTITY_CACHE", None) is True:
+            cache = kwargs["identity_cache"]
+            key = kwargs["cache_key"]
+            credentials = await cache.get_credentials(key)
+            del kwargs["cache_key"]
+
         frozen_credentials = None
-        if self._credentials is not None:
-            frozen_credentials = (
-                await self._credentials.get_frozen_credentials()
-            )
+        if credentials is not None:
+            frozen_credentials = await credentials.get_frozen_credentials()
         kwargs['credentials'] = frozen_credentials
         if cls.REQUIRES_REGION:
             if self._region_name is None:
@@ -182,6 +203,15 @@ class AioRequestSigner(RequestSigner):
 
 def add_generate_db_auth_token(class_attributes, **kwargs):
     class_attributes['generate_db_auth_token'] = generate_db_auth_token
+
+
+def add_dsql_generate_db_auth_token_methods(class_attributes, **kwargs):
+    class_attributes['generate_db_connect_auth_token'] = (
+        dsql_generate_db_connect_auth_token
+    )
+    class_attributes['generate_db_connect_admin_auth_token'] = (
+        dsql_generate_db_connect_admin_auth_token
+    )
 
 
 async def generate_db_auth_token(
@@ -240,6 +270,86 @@ async def generate_db_auth_token(
     return presigned_url[len(scheme) :]
 
 
+async def _dsql_generate_db_auth_token(
+    self, Hostname, Action, Region=None, ExpiresIn=900
+):
+    """Generate a DSQL database token for an arbitrary action.
+    :type Hostname: str
+    :param Hostname: The DSQL endpoint host name.
+    :type Action: str
+    :param Action: Action to perform on the cluster (DbConnectAdmin or DbConnect).
+    :type Region: str
+    :param Region: The AWS region where the DSQL Cluster is hosted. If None, the client region will be used.
+    :type ExpiresIn: int
+    :param ExpiresIn: The token expiry duration in seconds (default is 900 seconds).
+    :return: A presigned url which can be used as an auth token.
+    """
+    possible_actions = ("DbConnect", "DbConnectAdmin")
+
+    if Action not in possible_actions:
+        raise ParamValidationError(
+            report=f"Received {Action} for action but expected one of: {', '.join(possible_actions)}"
+        )
+
+    if Region is None:
+        Region = self.meta.region_name
+
+    request_dict = {
+        'url_path': '/',
+        'query_string': '',
+        'headers': {},
+        'body': {
+            'Action': Action,
+        },
+        'method': 'GET',
+    }
+    scheme = 'https://'
+    endpoint_url = f'{scheme}{Hostname}'
+    prepare_request_dict(request_dict, endpoint_url)
+    presigned_url = await self._request_signer.generate_presigned_url(
+        operation_name=Action,
+        request_dict=request_dict,
+        region_name=Region,
+        expires_in=ExpiresIn,
+        signing_name='dsql',
+    )
+    return presigned_url[len(scheme) :]
+
+
+async def dsql_generate_db_connect_auth_token(
+    self, Hostname, Region=None, ExpiresIn=900
+):
+    """Generate a DSQL database token for the "DbConnect" action.
+    :type Hostname: str
+    :param Hostname: The DSQL endpoint host name.
+    :type Region: str
+    :param Region: The AWS region where the DSQL Cluster is hosted. If None, the client region will be used.
+    :type ExpiresIn: int
+    :param ExpiresIn: The token expiry duration in seconds (default is 900 seconds).
+    :return: A presigned url which can be used as an auth token.
+    """
+    return await _dsql_generate_db_auth_token(
+        self, Hostname, "DbConnect", Region, ExpiresIn
+    )
+
+
+async def dsql_generate_db_connect_admin_auth_token(
+    self, Hostname, Region=None, ExpiresIn=900
+):
+    """Generate a DSQL database token for the "DbConnectAdmin" action.
+    :type Hostname: str
+    :param Hostname: The DSQL endpoint host name.
+    :type Region: str
+    :param Region: The AWS region where the DSQL Cluster is hosted. If None, the client region will be used.
+    :type ExpiresIn: int
+    :param ExpiresIn: The token expiry duration in seconds (default is 900 seconds).
+    :return: A presigned url which can be used as an auth token.
+    """
+    return await _dsql_generate_db_auth_token(
+        self, Hostname, "DbConnectAdmin", Region, ExpiresIn
+    )
+
+
 class AioS3PostPresigner(S3PostPresigner):
     async def generate_presigned_post(
         self,
@@ -259,7 +369,7 @@ class AioS3PostPresigner(S3PostPresigner):
         policy = {}
 
         # Create an expiration date for the policy
-        datetime_now = datetime.datetime.utcnow()
+        datetime_now = get_current_datetime()
         expire_date = datetime_now + datetime.timedelta(seconds=expires_in)
         policy['expiration'] = expire_date.strftime(botocore.auth.ISO8601)
 
@@ -325,8 +435,17 @@ async def generate_presigned_url(
         raise UnknownClientMethodError(method_name=client_method)
 
     operation_model = self.meta.service_model.operation_model(operation_name)
+    params = await self._emit_api_params(
+        api_params=params,
+        operation_model=operation_model,
+        context=context,
+    )
     bucket_is_arn = ArnParser.is_arn(params.get('Bucket', ''))
-    endpoint_url, additional_headers = await self._resolve_endpoint_ruleset(
+    (
+        endpoint_url,
+        additional_headers,
+        properties,
+    ) = await self._resolve_endpoint_ruleset(
         operation_model,
         params,
         context,
@@ -385,9 +504,17 @@ async def generate_presigned_post(
     # We choose the CreateBucket operation model because its url gets
     # serialized to what a presign post requires.
     operation_model = self.meta.service_model.operation_model('CreateBucket')
-    params = {'Bucket': bucket}
+    params = await self._emit_api_params(
+        api_params={'Bucket': bucket},
+        operation_model=operation_model,
+        context=context,
+    )
     bucket_is_arn = ArnParser.is_arn(params.get('Bucket', ''))
-    endpoint_url, additional_headers = await self._resolve_endpoint_ruleset(
+    (
+        endpoint_url,
+        additional_headers,
+        properties,
+    ) = await self._resolve_endpoint_ruleset(
         operation_model,
         params,
         context,

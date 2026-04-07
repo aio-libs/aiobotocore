@@ -1,21 +1,24 @@
 import asyncio
-
-from botocore.docs.docstring import WaiterDocstring
+from functools import partial
 
 # WaiterModel is required for client.py import
+from botocore.docs.docstring import WaiterDocstring
 from botocore.exceptions import ClientError
+from botocore.useragent import register_feature_id
 from botocore.utils import get_service_module_name
 from botocore.waiter import (
     NormalizedOperationMethod as _NormalizedOperationMethod,
 )
-from botocore.waiter import WaiterModel  # noqa: F401 lgtm[py/unused-import]
 from botocore.waiter import (
     Waiter,
     WaiterError,
+    WaiterModel,  # noqa: F401 lgtm[py/unused-import]
     is_valid_waiter_error,
     logger,
     xform_name,
 )
+
+from .context import with_current_context
 
 
 def create_waiter_with_client(waiter_name, waiter_model, client):
@@ -46,7 +49,7 @@ def create_waiter_with_client(waiter_name, waiter_model, client):
     # Waiter.wait method. This is needed to attach a docstring to the
     # method.
     async def wait(self, **kwargs):
-        await AIOWaiter.wait(self, **kwargs)
+        return await AIOWaiter.wait(self, **kwargs)
 
     wait.__doc__ = WaiterDocstring(
         waiter_name=waiter_name,
@@ -58,12 +61,13 @@ def create_waiter_with_client(waiter_name, waiter_model, client):
 
     # Rename the waiter class based on the type of waiter.
     waiter_class_name = str(
-        '%s.Waiter.%s'
-        % (get_service_module_name(client.meta.service_model), waiter_name)
+        f'{get_service_module_name(client.meta.service_model)}.Waiter.{waiter_name}'
     )
 
     # Create the new waiter class
-    documented_waiter_cls = type(waiter_class_name, (Waiter,), {'wait': wait})
+    documented_waiter_cls = type(
+        waiter_class_name, (AIOWaiter,), {'wait': wait}
+    )
 
     # Return an instance of the new waiter class.
     return documented_waiter_cls(
@@ -80,6 +84,7 @@ class NormalizedOperationMethod(_NormalizedOperationMethod):
 
 
 class AIOWaiter(Waiter):
+    @with_current_context(partial(register_feature_id, 'WAITER'))
     async def wait(self, **kwargs):
         acceptors = list(self.config.acceptors)
         current_state = 'waiting'
@@ -107,8 +112,7 @@ class AIOWaiter(Waiter):
                     # can just handle here by raising an exception.
                     raise WaiterError(
                         name=self.name,
-                        reason='An error occurred (%s): %s'
-                        % (
+                        reason='An error occurred ({}): {}'.format(
                             response['Error'].get('Code', 'Unknown'),
                             response['Error'].get('Message', 'Unknown'),
                         ),
@@ -116,13 +120,11 @@ class AIOWaiter(Waiter):
                     )
             if current_state == 'success':
                 logger.debug(
-                    "Waiting complete, waiter matched the " "success state."
+                    "Waiting complete, waiter matched the success state."
                 )
-                return
+                return response
             if current_state == 'failure':
-                reason = 'Waiter encountered a terminal failure state: %s' % (
-                    acceptor.explanation
-                )
+                reason = f'Waiter encountered a terminal failure state: {acceptor.explanation}'
                 raise WaiterError(
                     name=self.name,
                     reason=reason,
@@ -133,8 +135,8 @@ class AIOWaiter(Waiter):
                     reason = 'Max attempts exceeded'
                 else:
                     reason = (
-                        'Max attempts exceeded. Previously accepted state: %s'
-                        % (acceptor.explanation)
+                        f'Max attempts exceeded. Previously accepted state: '
+                        f'{acceptor.explanation}'
                     )
                 raise WaiterError(
                     name=self.name,

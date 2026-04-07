@@ -1,8 +1,10 @@
 import asyncio
+import contextlib
 import io
 import os
 import socket
-from typing import Dict, Optional
+from concurrent.futures import CancelledError
+from typing import Optional
 
 import aiohttp  # lgtm [py/import-and-import-from]
 from aiohttp import (
@@ -39,14 +41,16 @@ from botocore.httpsession import (
 from multidict import CIMultiDict
 
 import aiobotocore.awsrequest
-from aiobotocore._endpoint_helpers import _IOBaseWrapper, _text
+
+from ._constants import DEFAULT_KEEPALIVE_TIMEOUT
+from ._endpoint_helpers import _IOBaseWrapper, _text
 
 
 class AIOHTTPSession:
     def __init__(
         self,
         verify: bool = True,
-        proxies: Dict[str, str] = None,  # {scheme: url}
+        proxies: dict[str, str] = None,  # {scheme: url}
         timeout: float = None,
         max_pool_connections: int = MAX_POOL_CONNECTIONS,
         socket_options=None,
@@ -54,8 +58,13 @@ class AIOHTTPSession:
         proxies_config=None,
         connector_args=None,
     ):
+        self._exit_stack = contextlib.AsyncExitStack()
+
         # TODO: handle socket_options
-        self._session: Optional[aiohttp.ClientSession] = None
+        # keep track of sessions by proxy url (if any)
+        self._sessions: Optional[
+            dict[Optional[str], aiohttp.ClientSession]
+        ] = None
         self._verify = verify
         self._proxy_config = ProxyConfiguration(
             proxies=proxies, proxies_settings=proxies_config
@@ -79,10 +88,9 @@ class AIOHTTPSession:
         self._timeout = timeout
         self._connector_args = connector_args
         if self._connector_args is None:
-            # AWS has a 20 second idle timeout:
-            #   https://forums.aws.amazon.com/message.jspa?messageID=215367
-            # aiohttp default timeout is 30s so set something reasonable here
-            self._connector_args = dict(keepalive_timeout=12)
+            self._connector_args = dict(
+                keepalive_timeout=DEFAULT_KEEPALIVE_TIMEOUT
+            )
 
         self._max_pool_connections = max_pool_connections
         self._socket_options = socket_options
@@ -93,53 +101,21 @@ class AIOHTTPSession:
         # it also pools by host so we don't need a manager, and can pass proxy via
         # request so don't need proxy manager
 
-        ssl_context = None
-        if bool(verify):
-            if proxies:
-                proxies_settings = self._proxy_config.settings
-                ssl_context = self._setup_proxy_ssl_context(proxies_settings)
-                # TODO: add support for
-                #    proxies_settings.get('proxy_use_forwarding_for_https')
-            else:
-                ssl_context = self._get_ssl_context()
-
-                # inline self._setup_ssl_cert
-                ca_certs = get_cert_path(verify)
-                if ca_certs:
-                    ssl_context.load_verify_locations(ca_certs, None, None)
-
-        self._create_connector = lambda: aiohttp.TCPConnector(
-            limit=max_pool_connections,
-            verify_ssl=bool(verify),
-            ssl=ssl_context,
-            **self._connector_args
-        )
-        self._connector = None
-
     async def __aenter__(self):
-        assert not self._session and not self._connector
+        assert self._sessions is None
+        self._sessions = {}
 
-        self._connector = self._create_connector()
-
-        self._session = aiohttp.ClientSession(
-            connector=self._connector,
-            timeout=self._timeout,
-            skip_auto_headers={'CONTENT-TYPE'},
-            auto_decompress=False,
-        )
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        if self._session:
-            await self._session.__aexit__(exc_type, exc_val, exc_tb)
-            self._session = None
-            self._connector = None
+        assert self._sessions is not None, 'Session was never entered'
+        self._sessions.clear()
+        await self._exit_stack.aclose()
+        # Make _sessions unusable once context is exited
+        self._sessions = None
 
     def _get_ssl_context(self):
-        ssl_context = create_urllib3_context()
-        if self._cert_file:
-            ssl_context.load_cert_chain(self._cert_file, self._key_file)
-        return ssl_context
+        return create_urllib3_context()
 
     def _setup_proxy_ssl_context(self, proxy_url):
         proxies_settings = self._proxy_config.settings
@@ -166,6 +142,57 @@ class AIOHTTPSession:
             return context
         except (OSError, LocationParseError) as e:
             raise InvalidProxiesConfigError(error=e)
+
+    def _chunked(self, headers):
+        transfer_encoding = headers.get('Transfer-Encoding', '')
+        if chunked := transfer_encoding.lower() == 'chunked':
+            # aiohttp wants chunking as a param, and not a header
+            del headers['Transfer-Encoding']
+        return chunked or None
+
+    def _create_connector(self, proxy_url):
+        ssl_context = None
+        if bool(self._verify):
+            if proxy_url:
+                ssl_context = self._setup_proxy_ssl_context(proxy_url)
+                # TODO: add support for
+                #    proxies_settings.get('proxy_use_forwarding_for_https')
+            else:
+                ssl_context = self._get_ssl_context()
+
+            if ssl_context:
+                if self._cert_file:
+                    ssl_context.load_cert_chain(
+                        self._cert_file,
+                        self._key_file,
+                    )
+
+                # inline self._setup_ssl_cert
+                ca_certs = get_cert_path(self._verify)
+                if ca_certs:
+                    ssl_context.load_verify_locations(ca_certs, None, None)
+
+        return aiohttp.TCPConnector(
+            limit=self._max_pool_connections,
+            ssl=ssl_context or False,
+            **self._connector_args,
+        )
+
+    async def _get_session(self, proxy_url):
+        if not (session := self._sessions.get(proxy_url)):
+            connector = self._create_connector(proxy_url)
+            self._sessions[proxy_url] = (
+                session
+            ) = await self._exit_stack.enter_async_context(
+                aiohttp.ClientSession(
+                    connector=connector,
+                    timeout=self._timeout,
+                    skip_auto_headers={'CONTENT-TYPE'},
+                    auto_decompress=False,
+                ),
+            )
+
+        return session
 
     async def close(self):
         await self.__aexit__(None, None, None)
@@ -195,28 +222,32 @@ class AIOHTTPSession:
             # https://github.com/boto/botocore/issues/1255
             headers_['Accept-Encoding'] = 'identity'
 
-            chunked = None
-            if headers_.get('Transfer-Encoding', '').lower() == 'chunked':
-                # aiohttp wants chunking as a param, and not a header
-                headers_.pop('Transfer-Encoding', '')
-                chunked = True
-
             if isinstance(data, io.IOBase):
                 data = _IOBaseWrapper(data)
 
             url = URL(url, encoded=True)
-            response = await self._session.request(
+            session = await self._get_session(proxy_url)
+            response = await session.request(
                 request.method,
                 url=url,
-                chunked=chunked,
+                chunked=self._chunked(headers_),
                 headers=headers_,
                 data=data,
                 proxy=proxy_url,
                 proxy_headers=proxy_headers,
             )
 
+            # botocore converts keys to str, so make sure that they are in
+            # the expected case. See detailed discussion here:
+            # https://github.com/aio-libs/aiobotocore/pull/116
+            # aiohttp's CIMultiDict camel cases the headers :(
+            headers = {
+                k.decode('utf-8').lower(): v.decode('utf-8')
+                for k, v in response.raw_headers
+            }
+
             http_response = aiobotocore.awsrequest.AioAWSResponse(
-                str(response.url), response.status, response.headers, response
+                str(response.url), response.status, headers, response
             )
 
             if not request.stream_output:
@@ -253,6 +284,8 @@ class AIOHTTPSession:
             raise EndpointConnectionError(endpoint_url=request.url, error=e)
         except asyncio.TimeoutError as e:
             raise ReadTimeoutError(endpoint_url=request.url, error=e)
+        except CancelledError:
+            raise
         except Exception as e:
             message = 'Exception received when sending urllib3 HTTP request'
             logger.debug(message, exc_info=True)

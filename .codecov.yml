@@ -1,11 +1,15 @@
+---
 codecov:
-  branch: master
+  branch: main
+
+  notify:
+    manual_trigger: true  # prevent notifications until we notify Codecov
 
 coverage:
   range: "95..100"
 
   status:
-    project: no
+    project: false
 
 flags:
   library:

@@ -2,10 +2,11 @@ import copy
 
 import botocore.parsers
 import botocore.serialize
-from botocore.args import ClientArgsCreator
+from botocore.args import ClientArgsCreator, EPRBuiltins
 
 from .config import AioConfig
-from .endpoint import AioEndpointCreator
+from .endpoint import DEFAULT_HTTP_SESSION_CLS, AioEndpointCreator
+from .parsers import create_parser
 from .regions import AioEndpointRulesetResolver
 from .signers import AioRequestSigner
 
@@ -13,7 +14,7 @@ from .signers import AioRequestSigner
 class AioClientArgsCreator(ClientArgsCreator):
     # NOTE: we override this so we can pull out the custom AioConfig params and
     #       use an AioEndpointCreator
-    def get_client_args(
+    async def get_client_args(
         self,
         service_model,
         region_name,
@@ -46,9 +47,13 @@ class AioClientArgsCreator(ClientArgsCreator):
         s3_config = final_args['s3_config']
         partition = endpoint_config['metadata'].get('partition', None)
         socket_options = final_args['socket_options']
-
+        configured_endpoint_url = final_args['configured_endpoint_url']
         signing_region = endpoint_config['signing_region']
         endpoint_region_name = endpoint_config['region_name']
+        account_id_endpoint_mode = config_kwargs['account_id_endpoint_mode']
+        s3_disable_express_session_auth = config_kwargs[
+            's3_disable_express_session_auth'
+        ]
 
         event_emitter = copy.copy(self._event_emitter)
         signer = AioRequestSigner(
@@ -66,8 +71,10 @@ class AioClientArgsCreator(ClientArgsCreator):
         # aiobotocore addition
         if isinstance(client_config, AioConfig):
             connector_args = client_config.connector_args
+            http_session_cls = client_config.http_session_cls
         else:
             connector_args = None
+            http_session_cls = DEFAULT_HTTP_SESSION_CLS
 
         new_config = AioConfig(connector_args, **config_kwargs)
         endpoint_creator = AioEndpointCreator(event_emitter)
@@ -78,19 +85,34 @@ class AioClientArgsCreator(ClientArgsCreator):
             endpoint_url=endpoint_config['endpoint_url'],
             verify=verify,
             response_parser_factory=self._response_parser_factory,
-            max_pool_connections=new_config.max_pool_connections,
-            proxies=new_config.proxies,
             timeout=(new_config.connect_timeout, new_config.read_timeout),
+            max_pool_connections=new_config.max_pool_connections,
+            http_session_cls=http_session_cls,
+            proxies=new_config.proxies,
             socket_options=socket_options,
             client_cert=new_config.client_cert,
             proxies_config=new_config.proxies_config,
             connector_args=new_config.connector_args,
         )
 
-        serializer = botocore.serialize.create_serializer(
-            protocol, parameter_validation
+        # Emit event to allow service-specific or customer customization of serializer kwargs
+        event_name = f'creating-serializer.{service_name}'
+        serializer_kwargs = {
+            'timestamp_precision': botocore.serialize.TIMESTAMP_PRECISION_DEFAULT
+        }
+        await event_emitter.emit(
+            event_name,
+            protocol_name=protocol,
+            service_model=service_model,
+            serializer_kwargs=serializer_kwargs,
         )
-        response_parser = botocore.parsers.create_parser(protocol)
+
+        serializer = botocore.serialize.create_serializer(
+            protocol,
+            parameter_validation,
+            timestamp_precision=serializer_kwargs['timestamp_precision'],
+        )
+        response_parser = create_parser(protocol)
 
         ruleset_resolver = self._build_endpoint_resolver(
             endpoints_ruleset_data,
@@ -99,12 +121,22 @@ class AioClientArgsCreator(ClientArgsCreator):
             service_model,
             endpoint_region_name,
             region_name,
-            endpoint_url,
+            configured_endpoint_url,
             endpoint,
             is_secure,
             endpoint_bridge,
             event_emitter,
+            credentials,
+            account_id_endpoint_mode,
+            s3_disable_express_session_auth,
         )
+
+        # Copy the session's user agent factory and adds client configuration.
+        client_ua_creator = self._session_ua_creator.with_client_config(
+            new_config
+        )
+        supplied_ua = client_config.user_agent if client_config else None
+        new_config._supplied_user_agent = supplied_ua
 
         return {
             'serializer': serializer,
@@ -118,6 +150,7 @@ class AioClientArgsCreator(ClientArgsCreator):
             'partition': partition,
             'exceptions_factory': self._exceptions_factory,
             'endpoint_ruleset_resolver': ruleset_resolver,
+            'user_agent_creator': client_ua_creator,
         }
 
     def _build_endpoint_resolver(
@@ -133,6 +166,9 @@ class AioClientArgsCreator(ClientArgsCreator):
         is_secure,
         endpoint_bridge,
         event_emitter,
+        credentials,
+        account_id_endpoint_mode,
+        s3_disable_express_session_auth,
     ):
         if endpoints_ruleset_data is None:
             return None
@@ -157,15 +193,30 @@ class AioClientArgsCreator(ClientArgsCreator):
             endpoint_bridge=endpoint_bridge,
             client_endpoint_url=endpoint_url,
             legacy_endpoint_url=endpoint.host,
+            credentials=credentials,
+            account_id_endpoint_mode=account_id_endpoint_mode,
+            s3_disable_express_session_auth=s3_disable_express_session_auth,
         )
-        # botocore does not support client context parameters generically
-        # for every service. Instead, the s3 config section entries are
-        # available as client context parameters. In the future, endpoint
-        # rulesets of services other than s3/s3control may require client
-        # context parameters.
-        client_context = (
-            s3_config_raw if self._is_s3_service(service_name_raw) else {}
+
+        # replace with async version
+        resolver_builtins[EPRBuiltins.ACCOUNT_ID] = (
+            credentials.get_account_id if credentials else None
         )
+
+        # Client context params for s3 conflict with the available settings
+        # in the `s3` parameter on the `Config` object. If the same parameter
+        # is set in both places, the value in the `s3` parameter takes priority.
+        if client_config is not None:
+            client_context = client_config.client_context_params or {}
+        else:
+            client_context = {}
+        if self._is_s3_service(service_name_raw):
+            client_context.update(s3_config_raw)
+            if s3_disable_express_session_auth is not None:
+                client_context['disable_s3_express_session_auth'] = (
+                    s3_disable_express_session_auth
+                )
+
         sig_version = (
             client_config.signature_version
             if client_config is not None

@@ -1,4 +1,3 @@
-from botocore.handlers import check_for_200_error as boto_check_for_200_error
 from botocore.handlers import (
     inject_presigned_url_ec2 as boto_inject_presigned_url_ec2,
 )
@@ -9,6 +8,9 @@ from botocore.handlers import (
     parse_get_bucket_location as boto_parse_get_bucket_location,
 )
 from botocore.hooks import HierarchicalEmitter, logger
+from botocore.signers import (
+    add_dsql_generate_db_auth_token_methods as boto_add_dsql_generate_db_auth_token_methods,
+)
 from botocore.signers import (
     add_generate_db_auth_token as boto_add_generate_db_auth_token,
 )
@@ -21,12 +23,12 @@ from botocore.signers import (
 
 from ._helpers import resolve_awaitable
 from .handlers import (
-    check_for_200_error,
     inject_presigned_url_ec2,
     inject_presigned_url_rds,
     parse_get_bucket_location,
 )
 from .signers import (
+    add_dsql_generate_db_auth_token_methods,
     add_generate_db_auth_token,
     add_generate_presigned_post,
     add_generate_presigned_url,
@@ -39,7 +41,7 @@ _HANDLER_MAPPING = {
     boto_add_generate_presigned_post: add_generate_presigned_post,
     boto_add_generate_db_auth_token: add_generate_db_auth_token,
     boto_parse_get_bucket_location: parse_get_bucket_location,
-    boto_check_for_200_error: check_for_200_error,
+    boto_add_dsql_generate_db_auth_token_methods: add_dsql_generate_db_auth_token_methods,
 }
 
 

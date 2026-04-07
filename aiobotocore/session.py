@@ -1,16 +1,21 @@
 from botocore import UNSIGNED, translate
+from botocore import __version__ as botocore_version
+from botocore.context import get_context
 from botocore.exceptions import PartialCredentialsError
 from botocore.session import (
     EVENT_ALIASES,
     ServiceModel,
-    Session,
     UnknownServiceError,
     copy,
+    logger,
 )
+from botocore.session import Session as _SyncSession
+from botocore.useragent import register_feature_id
 
-from . import retryhandler
+from . import __version__, retryhandler
 from .client import AioBaseClient, AioClientCreator
 from .configprovider import AioSmartDefaultsConfigStoreFactory
+from .context import with_current_context
 from .credentials import AioCredentials, create_credential_resolver
 from .hooks import AioHierarchicalEmitter
 from .parsers import AioResponseParserFactory
@@ -31,8 +36,7 @@ class ClientCreatorContext:
         await self._client.__aexit__(exc_type, exc_val, exc_tb)
 
 
-class AioSession(Session):
-
+class AioSession(_SyncSession):
     # noinspection PyMissingConstructor
     def __init__(
         self,
@@ -47,6 +51,16 @@ class AioSession(Session):
         super().__init__(
             session_vars, event_hooks, include_builtin_handlers, profile
         )
+
+        self._set_user_agent_for_session()
+
+    def _set_user_agent_for_session(self):
+        # Mimic approach taken by AWS's aws-cli project
+        # https://github.com/aws/aws-cli/blob/b862122c76a3f280ff34e93c9dcafaf964e7bf9b/awscli/clidriver.py#L84
+
+        self.user_agent_name = 'aiobotocore'
+        self.user_agent_version = __version__
+        self.user_agent_extra = f'botocore/{botocore_version}'
 
     def _create_token_resolver(self):
         return create_token_resolver(self)
@@ -75,16 +89,18 @@ class AioSession(Session):
             'response_parser_factory', AioResponseParserFactory()
         )
 
-    def set_credentials(self, access_key, secret_key, token=None):
-        self._credentials = AioCredentials(access_key, secret_key, token)
+    def set_credentials(
+        self, access_key, secret_key, token=None, account_id=None
+    ):
+        self._credentials = AioCredentials(
+            access_key, secret_key, token, account_id=account_id
+        )
 
     async def get_credentials(self):
         if self._credentials is None:
-            self._credentials = await (
-                self._components.get_component(
-                    'credential_provider'
-                ).load_credentials()
-            )
+            self._credentials = await self._components.get_component(
+                'credential_provider'
+            ).load_credentials()
         return self._credentials
 
     async def get_service_model(self, service_name, api_version=None):
@@ -103,7 +119,7 @@ class AioSession(Session):
         )
         service_id = EVENT_ALIASES.get(service_name, service_name)
         await self._events.emit(
-            'service-data-loaded.%s' % service_id,
+            f'service-data-loaded.{service_id}',
             service_data=service_data,
             service_name=service_name,
             session=self,
@@ -113,6 +129,7 @@ class AioSession(Session):
     def create_client(self, *args, **kwargs):
         return ClientCreatorContext(self._create_client(*args, **kwargs))
 
+    @with_current_context()
     async def _create_client(
         self,
         service_name,
@@ -125,8 +142,8 @@ class AioSession(Session):
         aws_secret_access_key=None,
         aws_session_token=None,
         config=None,
+        aws_account_id=None,
     ):
-
         default_client_config = self.get_default_client_config()
         # If a config is provided and a default config is set, then
         # use the config resulting from merging the two.
@@ -161,6 +178,7 @@ class AioSession(Session):
                 access_key=aws_access_key_id,
                 secret_key=aws_secret_access_key,
                 token=aws_session_token,
+                account_id=aws_account_id,
             )
         elif self._missing_cred_vars(aws_access_key_id, aws_secret_access_key):
             raise PartialCredentialsError(
@@ -170,20 +188,45 @@ class AioSession(Session):
                 ),
             )
         else:
+            if ignored_credentials := self._get_ignored_credentials(
+                aws_session_token, aws_account_id
+            ):
+                logger.debug(
+                    "Ignoring the following credential-related values which were set without "
+                    "an access key id and secret key on the session or client: %s",
+                    ignored_credentials,
+                )
             credentials = await self.get_credentials()
+        if getattr(credentials, 'method', None) == 'explicit':
+            register_feature_id('CREDENTIALS_CODE')
         auth_token = self.get_auth_token()
         endpoint_resolver = self._get_internal_component('endpoint_resolver')
         exceptions_factory = self._get_internal_component('exceptions_factory')
-        config_store = self.get_component('config_store')
+        config_store = copy.copy(self.get_component('config_store'))
+        user_agent_creator = self.get_component('user_agent_creator')
+        # Session configuration values for the user agent string are applied
+        # just before each client creation because they may have been modified
+        # at any time between session creation and client creation.
+        user_agent_creator.set_session_config(
+            session_user_agent_name=self.user_agent_name,
+            session_user_agent_version=self.user_agent_version,
+            session_user_agent_extra=self.user_agent_extra,
+        )
         defaults_mode = self._resolve_defaults_mode(config, config_store)
         if defaults_mode != 'legacy':
             smart_defaults_factory = self._get_internal_component(
                 'smart_defaults_factory'
             )
-            config_store = copy.deepcopy(config_store)
             await smart_defaults_factory.merge_smart_defaults(
                 config_store, defaults_mode, region_name
             )
+        self._add_configured_endpoint_provider(
+            client_name=service_name,
+            config_store=config_store,
+        )
+
+        user_agent_creator.set_client_features(get_context().features)
+
         client_creator = AioClientCreator(
             loader,
             endpoint_resolver,
@@ -194,6 +237,8 @@ class AioSession(Session):
             response_parser_factory,
             exceptions_factory,
             config_store,
+            user_agent_creator=user_agent_creator,
+            auth_token_resolver=self.get_auth_token,
         )
         client = await client_creator.create_client(
             service_name=service_name,
@@ -210,6 +255,7 @@ class AioSession(Session):
         monitor = self._get_internal_component('monitor')
         if monitor is not None:
             monitor.register(client.meta.events)
+        self._register_client_plugins(client)
         return client
 
     async def get_available_regions(

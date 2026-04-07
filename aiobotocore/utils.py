@@ -1,4 +1,6 @@
 import asyncio
+import contextlib
+import functools
 import inspect
 import json
 import logging
@@ -17,20 +19,26 @@ from botocore.utils import (
     ClientError,
     ContainerMetadataFetcher,
     HTTPClientError,
+    IdentityCache,
     IMDSFetcher,
     IMDSRegionProvider,
     InstanceMetadataFetcher,
     InstanceMetadataRegionFetcher,
+    PluginContext,
     ReadTimeoutError,
+    S3ExpressIdentityCache,
+    S3ExpressIdentityResolver,
     S3RegionRedirector,
     S3RegionRedirectorv2,
     get_environ_proxies,
     os,
+    reset_plugin_context,
     resolve_imds_endpoint_mode,
+    set_plugin_context,
+    validate_region_name,
 )
 
 import aiobotocore.httpsession
-from aiobotocore._helpers import asynccontextmanager
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +49,7 @@ class _RefCountedSession(aiobotocore.httpsession.AIOHTTPSession):
         self.__ref_count = 0
         self.__lock = None
 
-    @asynccontextmanager
+    @contextlib.asynccontextmanager
     async def acquire(self):
         if not self.__lock:
             self.__lock = asyncio.Lock()
@@ -87,8 +95,10 @@ class AioIMDSFetcher(IMDSFetcher):
 
         if env is None:
             env = os.environ.copy()
-        self._disabled = env.get('AWS_EC2_METADATA_DISABLED', 'false').lower()
-        self._disabled = self._disabled == 'true'
+        self._disabled = (
+            env.get('AWS_EC2_METADATA_DISABLED', 'false').lower() == 'true'
+        )
+        self._imds_v1_disabled = config.get('ec2_metadata_v1_disabled')
         self._user_agent = user_agent
 
         self._session = session or _RefCountedSession(
@@ -144,6 +154,8 @@ class AioIMDSFetcher(IMDSFetcher):
 
     async def _get_request(self, url_path, retry_func, token=None):
         self._assert_enabled()
+        if not token:
+            self._assert_v1_enabled()
         if retry_func is None:
             retry_func = self._default_retry
         url = self._construct_url(url_path)
@@ -303,6 +315,9 @@ class AioIMDSRegionProvider(IMDSRegionProvider):
             'ec2_metadata_service_endpoint_mode': resolve_imds_endpoint_mode(
                 self._session
             ),
+            'ec2_metadata_v1_disabled': self._session.get_config_variable(
+                'ec2_metadata_v1_disabled'
+            ),
         }
         fetcher = AioInstanceMetadataRegionFetcher(
             timeout=metadata_timeout,
@@ -339,6 +354,58 @@ class AioInstanceMetadataRegionFetcher(
         availability_zone = await response.text
         region = availability_zone[:-1]
         return region
+
+
+class AioIdentityCache(IdentityCache):
+    async def get_credentials(self, **kwargs):
+        callback = self.build_refresh_callback(**kwargs)
+        metadata = await callback()
+        credential_entry = self._credential_cls.create_from_metadata(
+            metadata=metadata,
+            refresh_using=callback,
+            method=self.METHOD,
+            advisory_timeout=45,
+            mandatory_timeout=10,
+        )
+        return credential_entry
+
+
+class AioS3ExpressIdentityCache(AioIdentityCache, S3ExpressIdentityCache):
+    @functools.lru_cache(maxsize=100)
+    def _get_credentials(self, bucket):
+        return asyncio.create_task(super().get_credentials(bucket=bucket))
+
+    async def get_credentials(self, bucket):
+        # upstream uses `@functools.lru_cache(maxsize=100)` to cache credentials.
+        # This is incompatible with async code.
+        # We need to implement custom caching logic.
+
+        return await self._get_credentials(bucket=bucket)
+
+    def build_refresh_callback(self, bucket):
+        async def refresher():
+            response = await self._client.create_session(Bucket=bucket)
+            creds = response['Credentials']
+            expiration = self._serialize_if_needed(
+                creds['Expiration'], iso=True
+            )
+            return {
+                "access_key": creds['AccessKeyId'],
+                "secret_key": creds['SecretAccessKey'],
+                "token": creds['SessionToken'],
+                "expiry_time": expiration,
+            }
+
+        return refresher
+
+
+class AioS3ExpressIdentityResolver(S3ExpressIdentityResolver):
+    def __init__(self, client, credential_cls, cache=None):
+        super().__init__(client, credential_cls, cache)
+
+        if cache is None:
+            cache = AioS3ExpressIdentityCache(self._client, credential_cls)
+        self._cache = cache
 
 
 class AioS3RegionRedirectorv2(S3RegionRedirectorv2):
@@ -398,6 +465,10 @@ class AioS3RegionRedirectorv2(S3RegionRedirectorv2):
             0
         ].status_code in (301, 302, 307)
         is_permanent_redirect = error_code == 'PermanentRedirect'
+        is_opt_in_region_redirect = (
+            error_code == 'IllegalLocationConstraintException'
+            and operation.name != 'CreateBucket'
+        )
         if not any(
             [
                 is_special_head_object,
@@ -405,6 +476,7 @@ class AioS3RegionRedirectorv2(S3RegionRedirectorv2):
                 is_permanent_redirect,
                 is_special_head_bucket,
                 is_redirect_status,
+                is_opt_in_region_redirect,
             ]
         ):
             return
@@ -415,17 +487,21 @@ class AioS3RegionRedirectorv2(S3RegionRedirectorv2):
 
         if new_region is None:
             logger.debug(
-                "S3 client configured for region %s but the bucket %s is not "
-                "in that region and the proper region could not be "
-                "automatically determined." % (client_region, bucket)
+                "S3 client configured for region %s but the "
+                "bucket %s is not in that region and the proper region "
+                "could not be automatically determined.",
+                client_region,
+                bucket,
             )
             return
 
         logger.debug(
-            "S3 client configured for region %s but the bucket %s is in region"
-            " %s; Please configure the proper region to avoid multiple "
-            "unnecessary redirects and signing attempts."
-            % (client_region, bucket, new_region)
+            "S3 client configured for region %s but the bucket %s "
+            "is in region %s; Please configure the proper region to "
+            "avoid multiple unnecessary redirects and signing attempts.",
+            client_region,
+            bucket,
+            new_region,
         )
         # Adding the new region to _cache will make construct_endpoint() to
         # use the new region as value for the AWS::Region builtin parameter.
@@ -471,21 +547,20 @@ class AioS3RegionRedirectorv2(S3RegionRedirectorv2):
         service_response = response[1]
         response_headers = service_response['ResponseMetadata']['HTTPHeaders']
         if 'x-amz-bucket-region' in response_headers:
-            return response_headers['x-amz-bucket-region']
-
+            region = response_headers['x-amz-bucket-region']
         # Next, check the error body
-        region = service_response.get('Error', {}).get('Region', None)
-        if region is not None:
-            return region
-
-        # Finally, HEAD the bucket. No other choice sadly.
-        try:
-            response = await self._client.head_bucket(Bucket=bucket)
-            headers = response['ResponseMetadata']['HTTPHeaders']
-        except ClientError as e:
-            headers = e.response['ResponseMetadata']['HTTPHeaders']
-
-        region = headers.get('x-amz-bucket-region', None)
+        elif r := service_response.get('Error', {}).get('Region', None):
+            region = r
+        else:
+            # Finally, HEAD the bucket. No other choice sadly.
+            try:
+                # NOTE: we don't need to aenter/aexit as we have a ref to the base client
+                response = await self._client.head_bucket(Bucket=bucket)
+                headers = response['ResponseMetadata']['HTTPHeaders']
+            except ClientError as e:
+                headers = e.response['ResponseMetadata']['HTTPHeaders']
+            region = headers.get('x-amz-bucket-region', None)
+        validate_region_name(region)
         return region
 
 
@@ -553,15 +628,19 @@ class AioS3RegionRedirector(S3RegionRedirector):
             logger.debug(
                 "S3 client configured for region %s but the bucket %s is not "
                 "in that region and the proper region could not be "
-                "automatically determined." % (client_region, bucket)
+                "automatically determined.",
+                client_region,
+                bucket,
             )
             return
 
         logger.debug(
             "S3 client configured for region %s but the bucket %s is in region"
             " %s; Please configure the proper region to avoid multiple "
-            "unnecessary redirects and signing attempts."
-            % (client_region, bucket, new_region)
+            "unnecessary redirects and signing attempts.",
+            client_region,
+            bucket,
+            new_region,
         )
         endpoint = self._endpoint_resolver.resolve('s3', new_region)
         endpoint = endpoint['endpoint_url']
@@ -595,6 +674,7 @@ class AioS3RegionRedirector(S3RegionRedirector):
 
         # Finally, HEAD the bucket. No other choice sadly.
         try:
+            # NOTE: we don't need to aenter/aexit as we have a ref to the base client
             response = await self._client.head_bucket(Bucket=bucket)
             headers = response['ResponseMetadata']['HTTPHeaders']
         except ClientError as e:
@@ -605,9 +685,7 @@ class AioS3RegionRedirector(S3RegionRedirector):
 
 
 class AioContainerMetadataFetcher(ContainerMetadataFetcher):
-    def __init__(
-        self, session=None, sleep=asyncio.sleep
-    ):  # noqa: E501, lgtm [py/missing-call-to-init]
+    def __init__(self, session=None, sleep=asyncio.sleep):  # noqa: E501, lgtm [py/missing-call-to-init]
         if session is None:
             session = _RefCountedSession(timeout=self.TIMEOUT_SECONDS)
         self._session = session
@@ -618,7 +696,7 @@ class AioContainerMetadataFetcher(ContainerMetadataFetcher):
         return await self._retrieve_credentials(full_url, headers)
 
     async def retrieve_uri(self, relative_uri):
-        """Retrieve JSON metadata from ECS metadata.
+        """Retrieve JSON metadata from container metadata.
 
         :type relative_uri: str
         :param relative_uri: A relative URI, e.g "/foo/bar?id=123"
@@ -664,20 +742,52 @@ class AioContainerMetadataFetcher(ContainerMetadataFetcher):
                 if response.status_code != 200:
                     raise MetadataRetrievalError(
                         error_msg=(
-                            "Received non 200 response (%s) from ECS metadata: %s"
+                            f"Received non 200 response {response.status_code} "
+                            f"from container metadata: {response_text}"
                         )
-                        % (response.status_code, response_text)
                     )
                 try:
                     return json.loads(response_text)
                 except ValueError:
-                    error_msg = "Unable to parse JSON returned from ECS metadata services"
+                    error_msg = "Unable to parse JSON returned from container metadata services"
                     logger.debug('%s:%s', error_msg, response_text)
                     raise MetadataRetrievalError(error_msg=error_msg)
 
         except RETRYABLE_HTTP_ERRORS as e:
             error_msg = (
                 "Received error when attempting to retrieve "
-                "ECS metadata: %s" % e
+                f"container metadata: {e}"
             )
             raise MetadataRetrievalError(error_msg=error_msg)
+
+
+@contextlib.asynccontextmanager
+async def create_nested_client(session, service_name, **kwargs):
+    """Create a nested client with plugin context disabled.
+
+    If a client is created from within a plugin based on the environment variable,
+    an infinite loop could arise. Any clients created from within another client
+    must use this method to prevent infinite loops.
+
+    This is the async version of botocore.utils.create_nested_client that works
+    with aiobotocore's async session.
+
+    Usage:
+        async with create_nested_client(session, 'sts', region_name='us-east-1') as client:
+            response = await client.assume_role(...)
+    """
+    # Set plugin context to disabled
+    ctx = PluginContext(plugins="DISABLED")
+    token = set_plugin_context(ctx)
+
+    try:
+        # Create client context
+        async with session.create_client(service_name, **kwargs) as client:
+            # Reset plugin context immediately after client creation, matching botocore behavior
+            reset_plugin_context(token)
+            token = None
+
+            yield client
+    finally:
+        if token:
+            reset_plugin_context(token)

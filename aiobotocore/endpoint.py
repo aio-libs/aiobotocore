@@ -13,10 +13,10 @@ from botocore.endpoint import (
     logger,
 )
 from botocore.hooks import first_non_none_response
-from urllib3.response import HTTPHeaderDict
 
 from aiobotocore.httpchecksum import handle_checksum_body
 from aiobotocore.httpsession import AIOHTTPSession
+from aiobotocore.parsers import AioResponseParserFactory
 from aiobotocore.response import HttpxStreamingBody, StreamingBody
 
 try:
@@ -24,14 +24,15 @@ try:
 except ImportError:
     httpx = None
 
+DEFAULT_HTTP_SESSION_CLS = AIOHTTPSession
+
 
 async def convert_to_response_dict(http_response, operation_model):
     """Convert an HTTP response object to a request dict.
 
-    This converts the requests library's HTTP response object to
-    a dictionary.
+    This converts the HTTP response object to a dictionary.
 
-    :type http_response: botocore.vendored.requests.model.Response
+    :type http_response: botocore.awsrequest.AWSResponse
     :param http_response: The HTTP response from an AWS service request.
 
     :rtype: dict
@@ -42,16 +43,7 @@ async def convert_to_response_dict(http_response, operation_model):
 
     """
     response_dict = {
-        # botocore converts keys to str, so make sure that they are in
-        # the expected case. See detailed discussion here:
-        # https://github.com/aio-libs/aiobotocore/pull/116
-        # aiohttp's CIMultiDict camel cases the headers :(
-        'headers': HTTPHeaderDict(
-            {
-                k.decode('utf-8').lower(): v.decode('utf-8')
-                for k, v in http_response.raw.raw_headers
-            }
-        ),
+        'headers': http_response.headers,
         'status_code': http_response.status_code,
         'context': {
             'operation_name': operation_model.name,
@@ -75,6 +67,28 @@ async def convert_to_response_dict(http_response, operation_model):
 
 
 class AioEndpoint(Endpoint):
+    def __init__(
+        self,
+        host,
+        endpoint_prefix,
+        event_emitter,
+        response_parser_factory=None,
+        http_session=None,
+    ):
+        if response_parser_factory is None:
+            response_parser_factory = AioResponseParserFactory()
+
+        if http_session is None:
+            raise ValueError('http_session must be provided')
+
+        super().__init__(
+            host=host,
+            endpoint_prefix=endpoint_prefix,
+            event_emitter=event_emitter,
+            response_parser_factory=response_parser_factory,
+            http_session=http_session,
+        )
+
     async def close(self):
         await self.http_session.close()
 
@@ -88,9 +102,7 @@ class AioEndpoint(Endpoint):
                 ]
             )
             service_id = operation_model.service_model.service_id.hyphenize()
-            event_name = 'request-created.{service_id}.{op_name}'.format(
-                service_id=service_id, op_name=operation_model.name
-            )
+            event_name = f'request-created.{service_id}.{operation_model.name}'
             await self._event_emitter.emit(
                 event_name,
                 request=request,
@@ -132,9 +144,9 @@ class AioEndpoint(Endpoint):
         ):
             # We want to share num retries, not num attempts.
             total_retries = attempts - 1
-            success_response[1]['ResponseMetadata'][
-                'RetryAttempts'
-            ] = total_retries
+            success_response[1]['ResponseMetadata']['RetryAttempts'] = (
+                total_retries
+            )
         if exception is not None:
             raise exception
         else:
@@ -209,22 +221,24 @@ class AioEndpoint(Endpoint):
         )
 
         http_response_record_dict = response_dict.copy()
-        http_response_record_dict[
-            'streaming'
-        ] = operation_model.has_streaming_output
+        http_response_record_dict['streaming'] = (
+            operation_model.has_streaming_output
+        )
         history_recorder.record('HTTP_RESPONSE', http_response_record_dict)
 
-        protocol = operation_model.metadata['protocol']
+        protocol = operation_model.service_model.resolved_protocol
+        customized_response_dict = {}
+        await self._event_emitter.emit(
+            f"before-parse.{service_id}.{operation_model.name}",
+            operation_model=operation_model,
+            response_dict=response_dict,
+            customized_response_dict=customized_response_dict,
+        )
         parser = self._response_parser_factory.create_parser(protocol)
-
-        if asyncio.iscoroutinefunction(parser.parse):
-            parsed_response = await parser.parse(
-                response_dict, operation_model.output_shape
-            )
-        else:
-            parsed_response = parser.parse(
-                response_dict, operation_model.output_shape
-            )
+        parsed_response = await parser.parse(
+            response_dict, operation_model.output_shape
+        )
+        parsed_response.update(customized_response_dict)
 
         if http_response.status_code >= 300:
             await self._add_modeled_error_fields(
@@ -250,11 +264,7 @@ class AioEndpoint(Endpoint):
         error_shape = service_model.shape_for_error_code(error_code)
         if error_shape is None:
             return
-
-        if asyncio.iscoroutinefunction(parser.parse):
-            modeled_parse = await parser.parse(response_dict, error_shape)
-        else:
-            modeled_parse = parser.parse(response_dict, error_shape)
+        modeled_parse = await parser.parse(response_dict, error_shape)
         # TODO: avoid naming conflicts with ResponseMetadata and Error
         parsed_response.update(modeled_parse)
 
@@ -305,7 +315,7 @@ class AioEndpointCreator(EndpointCreator):
         response_parser_factory=None,
         timeout=DEFAULT_TIMEOUT,
         max_pool_connections=MAX_POOL_CONNECTIONS,
-        http_session_cls=AIOHTTPSession,
+        http_session_cls=DEFAULT_HTTP_SESSION_CLS,
         proxies=None,
         socket_options=None,
         client_cert=None,
@@ -315,7 +325,7 @@ class AioEndpointCreator(EndpointCreator):
         if not is_valid_endpoint_url(
             endpoint_url
         ) and not is_valid_ipv6_endpoint_url(endpoint_url):
-            raise ValueError("Invalid endpoint: %s" % endpoint_url)
+            raise ValueError(f"Invalid endpoint: {endpoint_url}")
 
         if proxies is None:
             proxies = self._get_proxies(endpoint_url)

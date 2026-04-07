@@ -1,37 +1,44 @@
-import asyncio
-import os
+from __future__ import annotations
+
+import multiprocessing
 import random
+import re
 import string
-import sys
-import tempfile
-from contextlib import ExitStack
+from contextlib import AsyncExitStack, ExitStack
 from itertools import chain
+from typing import TYPE_CHECKING, Literal
 from unittest.mock import patch
 
-import aiohttp
-
 # Third Party
+import aiohttp
+import anyio
 import pytest
+
+try:
+    import httpx
+except ImportError:
+    httpx = None
 
 import aiobotocore.session
 from aiobotocore.config import AioConfig
-from tests._helpers import AsyncExitStack
+from aiobotocore.httpsession import AIOHTTPSession
+from aiobotocore.httpxsession import HttpxSession
+
+if TYPE_CHECKING:
+    from _pytest.nodes import Node
 
 host = '127.0.0.1'
 
-_PYCHARM_HOSTED = os.environ.get('PYCHARM_HOSTED') == '1'
+
+@pytest.fixture(scope="session", autouse=True)
+def always_spawn():
+    # enforce multiprocessing start method `spawn` to prevent deadlocks in the child
+    multiprocessing.set_start_method("spawn", force=True)
 
 
-def pytest_cmdline_preparse(args):
-    if sys.version_info[:2] < (3, 8):
-        args[:] = ["--ignore", 'tests/python3.8'] + args
-
-
-@pytest.fixture(
-    scope="session", params=[True, False], ids=['debug[true]', 'debug[false]']
-)
-def debug(request):
-    return request.param
+@pytest.fixture
+def anyio_backend():
+    return 'asyncio'
 
 
 def random_bucketname():
@@ -82,15 +89,21 @@ async def assert_num_uploads_found(
         if amount_seen == num_uploads:
             # Test passed.
             return
-        else:
-            # Sleep and try again.
-            await asyncio.sleep(2)
 
-        pytest.fail(
-            "Expected to see {} uploads, instead saw: {}".format(
-                num_uploads, amount_seen
-            )
-        )
+        # Sleep and try again.
+        await anyio.sleep(2)  # pragma: no cover
+
+    pytest.fail(  # pragma: no cover
+        f"Expected to see {num_uploads} uploads, instead saw: {amount_seen}"
+    )
+
+
+# Used by test_fail_proxy_request as it will fail during setup, so needs to
+# be skipped before `skipif` would be able to skip the test.
+@pytest.fixture
+def skip_httpx(current_http_backend: str) -> None:
+    if current_http_backend == 'httpx':
+        pytest.skip('proxy support not implemented for httpx')
 
 
 @pytest.fixture
@@ -101,7 +114,8 @@ def aa_fail_proxy_config(monkeypatch):
 
 
 @pytest.fixture
-def aa_succeed_proxy_config(monkeypatch):
+# only used in `localonly` tests
+def aa_succeed_proxy_config(monkeypatch):  # pragma: no cover
     # NOTE: name of this fixture must be alphabetically first to run first
     monkeypatch.setenv('HTTP_PROXY', f'http://{host}:54321')
     monkeypatch.setenv('HTTPS_PROXY', f'http://{host}:54321')
@@ -111,7 +125,7 @@ def aa_succeed_proxy_config(monkeypatch):
 
 
 @pytest.fixture
-def session():
+def session() -> aiobotocore.session.AioSession:
     session = aiobotocore.session.AioSession()
     return session
 
@@ -128,7 +142,7 @@ def alternative_region():
 
 @pytest.fixture
 def signature_version():
-    return 's3'
+    return 'v4'
 
 
 @pytest.fixture
@@ -142,16 +156,34 @@ def s3_verify():
 
 
 @pytest.fixture
+def current_http_backend(request) -> Literal['httpx', 'aiohttp']:
+    for mark in request.node.iter_markers("config_kwargs"):
+        assert len(mark.args) == 1
+        assert isinstance(mark.args[0], dict)
+        http_session_cls = mark.args[0].get('http_session_cls')
+        if http_session_cls is HttpxSession:
+            return 'httpx'
+        # since aiohttp is default we don't test explicitly setting it
+        elif http_session_cls is AIOHTTPSession:  # pragma: no cover
+            return 'aiohttp'
+    return 'aiohttp'
+
+
+def read_kwargs(node: Node) -> dict[str, object]:
+    config_kwargs: dict[str, object] = {}
+    for mark in node.iter_markers("config_kwargs"):
+        assert not mark.kwargs, config_kwargs
+        assert len(mark.args) == 1
+        assert isinstance(mark.args[0], dict)
+        config_kwargs.update(mark.args[0])
+    return config_kwargs
+
+
+@pytest.fixture
 def config(request, region, signature_version):
-    config_kwargs = request.node.get_closest_marker("config_kwargs") or {}
-    if config_kwargs:
-        assert not config_kwargs.kwargs, config_kwargs
-        assert len(config_kwargs.args) == 1
-        config_kwargs = config_kwargs.args[0]
+    config_kwargs = read_kwargs(request.node)
 
     connect_timeout = read_timout = 5
-    if _PYCHARM_HOSTED:
-        connect_timeout = read_timout = 180
 
     return AioConfig(
         region_name=region,
@@ -163,20 +195,14 @@ def config(request, region, signature_version):
 
 
 @pytest.fixture
-def mocking_test():
+def aws_auth():
+    return {'aws_secret_access_key': 'xxx', 'aws_access_key_id': 'xxx'}
+
+
+@pytest.fixture
+def mocking_test(request) -> bool:
     # change this flag for test with real aws
-    # TODO: this should be merged with pytest.mark.moto
-    return True
-
-
-def moto_config(endpoint_url):
-    kw = dict(
-        endpoint_url=endpoint_url,
-        aws_secret_access_key="xxx",
-        aws_access_key_id="xxx",
-    )
-
-    return kw
+    return request.node.get_closest_marker("localonly") is None
 
 
 @pytest.fixture
@@ -229,14 +255,15 @@ async def s3_client(
     session,
     region,
     config,
-    s3_server,
+    moto_server,
     mocking_test,
     s3_verify,
     patch_attributes,
+    aws_auth,
 ):
     # This depends on mock_attributes because we may want to test event listeners.
     # See the documentation of `mock_attributes` for details.
-    kw = moto_config(s3_server) if mocking_test else {}
+    kw = {'endpoint_url': moto_server, **aws_auth} if mocking_test else {}
 
     async with session.create_client(
         's3', region_name=region, config=config, verify=s3_verify, **kw
@@ -246,15 +273,23 @@ async def s3_client(
 
 @pytest.fixture
 async def alternative_s3_client(
-    session, alternative_region, signature_version, s3_server, mocking_test
+    session,
+    alternative_region,
+    signature_version,
+    moto_server,
+    mocking_test,
+    aws_auth,
+    request,
 ):
-    kw = moto_config(s3_server) if mocking_test else {}
+    kw = {'endpoint_url': moto_server, **aws_auth} if mocking_test else {}
+    kwargs = read_kwargs(request.node)
 
     config = AioConfig(
         region_name=alternative_region,
         signature_version=signature_version,
         read_timeout=5,
         connect_timeout=5,
+        **kwargs,
     )
 
     async with session.create_client(
@@ -265,9 +300,9 @@ async def alternative_s3_client(
 
 @pytest.fixture
 async def dynamodb_client(
-    session, region, config, dynamodb2_server, mocking_test
+    session, region, config, moto_server, mocking_test, aws_auth
 ):
-    kw = moto_config(dynamodb2_server) if mocking_test else {}
+    kw = {'endpoint_url': moto_server, **aws_auth} if mocking_test else {}
     async with session.create_client(
         'dynamodb', region_name=region, config=config, **kw
     ) as client:
@@ -276,9 +311,9 @@ async def dynamodb_client(
 
 @pytest.fixture
 async def cloudformation_client(
-    session, region, config, cloudformation_server, mocking_test
+    session, region, config, moto_server, mocking_test, aws_auth
 ):
-    kw = moto_config(cloudformation_server) if mocking_test else {}
+    kw = {'endpoint_url': moto_server, **aws_auth} if mocking_test else {}
     async with session.create_client(
         'cloudformation', region_name=region, config=config, **kw
     ) as client:
@@ -286,8 +321,10 @@ async def cloudformation_client(
 
 
 @pytest.fixture
-async def sns_client(session, region, config, sns_server, mocking_test):
-    kw = moto_config(sns_server) if mocking_test else {}
+async def sns_client(
+    session, region, config, moto_server, mocking_test, aws_auth
+):
+    kw = {'endpoint_url': moto_server, **aws_auth} if mocking_test else {}
     async with session.create_client(
         'sns', region_name=region, config=config, **kw
     ) as client:
@@ -295,8 +332,10 @@ async def sns_client(session, region, config, sns_server, mocking_test):
 
 
 @pytest.fixture
-async def sqs_client(session, region, config, sqs_server, mocking_test):
-    kw = moto_config(sqs_server) if mocking_test else {}
+async def sqs_client(
+    session, region, config, moto_server, mocking_test, aws_auth
+):
+    kw = {'endpoint_url': moto_server, **aws_auth} if mocking_test else {}
     async with session.create_client(
         'sqs', region_name=region, config=config, **kw
     ) as client:
@@ -304,8 +343,10 @@ async def sqs_client(session, region, config, sqs_server, mocking_test):
 
 
 @pytest.fixture
-async def batch_client(session, region, config, batch_server, mocking_test):
-    kw = moto_config(batch_server) if mocking_test else {}
+async def batch_client(
+    session, region, config, moto_server, mocking_test, aws_auth
+):
+    kw = {'endpoint_url': moto_server, **aws_auth} if mocking_test else {}
     async with session.create_client(
         'batch', region_name=region, config=config, **kw
     ) as client:
@@ -313,8 +354,10 @@ async def batch_client(session, region, config, batch_server, mocking_test):
 
 
 @pytest.fixture
-async def lambda_client(session, region, config, lambda_server, mocking_test):
-    kw = moto_config(lambda_server) if mocking_test else {}
+async def lambda_client(
+    session, region, config, moto_server, mocking_test, aws_auth
+):
+    kw = {'endpoint_url': moto_server, **aws_auth} if mocking_test else {}
     async with session.create_client(
         'lambda', region_name=region, config=config, **kw
     ) as client:
@@ -322,8 +365,10 @@ async def lambda_client(session, region, config, lambda_server, mocking_test):
 
 
 @pytest.fixture
-async def iam_client(session, region, config, iam_server, mocking_test):
-    kw = moto_config(iam_server) if mocking_test else {}
+async def iam_client(
+    session, region, config, moto_server, mocking_test, aws_auth
+):
+    kw = {'endpoint_url': moto_server, **aws_auth} if mocking_test else {}
     async with session.create_client(
         'iam', region_name=region, config=config, **kw
     ) as client:
@@ -331,8 +376,10 @@ async def iam_client(session, region, config, iam_server, mocking_test):
 
 
 @pytest.fixture
-async def rds_client(session, region, config, rds_server, mocking_test):
-    kw = moto_config(rds_server) if mocking_test else {}
+async def rds_client(
+    session, region, config, moto_server, mocking_test, aws_auth
+):
+    kw = {'endpoint_url': moto_server, **aws_auth} if mocking_test else {}
     async with session.create_client(
         'rds', region_name=region, config=config, **kw
     ) as client:
@@ -340,8 +387,10 @@ async def rds_client(session, region, config, rds_server, mocking_test):
 
 
 @pytest.fixture
-async def ec2_client(session, region, config, ec2_server, mocking_test):
-    kw = moto_config(ec2_server) if mocking_test else {}
+async def ec2_client(
+    session, region, config, moto_server, mocking_test, aws_auth
+):
+    kw = {'endpoint_url': moto_server, **aws_auth} if mocking_test else {}
     async with session.create_client(
         'ec2', region_name=region, config=config, **kw
     ) as client:
@@ -349,10 +398,11 @@ async def ec2_client(session, region, config, ec2_server, mocking_test):
 
 
 @pytest.fixture
-async def kinesis_client(
-    session, region, config, kinesis_server, mocking_test
+# only used in `localonly` tests
+async def kinesis_client(  # pragma: no cover
+    session, region, config, moto_server, mocking_test, aws_auth
 ):
-    kw = moto_config(kinesis_server) if mocking_test else {}
+    kw = {'endpoint_url': moto_server, **aws_auth} if mocking_test else {}
     async with session.create_client(
         'kinesis', region_name=region, config=config, **kw
     ) as client:
@@ -419,6 +469,50 @@ async def create_bucket(s3_client):
 
 
 @pytest.fixture
+# only used in `localonly` tests
+async def create_stream(kinesis_client):  # pragma: no cover
+    _stream_name = None
+
+    async def _f(stream_name=None, **kwargs):
+        nonlocal _stream_name
+        if stream_name is None:
+            stream_name = random_name()
+        _stream_name = stream_name
+        stream_kwargs = {
+            'StreamName': _stream_name,
+            **kwargs,
+        }
+
+        response = await kinesis_client.create_stream(**stream_kwargs)
+        assert_status_code(response, 200)
+
+        while (
+            describe_response := (
+                await kinesis_client.describe_stream(  # noqa: E231, E999, E251, E501
+                    StreamName=stream_name
+                )
+            )
+        ) and describe_response['StreamDescription'][
+            'StreamStatus'
+        ] != 'ACTIVE':
+            print("Waiting for stream creation")
+            await anyio.sleep(1)
+
+        return stream_name
+
+    try:
+        yield _f
+    finally:
+        await delete_stream(kinesis_client, _stream_name)
+
+
+# only used in `localonly` tests
+async def delete_stream(kinesis_client, stream_name):  # pragma: no cover
+    response = await kinesis_client.delete_stream(StreamName=stream_name)
+    assert_status_code(response, 200)
+
+
+@pytest.fixture
 async def create_table(dynamodb_client):
     _table_name = None
 
@@ -447,7 +541,8 @@ async def create_table(dynamodb_client):
 
         response = await dynamodb_client.create_table(**table_kwargs)
         while not (await _is_table_ready(table_name)):
-            pass
+            # will rarely hit this
+            pass  # pragma: no cover
 
         assert_status_code(response, 200)
         return table_name
@@ -464,14 +559,8 @@ async def delete_table(dynamodb_client, table_name):
 
 
 @pytest.fixture
-def tempdir():
-    with tempfile.TemporaryDirectory() as td:
-        yield td
-
-
-@pytest.fixture
-def create_object(s3_client, bucket_name):
-    async def _f(key_name, body='foo'):
+def create_object(s3_client, bucket_name: str):
+    async def _f(key_name: str, body='foo', **kwargs):
         r = await s3_client.put_object(
             Bucket=bucket_name, Key=key_name, Body=body
         )
@@ -482,7 +571,7 @@ def create_object(s3_client, bucket_name):
 
 
 @pytest.fixture
-def create_multipart_upload(request, s3_client, bucket_name, event_loop):
+async def create_multipart_upload(request, s3_client, bucket_name):
     _key_name = None
     upload_id = None
 
@@ -497,21 +586,23 @@ def create_multipart_upload(request, s3_client, bucket_name, event_loop):
         upload_id = parsed['UploadId']
         return upload_id
 
-    def fin():
-        event_loop.run_until_complete(
-            s3_client.abort_multipart_upload(
-                UploadId=upload_id, Bucket=bucket_name, Key=_key_name
-            )
-        )
-
-    request.addfinalizer(fin)
-    return _f
+    yield _f
+    await s3_client.abort_multipart_upload(
+        UploadId=upload_id, Bucket=bucket_name, Key=_key_name
+    )
 
 
 @pytest.fixture
-async def aio_session():
-    async with aiohttp.ClientSession() as session:
-        yield session
+async def aio_session(current_http_backend: Literal['httpx', 'aiohttp']):
+    if current_http_backend == 'httpx':
+        assert httpx is not None
+        async with httpx.AsyncClient() as client:
+            yield client
+    elif current_http_backend == 'aiohttp':
+        async with aiohttp.ClientSession() as session:
+            yield session
+    else:  # pragma: no cover
+        raise AssertionError("unknown http backend")
 
 
 def pytest_configure():
@@ -536,9 +627,8 @@ def dynamodb_put_item(dynamodb_client, table_name):
 
 
 @pytest.fixture
-def topic_arn(region, create_topic, sns_client, event_loop):
-    arn = event_loop.run_until_complete(create_topic())
-    return arn
+async def topic_arn(region, create_topic, sns_client):
+    return await create_topic()
 
 
 async def delete_topic(sns_client, topic_arn):
@@ -547,7 +637,7 @@ async def delete_topic(sns_client, topic_arn):
 
 
 @pytest.fixture
-def create_topic(request, sns_client, event_loop):
+async def create_topic(request, sns_client):
     _topic_arn = None
 
     async def _f():
@@ -557,11 +647,8 @@ def create_topic(request, sns_client, event_loop):
         assert_status_code(response, 200)
         return _topic_arn
 
-    def fin():
-        event_loop.run_until_complete(delete_topic(sns_client, _topic_arn))
-
-    request.addfinalizer(fin)
-    return _f
+    yield _f
+    await delete_topic(sns_client, _topic_arn)
 
 
 @pytest.fixture
@@ -578,9 +665,58 @@ async def sqs_queue_url(sqs_client):
 
 
 @pytest.fixture
-async def exit_stack():
+# only used in `localonly` tests
+async def exit_stack():  # pragma: no cover
     async with AsyncExitStack() as es:
         yield es
+
+
+def pytest_addoption(parser: pytest.Parser):
+    parser.addoption(
+        "--http-backend",
+        default='aiohttp',
+        choices=['aiohttp', 'httpx', 'all'],
+        required=False,
+        help='Specify http backend to run tests against.',
+    )
+
+
+def pytest_generate_tests(metafunc):
+    """Parametrize all tests to run with both aiohttp and httpx as backend.
+    This is not a super clean solution, as some tests will not differ at all with
+    different http backends."""
+    metafunc.parametrize(
+        '',
+        [
+            pytest.param(id='aiohttp'),
+            pytest.param(
+                id='httpx',
+                marks=pytest.mark.config_kwargs(
+                    {'http_session_cls': HttpxSession}
+                ),
+            ),
+        ],
+    )
+
+
+def pytest_collection_modifyitems(config: pytest.Config, items):
+    """Mark parametrized tests for skipping in case the corresponding backend is not enabled."""
+    http_backend = config.getoption("--http-backend")
+    if http_backend == 'all':
+        return
+    if http_backend == 'aiohttp':
+        ignore_backend = 'httpx'
+    else:
+        assert httpx is not None, (
+            "Cannot run httpx as backend if it's not installed."
+        )
+        ignore_backend = 'aiohttp'
+    backend_skip = pytest.mark.skip(
+        reason='Selected not to run with --http-backend'
+    )
+    for item in items:
+        if re.match(rf'.*\[.*{ignore_backend}.*\]', item.name):
+            item.add_marker(backend_skip)
 
 
 pytest_plugins = ['tests.mock_server']

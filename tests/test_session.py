@@ -3,13 +3,11 @@ import logging
 import pytest
 from _pytest.logging import LogCaptureFixture
 
-from aiobotocore import httpsession
+from aiobotocore import __version__, httpsession
 from aiobotocore.config import AioConfig
 from aiobotocore.session import AioSession
 
 
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_get_service_data(session):
     handler_called = False
 
@@ -23,8 +21,6 @@ async def test_get_service_data(session):
     assert handler_called
 
 
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_retry(
     session: AioSession, caplog: LogCaptureFixture, monkeypatch
 ):
@@ -47,9 +43,14 @@ async def test_retry(
         aws_access_key_id="xxx",
         endpoint_url='http://localhost:7878',
     ) as client:
-
         # this needs the new style exceptions to work
         with pytest.raises(httpsession.EndpointConnectionError):
             await client.get_object(Bucket='foo', Key='bar')
 
         assert 'sleeping for' in caplog.text
+
+
+async def test_set_user_agent_for_session(session: AioSession):
+    assert session.user_agent_name == "aiobotocore"
+    assert session.user_agent_version == __version__
+    assert session.user_agent_extra.startswith("botocore/")

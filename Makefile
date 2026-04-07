@@ -1,30 +1,24 @@
 # Some simple testing tasks (sorry, UNIX only).
 
-FLAGS=
+# ?= is conditional assign, so users can pass options on the CLI instead of manually editing this file
+HTTP_BACKEND?='all'
+FLAGS?=
 
-flake: checkrst
-	pipenv run python -m flake8 --format=abspath
+pre-commit:
+	pre-commit run --all --show-diff-on-failure
 
-test: flake
-	pipenv run python -Wd -m pytest -s -vv $(FLAGS) ./tests/
+test: pre-commit
+	python -Wd -m pytest -s -vv $(FLAGS) ./tests/
 
 vtest:
-	pipenv run python -Wd -X tracemalloc=5 -X faulthandler -m pytest -s -vv $(FLAGS) ./tests/
+	python -Wd -X tracemalloc=5 -X faulthandler -m pytest -s -vv $(FLAGS) ./tests/
 
-checkrst:
-	pipenv run python setup.py check -rms
-
-cov cover coverage: flake
-	pipenv run python -Wd -m pytest -s -vv --cov-report term --cov-report html --cov aiobotocore ./tests
+cov cover coverage: pre-commit
+	python -Wd -m pytest -s -vv --cov-report term --cov-report html --cov aiobotocore ./tests
 	@echo "open file://`pwd`/htmlcov/index.html"
 
-# BOTO_CONFIG solves https://github.com/travis-ci/travis-ci/issues/7940
 mototest:
-	docker pull alpine
-	docker pull lambci/lambda:python3.8
-	BOTO_CONFIG=/dev/null pipenv run python -Wd -X tracemalloc=5 -X faulthandler -m pytest -vv -m moto -n auto --cov-report term --cov-report html --cov-report xml --cov=aiobotocore --cov=tests --log-cli-level=DEBUG aiobotocore tests
-	@echo "open file://`pwd`/htmlcov/index.html"
-
+	python -Wd -X tracemalloc=5 -X faulthandler -m pytest -vv -m "not localonly" -n auto --reruns 1 --cov-report term --cov-report html --cov-report xml --cov=aiobotocore --cov=tests --log-cli-level=DEBUG  --http-backend=$(HTTP_BACKEND) $(FLAGS) aiobotocore tests
 
 clean:
 	rm -rf `find . -name __pycache__`
@@ -49,4 +43,4 @@ doc:
 	make -C docs html
 	@echo "open file://`pwd`/docs/_build/html/index.html"
 
-.PHONY: all flake test vtest cov clean doc
+.PHONY: all pre-commit test vtest cov clean doc

@@ -1,0 +1,84 @@
+---
+name: Reusable test
+
+permissions: {}
+
+on:
+  workflow_call:
+    inputs:
+      python-version:
+        type: string
+        required: true
+      os:
+        type: string
+        required: true
+      continue-on-error:
+        type: boolean
+      enable-cache:
+        type: string
+        required: true
+      with-awscrt:
+        type: boolean
+        required: true
+      no-httpx:
+        type: boolean
+        required: true
+    secrets:
+      codecov-token:
+        required: false
+
+env:
+  FORCE_COLOR: 1
+
+jobs:
+  test:
+    name: Test Python ${{ inputs.python-version }} on ${{ inputs.os }}${{
+      inputs.with-awscrt && ' with-awscrt' || '' }}${{
+      inputs.no-httpx && ' no-httpx' || '' }}
+
+    runs-on: ${{ inputs.os }}
+    continue-on-error: ${{ inputs.continue-on-error }}
+    env:
+      UV_FROZEN: 1
+    timeout-minutes: 5
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+      with:
+        persist-credentials: false
+        submodules: true
+    - name: Install uv
+      uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78  # v7.6.0
+      with:
+        python-version: ${{ inputs.python-version }}
+        enable-cache: ${{ inputs.enable-cache }}
+    - name: Install awscrt
+      if: ${{ inputs.with-awscrt }}
+      run: |
+        uv sync --group awscrt
+    - name: Run pre-commit hooks
+      run: |
+        uv run make pre-commit
+    - name: Run unittests
+      if: ${{ ! inputs.no-httpx }}
+      env:
+        COLOR: 'yes'
+      run: |
+        uv run --extra=httpx make mototest
+    - name: Run unittests without httpx installed
+      if: ${{ inputs.no-httpx }}
+      env:
+        COLOR: 'yes'
+        HTTP_BACKEND: 'aiohttp'
+      run: |
+        uv run make mototest
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2  # v6.0.0
+      with:
+        files: ./coverage.xml
+        # yamllint disable-line rule:line-length
+        flags: unittests,os-${{ inputs.os }},python-${{ inputs.python-version }}${{ inputs.with-awscrt && ',with-awscrt' || '' }}${{ inputs.no-httpx && ',no-httpx' || '' }}  # optional
+        name: codecov-umbrella  # optional
+        fail_ci_if_error: true  # optional (default = false)
+        verbose: true  # optional (default = false)
