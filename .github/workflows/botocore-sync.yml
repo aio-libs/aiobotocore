@@ -173,7 +173,6 @@ jobs:
       contents: write
       pull-requests: write
       issues: write
-      workflows: write
       id-token: write
       actions: read
     steps:
@@ -213,8 +212,11 @@ jobs:
           ${{ inputs.enable_bump || 'false' }}
         DRY_RUN: >-
           ${{ inputs.dry_run || 'false' }}
+      # yamllint disable-line rule:line-length
       run: |
-        prompt=$(envsubst '$LATEST_BOTOCORE $CURRENT_UPPER $CURRENT_LOWER $LAST_SUPPORTED $ENABLE_BUMP $DRY_RUN' < .github/botocore-sync-prompt.md)
+        VARS='$LATEST_BOTOCORE $CURRENT_UPPER $CURRENT_LOWER'
+        VARS="$VARS"' $LAST_SUPPORTED $ENABLE_BUMP $DRY_RUN'
+        prompt=$(envsubst "$VARS" < .github/botocore-sync-prompt.md)
         {
           echo 'PROMPT<<PROMPT_EOF'
           echo "$prompt"
