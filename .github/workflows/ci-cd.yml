@@ -27,7 +27,6 @@ jobs:
     uses: ./.github/workflows/reusable-build.yml
 
   test:
-    # yamllint disable-line rule:line-length
     name: test${{ '' }}  # zizmor: ignore[obfuscation] nest jobs under the same sidebar category
     strategy:
       matrix:
@@ -85,8 +84,7 @@ jobs:
     - name: Notify Codecov that all coverage reports have been uploaded
       if: >-
         !cancelled()
-      # yamllint disable-line rule:line-length
-      uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de  # v5.5.2
+      uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2  # v6.0.0
       with:
         fail_ci_if_error: true
         run_command: send-notifications
@@ -96,7 +94,6 @@ jobs:
     permissions:
       security-events: write
 
-    # yamllint disable-line rule:line-length
     uses: zizmorcore/workflow/.github/workflows/reusable-zizmor.yml@3bb5e95068d0f44b6d2f3f7e91379bed1d2f96a8
 
   check:  # This job does nothing and is only used for the branch protection
@@ -110,7 +107,6 @@ jobs:
 
     steps:
     - name: Decide whether the needed jobs succeeded or failed
-      # yamllint disable-line rule:line-length
       uses: re-actors/alls-green@05ac9388f0aebcb5727afa17fcccfecd6f8ec5fe  # v1.2.2
       with:
         jobs: ${{ toJSON(needs) }}
@@ -131,8 +127,7 @@ jobs:
 
     steps:
     - name: Download distribution 📦
-      # yamllint disable-line rule:line-length
-      uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3  # v8.0.0
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
       with:
         name: python-package-distributions
         path: dist/
@@ -143,5 +138,4 @@ jobs:
       env:
         REF_NAME: ${{ github.ref_name }}
     - name: Publish distribution 📦 to PyPI
-      # yamllint disable-line rule:line-length
       uses: pypa/gh-action-pypi-publish@ed0c53931b1dc9bd32cbe73a98c7f6766f8a527e  # v1.13.0

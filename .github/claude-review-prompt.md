@@ -1,6 +1,12 @@
 REPO: $REPO
-PR NUMBER: $PR_NUMBER
+NUMBER: $NUMBER
 EVENT: $EVENT_NAME
+
+NOTE: NUMBER above is a PR number when EVENT is
+pull_request or pull_request_review_comment, and an
+issue number when EVENT is issue_comment or issues.
+Use the appropriate gh command (gh pr view vs gh issue
+view) based on the event type.
 
 This is aiobotocore, a Python async library wrapping
 botocore for asyncio.
@@ -25,7 +31,7 @@ review. This reviews the PR diff checking for:
 
 After the review completes, check the PR author:
 ```
-gh pr view $PR_NUMBER --json author --jq '.author.login'
+gh pr view $NUMBER --json author --jq '.author.login'
 ```
 
 If the PR was created by a bot (github-actions[bot],
@@ -34,8 +40,32 @@ straightforward issues (confidence >= 80) by pushing
 a commit. Only fix clear-cut issues. Do not attempt
 complex refactors.
 
+Also check for review comments from other bots
+(github-advanced-security[bot], zizmor, etc.) and
+address their findings if they are actionable.
+
 If the PR was created by a human, the review comments
 are sufficient — never push commits to human PRs.
+
+## Git operations
+
+### Commit signing
+IMPORTANT: Never use `git commit` to create commits.
+Always use `mcp__github_file_ops__commit_files` with
+an explicit `branch` parameter. This creates commits
+via the GitHub API which are automatically signed.
+Git CLI commits are unsigned and will be rejected.
+
+### Branch naming
+Always use `claude/` prefix for branches you create.
+Never push to `main` — it is protected.
+
+### Avoiding pitfalls
+- `mcp__github_file_ops__commit_files` defaults to the
+  default branch if no `branch` is specified. ALWAYS
+  specify `branch` explicitly.
+- When fixing bot PRs, commit to the PR's existing
+  branch — don't create a new one.
 
 ## On @claude interactions: respond to the request
 
@@ -52,6 +82,22 @@ fixes or features. Use branch prefix `claude/`.
 
 IMPORTANT: Never merge or close pull requests. Never
 close issues. These actions require human approval.
+
+## Environment
+
+Python, uv, and all dev dependencies are pre-installed.
+- Run tests: `uv run pytest <path> -sv`
+- Run pre-commit: `uv run pre-commit run --all --show-diff-on-failure`
+- Do NOT use `pip install` — all deps are available via `uv run`
+- Do NOT search for uv/pytest — they are on PATH
+- To read botocore source, use Read on the installed
+  files — do NOT use `inspect.getsource()` in Bash
+
+## Honesty
+
+Never claim tests pass unless you ran them successfully.
+If you could not run tests, say so in the PR description.
+Do not use checkmarks for untested items.
 
 ## Reference
 

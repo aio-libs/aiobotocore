@@ -1,11 +1,9 @@
 from __future__ import annotations
 
 import multiprocessing
-import os
 import random
 import re
 import string
-import tempfile
 from contextlib import AsyncExitStack, ExitStack
 from itertools import chain
 from typing import TYPE_CHECKING, Literal
@@ -19,7 +17,7 @@ import pytest
 try:
     import httpx
 except ImportError:
-    http = None
+    httpx = None
 
 import aiobotocore.session
 from aiobotocore.config import AioConfig
@@ -31,20 +29,11 @@ if TYPE_CHECKING:
 
 host = '127.0.0.1'
 
-_PYCHARM_HOSTED = os.environ.get('PYCHARM_HOSTED') == '1'
-
 
 @pytest.fixture(scope="session", autouse=True)
 def always_spawn():
     # enforce multiprocessing start method `spawn` to prevent deadlocks in the child
     multiprocessing.set_start_method("spawn", force=True)
-
-
-@pytest.fixture(
-    scope="session", params=[True, False], ids=['debug[true]', 'debug[false]']
-)
-def debug(request):
-    return request.param
 
 
 @pytest.fixture
@@ -100,13 +89,13 @@ async def assert_num_uploads_found(
         if amount_seen == num_uploads:
             # Test passed.
             return
-        else:
-            # Sleep and try again.
-            await anyio.sleep(2)
 
-        pytest.fail(
-            f"Expected to see {num_uploads} uploads, instead saw: {amount_seen}"
-        )
+        # Sleep and try again.
+        await anyio.sleep(2)  # pragma: no cover
+
+    pytest.fail(  # pragma: no cover
+        f"Expected to see {num_uploads} uploads, instead saw: {amount_seen}"
+    )
 
 
 # Used by test_fail_proxy_request as it will fail during setup, so needs to
@@ -125,7 +114,8 @@ def aa_fail_proxy_config(monkeypatch):
 
 
 @pytest.fixture
-def aa_succeed_proxy_config(monkeypatch):
+# only used in `localonly` tests
+def aa_succeed_proxy_config(monkeypatch):  # pragma: no cover
     # NOTE: name of this fixture must be alphabetically first to run first
     monkeypatch.setenv('HTTP_PROXY', f'http://{host}:54321')
     monkeypatch.setenv('HTTPS_PROXY', f'http://{host}:54321')
@@ -194,8 +184,6 @@ def config(request, region, signature_version):
     config_kwargs = read_kwargs(request.node)
 
     connect_timeout = read_timout = 5
-    if _PYCHARM_HOSTED:
-        connect_timeout = read_timout = 180
 
     return AioConfig(
         region_name=region,
@@ -410,7 +398,8 @@ async def ec2_client(
 
 
 @pytest.fixture
-async def kinesis_client(
+# only used in `localonly` tests
+async def kinesis_client(  # pragma: no cover
     session, region, config, moto_server, mocking_test, aws_auth
 ):
     kw = {'endpoint_url': moto_server, **aws_auth} if mocking_test else {}
@@ -480,7 +469,8 @@ async def create_bucket(s3_client):
 
 
 @pytest.fixture
-async def create_stream(kinesis_client):
+# only used in `localonly` tests
+async def create_stream(kinesis_client):  # pragma: no cover
     _stream_name = None
 
     async def _f(stream_name=None, **kwargs):
@@ -516,7 +506,8 @@ async def create_stream(kinesis_client):
         await delete_stream(kinesis_client, _stream_name)
 
 
-async def delete_stream(kinesis_client, stream_name):
+# only used in `localonly` tests
+async def delete_stream(kinesis_client, stream_name):  # pragma: no cover
     response = await kinesis_client.delete_stream(StreamName=stream_name)
     assert_status_code(response, 200)
 
@@ -550,7 +541,8 @@ async def create_table(dynamodb_client):
 
         response = await dynamodb_client.create_table(**table_kwargs)
         while not (await _is_table_ready(table_name)):
-            pass
+            # will rarely hit this
+            pass  # pragma: no cover
 
         assert_status_code(response, 200)
         return table_name
@@ -564,12 +556,6 @@ async def create_table(dynamodb_client):
 async def delete_table(dynamodb_client, table_name):
     response = await dynamodb_client.delete_table(TableName=table_name)
     assert_status_code(response, 200)
-
-
-@pytest.fixture
-def tempdir():
-    with tempfile.TemporaryDirectory() as td:
-        yield td
 
 
 @pytest.fixture
@@ -679,7 +665,8 @@ async def sqs_queue_url(sqs_client):
 
 
 @pytest.fixture
-async def exit_stack():
+# only used in `localonly` tests
+async def exit_stack():  # pragma: no cover
     async with AsyncExitStack() as es:
         yield es
 

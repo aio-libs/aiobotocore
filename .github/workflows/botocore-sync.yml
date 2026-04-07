@@ -1,7 +1,6 @@
 ---
 name: Botocore Sync
 
-# yamllint disable-line rule:line-length
 run-name: "Botocore Sync${{ inputs.botocore_version && format(': {0}', inputs.botocore_version) || '' }}"
 
 permissions: {}
@@ -56,7 +55,6 @@ jobs:
       needs_update: >-
         ${{ steps.check.outputs.needs_update }}
     steps:
-    # yamllint disable-line rule:line-length
     - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
       with:
         persist-credentials: false
@@ -178,24 +176,29 @@ jobs:
       id-token: write
       actions: read
     steps:
-    # yamllint disable-line rule:line-length
     - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
       with:
         fetch-depth: 0
         persist-credentials: false
 
+    - name: Cache botocore repo
+      uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5.0.4
+      with:
+        path: /tmp/botocore
+        key: botocore-repo
+
+    - name: Clone or update botocore
+      run: |
+        if [ -f /tmp/botocore/HEAD ]; then
+          git -C /tmp/botocore fetch --tags --prune
+        else
+          git clone --bare \
+            https://github.com/boto/botocore.git \
+            /tmp/botocore
+        fi
+
     - name: Read prompt
       id: prompt
-      run: |
-        {
-          echo 'PROMPT<<PROMPT_EOF'
-          cat .github/botocore-sync-prompt.md
-          echo 'PROMPT_EOF'
-        } >> "$GITHUB_OUTPUT"
-
-    # yamllint disable-line rule:line-length
-    - uses: anthropics/claude-code-action@df37d2f0760a4b5683a6e617c9325bc1a36443f6
-      id: claude
       env:
         LATEST_BOTOCORE: >-
           ${{ needs.detect.outputs.latest_botocore }}
@@ -209,13 +212,39 @@ jobs:
           ${{ inputs.enable_bump || 'false' }}
         DRY_RUN: >-
           ${{ inputs.dry_run || 'false' }}
+      # yamllint disable-line rule:line-length
+      run: |
+        VARS='$LATEST_BOTOCORE $CURRENT_UPPER $CURRENT_LOWER'
+        VARS="$VARS"' $LAST_SUPPORTED $ENABLE_BUMP $DRY_RUN'
+        prompt=$(envsubst "$VARS" < .github/botocore-sync-prompt.md)
+        {
+          echo 'PROMPT<<PROMPT_EOF'
+          echo "$prompt"
+          echo 'PROMPT_EOF'
+        } >> "$GITHUB_OUTPUT"
+
+    - uses: anthropics/claude-code-action@df37d2f0760a4b5683a6e617c9325bc1a36443f6
+      id: claude
       with:
         anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+        use_commit_signing: true
         display_report: true
+        show_full_output: true
         prompt: ${{ steps.prompt.outputs.PROMPT }}
         claude_args: |
           --dangerously-skip-permissions
-          --max-turns 50
+          --max-turns 100
+        # yamllint disable rule:line-length
+        settings: |
+          {
+            "hooks": {
+              "PreToolUse": [{
+                "matcher": "Bash",
+                "command": "if echo \"$TOOL_INPUT\" | grep -qE '\\bgit commit\\b'; then echo 'BLOCKED: Use mcp__github_file_ops__commit_files instead of git commit. This ensures commits are signed.' >&2; exit 2; fi"
+              }]
+            }
+          }
+        # yamllint enable rule:line-length
 
     - name: Usage summary
       if: always()

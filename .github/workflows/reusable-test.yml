@@ -49,8 +49,7 @@ jobs:
         persist-credentials: false
         submodules: true
     - name: Install uv
-      # yamllint disable-line rule:line-length
-      uses: astral-sh/setup-uv@5a095e7a2014a4212f075830d4f7277575a9d098  # v7.3.1
+      uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78  # v7.6.0
       with:
         python-version: ${{ inputs.python-version }}
         enable-cache: ${{ inputs.enable-cache }}
@@ -75,8 +74,7 @@ jobs:
       run: |
         uv run make mototest
     - name: Upload coverage to Codecov
-      # yamllint disable-line rule:line-length
-      uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de  # v5.5.2
+      uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2  # v6.0.0
       with:
         files: ./coverage.xml
         # yamllint disable-line rule:line-length

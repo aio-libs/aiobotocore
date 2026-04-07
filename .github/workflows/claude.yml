@@ -1,6 +1,20 @@
 ---
 name: Claude Code
 
+run-name: >-
+  Claude:
+  ${{
+    github.event_name == 'pull_request'
+      && format('Review PR #{0}',
+         github.event.pull_request.number)
+    || github.event_name == 'issues'
+      && format('Issue #{0}',
+         github.event.issue.number)
+    || format('PR #{0} comment',
+       github.event.issue.number
+       || github.event.pull_request.number)
+  }}
+
 permissions: {}
 
 on:
@@ -25,7 +39,6 @@ jobs:
   claude:
     # Only trusted authors can trigger @claude interactions.
     # Auto-review on pull_request events is unrestricted.
-    # yamllint disable-line rule:line-length
     if: >-
       (github.event_name == 'pull_request') ||
       (github.event_name == 'issue_comment' &&
@@ -56,19 +69,26 @@ jobs:
       id-token: write
       actions: read
     steps:
-    # yamllint disable-line rule:line-length
     - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
       with:
         fetch-depth: 1
         persist-credentials: false
 
+    - name: Set up uv + Python
+      # yamllint disable-line rule:line-length
+      uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78  # v7.6.0
+      with:
+        python-version: '3.12'
+        enable-cache: auto
+
+    - name: Install dependencies
+      run: uv sync
+
     - name: Read prompt
       id: prompt
-      # yamllint disable-line rule:line-length
       env:
         REPO: ${{ github.repository }}
-        # yamllint disable-line rule:line-length
-        PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
+        NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
         EVENT_NAME: ${{ github.event_name }}
       run: |
         # Substitute env vars into prompt
@@ -79,15 +99,28 @@ jobs:
           echo 'PROMPT_EOF'
         } >> "$GITHUB_OUTPUT"
 
-    # yamllint disable-line rule:line-length
     - uses: anthropics/claude-code-action@df37d2f0760a4b5683a6e617c9325bc1a36443f6
       id: claude
       with:
         anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+        use_commit_signing: true
         display_report: true
+        show_full_output: true
+        allowed_bots: "claude[bot]"
         prompt: ${{ steps.prompt.outputs.PROMPT }}
         claude_args: |
           --dangerously-skip-permissions
+        # yamllint disable rule:line-length
+        settings: |
+          {
+            "hooks": {
+              "PreToolUse": [{
+                "matcher": "Bash",
+                "command": "if echo \"$TOOL_INPUT\" | grep -qE '\\bgit commit\\b'; then echo 'BLOCKED: Use mcp__github_file_ops__commit_files instead of git commit. This ensures commits are signed.' >&2; exit 2; fi"
+              }]
+            }
+          }
+        # yamllint enable rule:line-length
 
     - name: Usage summary
       if: always()
