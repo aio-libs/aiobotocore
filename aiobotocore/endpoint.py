@@ -17,7 +17,12 @@ from urllib3.response import HTTPHeaderDict
 
 from aiobotocore.httpchecksum import handle_checksum_body
 from aiobotocore.httpsession import AIOHTTPSession
-from aiobotocore.response import StreamingBody
+from aiobotocore.response import HttpxStreamingBody, StreamingBody
+
+try:
+    import httpx
+except ImportError:
+    httpx = None
 
 
 async def convert_to_response_dict(http_response, operation_model):
@@ -58,7 +63,12 @@ async def convert_to_response_dict(http_response, operation_model):
         response_dict['body'] = http_response.raw
     elif operation_model.has_streaming_output:
         length = response_dict['headers'].get('content-length')
-        response_dict['body'] = StreamingBody(http_response.raw, length)
+        if httpx and isinstance(http_response.raw, httpx.Response):
+            response_dict['body'] = HttpxStreamingBody(
+                http_response.raw, length
+            )
+        else:
+            response_dict['body'] = StreamingBody(http_response.raw, length)
     else:
         response_dict['body'] = await http_response.content
     return response_dict

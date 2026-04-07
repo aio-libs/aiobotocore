@@ -5,7 +5,6 @@ from botocore.httpchecksum import (
     AwsChunkedWrapper,
     FlexibleChecksumError,
     _apply_request_header_checksum,
-    _handle_streaming_response,
     base64,
     conditionally_calculate_md5,
     determine_content_length,
@@ -13,6 +12,12 @@ from botocore.httpchecksum import (
 )
 
 from aiobotocore._helpers import resolve_awaitable
+from aiobotocore.response import HttpxStreamingBody, StreamingBody
+
+try:
+    import httpx
+except ImportError:
+    httpx = None
 
 
 class AioAwsChunkedWrapper(AwsChunkedWrapper):
@@ -42,6 +47,77 @@ class AioAwsChunkedWrapper(AwsChunkedWrapper):
         while not self._complete:
             return await self._make_chunk()
         raise StopAsyncIteration()
+
+
+class _ChecksumMixin:
+    """Mixin that adds checksum validation to a StreamingBody.
+
+    Shared by both aiohttp and httpx checksum body classes.
+    """
+
+    def _init_checksum(self, checksum, expected):
+        self._checksum = checksum
+        self._expected = expected
+
+    async def read(self, amt=None):
+        chunk = await super().read(amt=amt)
+        self._checksum.update(chunk)
+        if amt is None or (not chunk and amt > 0):
+            self._validate_checksum()
+        return chunk
+
+    async def readinto(self, b: bytearray):
+        amount_read = await super().readinto(b)
+
+        if amount_read == len(b):
+            view = b
+        else:
+            view = memoryview(b)[:amount_read]
+
+        self._checksum.update(view)
+        if amount_read == 0 and len(b) > 0:
+            self._validate_checksum()
+        return amount_read
+
+    def _validate_checksum(self):
+        if self._checksum.digest() != base64.b64decode(self._expected):
+            error_msg = (
+                "Expected checksum %s did not match calculated "
+                "checksum: %s"
+                % (self._expected, self._checksum.b64digest())
+            )
+            raise FlexibleChecksumError(error_msg=error_msg)
+
+
+class StreamingChecksumBody(_ChecksumMixin, StreamingBody):
+    """StreamingBody with checksum validation (aiohttp backend)."""
+
+    def __init__(self, raw_stream, content_length, checksum, expected):
+        super().__init__(raw_stream, content_length)
+        self._init_checksum(checksum, expected)
+
+
+class HttpxStreamingChecksumBody(_ChecksumMixin, HttpxStreamingBody):
+    """StreamingBody with checksum validation (httpx backend)."""
+
+    def __init__(self, raw_stream, content_length, checksum, expected):
+        super().__init__(raw_stream, content_length)
+        self._init_checksum(checksum, expected)
+
+
+def _handle_streaming_response(http_response, response, algorithm):
+    checksum_cls = _CHECKSUM_CLS.get(algorithm)
+    header_name = "x-amz-checksum-%s" % algorithm
+    if httpx is not None and isinstance(http_response.raw, httpx.Response):
+        streaming_cls = HttpxStreamingChecksumBody
+    else:
+        streaming_cls = StreamingChecksumBody
+    return streaming_cls(
+        http_response.raw,
+        response["headers"].get("content-length"),
+        checksum_cls(),
+        response["headers"][header_name],
+    )
 
 
 async def handle_checksum_body(
