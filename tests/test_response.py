@@ -214,6 +214,23 @@ async def test_streaming_body_raw_stream():
     assert stream.raw_stream is body
 
 
+async def test_streaming_body_tell():
+    body = AsyncBytesIO(b'1234567890')
+    stream = response.StreamingBody(body, content_length=10)
+    assert stream.tell() == 0
+    await stream.read(5)
+    assert stream.tell() == 5
+    await stream.read()
+    assert stream.tell() == 10
+
+
+async def test_streaming_body_readlines():
+    body = AsyncBytesIO(b'line1\nline2\nline3')
+    stream = response.StreamingBody(body, content_length=17)
+    lines = await stream.readlines()
+    assert lines == [b'line1', b'line2', b'line3']
+
+
 # -- HttpxStreamingBody tests --
 
 
@@ -239,16 +256,12 @@ class MockHttpxResponse:
         return self._closed
 
 
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_httpx_read_all():
     body = MockHttpxResponse(b'1234567890')
     stream = HttpxStreamingBody(body, content_length=10)
     assert await stream.read() == b'1234567890'
 
 
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_httpx_read_with_amt():
     body = MockHttpxResponse(b'1234567890', chunk_size=4)
     stream = HttpxStreamingBody(body, content_length=10)
@@ -257,8 +270,6 @@ async def test_httpx_read_with_amt():
     assert await stream.read(5) == b''
 
 
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_httpx_read_zero():
     body = MockHttpxResponse(b'1234567890')
     stream = HttpxStreamingBody(body, content_length=10)
@@ -266,8 +277,6 @@ async def test_httpx_read_zero():
     assert await stream.read() == b'1234567890'
 
 
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_httpx_content_length_validation():
     body = MockHttpxResponse(b'123456789')
     stream = HttpxStreamingBody(body, content_length=10)
@@ -275,8 +284,6 @@ async def test_httpx_content_length_validation():
         await stream.read()
 
 
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_httpx_content_length_validation_chunked():
     body = MockHttpxResponse(b'123456789')
     stream = HttpxStreamingBody(body, content_length=10)
@@ -285,8 +292,6 @@ async def test_httpx_content_length_validation_chunked():
         await stream.read()
 
 
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_httpx_readinto():
     body = MockHttpxResponse(b'123456789', chunk_size=4)
     stream = HttpxStreamingBody(body, content_length=9)
@@ -297,8 +302,6 @@ async def test_httpx_readinto():
     assert chunk == bytearray(b'\x36\x37\x38\x39\x35')
 
 
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_httpx_readinto_with_invalid_length():
     body = MockHttpxResponse(b'12')
     stream = HttpxStreamingBody(body, content_length=9)
@@ -309,8 +312,6 @@ async def test_httpx_readinto_with_invalid_length():
         await stream.readinto(chunk)
 
 
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_httpx_readinto_empty_buffer():
     body = MockHttpxResponse(b'12')
     stream = HttpxStreamingBody(body, content_length=2)
@@ -318,8 +319,6 @@ async def test_httpx_readinto_empty_buffer():
     assert 0 == await stream.readinto(chunk)
 
 
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_httpx_iter_chunks():
     body = MockHttpxResponse(b'abcde', chunk_size=2)
     stream = HttpxStreamingBody(body, content_length=5)
@@ -327,8 +326,6 @@ async def test_httpx_iter_chunks():
     assert chunks == [b'ab', b'cd', b'e']
 
 
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_httpx_default_iter():
     body = MockHttpxResponse(b'a' * 2048, chunk_size=4096)
     stream = HttpxStreamingBody(body, content_length=2048)
@@ -338,8 +335,6 @@ async def test_httpx_default_iter():
     assert chunks[1] == b'a' * 1024
 
 
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_httpx_iter_lines():
     body = MockHttpxResponse(b'line1\nline2\nline3')
     stream = HttpxStreamingBody(body, content_length=17)
@@ -347,8 +342,6 @@ async def test_httpx_iter_lines():
     assert lines == [b'line1', b'line2', b'line3']
 
 
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_httpx_readlines():
     body = MockHttpxResponse(b'line1\nline2\nline3')
     stream = HttpxStreamingBody(body, content_length=17)
@@ -356,8 +349,6 @@ async def test_httpx_readlines():
     assert lines == [b'line1', b'line2', b'line3']
 
 
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_httpx_tell():
     body = MockHttpxResponse(b'1234567890', chunk_size=4)
     stream = HttpxStreamingBody(body, content_length=10)
@@ -368,8 +359,6 @@ async def test_httpx_tell():
     assert stream.tell() == 10
 
 
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_httpx_readable():
     body = MockHttpxResponse(b'12345')
     stream = HttpxStreamingBody(body, content_length=5)
@@ -378,8 +367,6 @@ async def test_httpx_readable():
     assert not stream.readable()
 
 
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_httpx_close():
     body = MockHttpxResponse(b'12345')
     stream = HttpxStreamingBody(body, content_length=5)
@@ -388,8 +375,6 @@ async def test_httpx_close():
     assert body.closed
 
 
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_httpx_async_context_manager():
     body = MockHttpxResponse(b'12345')
     async with HttpxStreamingBody(body, content_length=5) as stream:
@@ -398,16 +383,12 @@ async def test_httpx_async_context_manager():
     assert body.closed
 
 
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_httpx_raw_stream():
     body = MockHttpxResponse(b'12345')
     stream = HttpxStreamingBody(body, content_length=5)
     assert stream.raw_stream is body
 
 
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_httpx_is_async_iterator():
     body = MockHttpxResponse(b'a' * 1024 + b'b' * 1024 + b'c' * 2)
     stream = HttpxStreamingBody(body, content_length=2050)
@@ -418,8 +399,6 @@ async def test_httpx_is_async_iterator():
         await stream.__anext__()
 
 
-@pytest.mark.moto
-@pytest.mark.asyncio
 async def test_httpx_small_chunks_buffering():
     """Test that buffering works correctly when internal chunks are smaller
     than requested read size."""
