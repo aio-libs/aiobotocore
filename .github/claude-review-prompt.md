@@ -1,6 +1,12 @@
 REPO: $REPO
-PR NUMBER: $PR_NUMBER
+NUMBER: $PR_NUMBER
 EVENT: $EVENT_NAME
+
+NOTE: NUMBER above is a PR number when EVENT is
+pull_request or pull_request_review_comment, and an
+issue number when EVENT is issue_comment or issues.
+Use the appropriate gh command (gh pr view vs gh issue
+view) based on the event type.
 
 This is aiobotocore, a Python async library wrapping
 botocore for asyncio.
