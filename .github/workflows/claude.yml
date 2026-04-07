@@ -78,7 +78,7 @@ jobs:
       id: prompt
       env:
         REPO: ${{ github.repository }}
-        PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
+        NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
         EVENT_NAME: ${{ github.event_name }}
       run: |
         # Substitute env vars into prompt

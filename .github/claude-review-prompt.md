@@ -1,6 +1,12 @@
 REPO: $REPO
-PR NUMBER: $PR_NUMBER
+NUMBER: $NUMBER
 EVENT: $EVENT_NAME
+
+NOTE: NUMBER above is a PR number when EVENT is
+pull_request or pull_request_review_comment, and an
+issue number when EVENT is issue_comment or issues.
+Use the appropriate gh command (gh pr view vs gh issue
+view) based on the event type.
 
 This is aiobotocore, a Python async library wrapping
 botocore for asyncio.
@@ -25,7 +31,7 @@ review. This reviews the PR diff checking for:
 
 After the review completes, check the PR author:
 ```
-gh pr view $PR_NUMBER --json author --jq '.author.login'
+gh pr view $NUMBER --json author --jq '.author.login'
 ```
 
 If the PR was created by a bot (github-actions[bot],
