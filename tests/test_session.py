@@ -1,3 +1,4 @@
+import itertools
 import logging
 
 import pytest
@@ -59,6 +60,8 @@ async def test_set_user_agent_for_session(session: AioSession):
 @pytest.mark.parametrize(
     "service_name, api_version",
     [
+        (None, None),
+        ("iot", None),
         ("s3", None),
         ("s3", "2006-03-01"),
         ("ec2", "2016-11-16"),
@@ -67,35 +70,58 @@ async def test_set_user_agent_for_session(session: AioSession):
 def test_warm_up_loader_caches(
     session: AioSession, service_name, api_version, mocker
 ):
+    if service_name is None:
+        services = [
+            "ec2",
+            "iot",
+            "s3",
+        ]
+    else:
+        services = [service_name]
+
     loader = mocker.Mock()
     get_component = mocker.patch.object(
         session, "get_component", return_value=loader
     )
+    loader.list_available_services.return_value = services
 
     session.warm_up_loader_caches(service_name, api_version)
 
     get_component.assert_called_once_with("data_loader")
     assert loader.mock_calls == [
+        # generic calls
+        mocker.call.load_data_with_path("_retry"),
         mocker.call.load_data_with_path("endpoints"),
-        mocker.call.load_data("sdk-default-configuration"),
-        mocker.call.load_service_model(service_name, "waiters-2", api_version),
-        mocker.call.load_service_model(
-            service_name, "paginators-1", api_version
-        ),
-        mocker.call.load_service_model(
-            service_name, type_name="service-2", api_version=api_version
-        ),
+        mocker.call.load_data_with_path("partitions"),
+        mocker.call.load_data_with_path("sdk-default-configuration"),
         mocker.call.list_available_services(type_name="service-2"),
-        mocker.call.load_data("partitions"),
-        mocker.call.load_service_model(
-            service_name, "service-2", api_version=api_version
-        ),
-        mocker.call.load_service_model(
-            service_name, "endpoint-rule-set-1", api_version=api_version
-        ),
-        mocker.call.load_data("_retry"),
-        mocker.call.load_service_model(
-            service_name, "examples-1", api_version
+        # service-specific calls
+        *itertools.chain.from_iterable(
+            (
+                mocker.call.load_service_model(
+                    service_name,
+                    type_name="service-2",
+                    api_version=api_version,
+                ),
+                mocker.call.load_service_model(
+                    service_name, "paginators-1", api_version
+                ),
+                mocker.call.load_service_model(
+                    service_name, "waiters-2", api_version
+                ),
+                mocker.call.load_service_model(
+                    service_name, "service-2", api_version=api_version
+                ),
+                mocker.call.load_service_model(
+                    service_name,
+                    "endpoint-rule-set-1",
+                    api_version=api_version,
+                ),
+                mocker.call.load_service_model(
+                    service_name, "examples-1", api_version
+                ),
+            )
+            for service_name in services
         ),
     ]
 
