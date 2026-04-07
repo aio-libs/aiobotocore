@@ -10,6 +10,7 @@
 # distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
 # ANY KIND, either express or implied. See the License for the specific
 # language governing permissions and limitations under the License.
+import io
 from io import BytesIO
 from unittest import mock
 
@@ -188,6 +189,33 @@ class TestHttpChecksumHandlers:
         }
         apply_request_checksum(request)
         assert "x-amz-checksum-crc32" not in request["headers"]
+        assert isinstance(request["body"], AioAwsChunkedWrapper)
+
+    def test_apply_request_checksum_flex_trailer_non_seekable_with_length(
+        self,
+    ):
+        class NonSeekableStream(io.RawIOBase):
+            def __init__(self, body):
+                self._body = BytesIO(body)
+
+            def read(self, size=-1):
+                return self._body.read(size)  # pragma: no cover
+
+            def readable(self):
+                return True  # pragma: no cover
+
+        request = self._build_request(NonSeekableStream(b"hello world"))
+        request["headers"]["Content-Length"] = "11"
+        request["context"]["checksum"] = {
+            "request_algorithm": {
+                "in": "trailer",
+                "algorithm": "crc32",
+                "name": "x-amz-checksum-crc32",
+            }
+        }
+        apply_request_checksum(request)
+        assert "Content-Length" not in request["headers"]
+        assert request["headers"]["X-Amz-Decoded-Content-Length"] == "11"
         assert isinstance(request["body"], AioAwsChunkedWrapper)
 
     def test_apply_request_checksum_flex_header_trailer_explicit_digest(self):

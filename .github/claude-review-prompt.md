@@ -34,8 +34,32 @@ straightforward issues (confidence >= 80) by pushing
 a commit. Only fix clear-cut issues. Do not attempt
 complex refactors.
 
+Also check for review comments from other bots
+(github-advanced-security[bot], zizmor, etc.) and
+address their findings if they are actionable.
+
 If the PR was created by a human, the review comments
 are sufficient — never push commits to human PRs.
+
+## Git operations
+
+### Commit signing
+IMPORTANT: Never use `git commit` to create commits.
+Always use `mcp__github_file_ops__commit_files` with
+an explicit `branch` parameter. This creates commits
+via the GitHub API which are automatically signed.
+Git CLI commits are unsigned and will be rejected.
+
+### Branch naming
+Always use `claude/` prefix for branches you create.
+Never push to `main` — it is protected.
+
+### Avoiding pitfalls
+- `mcp__github_file_ops__commit_files` defaults to the
+  default branch if no `branch` is specified. ALWAYS
+  specify `branch` explicitly.
+- When fixing bot PRs, commit to the PR's existing
+  branch — don't create a new one.
 
 ## On @claude interactions: respond to the request
 

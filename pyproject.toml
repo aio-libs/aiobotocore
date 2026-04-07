@@ -31,7 +31,7 @@ dynamic = ["version", "readme"]
 dependencies = [
     "aiohttp >= 3.12.0, < 4.0.0",
     "aioitertools >= 0.5.1, < 1.0.0",
-    "botocore >= 1.42.62, < 1.42.71",
+    "botocore >= 1.42.79, < 1.42.85",
     "python-dateutil >= 2.1, < 3.0.0",
     "jmespath >= 0.7.1, < 2.0.0",
     "multidict >= 6.0.0, < 7.0.0",
@@ -72,11 +72,9 @@ dev = [
     "docutils >= 0.19, < 0.23", # Used in test_version.py
     "moto[server,s3,sqs,awslambda,dynamodb,cloudformation,sns,batch,ec2,rds] >= 5.1.8, < 6",
     "packaging >= 24.1, < 27", # Used in test_version.py
-    "pip >= 24.3.1, < 27", # Used in test_version.py
     "pre-commit >= 3.5.0, < 5",
     "pytest-rerunfailures >= 16.0.1, < 17", # Used in test_lambda.py
     "time-machine >= 2.15.0, < 4", # Used in test_signers.py
-    "tomli; python_version<'3.11'", # Used in test_version.py
 ]
 awscrt = [
     "botocore[crt]",
@@ -87,7 +85,7 @@ default-groups = [
     "botocore-dev",
     "dev",
 ]
-required-version = ">=0.8.4,<0.11"
+required-version = ">=0.8.4,<0.12"
 
 [tool.setuptools.dynamic]
 version = { attr = "aiobotocore.__version__" }
