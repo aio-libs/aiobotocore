@@ -1,0 +1,3 @@
+# Force LF line endings for all text files to avoid
+# yamllint/pre-commit failures on Windows checkouts
+* text=auto eol=lf

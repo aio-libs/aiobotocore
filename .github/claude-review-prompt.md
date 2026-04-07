@@ -83,6 +83,22 @@ fixes or features. Use branch prefix `claude/`.
 IMPORTANT: Never merge or close pull requests. Never
 close issues. These actions require human approval.
 
+## Environment
+
+Python, uv, and all dev dependencies are pre-installed.
+- Run tests: `uv run pytest <path> -sv`
+- Run pre-commit: `uv run pre-commit run --all --show-diff-on-failure`
+- Do NOT use `pip install` — all deps are available via `uv run`
+- Do NOT search for uv/pytest — they are on PATH
+- To read botocore source, use Read on the installed
+  files — do NOT use `inspect.getsource()` in Bash
+
+## Honesty
+
+Never claim tests pass unless you ran them successfully.
+If you could not run tests, say so in the PR description.
+Do not use checkmarks for untested items.
+
 ## Reference
 
 Use the repository's CLAUDE.md for guidance on style
