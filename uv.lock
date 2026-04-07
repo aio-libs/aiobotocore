@@ -13,7 +13,6 @@ source = { editable = "." }
 dependencies = [
     { name = "aiohttp" },
     { name = "aioitertools" },
-    { name = "boto3" },
     { name = "botocore" },
     { name = "jmespath" },
     { name = "multidict" },
@@ -58,7 +57,6 @@ dev = [
 requires-dist = [
     { name = "aiohttp", specifier = ">=3.12.0,<4.0.0" },
     { name = "aioitertools", specifier = ">=0.5.1,<1.0.0" },
-    { name = "boto3", specifier = ">=1.42.62,<1.42.71" },
     { name = "botocore", specifier = ">=1.42.62,<1.42.71" },
     { name = "httpx", marker = "extra == 'httpx'", specifier = ">=0.25.1,<0.29" },
     { name = "jmespath", specifier = ">=0.7.1,<2.0.0" },
