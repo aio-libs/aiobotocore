@@ -170,13 +170,13 @@ def test_protocol_parsers():
         (
             ClientArgsCreator.get_client_args,
             {
-                '3dfe4ed858d06ca35b5033c0f5dc9531e12090c2',
+                '1df6dcb298a8ab0c4ad7e30aad554ed356959779',
             },
         ),
         (
             ClientArgsCreator._build_endpoint_resolver,
             {
-                '354033a66f90fc1d939a3309ae7d595d480020a6',
+                'a7c95642c404de359b7823078e7d9527f73cbf1f',
             },
         ),
         # client.py
@@ -305,6 +305,7 @@ def test_protocol_parsers():
                 'da2d8b797568604449695cdcf803e344bdf887eb',
                 'a3abd6cb69883934f48403acfaa5ef598c548982',
                 '935dfd04e7bf5c29a6d4044a296c84e95c06e04a',
+                '38156ab595998fc1f70fd1b254469e2511fd2fd4',
             },
         ),
         # context.py
@@ -1592,7 +1593,7 @@ def test_protocol_parsers():
         (
             _apply_request_trailer_checksum,
             {
-                '45f483dd8520bf67616a063bdf6386865aad3591',
+                '975eaba079bbf07fe425a1515b327ff90461b1c2',
             },
         ),
         # retryhandler.py
