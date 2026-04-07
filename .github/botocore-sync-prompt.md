@@ -66,6 +66,16 @@ mcp__github_file_ops__commit_files({
 })
 ```
 
+If `mcp__github_file_ops__commit_files` fails (e.g. tries
+to commit to the wrong branch), fall back to the GitHub
+Git Data API directly via `gh api`:
+1. Create blobs for each file
+2. Create a tree referencing the blobs
+3. Create a commit referencing the tree
+4. Update the branch ref
+This also produces signed commits. Use Python for large
+files (e.g. uv.lock) that exceed command-line limits.
+
 ### Branch naming
 Always use the `claude/` prefix for branches:
 - WIP branch: `claude/botocore-sync-wip`

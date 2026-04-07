@@ -199,15 +199,6 @@ jobs:
 
     - name: Read prompt
       id: prompt
-      run: |
-        {
-          echo 'PROMPT<<PROMPT_EOF'
-          cat .github/botocore-sync-prompt.md
-          echo 'PROMPT_EOF'
-        } >> "$GITHUB_OUTPUT"
-
-    - uses: anthropics/claude-code-action@df37d2f0760a4b5683a6e617c9325bc1a36443f6
-      id: claude
       env:
         LATEST_BOTOCORE: >-
           ${{ needs.detect.outputs.latest_botocore }}
@@ -221,6 +212,19 @@ jobs:
           ${{ inputs.enable_bump || 'false' }}
         DRY_RUN: >-
           ${{ inputs.dry_run || 'false' }}
+      # yamllint disable-line rule:line-length
+      run: |
+        VARS='$LATEST_BOTOCORE $CURRENT_UPPER $CURRENT_LOWER'
+        VARS="$VARS"' $LAST_SUPPORTED $ENABLE_BUMP $DRY_RUN'
+        prompt=$(envsubst "$VARS" < .github/botocore-sync-prompt.md)
+        {
+          echo 'PROMPT<<PROMPT_EOF'
+          echo "$prompt"
+          echo 'PROMPT_EOF'
+        } >> "$GITHUB_OUTPUT"
+
+    - uses: anthropics/claude-code-action@df37d2f0760a4b5683a6e617c9325bc1a36443f6
+      id: claude
       with:
         anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
         use_commit_signing: true
