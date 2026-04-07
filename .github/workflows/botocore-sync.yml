@@ -173,6 +173,7 @@ jobs:
       contents: write
       pull-requests: write
       issues: write
+      workflows: write
       id-token: write
       actions: read
     steps:
@@ -213,7 +214,7 @@ jobs:
         DRY_RUN: >-
           ${{ inputs.dry_run || 'false' }}
       run: |
-        prompt=$(envsubst < .github/botocore-sync-prompt.md)
+        prompt=$(envsubst '$LATEST_BOTOCORE $CURRENT_UPPER $CURRENT_LOWER $LAST_SUPPORTED $ENABLE_BUMP $DRY_RUN' < .github/botocore-sync-prompt.md)
         {
           echo 'PROMPT<<PROMPT_EOF'
           echo "$prompt"

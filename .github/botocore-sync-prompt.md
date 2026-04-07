@@ -298,8 +298,10 @@ what changes are needed. Do not attempt code changes.
 
 ## Step 4a: Relax path
 
-1. `pyproject.toml`: change upper bound to one patch
-   above $LATEST_BOTOCORE. Keep lower bound unchanged.
+1. `pyproject.toml`: change upper bound for BOTH `botocore`
+   and `boto3` to one patch above $LATEST_BOTOCORE.
+   Keep lower bounds unchanged. boto3 and botocore always
+   use identical version ranges.
 2. `aiobotocore/__init__.py`: increment PATCH version.
 3. `CHANGES.rst`: add entry at top with today's date:
    ```
@@ -340,8 +342,10 @@ Step 8 to request feedback instead of guessing.
    - `async def test_*()` (no pytest.mark.asyncio)
    - Use `AioSession`, `StubbedSession`
    - Use `AioAWSResponse` for mocked responses
-3. `pyproject.toml`: update BOTH bounds. Lower =
-   $LATEST_BOTOCORE, upper = one patch above.
+3. `pyproject.toml`: update BOTH bounds for `botocore`
+   AND `boto3`. Lower = $LATEST_BOTOCORE, upper = one
+   patch above. boto3 and botocore always use identical
+   version ranges.
 4. `aiobotocore/__init__.py`: increment MINOR version,
    reset patch to 0.
 5. `CHANGES.rst`: add entry:
