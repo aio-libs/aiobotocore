@@ -3,6 +3,7 @@ NUMBER: $NUMBER
 EVENT: $EVENT_NAME
 IS_PR: $IS_PR
 IS_FORK: $IS_FORK
+COMMENT_ID: $COMMENT_ID
 
 NUMBER is a PR number when IS_PR is true, and an issue number when IS_PR is false.
 Use `gh pr view` when IS_PR is true, `gh issue view` otherwise.
@@ -92,6 +93,22 @@ You may create branches and pull requests to implement fixes or features. Use br
 ## Restrictions
 
 IMPORTANT: Never merge or close pull requests. Never close issues. These actions require human approval.
+
+## Cleanup
+
+When you finish processing, remove any 👀 reaction you added to the triggering entity.
+If COMMENT_ID is set (comment events), remove from the comment:
+```
+gh api repos/$REPO/issues/comments/$COMMENT_ID/reactions \
+  --jq '.[] | select(.content == "eyes") | .id' \
+  | xargs -I{} gh api repos/$REPO/issues/comments/$COMMENT_ID/reactions/{} --method DELETE
+```
+If COMMENT_ID is empty (pull_request events), remove from the PR:
+```
+gh api repos/$REPO/issues/$NUMBER/reactions \
+  --jq '.[] | select(.content == "eyes") | .id' \
+  | xargs -I{} gh api repos/$REPO/issues/$NUMBER/reactions/{} --method DELETE
+```
 
 ## Environment
 
