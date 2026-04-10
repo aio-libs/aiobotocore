@@ -76,6 +76,8 @@ jobs:
 
     - name: Set up git credentials
       run: gh auth setup-git
+      env:
+        GH_TOKEN: ${{ github.token }}
 
     - name: Set up uv + Python
       # yamllint disable-line rule:line-length
