@@ -183,6 +183,8 @@ jobs:
 
     - name: Set up git credentials
       run: gh auth setup-git
+      env:
+        GH_TOKEN: ${{ github.token }}
 
     - name: Cache botocore repo
       uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5.0.4
