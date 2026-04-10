@@ -181,6 +181,9 @@ jobs:
         fetch-depth: 0
         persist-credentials: false
 
+    - name: Set up git credentials
+      run: gh auth setup-git
+
     - name: Cache botocore repo
       uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5.0.4
       with:
@@ -223,8 +226,11 @@ jobs:
           echo 'PROMPT_EOF'
         } >> "$GITHUB_OUTPUT"
 
-    - uses: anthropics/claude-code-action@657fb7c9c986158a19624b357bcbc8c6deb83598
+    # yamllint disable-line rule:line-length
+    - uses: anthropics/claude-code-action@57ab6717ca1d3d137264d60c630870bd3b903729  # v1.0.92
       id: claude
+      env:
+        CLAUDE_BRANCH: claude/botocore-sync
       with:
         anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
         use_commit_signing: true
@@ -240,7 +246,10 @@ jobs:
             "hooks": {
               "PreToolUse": [{
                 "matcher": "Bash",
-                "command": "if echo \"$TOOL_INPUT\" | grep -qE '\\bgit commit\\b'; then echo 'BLOCKED: Use mcp__github_file_ops__commit_files instead of git commit. This ensures commits are signed.' >&2; exit 2; fi"
+                "command": "if echo \"$TOOL_INPUT\" | grep -qE '\\bgit commit\\b'; then echo 'BLOCKED: Use mcp__github_file_ops__commit_files instead of git commit. git commit produces unsigned commits which block PR merges.' >&2; exit 2; fi"
+              }, {
+                "matcher": "Bash",
+                "command": "if echo \"$TOOL_INPUT\" | grep -qE '\\bgit push\\b.*(\\bmain\\b|\\bmaster\\b|:main\\b|:master\\b)'; then echo 'BLOCKED: Never push directly to main/master.' >&2; exit 2; fi"
               }]
             }
           }
