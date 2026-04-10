@@ -74,12 +74,29 @@ jobs:
         fetch-depth: 1
         persist-credentials: false
 
+    - name: Set up git credentials
+      run: gh auth setup-git
+
+    - name: Set up uv + Python
+      # yamllint disable-line rule:line-length
+      uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78  # v7.6.0
+      with:
+        python-version: '3.12'
+        enable-cache: auto
+
+    - name: Install dependencies
+      run: uv sync
+
     - name: Read prompt
       id: prompt
       env:
         REPO: ${{ github.repository }}
         NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
         EVENT_NAME: ${{ github.event_name }}
+        # yamllint disable-line rule:line-length
+        IS_PR: ${{ github.event_name != 'issues' && (github.event_name != 'issue_comment' || github.event.issue.pull_request != null) }}
+        # yamllint disable-line rule:line-length
+        IS_FORK: ${{ github.event.pull_request.head.repo.fork || steps.pr_meta.outputs.is_fork || 'false' }}
       run: |
         # Substitute env vars into prompt
         prompt=$(envsubst < .github/claude-review-prompt.md)
@@ -89,8 +106,24 @@ jobs:
           echo 'PROMPT_EOF'
         } >> "$GITHUB_OUTPUT"
 
-    - uses: anthropics/claude-code-action@df37d2f0760a4b5683a6e617c9325bc1a36443f6
+    - name: Resolve PR metadata
+      id: pr_meta
+      if: github.event.issue.pull_request != null
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        meta=$(gh pr view ${{ github.event.issue.number }} \
+          --json headRefName,isCrossRepository \
+          --jq '{branch: .headRefName, fork: .isCrossRepository}')
+        echo "branch=$(echo "$meta" | jq -r .branch)" >> "$GITHUB_OUTPUT"
+        echo "is_fork=$(echo "$meta" | jq -r .fork)" >> "$GITHUB_OUTPUT"
+
+    # yamllint disable-line rule:line-length
+    - uses: anthropics/claude-code-action@57ab6717ca1d3d137264d60c630870bd3b903729  # v1.0.92
       id: claude
+      env:
+        CLAUDE_BRANCH: ${{ steps.pr_meta.outputs.branch || '' }}
+        IS_FORK: ${{ steps.pr_meta.outputs.is_fork || 'false' }}
       with:
         anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
         use_commit_signing: true
@@ -106,7 +139,13 @@ jobs:
             "hooks": {
               "PreToolUse": [{
                 "matcher": "Bash",
-                "command": "if echo \"$TOOL_INPUT\" | grep -qE '\\bgit commit\\b'; then echo 'BLOCKED: Use mcp__github_file_ops__commit_files instead of git commit. This ensures commits are signed.' >&2; exit 2; fi"
+                "command": "if echo \"$TOOL_INPUT\" | grep -qE '\\bgit commit\\b'; then echo 'BLOCKED: Use mcp__github_file_ops__commit_files instead of git commit. git commit produces unsigned commits which block PR merges.' >&2; exit 2; fi"
+              }, {
+                "matcher": "Bash",
+                "command": "if echo \"$TOOL_INPUT\" | grep -qE '\\bgit push\\b.*(\\bmain\\b|\\bmaster\\b|:main\\b|:master\\b)'; then echo 'BLOCKED: Never push directly to main/master.' >&2; exit 2; fi"
+              }, {
+                "matcher": "mcp__github_file_ops__commit_files",
+                "command": "if [ \"$IS_FORK\" = 'true' ]; then echo 'BLOCKED: This PR is from a fork. Never push commits to fork branches — leave review comments only.' >&2; exit 2; fi"
               }]
             }
           }

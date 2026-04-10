@@ -47,63 +47,53 @@ other issues that would fail CI.
 
 ## Git operations
 
-### Commit signing
-IMPORTANT: Never use `git commit` to create commits.
-Always use `mcp__github_file_ops__commit_files` with
-an explicit `branch` parameter. This creates commits
-via the GitHub API which are automatically signed.
-Git CLI commits are unsigned and will be rejected.
+### Committing changes
+Always use `mcp__github_file_ops__commit_files` for commits. It creates signed commits via the
+GitHub API attributed to `claude[bot]`. The workflow pre-configures the target branch to
+`claude/botocore-sync` — the tool will auto-create it from `main` if it doesn't exist.
+Never use `git commit` — it produces unsigned commits which block PR merges.
 
-Example:
-```
-mcp__github_file_ops__commit_files({
-  branch: "claude/botocore-sync",
-  message: "Relax botocore dependency specification",
-  files: [
-    {path: "pyproject.toml", content: "..."},
-    {path: "aiobotocore/__init__.py", content: "..."}
-  ]
-})
-```
-
-If `mcp__github_file_ops__commit_files` fails (e.g. tries
-to commit to the wrong branch), fall back to the GitHub
-Git Data API directly via `gh api`:
-1. Create blobs for each file
-2. Create a tree referencing the blobs
-3. Create a commit referencing the tree
-4. Update the branch ref
-This also produces signed commits. Use Python for large
-files (e.g. uv.lock) that exceed command-line limits.
+When committing to the WIP branch (`claude/botocore-sync-wip`), the MCP tool defaults to
+`claude/botocore-sync`. To commit to the WIP branch instead, first create it via `gh api`, then
+make changes locally and use `mcp__github_file_ops__commit_files` (the tool reads files from your
+working directory).
 
 ### Branch naming
 Always use the `claude/` prefix for branches:
 - WIP branch: `claude/botocore-sync-wip`
 - Final branch: `claude/botocore-sync`
-- Never push to `main` — it is protected.
-- Never push to branches without `claude/` prefix.
+- Never push to `main` — it is protected with branch rules requiring PR, merge queue, and status
+  checks.
+
+### Pre-commit setup
+Install pre-commit hooks before committing:
+```
+uv run pre-commit install
+```
 
 ### Avoiding pitfalls
-- `mcp__github_file_ops__commit_files` defaults to the
-  repo's default branch if no `branch` is specified.
-  ALWAYS specify the `branch` parameter explicitly.
 - Do NOT try to push to `main` or any protected branch.
-- `git push` is OK for pushing branches (not commits).
-  Use it after creating the branch with `gh api` or
-  `git checkout -b`.
 
 ## Background
 
-aiobotocore adds async functionality to botocore by
-subclassing (never monkey-patching). Source files mirror
-botocore's structure. See `docs/override-patterns.md`
-for the full pattern reference. See `CONTRIBUTING.rst`
-for the upgrade process.
+aiobotocore adds async functionality to botocore by subclassing (never monkey-patching). Source
+files mirror botocore's structure.
 
-`tests/test_patches.py` hashes botocore source we
-depend on. Hash failures are a SIGNAL (not a gate) that
-patched code changed. New botocore logic may also need
-async overrides even if no existing hashes break.
+**Key documentation — read these before making changes:**
+- `docs/override-patterns.md` — 8 async override patterns (subclass+async, component registration,
+  HTTP replacement, credentials, resolve_awaitable, event hooks, AioConfig, context managers) plus
+  the test porting pattern
+- `CONTRIBUTING.rst` — "How to Upgrade Botocore" section (step-by-step process) and "Hashes of
+  Botocore Code" section (explains why hashes exist and the two scenarios when they need updating)
+- `CLAUDE.md` — quick reference for override chain, key files, test structure
+
+`tests/test_patches.py` hashes botocore source we depend on. Hash failures are a SIGNAL (not a gate)
+that patched code changed. New botocore logic may also need async overrides even if no existing
+hashes break.
+
+### Test directory structure
+- `tests/` — aiobotocore-specific tests (parametrized with aiohttp+httpx via conftest.py)
+- `tests/botocore_tests/` — tests ported from botocore (not parametrized with HTTP backends)
 
 ## Two-PR model
 
@@ -251,7 +241,6 @@ d) Changes in files we don't override (no action)
 
 Install and run hash tests:
 ```
-pip install uv
 uv sync --all-extras
 uv pip install "botocore==$LATEST_BOTOCORE"
 uv run pytest tests/test_patches.py -x -v 2>&1
@@ -422,12 +411,11 @@ changes into a single commit on `botocore-sync`:
 ```
 git checkout -B claude/botocore-sync origin/main
 git merge --squash claude/botocore-sync-wip
-# Then use mcp__github_file_ops__commit_files with
-# branch: "claude/botocore-sync" to create a signed commit
 ```
+Then use `mcp__github_file_ops__commit_files` to commit the squashed changes (this creates a
+signed commit).
 
-**If no WIP PR:** commit directly to
-`claude/botocore-sync` and push.
+**If no WIP PR:** use `mcp__github_file_ops__commit_files` directly.
 
 Create or update the final PR:
 - Base: `main`
