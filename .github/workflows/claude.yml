@@ -99,6 +99,7 @@ jobs:
         IS_PR: ${{ github.event_name != 'issues' && (github.event_name != 'issue_comment' || github.event.issue.pull_request != null) }}
         # yamllint disable-line rule:line-length
         IS_FORK: ${{ github.event.pull_request.head.repo.fork || steps.pr_meta.outputs.is_fork || 'false' }}
+        COMMENT_ID: ${{ github.event.comment.id || '' }}
       run: |
         # Substitute env vars into prompt
         prompt=$(envsubst < .github/claude-review-prompt.md)
