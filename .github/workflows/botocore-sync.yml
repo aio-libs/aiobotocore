@@ -229,7 +229,7 @@ jobs:
         } >> "$GITHUB_OUTPUT"
 
     # yamllint disable-line rule:line-length
-    - uses: anthropics/claude-code-action@57ab6717ca1d3d137264d60c630870bd3b903729  # v1.0.92
+    - uses: anthropics/claude-code-action@657fb7c9c986158a19624b357bcbc8c6deb83598  # v1.0.92
       id: claude
       env:
         CLAUDE_BRANCH: claude/botocore-sync
