@@ -186,6 +186,16 @@ jobs:
       env:
         GH_TOKEN: ${{ github.token }}
 
+    - name: Set up uv + Python
+      # yamllint disable-line rule:line-length
+      uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b  # v8.1.0
+      with:
+        python-version: '3.12'
+        enable-cache: auto
+
+    - name: Install dependencies
+      run: uv sync
+
     - name: Cache botocore repo
       uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5.0.4
       with:
