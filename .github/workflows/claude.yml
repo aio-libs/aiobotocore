@@ -102,8 +102,13 @@ jobs:
         IS_FORK: ${{ github.event.pull_request.head.repo.fork || steps.pr_meta.outputs.is_fork || 'false' }}
         COMMENT_ID: ${{ github.event.comment.id || '' }}
       run: |
-        # Substitute env vars into prompt
-        prompt=$(envsubst < .github/claude-review-prompt.md)
+        # Substitute ONLY the documented template placeholders. Without
+        # this allowlist, envsubst expands every $VAR in the file —
+        # including shell variables used inside bash examples (like
+        # $PARENT_ID) and GraphQL query variables ($owner, $name, $pr),
+        # which would silently become empty strings.
+        # yamllint disable-line rule:line-length
+        prompt=$(envsubst '$REPO $NUMBER $EVENT_NAME $IS_PR $IS_FORK $COMMENT_ID' < .github/claude-review-prompt.md)
         {
           echo 'PROMPT<<PROMPT_EOF'
           echo "$prompt"
