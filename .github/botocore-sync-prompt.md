@@ -192,6 +192,14 @@ c) New logic in files we override: new classes, methods, network calls, I/O, blo
    we subclass
 d) Changes in files we don't override (no action)
 
+aiobotocore uses a **filename-mirror convention**: `botocore/foo.py` is overridden by `aiobotocore/foo.py` (and
+only by that path). To classify any changed botocore file, check for the mirror once:
+```
+[ -f aiobotocore/$(basename CHANGED_FILE) ] && echo "OVERRIDDEN" || echo "NOT_OVERRIDDEN"
+```
+If a changed file is NOT overridden, stop inspecting it and move on — do not grep aiobotocore for references to
+its internals. Only overridden files (category b/c) need further analysis.
+
 ## Step 3: Determine update type
 
 Install and run hash tests:
@@ -281,7 +289,22 @@ If you complete all tasks, go to Step 5. If you run out of turns or time, go to 
 
 Run `uv run pytest tests/test_patches.py -x -v`. Fix remaining failures. Repeat until passing.
 
-If all tests pass, go to Step 6. If tests fail and you cannot fix them, go to Step 5b to save progress.
+**For bump PRs only** — run a pyright **delta** check. aiobotocore has a long-standing baseline of pyright errors
+(mostly intentional async-overriding-sync patterns and legacy type gaps), so absolute error counts are not a gate.
+What we want to catch is drift introduced by the port — especially signature changes in botocore base methods
+that aiobotocore subclasses.
+
+Record the baseline before your port (`git stash` your changes, run pyright, note the count, then `git stash
+pop`), then run pyright again with your port applied:
+```
+uv run --with pyright pyright aiobotocore/ 2>&1 | tail -1
+```
+If the error count grew, run pyright again without `tail` to see the new errors. Investigate any that reference
+a file or method you touched during the port. Errors in files you did not modify are pre-existing noise — ignore
+them. Do not attempt to clean up pre-existing errors as part of a botocore sync; that is a separate concern.
+
+If all tests pass and no new pyright errors appeared in touched files, go to Step 6. If tests fail or new pyright
+errors appeared and you cannot resolve them, go to Step 5b to save progress.
 
 ## Step 5b: Save progress to WIP PR
 
