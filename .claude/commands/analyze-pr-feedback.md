@@ -1,22 +1,27 @@
 ---
-description: Fetch all review threads + top-level PR comments and surface the ones that need Claude's attention
+description: Fetch every PR comment + reply (including resolved), synthesize the discussion, and produce a grouped action plan
 ---
 
-Fetch every piece of reviewer feedback on the PR — review threads AND top-level PR comments — then filter to the
-items that actually need Claude to do something. Use this whenever you need to address reviewer feedback, either
-proactively (auto-review on claude[bot] PRs) or in response to an `@claude` mention.
+Fetch every piece of reviewer feedback on the PR — review threads and top-level PR comments, including resolved
+ones — then synthesize the discussion as context and produce a grouped action plan. Use this whenever you need
+to address reviewer feedback, either proactively (auto-review on claude[bot] PRs) or in response to an `@claude`
+mention.
+
+**Do not process threads in isolation.** Read the entire comment history first, including threads that are
+already resolved or already ended with a claude[bot] reply, to build a coherent picture of what the reviewer
+cares about. A single comment often makes no sense without the surrounding thread; a thread often makes no
+sense without the PR-wide context of prior discussions. Only after synthesis should you decide actions.
 
 ## Arguments
 
-- `--focus=<databaseId>` (optional): the triggering comment's `databaseId`. If set, prioritize the thread
-  containing this comment in your output and analysis. Other threads are still returned as context but ranked
-  after the focused one.
-
-If `--focus` is omitted, all surviving threads are returned unranked.
+- `--focus=<databaseId>` (optional): the triggering comment's `databaseId`. If set, the thread containing this
+  comment is guaranteed to appear in the action plan (assuming it passes filters) and is ranked first. Other
+  items are still included — the focus doesn't narrow scope, it only prioritizes.
 
 ## Step 1: Fetch everything
 
-Assumes `$REPO` and `$NUMBER` are set by the workflow environment.
+Assumes `$REPO` and `$NUMBER` are set by the workflow environment. Include resolved threads too — they are
+context even though you won't act on them.
 
 ```
 gh api graphql -f query='
@@ -48,74 +53,143 @@ gh api graphql -f query='
             url
           }
         }
+        reviews(last:50) {
+          nodes {
+            state
+            body
+            author { login __typename }
+            authorAssociation
+            submittedAt
+          }
+        }
       }
     }
   }' -F o=${REPO%/*} -F n=${REPO#*/} -F p=$NUMBER
 ```
 
-## Step 2: Apply filters
+## Step 2: Synthesize the discussion into three buckets
 
-Apply ALL of these in order. Skip any item that fails any one filter.
+Read every thread, every reply, and every top-level comment in chronological order. **Do not act on anything
+yet.** Build an internal synthesis with these three explicit buckets — this is the core output of the
+synthesis step:
 
-### Filter 1 — Author must be trusted
+### Bucket A — What was asked
 
-`authorAssociation` must be `MEMBER`, `OWNER`, or `COLLABORATOR`. Skip `NONE`, `FIRST_TIMER`,
-`FIRST_TIME_CONTRIBUTOR`, `CONTRIBUTOR`, `MANNEQUIN`.
+Every concrete request from trusted reviewers across the full PR history, including requests that have
+already been addressed. Group related asks together (e.g. "three comments about CHANGES.rst convention"
+becomes one grouped ask).
 
-### Filter 2 — Last entry must NOT be claude[bot]
+### Bucket B — What was done
 
-For review threads: check the last element of `comments.nodes` (sorted by `createdAt`).
-For top-level PR comments: the comment itself is its own "thread"; check its author.
+For each ask in Bucket A, record what has already happened in response:
+- A claude[bot] reply explaining what was done (or why not) + the commit SHA.
+- A commit on the branch that addresses the ask, even without an explicit reply.
+- The reviewer acknowledged the fix (`isResolved: true`, or a follow-up comment like "thanks, fixed").
+- Nothing yet.
 
-If `author.login == "claude"` AND `author.__typename == "Bot"`, skip — claude already replied last, reviewer has
-the ball. (Remember: GraphQL strips `[bot]` suffix, so bare `"claude"` + `Bot` type is the match.)
+Use `git log -p -- <path>` and `Read` of the affected files to verify — do not assume the response matches
+what the reviewer asked for; confirm the current code state.
 
-### Filter 3 — Item must represent actionable work for Claude
+### Bucket C — What is being asked that isn't resolved
 
-An item is actionable if it asks Claude to do something concrete: change code, fix a bug, answer a specific
-question about code, or modify the PR. Items that do NOT pass this filter:
+The set difference: items from Bucket A where Bucket B is empty, or where the response didn't fully
+address the ask. These are the candidates for action.
 
-- Comments addressed to other users (e.g. `@jakob-keller working on this...`) — human-to-human status chatter.
-- Progress / status updates (e.g. "still working on this", "LGTM once CI passes", "thanks!").
-- Praise, acknowledgements, or tangential discussion unrelated to code.
-- Meta-review chatter (e.g. "let me re-review this later").
-- Explicit skip / ignore directives (e.g. "ignore this, I'll handle it").
+Filter Bucket C to what's actually actionable for Claude:
 
-When in doubt, skip. A wrong reply from Claude is more disruptive than a missing one. Mention skipped items
-briefly in whatever caller-side summary you produce instead of replying on-thread.
+1. **Trusted author** — `authorAssociation` is `MEMBER`, `OWNER`, or `COLLABORATOR`. Others go to context,
+   never to action.
+2. **Not engaged by claude** — the most recent comment in the thread is not from `claude[bot]`
+   (`author.login == "claude" && author.__typename == "Bot"`). If claude already replied last, the
+   reviewer has the ball — belongs in Bucket B, not C.
+3. **Actionable work for Claude** — the ask is a concrete code change, bug fix, code-level answer, or
+   modification. Skip:
+   - Comments addressed to other users (e.g. `@jakob-keller working on this...`) — human-to-human chatter.
+   - Progress / status updates, praise, tangential discussion.
+   - Meta-review chatter or explicit skip directives ("ignore this, I'll handle it").
 
-## Step 3: Output structured list
+   When in doubt, skip and note the item in the summary instead of acting. A wrong reply is more disruptive
+   than a missing one.
 
-For each surviving item, emit:
+Bucket C items are what become actions. Multiple items are common on a PR with real back-and-forth — plan
+for multiple actions in one run, grouped where related.
 
+## Step 4: For each action, pick an outcome
+
+Before acting on any item, **read the current code state** with `git log -p -- <path>` and `Read` of the
+file. The repo may already contain the fix from a prior Claude run; don't duplicate it.
+
+Three outcomes per action (or per group of related actions):
+
+1. **Already addressed in a prior commit** — reply `Addressed in commit <short-SHA> — <permalink>` on each
+   relevant thread. No new commit.
+2. **Not yet addressed, confidence >= 80** — push one targeted signed commit via
+   `mcp__github_file_ops__commit_files` that addresses the whole group, then reply on each relevant thread
+   with the new SHA and a one-line explanation.
+3. **Ambiguous or risky** — reply asking for clarification. No speculative fixes.
+
+## Step 5: Reply targets
+
+- **Inline review thread**: reply in the same thread so discussion stays attached to the code line:
+  ```
+  gh api repos/$REPO/pulls/$NUMBER/comments/$PARENT_COMMENT_ID/replies \
+    --method POST -f body='…reply text…'
+  ```
+  `$PARENT_COMMENT_ID` is the first comment's `databaseId` in that thread's `comments.nodes`.
+
+- **Top-level PR comment**: reply as a new top-level comment that quotes the original's first line so context
+  is preserved:
+  ```
+  gh api repos/$REPO/issues/$NUMBER/comments \
+    --method POST -f body='> <reviewer>: <quoted first line>\n\n…reply text…'
+  ```
+
+## Output contract
+
+Before you act on anything, write out an explicit plan with these sections. Keep it structured — this is
+your internal checklist, and the final top-level summary reply renders from the same data.
+
+### Replies needed
+
+For each item in Bucket C (after filters), list:
 ```
-- thread_id: <review thread id, or "top-level" for PR comments>
-  path: <file path, or null for top-level>
-  line: <line number, or null for top-level>
-  parent_comment_id: <databaseId of the first comment — target for reply>
-  last_comment_author: <login>
-  last_comment_body: <first 200 chars>
-  thread_url: <permalink>
-  is_focus: <true if --focus matched this thread, else false>
+- thread_url: <permalink>
+  kind: <"review_thread" | "top_level_comment">
+  parent_comment_id: <databaseId to use as the reply target>
+  path: <file path or null>
+  line: <line number or null>
+  last_author: <login>
+  last_comment_preview: <first 200 chars>
+  planned_outcome: <"already-fixed" | "fix-now" | "ask-clarification">
+  planned_commit_group: <group name, or null if no commit planned>
 ```
 
-If `--focus` was provided and matched a thread, sort that thread first. Otherwise output in `createdAt` order.
+This is the explicit "which comments need to be replied to" list. After acting, every entry here MUST
+have had a reply posted. Before exiting, re-run a check of the form "for each parent_comment_id in my
+plan, did I POST a reply?" to catch any skipped items.
 
-## What the caller does next
+### Commit groups
 
-This command returns data only — no replies, no commits. The caller decides how to handle each item:
+For each planned `fix-now` group, list:
+```
+- group: <short name>
+  threads: [<list of thread_urls this group addresses>]
+  change_summary: <one-line description of what the commit will do>
+```
 
-1. **Already addressed in a prior commit** → caller replies `Addressed in commit <short-SHA> — <permalink>` on
-   the thread. No duplicate fix.
-2. **Not yet addressed, confidence >= 80** → caller pushes a targeted signed commit via
-   `mcp__github_file_ops__commit_files`, then replies with the new SHA and one-line explanation.
-3. **Ambiguous or risky** → caller replies asking for clarification. No speculative fix.
+One commit per group; multiple threads can share a group.
 
-Reply targets:
-- Inline thread: `gh api repos/$REPO/pulls/$NUMBER/comments/$PARENT_COMMENT_ID/replies --method POST -f body=...`
-- Top-level comment: `gh api repos/$REPO/issues/$NUMBER/comments --method POST -f body=...`
-  (quote the original's first line in a blockquote so context is preserved).
+### Final top-level summary
 
-Before posting any reply or pushing any commit, **read the current code state** with `git log -p -- <path>`,
-`git blame`, and direct Read of the file. Do not assume the repo state matches what the reviewer saw when they
-wrote the comment; a prior Claude run may have already fixed the issue.
+When posting the run-level summary reply (via the parent prompt's Cleanup section), include:
+
+- **Discussion summary** (1–3 sentences): what the reviewer has raised, what patterns emerged across
+  resolved + unresolved history.
+- **Bucket A — What was asked**: the full list, grouped.
+- **Bucket B — What was done**: per ask, the commit SHA or the resolution. Include items done in prior
+  runs, not just this one.
+- **Bucket C — What's still outstanding**: per ask, the planned action or "awaiting reviewer clarification".
+- **Per-thread replies**: permalinks to every reply you posted this run.
+
+This way the reviewer can scan one comment and understand the state of every discussion thread, rather
+than chasing N separate replies.
