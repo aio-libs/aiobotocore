@@ -57,6 +57,11 @@ jobs:
        contains(github.event.review.body, '@claude') &&
        contains(fromJSON('["MEMBER","OWNER","COLLABORATOR"]'),
        github.event.review.author_association)) ||
+      (github.event_name == 'pull_request_review' &&
+       github.event.review.state == 'changes_requested' &&
+       github.event.pull_request.user.type == 'Bot' &&
+       contains(fromJSON('["MEMBER","OWNER","COLLABORATOR"]'),
+       github.event.review.author_association)) ||
       (github.event_name == 'issues' &&
        (contains(github.event.issue.body, '@claude') ||
        contains(github.event.issue.title, '@claude')) &&
@@ -64,7 +69,10 @@ jobs:
        github.event.issue.author_association))
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    continue-on-error: true
+    # Do not swallow failures silently. If the action itself can't run
+    # (e.g. bun install rate-limited, auth broken), we want the job to
+    # fail visibly rather than appear green while Claude never executed.
+    continue-on-error: false
     environment: claude
     permissions:
       contents: write
@@ -92,6 +100,17 @@ jobs:
 
     - name: Install dependencies
       run: uv sync
+
+    # Pre-install bun so the claude-code-action's bundled setup-bun
+    # step can short-circuit. Without this, setup-bun fetches the
+    # latest bun version from the GitHub API on every run and has
+    # been 403-rate-limited on the claude[bot] installation token,
+    # crashing the action before Claude runs.
+    - name: Install bun
+      # yamllint disable-line rule:line-length
+      uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6  # v2.2.0
+      with:
+        bun-version: '1.2'
 
     - name: Read prompt
       id: prompt
