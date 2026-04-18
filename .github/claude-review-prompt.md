@@ -50,6 +50,27 @@ If the PR is from this repo (IS_FORK is false), check the author:
 Also check for review comments from other bots (github-advanced-security[bot], zizmor, etc.) and
 address their findings if they are actionable.
 
+### Address reviewer feedback on claude[bot]-authored PRs
+
+When the PR was authored by `claude[bot]` specifically (not other bots), also go through open reviewer
+feedback and address or acknowledge each outstanding item — don't rely on your own `/review-pr` findings
+alone. Reviewer threads may have been posted days ago and need explicit handling on this run.
+
+Check PR author first:
+```
+gh api repos/$REPO/pulls/$NUMBER --jq '.user.login'
+# Proceed ONLY if this equals "claude[bot]"
+```
+
+Then run `/analyze-pr-feedback` (no `--focus` — we want all items, none is the trigger). The command fetches
+every review thread plus top-level PR comments, applies filters (trusted author, last reply not claude,
+actionable work), and returns the items that need attention.
+
+For each returned item, follow the 3-outcome rule documented in `/analyze-pr-feedback`: already-fixed →
+reply with commit SHA; not-fixed + confident → push fix + reply; ambiguous → ask for clarification.
+
+These per-thread replies are in addition to `/review-pr`'s summary comment — not a replacement.
+
 ## Git operations
 
 ### Committing changes
@@ -113,44 +134,27 @@ To read the triggering comment:
   list `gh api repos/$REPO/pulls/$NUMBER/comments` for any inline comments submitted with the
   review (the review summary body is often empty when the @claude mention is in an inline comment).
 
-### Read the full thread, not just the one comment
+### Pull full context via /analyze-pr-feedback
 
-A single comment is rarely the full context. Before acting, pull the whole conversation so you
-account for replies, counter-proposals, and follow-ups from the reviewer and others.
+A single comment is rarely the full context. Before acting, run `/analyze-pr-feedback` to fetch every review
+thread and top-level PR comment (with the trusted-author / last-reply-not-claude / actionable-work filters
+already applied). When a specific comment triggered this run, pass its databaseId as `--focus`:
 
-For a `pull_request_review_comment` trigger, fetch every unresolved review thread on the PR — including the
-triggering thread (by locating the thread whose `comments.nodes` contains `$COMMENT_ID`). This is a single GraphQL
-call that also exposes each thread's `isResolved` state, which the REST `/comments` endpoint does not:
-```
-gh api graphql -f query='
-  query($owner:String!, $name:String!, $pr:Int!) {
-    repository(owner:$owner, name:$name) {
-      pullRequest(number:$pr) {
-        reviewThreads(first:100) {
-          nodes {
-            isResolved
-            isOutdated
-            path
-            line
-            comments(first:50) {
-              nodes { databaseId author { login } createdAt body url replyTo { databaseId } }
-            }
-          }
-        }
-      }
-    }
-  }' -F owner=aio-libs -F name=aiobotocore -F pr=$NUMBER --jq '
-    .data.repository.pullRequest.reviewThreads.nodes
-      | map(select(.isResolved == false))'
-```
+- `pull_request_review_comment`: `/analyze-pr-feedback --focus=$COMMENT_ID`
+- `issue_comment` (PR): `/analyze-pr-feedback --focus=$COMMENT_ID`
+- `pull_request_review` (CHANGES_REQUESTED or @claude in review body): `/analyze-pr-feedback` (no focus —
+  the review summary itself isn't a review-thread comment, so iterate all items and pay special attention
+  to ones submitted as part of this review)
 
-When the reviewer asks you to address a specific comment, find the thread whose comments contain
-`databaseId == $COMMENT_ID` and read every comment in it (the parent plus all replies, in `createdAt` order).
-When the reviewer says something broad like "address all the PR comments", read every unresolved thread in full
-before deciding what to do.
+Prioritize the focused thread (if any). For broad asks like "address all the PR comments", handle every
+returned item. For narrow asks, use other items as context and only act on the focused one unless the
+reviewer explicitly scopes wider.
 
-In your summary reply, list each thread you touched (with its `url` permalink) and state whether you addressed
-it, replied, or left it alone and why.
+For each item you touch, follow the 3-outcome rule documented in `/analyze-pr-feedback`:
+already-fixed → reply with commit SHA; not-fixed + confident → push fix + reply; ambiguous → clarify.
+
+In your final top-level summary reply (required — see Cleanup below), list each thread you touched (with
+its `url` permalink) and state whether you addressed it, replied, or left it alone and why.
 
 ## Implement the issue (EVENT=issues)
 
