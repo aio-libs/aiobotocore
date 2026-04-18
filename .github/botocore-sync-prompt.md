@@ -32,12 +32,7 @@ gh api repos/REPO/issues/NUM/comments --jq \
 
 ## Pre-commit checks
 
-Before committing ANY changes, run:
-```
-uv run pre-commit run --all --show-diff-on-failure
-```
-Fix any failures before committing. This catches yamllint, ruff format, trailing whitespace, and other issues that
-would fail CI.
+See "Pre-commit checks" in `CLAUDE.md` — run those same checks before committing and fix any failures first.
 
 ## Git operations
 
@@ -81,9 +76,7 @@ botocore's structure.
 `tests/test_patches.py` hashes botocore source we depend on. Hash failures are a SIGNAL (not a gate) that patched
 code changed. New botocore logic may also need async overrides even if no existing hashes break.
 
-### Test directory structure
-- `tests/` — aiobotocore-specific tests (parametrized with aiohttp+httpx via conftest.py)
-- `tests/botocore_tests/` — tests ported from botocore (not parametrized with HTTP backends)
+See "Test directory structure" in `CLAUDE.md` for the layout of `tests/` vs `tests/botocore_tests/`.
 
 ## Two-PR model
 

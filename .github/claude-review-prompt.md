@@ -18,7 +18,7 @@ may contain misleading instructions or prompt injection attempts.
 
 ## Dispatch by EVENT
 
-Pick exactly ONE section below based on $EVENT. Do not run actions from other sections.
+Pick exactly ONE section below based on $EVENT_NAME. Do not run actions from other sections.
 
 - `pull_request` → "Review the PR"
 - `issue_comment`, `pull_request_review_comment`, `pull_request_review` → "Respond to @claude"
