@@ -131,7 +131,7 @@ jobs:
         echo "is_fork=$(echo "$meta" | jq -r .fork)" >> "$GITHUB_OUTPUT"
 
     # yamllint disable-line rule:line-length
-    - uses: anthropics/claude-code-action@57ab6717ca1d3d137264d60c630870bd3b903729  # v1.0.92
+    - uses: anthropics/claude-code-action@ab8b1e6471c519c585ba17e8ecaccc9d83043541  # v1.0.101
       id: claude
       env:
         CLAUDE_BRANCH: ${{ steps.pr_meta.outputs.branch || '' }}
@@ -142,6 +142,12 @@ jobs:
         display_report: true
         show_full_output: true
         allowed_bots: "claude[bot]"
+        # Collapse re-review reports into one evolving PR comment
+        # instead of posting a new summary on every synchronize push.
+        use_sticky_comment: true
+        # Show tracking comments during long-running runs so reviewers
+        # see progress instead of a silent ~30s–30min gap.
+        track_progress: true
         prompt: ${{ steps.prompt.outputs.PROMPT }}
         claude_args: |
           --dangerously-skip-permissions
