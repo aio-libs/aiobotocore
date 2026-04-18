@@ -109,6 +109,54 @@ To read the triggering comment:
   list `gh api repos/$REPO/pulls/$NUMBER/comments` for any inline comments submitted with the
   review (the review summary body is often empty when the @claude mention is in an inline comment).
 
+### Read the full thread, not just the one comment
+
+A single comment is rarely the full context. Before acting, pull the whole conversation so you
+account for replies, counter-proposals, and follow-ups from the reviewer and others.
+
+For a `pull_request_review_comment` trigger, fetch the parent + all sibling replies in the thread:
+```
+# Get the parent comment id (the comment itself if it's a top-level review comment,
+# otherwise the id it replies to)
+PARENT_ID=$(gh api repos/$REPO/pulls/comments/$COMMENT_ID \
+  --jq '.in_reply_to_id // .id')
+
+# List every comment in that thread (parent + all replies), in order
+gh api repos/$REPO/pulls/$NUMBER/comments --paginate \
+  --jq "[.[] | select(.id == $PARENT_ID or .in_reply_to_id == $PARENT_ID)]
+        | sort_by(.created_at)
+        | .[] | \"[\(.user.login) @ \(.created_at)]\\n\(.body)\\n\""
+```
+
+When the reviewer says something broad like "address all the PR comments", enumerate **every
+unresolved review thread** on the PR — not only the one that triggered this run. The REST
+`/comments` endpoint does not expose resolution state, so use GraphQL:
+```
+gh api graphql -f query='
+  query($owner:String!, $name:String!, $pr:Int!) {
+    repository(owner:$owner, name:$name) {
+      pullRequest(number:$pr) {
+        reviewThreads(first:100) {
+          nodes {
+            isResolved
+            isOutdated
+            path
+            line
+            comments(first:50) {
+              nodes { author { login } createdAt body url }
+            }
+          }
+        }
+      }
+    }
+  }' -F owner=aio-libs -F name=aiobotocore -F pr=$NUMBER \
+  --jq '.data.repository.pullRequest.reviewThreads.nodes
+        | map(select(.isResolved == false))'
+```
+Read every unresolved thread in full before deciding what to do. In your summary reply, list each
+thread you touched (with its permalink) and state whether you addressed it, replied, or left it
+alone and why.
+
 ## Implement the issue (EVENT=issues)
 
 You may create branches and pull requests to implement fixes or features. Use branch prefix `claude/`.
