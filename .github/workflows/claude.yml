@@ -102,15 +102,18 @@ jobs:
       run: uv sync
 
     # Pre-install bun so the claude-code-action's bundled setup-bun
-    # step can short-circuit. Without this, setup-bun fetches the
-    # latest bun version from the GitHub API on every run and has
-    # been 403-rate-limited on the claude[bot] installation token,
-    # crashing the action before Claude runs.
+    # step can short-circuit. Use `bun-download-url` (documented in
+    # setup-bun's README as the escape hatch for rate-limited runners)
+    # to point directly at the releases-download CDN — any other input
+    # (latest, a range like '1.2', or the default package.json lookup)
+    # resolves via the GitHub tags API, which gets 403-rate-limited on
+    # the shared installation token.
     - name: Install bun
       # yamllint disable-line rule:line-length
       uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6  # v2.2.0
       with:
-        bun-version: '1.2'
+        # yamllint disable-line rule:line-length
+        bun-download-url: "https://github.com/oven-sh/bun/releases/latest/download/bun-linux-x64.zip"
 
     - name: Read prompt
       id: prompt
