@@ -351,44 +351,47 @@ Then use `mcp__github_file_ops__commit_files` to commit the squashed changes (th
 Create or update the final PR:
 - Base: `main`
 - Title: `Relax botocore dependency specification` or `Bump botocore dependency specification`
-- Body:
+- Body: roughly follow `.github/pull_request_template.md`. **Always re-read the template at PR creation time** —
+  do not rely on memory or a cached version, because the template may have changed since the last run:
   ```
-  ### Description of Change
-  This PR [relaxes/bumps] the botocore dependency to support version [VERSION].
-
-  **Type:** [Relax (patch) / Bump (minor)]
-  **Botocore diff:** [URL]
-
-  ### What changed in botocore
-  [Summary of upstream changes, categorized: schema-only, patched code, new logic, etc.]
-
-  ### What changed in aiobotocore
-  [For bumps: list of files modified, new classes added, tests ported. For relax: "Version bounds updated only,
-  no code changes."]
-
-  ### Reviewer checklist
-  Please verify before approving:
-  - [ ] Botocore diff reviewed — changes correctly categorized as relax vs bump
-  - [ ] For bumps: async overrides follow patterns in `docs/override-patterns.md`
-  - [ ] For bumps: new/changed tests pass and cover the ported functionality
-  - [ ] `test_patches.py` hashes are up to date
-  - [ ] Version bump in `__init__.py` is correct (patch for relax, minor for bump)
-  - [ ] `CHANGES.rst` entry added
-  - [ ] No unrelated changes included
-
-  ### How to help
-  - Review the botocore diff link above
-  - Check aiobotocore changes match botocore
-  - If something looks wrong, leave a review comment — the bot will attempt to fix straightforward issues
-    automatically
-  - Use `@claude` to ask questions or request modifications
-  - Approve and merge when satisfied
-
-  ### Checklist
-  * [x] Followed CONTRIBUTING.rst
-  * [x] Updated test_patches.py
-  * [x] Botocore diff: [URL]
+  cat .github/pull_request_template.md
   ```
+  Use the template as the foundation (see the shared "Creating PRs" guidance below — all of it applies). Apply
+  these sync-specific details on top:
+  - **Description of Change** — one or two paragraphs explaining the relax vs bump, the target version, and a link
+    to the botocore diff (`https://github.com/boto/botocore/compare/OLD...NEW`).
+  - **Assumptions** — any design decisions you made during the bump. Omit if none.
+  - **Checklist when updating botocore and/or aiohttp versions** — fill in the diff URL with both version tags.
+
+  Append these extra sections below the template's content (the template stays first):
+  - **What changed in botocore** — categorized summary: schema-only, patched code, new logic.
+  - **What changed in aiobotocore** — for bumps: files modified, classes added, tests ported. For relax: "Version
+    bounds updated only, no code changes."
+  - **Reviewer checklist** — items for human reviewers (async patterns, hashes current, version bump type correct,
+    no unrelated changes).
+  - **How to help** — instructions for responding via `@claude` or leaving review comments.
+
+## Creating PRs
+
+Every PR you open should roughly follow the repository's current PR template. The template may change over time —
+always re-read it at PR creation time:
+```
+cat .github/pull_request_template.md
+```
+
+Use the template as the foundation:
+1. Include its headings and checklist items. Keep them in the template's original order.
+2. Replace every `*Replace this text with ...*` placeholder with concrete details — never leave placeholders.
+3. You may omit a section if it clearly does not apply, tweak phrasing for clarity, and add new sections below the
+   template's items to enhance it. Added sections should go after the template's content, not replace it.
+4. If the template gains new sections or checklist items in the future, include them too.
+
+Tick a checklist box only for work you actually completed. For items that don't apply, either omit with a brief
+note or leave unchecked with a one-line reason.
+
+Before marking the PR ready, verify each checked box against the actual diff (e.g. `git diff origin/main --
+CHANGES.rst` must show the new top entry if you checked that box). Unchecked with a reason is always better than
+a false check.
 
 If a WIP PR exists, close it (post a comment linking to the final PR first).
 

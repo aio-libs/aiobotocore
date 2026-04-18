@@ -159,6 +159,36 @@ alone and why.
 
 You may create branches and pull requests to implement fixes or features. Use branch prefix `claude/`.
 
+When opening the PR, follow the "Creating PRs" section below.
+
+## Creating PRs
+
+Every PR you open should roughly follow the repository's current PR template. The template may change over time —
+always re-read it at PR creation time instead of relying on memory or a cached version:
+```
+cat .github/pull_request_template.md
+```
+
+Use the template as the foundation:
+1. Include its headings and checklist items. Keep them in the template's original order.
+2. Replace every `*Replace this text with ...*` placeholder with concrete details — never leave placeholders.
+3. You may omit a section if it clearly does not apply (e.g. "Assumptions" when there are none), tweak phrasing for
+   clarity, and add new sections below the template's items to enhance it (e.g. "Reviewer checklist", "How to
+   help", "What changed upstream"). Added sections should go after the template's content, not replace it.
+4. If the template gains new sections or checklist items in the future, include them too — don't filter based on
+   an outdated mental model of what the template contains.
+
+Tick a checklist box only for work you actually completed. For items that don't apply or you didn't do, either
+omit the item with a brief note or leave the box unchecked with a one-line reason, e.g.
+`[ ] Detailed description of issue — N/A, no linked issue`.
+
+Before marking the PR ready for review, verify each checked box against the actual diff. For example:
+- `CHANGES.rst` entry checked → `git diff origin/main -- CHANGES.rst` must show a new top entry.
+- `test_patches.py` updated checked → the hashes file must have a matching diff.
+- CONTRIBUTING.rst followed checked → only tick if the PR is a botocore/aiohttp upgrade and you ran those steps.
+
+Unchecked with a reason is always better than a false check.
+
 ## Restrictions
 
 IMPORTANT: Never merge or close pull requests. Never close issues. These actions require human approval.
