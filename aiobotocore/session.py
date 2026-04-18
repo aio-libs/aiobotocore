@@ -1,3 +1,7 @@
+import asyncio
+import contextlib
+from typing import Optional
+
 from botocore import UNSIGNED, translate
 from botocore import __version__ as botocore_version
 from botocore.context import get_context
@@ -126,6 +130,49 @@ class AioSession(_SyncSession):
         )
         return service_data
 
+    def warm_up_loader_caches(
+        self,
+        service_name: Optional[str] = None,
+        api_version: Optional[str] = None,
+    ):
+        loader = self.get_component('data_loader')
+
+        # load generic data
+        loader.load_data_with_path('_retry')
+        loader.load_data_with_path('endpoints')
+        loader.load_data_with_path('partitions')
+        loader.load_data_with_path('sdk-default-configuration')
+        services = loader.list_available_services(type_name='service-2')
+
+        # load service-specific data
+        for service_name in (service_name,) if service_name else services:
+            # from session.py
+            loader.load_service_model(
+                service_name, type_name='service-2', api_version=api_version
+            )
+            with contextlib.suppress(UnknownServiceError):
+                loader.load_service_model(
+                    service_name, 'paginators-1', api_version
+                )
+            with contextlib.suppress(UnknownServiceError):
+                loader.load_service_model(
+                    service_name, 'waiters-2', api_version
+                )
+
+            # from client.py
+            loader.load_service_model(
+                service_name, 'service-2', api_version=api_version
+            )
+            loader.load_service_model(
+                service_name, 'endpoint-rule-set-1', api_version=api_version
+            )
+
+            # from docs/service.py
+            with contextlib.suppress(UnknownServiceError):
+                loader.load_service_model(
+                    service_name, 'examples-1', api_version
+                )
+
     def create_client(self, *args, **kwargs):
         return ClientCreatorContext(self._create_client(*args, **kwargs))
 
@@ -167,6 +214,12 @@ class AioSession(_SyncSession):
             )
 
         loader = self.get_component('data_loader')
+
+        if getattr(config, 'warm_up_loader_caches', False):
+            await asyncio.to_thread(
+                self.warm_up_loader_caches, service_name, api_version
+            )
+
         event_emitter = self.get_component('event_emitter')
         response_parser_factory = self.get_component('response_parser_factory')
         if config is not None and config.signature_version is UNSIGNED:

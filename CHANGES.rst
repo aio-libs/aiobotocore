@@ -1,6 +1,10 @@
 Changes
 -------
 
+3.5.0 (2026-04-07)
+^^^^^^^^^^^^^^^^^^
+* support `warm_up_loader_caches` in `AioConfig`
+
 3.4.0 (2026-04-07)
 ^^^^^^^^^^^^^^^^^^
 * bump botocore dependency specification to support ``"botocore >= 1.42.79, < 1.42.85"``

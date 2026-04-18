@@ -73,6 +73,7 @@ dev = [
     "moto[server,s3,sqs,awslambda,dynamodb,cloudformation,sns,batch,ec2,rds] >= 5.1.8, < 6",
     "packaging >= 24.1, < 27", # Used in test_version.py
     "pre-commit >= 3.5.0, < 5",
+    "pytest-mock >= 3.14.1, < 4",  # Used in test_session.py
     "pytest-rerunfailures >= 16.0.1, < 17", # Used in test_lambda.py
     "time-machine >= 2.15.0, < 4", # Used in test_signers.py
 ]
