@@ -50,6 +50,79 @@ If the PR is from this repo (IS_FORK is false), check the author:
 Also check for review comments from other bots (github-advanced-security[bot], zizmor, etc.) and
 address their findings if they are actionable.
 
+### Address reviewer feedback on claude[bot]-authored PRs
+
+When the PR was authored by `claude[bot]` specifically (not other bots), go through open reviewer feedback
+and address or acknowledge each outstanding item — don't rely on your own `/review-pr` findings alone. The
+reviewer's inline threads may have been posted days ago and need explicit handling on this run.
+
+Check PR author first:
+```
+gh api repos/$REPO/pulls/$NUMBER --jq '.user.login'
+# Proceed ONLY if this equals "claude[bot]"
+```
+
+Fetch every review thread plus top-level PR comments in one GraphQL call. The filter is: **items from trusted
+authors (MEMBER / OWNER / COLLABORATOR) where the most recent comment in the thread is NOT from claude[bot]**.
+If claude[bot] already replied last, the reviewer has the ball — skip that thread.
+
+```
+gh api graphql -f query='
+  query($o:String!, $n:String!, $p:Int!) {
+    repository(owner:$o, name:$n) {
+      pullRequest(number:$p) {
+        reviewThreads(first:100) {
+          nodes {
+            id isResolved isOutdated path line
+            comments(first:50) {
+              nodes {
+                databaseId author { login __typename } authorAssociation
+                createdAt body url
+              }
+            }
+          }
+        }
+        comments(last:100) {
+          nodes {
+            databaseId author { login __typename } authorAssociation
+            createdAt body url
+          }
+        }
+      }
+    }
+  }' -F o=${REPO%/*} -F n=${REPO#*/} -F p=$NUMBER
+```
+
+For each thread / top-level comment that needs attention, **analyze the current code state before acting** —
+don't blindly re-fix what you already fixed. Check `git log -p -- <path>` and read the current file. Three
+outcomes:
+
+1. **Already addressed in a prior commit**: post a reply on the thread saying
+   `Addressed in commit <short-SHA> — <permalink>`. Do NOT push a duplicate fix. This is the common case on
+   re-runs (e.g. `synchronize` after a base-branch update where you already fixed the issue days ago).
+
+2. **Not yet addressed, confidence >= 80 that the fix is clear-cut**: push a targeted signed commit via
+   `mcp__github_file_ops__commit_files`, then post a reply on the thread with the new SHA and a one-line
+   explanation of what changed.
+
+3. **Not addressed, ambiguous or risky**: post a reply asking the reviewer for clarification or flagging it
+   for human judgment. Do NOT push a speculative fix.
+
+Reply target depends on where the feedback lives:
+- **Inline review thread**: reply in the same thread so the discussion stays attached to the code line:
+  ```
+  gh api repos/$REPO/pulls/$NUMBER/comments/$PARENT_COMMENT_ID/replies \
+    --method POST -f body='…reply text…'
+  ```
+  `$PARENT_COMMENT_ID` is the first comment's `databaseId` in that thread's `comments.nodes`.
+- **Top-level PR comment**: reply as a new top-level comment that quotes the original's first line:
+  ```
+  gh api repos/$REPO/issues/$NUMBER/comments \
+    --method POST -f body='> <reviewer>: <quoted first line>\n\n…reply text…'
+  ```
+
+These per-thread replies are in addition to `/review-pr`'s summary comment — not a replacement.
+
 ## Git operations
 
 ### Committing changes
