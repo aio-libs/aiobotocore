@@ -17,6 +17,9 @@ sense without the PR-wide context of prior discussions. Only after synthesis sho
 - `--focus=<databaseId>` (optional): the triggering comment's `databaseId`. If set, the thread containing this
   comment is guaranteed to appear in the action plan (assuming it passes filters) and is ranked first. Other
   items are still included — the focus doesn't narrow scope, it only prioritizes.
+- `--resolve` (optional): after posting a "fixed" or "already-addressed" reply on a thread, call the GraphQL
+  `resolveReviewThread` mutation to mark the thread resolved. Opt-in only — never resolve automatically.
+  Do NOT resolve threads where the outcome was `ask-clarification` (the reviewer still has the ball).
 
 ## Step 1: Fetch everything
 
@@ -122,11 +125,28 @@ file. The repo may already contain the fix from a prior Claude run; don't duplic
 Three outcomes per action (or per group of related actions):
 
 1. **Already addressed in a prior commit** — reply `Addressed in commit <short-SHA> — <permalink>` on each
-   relevant thread. No new commit.
+   relevant thread. No new commit. If `--resolve` was passed, resolve the thread.
 2. **Not yet addressed, confidence >= 80** — push one targeted signed commit via
-   `mcp__github_file_ops__commit_files` that addresses the whole group, then reply on each relevant thread
-   with the new SHA and a one-line explanation.
-3. **Ambiguous or risky** — reply asking for clarification. No speculative fixes.
+   `mcp__github_file_ops__commit_files` that addresses the whole group. **Before posting the reply, validate
+   the commit** — run `uv run pre-commit run --all --show-diff-on-failure` at minimum, and any task-specific
+   tests relevant to the change (e.g. `uv run pytest tests/test_patches.py -x` for botocore overrides). Only
+   after validation passes, reply on each relevant thread with the new SHA and a one-line explanation. If
+   `--resolve` was passed, resolve the thread. If validation fails, fix forward or downgrade to
+   `ask-clarification`.
+3. **Ambiguous or risky** — reply asking for clarification. No speculative fixes. Do NOT resolve the thread
+   even if `--resolve` was passed.
+
+To resolve a thread (GraphQL mutation — only when all of: `--resolve` flag AND outcome is 1 or 2 AND the
+post-commit validation passed):
+```
+gh api graphql -f query='
+  mutation($tid: ID!) {
+    resolveReviewThread(input: {threadId: $tid}) {
+      thread { isResolved }
+    }
+  }' -F tid=$THREAD_ID
+```
+`$THREAD_ID` is the `id` field (not `databaseId`) from the `reviewThreads.nodes` entry.
 
 ## Step 5: Reply targets
 
