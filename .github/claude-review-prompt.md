@@ -62,9 +62,7 @@ gh api repos/$REPO/pulls/$NUMBER --jq '.user.login'
 # Proceed ONLY if this equals "claude[bot]"
 ```
 
-Fetch every review thread plus top-level PR comments in one GraphQL call. The filter is: **items from trusted
-authors (MEMBER / OWNER / COLLABORATOR) where the most recent comment in the thread is NOT from claude[bot]**.
-If claude[bot] already replied last, the reviewer has the ball — skip that thread.
+Fetch every review thread plus top-level PR comments in one GraphQL call.
 
 ```
 gh api graphql -f query='
@@ -93,7 +91,26 @@ gh api graphql -f query='
   }' -F o=${REPO%/*} -F n=${REPO#*/} -F p=$NUMBER
 ```
 
-For each thread / top-level comment that needs attention, **analyze the current code state before acting** —
+**Filter before acting.** Apply ALL of these filters in order — skip anything that fails any one of them:
+
+1. **Author must be trusted** — MEMBER, OWNER, or COLLABORATOR. Skip comments from NONE/FIRST_TIMER/etc.
+2. **Most recent comment in the thread is NOT from claude[bot]** — if claude already replied last, the
+   reviewer has the ball. Skip. (This is the "last reply from claude" exit rule.)
+3. **The item must represent actionable work for Claude** — i.e. a request for a code change, a bug report,
+   a question about specific code that needs a code answer, or a directive to modify something. **Skip items
+   that don't ask Claude to do anything.** In particular:
+   - Comments addressed to other users (e.g. `@jakob-keller working on this...`) — they're human-to-human
+     status updates, not requests for Claude.
+   - General progress / status updates (e.g. "still working on this", "LGTM once CI passes", "thanks!").
+   - Praise, acknowledgements, or tangential discussion unrelated to the code change.
+   - Meta-comments about the review process itself (e.g. "let me re-review this later").
+   - Comments that explicitly say Claude should skip / ignore / wait (e.g. "ignore this, I'll handle it").
+
+   When in doubt, err on the side of skipping and mention the item briefly in the `/review-pr` summary
+   instead of acting on it. A wrong reply from Claude is more disruptive than a missing one.
+
+For each thread / top-level comment that survives all three filters, **analyze the current code state
+before acting** —
 don't blindly re-fix what you already fixed. Check `git log -p -- <path>` and read the current file. Three
 outcomes:
 
