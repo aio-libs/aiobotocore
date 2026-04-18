@@ -21,6 +21,7 @@ on:
   pull_request:
     types:
     - opened
+    - synchronize
   issue_comment:
     types:
     - created
@@ -38,9 +39,12 @@ on:
 jobs:
   claude:
     # Only trusted authors can trigger @claude interactions.
-    # Auto-review on pull_request events is unrestricted.
+    # Auto-review on pull_request events is unrestricted — except on drafts,
+    # which should not burn CI time. Explicit @claude mentions on a draft still
+    # fire via issue_comment / review_comment / review and are allowed.
     if: >-
-      (github.event_name == 'pull_request') ||
+      (github.event_name == 'pull_request' &&
+       github.event.pull_request.draft != true) ||
       (github.event_name == 'issue_comment' &&
        contains(github.event.comment.body, '@claude') &&
        contains(fromJSON('["MEMBER","OWNER","COLLABORATOR"]'),
@@ -101,8 +105,13 @@ jobs:
         IS_FORK: ${{ github.event.pull_request.head.repo.fork || steps.pr_meta.outputs.is_fork || 'false' }}
         COMMENT_ID: ${{ github.event.comment.id || '' }}
       run: |
-        # Substitute env vars into prompt
-        prompt=$(envsubst < .github/claude-review-prompt.md)
+        # Substitute ONLY the documented template placeholders. Without
+        # this allowlist, envsubst expands every $VAR in the file —
+        # including shell variables used inside bash examples (like
+        # $PARENT_ID) and GraphQL query variables ($owner, $name, $pr),
+        # which would silently become empty strings.
+        # yamllint disable-line rule:line-length
+        prompt=$(envsubst '$REPO $NUMBER $EVENT_NAME $IS_PR $IS_FORK $COMMENT_ID' < .github/claude-review-prompt.md)
         {
           echo 'PROMPT<<PROMPT_EOF'
           echo "$prompt"
@@ -122,7 +131,7 @@ jobs:
         echo "is_fork=$(echo "$meta" | jq -r .fork)" >> "$GITHUB_OUTPUT"
 
     # yamllint disable-line rule:line-length
-    - uses: anthropics/claude-code-action@57ab6717ca1d3d137264d60c630870bd3b903729  # v1.0.92
+    - uses: anthropics/claude-code-action@ab8b1e6471c519c585ba17e8ecaccc9d83043541  # v1.0.101
       id: claude
       env:
         CLAUDE_BRANCH: ${{ steps.pr_meta.outputs.branch || '' }}
@@ -133,6 +142,12 @@ jobs:
         display_report: true
         show_full_output: true
         allowed_bots: "claude[bot]"
+        # Collapse re-review reports into one evolving PR comment
+        # instead of posting a new summary on every synchronize push.
+        use_sticky_comment: true
+        # Show tracking comments during long-running runs so reviewers
+        # see progress instead of a silent ~30s–30min gap.
+        track_progress: true
         prompt: ${{ steps.prompt.outputs.PROMPT }}
         claude_args: |
           --dangerously-skip-permissions
