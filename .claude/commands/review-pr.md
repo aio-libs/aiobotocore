@@ -10,16 +10,36 @@ token costs.
 
 ## Step 1: Eligibility check
 
-Check if any of the following are true:
+Stop if any of the following are true:
 - The pull request is closed
 - The pull request is a draft
 - The pull request does not need code review (e.g.
   automated PR, trivial change that is obviously correct)
-- Claude has already commented on this PR (check
-  `gh pr view <PR> --comments` for comments from claude)
+- Claude has already reviewed the current HEAD commit —
+  i.e. the PR has a prior Claude review AND no new
+  commits have been pushed since that review
 
-If any condition is true, stop and do not proceed.
-Note: Still review Claude-generated PRs.
+To check the last bullet: compare the most recent Claude
+review timestamp to the HEAD commit's committedDate.
+```
+CLAUDE_LAST=$(gh api repos/$REPO/issues/$NUMBER/comments --paginate \
+  --jq '[.[] | select(.user.login == "claude[bot]")]
+        | sort_by(.created_at) | last | .created_at // empty')
+HEAD_PUSHED=$(gh api graphql -f query='
+  query($o:String!, $n:String!, $p:Int!) {
+    repository(owner:$o, name:$n) {
+      pullRequest(number:$p) {
+        commits(last:1) { nodes { commit { committedDate } } }
+      }
+    }
+  }' -F o=$(echo $REPO | cut -d/ -f1) -F n=$(echo $REPO | cut -d/ -f2) -F p=$NUMBER \
+  --jq '.data.repository.pullRequest.commits.nodes[0].commit.committedDate')
+# Skip only if CLAUDE_LAST is set AND is newer than HEAD_PUSHED
+```
+If HEAD_PUSHED is newer than CLAUDE_LAST, new commits
+have landed since the last review — proceed with a
+re-review focused on the changes since. Note: Still
+review Claude-generated PRs.
 
 ## Step 2: Gather context
 
