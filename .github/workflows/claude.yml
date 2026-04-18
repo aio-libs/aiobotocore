@@ -39,9 +39,12 @@ on:
 jobs:
   claude:
     # Only trusted authors can trigger @claude interactions.
-    # Auto-review on pull_request events is unrestricted.
+    # Auto-review on pull_request events is unrestricted — except on drafts,
+    # which should not burn CI time. Explicit @claude mentions on a draft still
+    # fire via issue_comment / review_comment / review and are allowed.
     if: >-
-      (github.event_name == 'pull_request') ||
+      (github.event_name == 'pull_request' &&
+       github.event.pull_request.draft != true) ||
       (github.event_name == 'issue_comment' &&
        contains(github.event.comment.body, '@claude') &&
        contains(fromJSON('["MEMBER","OWNER","COLLABORATOR"]'),

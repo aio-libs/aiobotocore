@@ -15,19 +15,21 @@ Stop if any of the following are true:
 - Claude has already reviewed the current HEAD commit — i.e. the PR has a prior Claude review AND no new commits have
   been pushed since that review
 
-To check the last bullet: fetch the last Claude comment and the HEAD commit date in a single GraphQL call.
+To check the last bullet: fetch the last Claude comment and the HEAD commit date in a single GraphQL call. Note
+the `__typename == "Bot"` filter — GraphQL strips the `[bot]` suffix, so `author.login` is bare `"claude"` for the
+bot, which would collide with the real human user `github.com/claude` without a type check.
 ```
 read -r CLAUDE_LAST HEAD_PUSHED < <(gh api graphql -f query='
   query($o:String!, $n:String!, $p:Int!) {
     repository(owner:$o, name:$n) {
       pullRequest(number:$p) {
-        comments(last:100) { nodes { author { login } createdAt } }
+        comments(last:100) { nodes { author { login __typename } createdAt } }
         commits(last:1) { nodes { commit { committedDate } } }
       }
     }
   }' -F o=${REPO%/*} -F n=${REPO#*/} -F p=$NUMBER --jq '
     (.data.repository.pullRequest.comments.nodes
-      | map(select(.author.login == "claude"))
+      | map(select(.author.login == "claude" and .author.__typename == "Bot"))
       | sort_by(.createdAt) | last | .createdAt // "") + " " +
     .data.repository.pullRequest.commits.nodes[0].commit.committedDate')
 # Skip only if CLAUDE_LAST is non-empty AND is newer than HEAD_PUSHED
