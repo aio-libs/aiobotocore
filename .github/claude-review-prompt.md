@@ -52,9 +52,9 @@ address their findings if they are actionable.
 
 ### Address reviewer feedback on claude[bot]-authored PRs
 
-When the PR was authored by `claude[bot]` specifically (not other bots), go through open reviewer feedback
-and address or acknowledge each outstanding item — don't rely on your own `/review-pr` findings alone. The
-reviewer's inline threads may have been posted days ago and need explicit handling on this run.
+When the PR was authored by `claude[bot]` specifically (not other bots), also go through open reviewer
+feedback and address or acknowledge each outstanding item — don't rely on your own `/review-pr` findings
+alone. Reviewer threads may have been posted days ago and need explicit handling on this run.
 
 Check PR author first:
 ```
@@ -62,81 +62,12 @@ gh api repos/$REPO/pulls/$NUMBER --jq '.user.login'
 # Proceed ONLY if this equals "claude[bot]"
 ```
 
-Fetch every review thread plus top-level PR comments in one GraphQL call.
+Then run `/analyze-pr-feedback` (no `--focus` — we want all items, none is the trigger). The command fetches
+every review thread plus top-level PR comments, applies filters (trusted author, last reply not claude,
+actionable work), and returns the items that need attention.
 
-```
-gh api graphql -f query='
-  query($o:String!, $n:String!, $p:Int!) {
-    repository(owner:$o, name:$n) {
-      pullRequest(number:$p) {
-        reviewThreads(first:100) {
-          nodes {
-            id isResolved isOutdated path line
-            comments(first:50) {
-              nodes {
-                databaseId author { login __typename } authorAssociation
-                createdAt body url
-              }
-            }
-          }
-        }
-        comments(last:100) {
-          nodes {
-            databaseId author { login __typename } authorAssociation
-            createdAt body url
-          }
-        }
-      }
-    }
-  }' -F o=${REPO%/*} -F n=${REPO#*/} -F p=$NUMBER
-```
-
-**Filter before acting.** Apply ALL of these filters in order — skip anything that fails any one of them:
-
-1. **Author must be trusted** — MEMBER, OWNER, or COLLABORATOR. Skip comments from NONE/FIRST_TIMER/etc.
-2. **Most recent comment in the thread is NOT from claude[bot]** — if claude already replied last, the
-   reviewer has the ball. Skip. (This is the "last reply from claude" exit rule.)
-3. **The item must represent actionable work for Claude** — i.e. a request for a code change, a bug report,
-   a question about specific code that needs a code answer, or a directive to modify something. **Skip items
-   that don't ask Claude to do anything.** In particular:
-   - Comments addressed to other users (e.g. `@jakob-keller working on this...`) — they're human-to-human
-     status updates, not requests for Claude.
-   - General progress / status updates (e.g. "still working on this", "LGTM once CI passes", "thanks!").
-   - Praise, acknowledgements, or tangential discussion unrelated to the code change.
-   - Meta-comments about the review process itself (e.g. "let me re-review this later").
-   - Comments that explicitly say Claude should skip / ignore / wait (e.g. "ignore this, I'll handle it").
-
-   When in doubt, err on the side of skipping and mention the item briefly in the `/review-pr` summary
-   instead of acting on it. A wrong reply from Claude is more disruptive than a missing one.
-
-For each thread / top-level comment that survives all three filters, **analyze the current code state
-before acting** —
-don't blindly re-fix what you already fixed. Check `git log -p -- <path>` and read the current file. Three
-outcomes:
-
-1. **Already addressed in a prior commit**: post a reply on the thread saying
-   `Addressed in commit <short-SHA> — <permalink>`. Do NOT push a duplicate fix. This is the common case on
-   re-runs (e.g. `synchronize` after a base-branch update where you already fixed the issue days ago).
-
-2. **Not yet addressed, confidence >= 80 that the fix is clear-cut**: push a targeted signed commit via
-   `mcp__github_file_ops__commit_files`, then post a reply on the thread with the new SHA and a one-line
-   explanation of what changed.
-
-3. **Not addressed, ambiguous or risky**: post a reply asking the reviewer for clarification or flagging it
-   for human judgment. Do NOT push a speculative fix.
-
-Reply target depends on where the feedback lives:
-- **Inline review thread**: reply in the same thread so the discussion stays attached to the code line:
-  ```
-  gh api repos/$REPO/pulls/$NUMBER/comments/$PARENT_COMMENT_ID/replies \
-    --method POST -f body='…reply text…'
-  ```
-  `$PARENT_COMMENT_ID` is the first comment's `databaseId` in that thread's `comments.nodes`.
-- **Top-level PR comment**: reply as a new top-level comment that quotes the original's first line:
-  ```
-  gh api repos/$REPO/issues/$NUMBER/comments \
-    --method POST -f body='> <reviewer>: <quoted first line>\n\n…reply text…'
-  ```
+For each returned item, follow the 3-outcome rule documented in `/analyze-pr-feedback`: already-fixed →
+reply with commit SHA; not-fixed + confident → push fix + reply; ambiguous → ask for clarification.
 
 These per-thread replies are in addition to `/review-pr`'s summary comment — not a replacement.
 
@@ -203,44 +134,27 @@ To read the triggering comment:
   list `gh api repos/$REPO/pulls/$NUMBER/comments` for any inline comments submitted with the
   review (the review summary body is often empty when the @claude mention is in an inline comment).
 
-### Read the full thread, not just the one comment
+### Pull full context via /analyze-pr-feedback
 
-A single comment is rarely the full context. Before acting, pull the whole conversation so you
-account for replies, counter-proposals, and follow-ups from the reviewer and others.
+A single comment is rarely the full context. Before acting, run `/analyze-pr-feedback` to fetch every review
+thread and top-level PR comment (with the trusted-author / last-reply-not-claude / actionable-work filters
+already applied). When a specific comment triggered this run, pass its databaseId as `--focus`:
 
-For a `pull_request_review_comment` trigger, fetch every unresolved review thread on the PR — including the
-triggering thread (by locating the thread whose `comments.nodes` contains `$COMMENT_ID`). This is a single GraphQL
-call that also exposes each thread's `isResolved` state, which the REST `/comments` endpoint does not:
-```
-gh api graphql -f query='
-  query($owner:String!, $name:String!, $pr:Int!) {
-    repository(owner:$owner, name:$name) {
-      pullRequest(number:$pr) {
-        reviewThreads(first:100) {
-          nodes {
-            isResolved
-            isOutdated
-            path
-            line
-            comments(first:50) {
-              nodes { databaseId author { login } createdAt body url replyTo { databaseId } }
-            }
-          }
-        }
-      }
-    }
-  }' -F owner=aio-libs -F name=aiobotocore -F pr=$NUMBER --jq '
-    .data.repository.pullRequest.reviewThreads.nodes
-      | map(select(.isResolved == false))'
-```
+- `pull_request_review_comment`: `/analyze-pr-feedback --focus=$COMMENT_ID`
+- `issue_comment` (PR): `/analyze-pr-feedback --focus=$COMMENT_ID`
+- `pull_request_review` (CHANGES_REQUESTED or @claude in review body): `/analyze-pr-feedback` (no focus —
+  the review summary itself isn't a review-thread comment, so iterate all items and pay special attention
+  to ones submitted as part of this review)
 
-When the reviewer asks you to address a specific comment, find the thread whose comments contain
-`databaseId == $COMMENT_ID` and read every comment in it (the parent plus all replies, in `createdAt` order).
-When the reviewer says something broad like "address all the PR comments", read every unresolved thread in full
-before deciding what to do.
+Prioritize the focused thread (if any). For broad asks like "address all the PR comments", handle every
+returned item. For narrow asks, use other items as context and only act on the focused one unless the
+reviewer explicitly scopes wider.
 
-In your summary reply, list each thread you touched (with its `url` permalink) and state whether you addressed
-it, replied, or left it alone and why.
+For each item you touch, follow the 3-outcome rule documented in `/analyze-pr-feedback`:
+already-fixed → reply with commit SHA; not-fixed + confident → push fix + reply; ambiguous → clarify.
+
+In your final top-level summary reply (required — see Cleanup below), list each thread you touched (with
+its `url` permalink) and state whether you addressed it, replied, or left it alone and why.
 
 ## Implement the issue (EVENT=issues)
 
