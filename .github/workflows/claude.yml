@@ -205,9 +205,9 @@ jobs:
         # Skip the action's bundled setup-bun step — we installed bun
         # ourselves above via the rate-limit-safe download URL.
         path_to_bun_executable: /home/runner/.bun/bin/bun
-        # Register the repo-local plugin so its skills (review-pr,
-        # analyze-pr-feedback, etc.) are available via the Skill tool.
-        # Uses a local path (relative to the repo checkout) so PR branches
+        # Register the repo-local plugin so /aiobotocore-bot:review-pr
+        # and /aiobotocore-bot:analyze-pr-feedback are available. Uses
+        # a local path (relative to the repo checkout) so PR branches
         # test their own plugin edits — see
         # https://github.com/anthropics/claude-code-action/pull/761.
         plugin_marketplaces: ./.
