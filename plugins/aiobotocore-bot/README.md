@@ -10,8 +10,9 @@ design; this README only covers the plugin itself.
 
 - `/aiobotocore-bot:review-pr [--comment]` — sequential PR code review
   (CLAUDE.md compliance, bugs in the diff, aiobotocore-specific async
-  patterns). Scores each finding 0–100 and filters < 80. With
-  `--comment`, posts inline review comments via
+  patterns, relax-vs-bump sanity check for sync-bot PRs). Scores each
+  finding 0–100 and filters < 80. With `--comment`, posts inline
+  review comments via
   `mcp__github_inline_comment__create_inline_comment`.
 - `/aiobotocore-bot:analyze-pr-feedback [--focus=<databaseId>] [--resolve]`
   — fetch every review thread + top-level PR comment (including
@@ -19,6 +20,26 @@ design; this README only covers the plugin itself.
   asked, what was done, what's still outstanding. Act on the third
   bucket using the three-outcome rule (already-fixed, fix-now,
   ask-clarification).
+- `/aiobotocore-bot:check-async-need --from=<ver> --to=<ver>` —
+  classify new/changed functions in overridden botocore files as
+  `relax-safe`, `bump-required`, or `ambiguous`. Single source of
+  truth for the relax-vs-bump decision; used by both the sync bot
+  (at classification time) and the reviewer (as a sanity check on
+  sync-bot PRs).
+- `/aiobotocore-bot:open-pr --title=... --mode=generic|sync-relax|sync-bump`
+  — re-read `pull_request_template.md`, fill placeholders, verify
+  checked boxes against the diff, append sync-specific extra sections
+  when mode is `sync-relax`/`sync-bump`, create or update the PR.
+- `/aiobotocore-bot:bump-version --mode=relax|bump --target=<ver>` —
+  mechanical updates: `pyproject.toml` bounds, `aiobotocore/__init__.py`
+  version, `CHANGES.rst` entry (with correct `^` underline length),
+  and `uv lock`.
+- `/aiobotocore-bot:pyright-delta` — stash / run pyright baseline /
+  pop / run pyright with changes, report only new errors in files
+  the current changes touched.
+- `/aiobotocore-bot:complete-run --event=... --number=... [--comment-id=...] [--skip-reply]`
+  — end-of-run cleanup: post summary reply to the right target (inline
+  thread vs top-level PR comment vs issue comment) and swap 👀→👍.
 
 ## Design notes
 

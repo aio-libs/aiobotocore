@@ -102,7 +102,7 @@ gh pr list --head claude/botocore-sync --state all \
 ```
 
 **If a WIP PR exists:** this is a continuation of previous work. Read the WIP PR description to understand progress
-and remaining tasks. Checkout `claude/botocore-sync-wip`, skip to Step 4 (bump path) and continue from where the
+and remaining tasks. Checkout `claude/botocore-sync-wip`, skip to Step 5 (bump path) and continue from where the
 previous run left off. If $LATEST_BOTOCORE differs from what the WIP targets, ignore the newer version and finish
 the current WIP first.
 
