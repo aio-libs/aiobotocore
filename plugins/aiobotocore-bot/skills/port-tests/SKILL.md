@@ -1,7 +1,7 @@
 ---
 description: Use when porting botocore tests to aiobotocore (during a port-required sync, or when backfilling historical test coverage). Converts sync test files under `botocore/tests/...` to their async counterparts under `tests/botocore_tests/...`, validates each port with `pytest -x`, commits on pass, reverts on fail. Handles both new/changed tests from a botocore diff AND backfill of relevant-but-not-yet-ported tests.
 argument-hint: "[--from=<version>] [--to=<version>] [--backfill] [--paths=<file1,file2,...>] [--dry-run]"
-allowed-tools: Bash(git -C /tmp/botocore:*) Bash(git checkout:*) Bash(rm:*) Bash(uv run pytest:*) Bash(uv run python:*) Bash(ls:*) Bash(find:*) Bash(cat:*) Bash(diff:*) Bash(cp:*) mcp__github_file_ops__commit_files
+allowed-tools: Bash(git -C /tmp/botocore:*) Bash(git checkout:*) Bash(rm tests/botocore_tests/:*) Bash(uv run pytest:*) Bash(uv run python:*) Bash(ls:*) Bash(find:*) Bash(cat:*) Bash(diff:*) Bash(cp:*) mcp__github_file_ops__commit_files
 ---
 
 Port botocore tests to aiobotocore. Two driving scenarios:
@@ -200,9 +200,11 @@ For each successfully converted file:
    (the caller handles the actual commit batching).
 4. **If pytest fails**: revert the local change. If the mirror file existed before
    (case 1 in Step 1), `git checkout -- <path>` restores it. If we created a new mirror
-   file (case 2 in Step 1), delete it with `rm <path>` — there's no prior content to
-   restore. Emit an advisory block describing which test(s) failed and which conversion
-   rules were applied; the human reviewer can pick up from there.
+   file (case 2 in Step 1), delete it with `rm tests/botocore_tests/<unit|functional>/<name>.py`
+   — there's no prior content to restore. (The `allowed-tools` entry scopes `rm` to
+   `tests/botocore_tests/` only; any other path requires human approval. Respect that.)
+   Emit an advisory block describing which test(s) failed and which conversion rules were
+   applied; the human reviewer can pick up from there.
 
 ## Step 5: Output report
 
