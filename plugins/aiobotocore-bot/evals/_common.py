@@ -340,23 +340,88 @@ def new_client() -> anthropic.AsyncAnthropic:
     return anthropic.AsyncAnthropic()
 
 
-async def invoke_and_parse(
+def classify_tool_schema(
+    tool_name: str,
+    verdict_enum: list[str],
+    per_function_label: str,
+) -> dict:
+    """Build a tool schema that forces the model to emit its verdict
+    as structured data instead of regex-parseable text.
+
+    `verdict_enum` constrains the top-line classification (e.g.
+    `["no-port", "port-required", "ambiguous"]` for check-async-need,
+    `["clean", "cosmetic-drift", "behavioral-drift"]` for
+    check-override-drift). `per_function_label` names what each row
+    represents (e.g. "function" or "line").
+    """
+    return {
+        "name": tool_name,
+        "description": (
+            "Emit the final classification. Call this ONCE, at the end, "
+            "after you've reasoned through each changed function in your "
+            "text response. The top-line `verdict` must follow from the "
+            "per-function verdicts via the roll-up rule stated in the "
+            "system prompt."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "verdict": {
+                    "type": "string",
+                    "enum": verdict_enum,
+                    "description": "Top-line roll-up classification.",
+                },
+                "summary": {
+                    "type": "string",
+                    "description": (
+                        "One-line summary of the classification "
+                        "(counts, key drivers)."
+                    ),
+                },
+                "per_function_verdicts": {
+                    "type": "array",
+                    "description": (
+                        f"One entry per changed/added/removed {per_function_label}."
+                    ),
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "file": {"type": "string"},
+                            "name": {"type": "string"},
+                            "change_type": {
+                                "type": "string",
+                                "enum": [
+                                    "added",
+                                    "changed",
+                                    "removed",
+                                    "renamed",
+                                    "refactored",
+                                ],
+                            },
+                            "verdict": {"type": "string"},
+                            "reason": {"type": "string"},
+                        },
+                        "required": ["file", "name", "verdict", "reason"],
+                    },
+                },
+            },
+            "required": ["verdict", "summary"],
+        },
+    }
+
+
+async def invoke_and_classify(
     client: anthropic.AsyncAnthropic,
     system: str,
     user: str,
     model: str,
-    verdict_re: re.Pattern[str],
-) -> tuple[str, str]:
-    """Call the Anthropic API and extract a verdict from the response.
+    tool: dict,
+) -> tuple[str, str, dict | None]:
+    """Call the Anthropic API forcing the model to emit its verdict via
+    the `tool` schema. Returns (verdict, raw_text, full_tool_input).
 
-    The verdict regex should capture the verdict string as group 1 (e.g.
-    `^CLASSIFICATION:\\s*(\\S+)`).
-
-    Opus 4.7 at default effort (no explicit extended thinking) is good
-    enough for classification after the #1567 registry-injection work —
-    baseline eval was 8/8 and Opus's default reasoning matches the
-    Sonnet+thinking result at a smaller price premium under the new
-    Opus pricing tier.
+    `raw_text` captures any text blocks the model emitted alongside the
+    tool call — useful for debugging and for the follow-up-on-miss flow.
 
     The system prompt uses ephemeral cache_control so repeated calls
     within the same eval session (N runs × M cases ≈ 96 calls at
@@ -365,6 +430,8 @@ async def invoke_and_parse(
     resp = await client.messages.create(
         model=model,
         max_tokens=4096,
+        tools=[tool],
+        tool_choice={"type": "tool", "name": tool["name"]},
         system=[
             {
                 "type": "text",
@@ -379,18 +446,12 @@ async def invoke_and_parse(
         for block in resp.content
         if getattr(block, "type", None) == "text"
     )
-    # Take the LAST match, not the first. The model sometimes emits an
-    # initial verdict, reasons further, self-corrects, and re-emits the
-    # final CLASSIFICATION line at the end (Opus debug follow-up on PR
-    # #1466 confirmed this). The last line is the model's final answer;
-    # the first is a superseded draft.
-    matches = verdict_re.findall(raw)
-    if matches:
-        # strip trailing `:` and `*` — models sometimes emit
-        # `**CLASSIFICATION: no-port**` (bold wrapping both label AND value),
-        # which leaves `no-port**` in the capture group.
-        return (matches[-1].strip().rstrip(":*").lower(), raw)
-    return ("parse-error", raw)
+    for block in resp.content:
+        if getattr(block, "type", None) == "tool_use":
+            tool_input = block.input
+            verdict = tool_input.get("verdict", "parse-error")
+            return (verdict.lower(), raw, tool_input)
+    return ("parse-error", raw, None)
 
 
 async def followup_on_misclassification(

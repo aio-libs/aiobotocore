@@ -24,7 +24,6 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
-import re
 import subprocess
 import sys
 import textwrap
@@ -35,7 +34,8 @@ from pathlib import Path
 from _common import (
     DEFAULT_MODEL,
     REPO_ROOT,
-    invoke_and_parse,
+    classify_tool_schema,
+    invoke_and_classify,
     load_skill_body,
     new_client,
     overridden_symbols,
@@ -51,13 +51,12 @@ SCENARIOS_PATH = (
     REPO_ROOT / "plugins/aiobotocore-bot/evals/drift_scenarios.yaml"
 )
 
-# Matches `OVERRIDE_DRIFT:`, `**OVERRIDE_DRIFT**:`, or leading whitespace —
-# same tolerance as check_async_need.py's VERDICT_RE.
-VERDICT_RE = re.compile(
-    r"^\s*\**\s*OVERRIDE_DRIFT\s*\**\s*:\s*(\S+)",
-    re.MULTILINE,
-)
 VALID_VERDICTS = {"clean", "cosmetic-drift", "behavioral-drift"}
+CLASSIFY_TOOL = classify_tool_schema(
+    tool_name="record_override_drift_classification",
+    verdict_enum=sorted(VALID_VERDICTS),
+    per_function_label="function",
+)
 
 
 @dataclass
@@ -111,17 +110,18 @@ def build_user_message(case: Case, diff: str, overrides: set[str]) -> str:
 
         {overrides_block}
 
-        Output format — strict:
-
-        1. The VERY FIRST line of your response must be `OVERRIDE_DRIFT: <verdict>`
-           where <verdict> is one of `clean`, `cosmetic-drift`, or `behavioral-drift`.
-           No preamble, no explanation, no markdown formatting on this line.
-        2. Any supporting reasoning goes AFTER the classification line, per Step 4
-           of your system prompt.
-
         ```diff
         {diff}
         ```
+
+        Output protocol:
+
+        1. Reason through each changed function in your text response.
+        2. Then call the `record_override_drift_classification` tool
+           ONCE with your final verdict (one of `clean`,
+           `cosmetic-drift`, `behavioral-drift`), summary, and per-
+           function verdicts. The tool call is the authoritative
+           output — do not emit an OVERRIDE_DRIFT label in text.
         """,
         )
         .format(
@@ -184,12 +184,12 @@ async def main() -> int:
     async def invoke_one(case: Case) -> str:
         diff = diffs[case.pr]
         user = build_user_message(case, diff, override_symbols)
-        verdict, _raw = await invoke_and_parse(
+        verdict, _raw, _tool = await invoke_and_classify(
             client,
             skill_body,
             user,
             args.model,
-            VERDICT_RE,
+            CLASSIFY_TOOL,
         )
         if verdict not in VALID_VERDICTS and verdict != "parse-error":
             verdict = f"unknown:{verdict}"

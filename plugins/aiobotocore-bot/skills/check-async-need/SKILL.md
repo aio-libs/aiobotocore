@@ -166,30 +166,18 @@ function in aiobotocore's world), check the diff for callers:
   Only flag callers where the new call appears as a concrete added line
   inside a registered-override body.
 
-## Step 4: Output format — reason first, verdict last
+## Step 4: Output format
 
-**Output protocol — follow in this order:**
+**When invoked via the eval harness**: the caller forces a structured
+tool call (`record_async_need_classification`). Reason through each
+changed function in text (quote the exact `overrides` / `async_methods`
+/ `aio_classes` match for every port-required verdict), then call the
+tool ONCE with `verdict`, `summary`, and `per_function_verdicts`. The
+tool call is the authoritative output.
 
-1. Write per-function detail FIRST. For each changed function, run
-   through Step 3's rules in order and record the verdict. For any
-   port-required verdict, you MUST be able to quote the exact string
-   from the `overrides` list that the function's name matched (or the
-   exact async-method / aio-class name it contacted). If you can't
-   produce a specific quoted match, the verdict is not port-required
-   — try the remaining Step-C rules or fall to pure-sync.
-2. After all per-function detail, write the Summary block.
-3. LAST, emit `CLASSIFICATION: <verdict>` on its own line where
-   `<verdict>` is `no-port`, `port-required`, or `ambiguous`, chosen
-   by the roll-up rule: any function port-required → top-line
-   port-required; any ambiguous and none port-required → ambiguous;
-   every function pure-sync → no-port.
-4. If while writing the Summary or CLASSIFICATION line you realize an
-   earlier per-function verdict was wrong, DO NOT just flip the
-   top-line. Go back and correct the specific per-function entry,
-   THEN re-run the roll-up for CLASSIFICATION. The top-line must
-   follow from the per-function verdicts as written.
-
-Response shape:
+**When invoked directly (human via slash command or agent without tool
+schema)**: emit the following plain text at the END of your response,
+after reasoning:
 
 ```text
 ## Per-function verdicts
@@ -202,6 +190,10 @@ Summary: <N> functions inspected across <M> overridden files. <P> pure-sync, <Q>
 
 CLASSIFICATION: no-port | port-required | ambiguous
 ```
+
+Either way, the roll-up rule: any function port-required → top-line
+port-required; any ambiguous and none port-required → ambiguous; every
+function pure-sync → no-port.
 
 ### HASH-BUMP IS NOT A PORT CONCERN
 

@@ -28,7 +28,6 @@ import argparse
 import asyncio
 import json
 import os
-import re
 import subprocess
 import sys
 import textwrap
@@ -41,9 +40,10 @@ from _common import (
     REPO_ROOT,
     aiobotocore_port_happened,
     async_names,
+    classify_tool_schema,
     derive_versions,
     followup_on_misclassification,
-    invoke_and_parse,
+    invoke_and_classify,
     list_sync_prs,
     load_skill_body,
     new_client,
@@ -60,14 +60,10 @@ SKILL_PATH = (
 SCENARIOS_PATH = REPO_ROOT / "plugins/aiobotocore-bot/evals/scenarios.yaml"
 BOTOCORE_CLONE = Path(os.environ.get("BOTOCORE_CLONE", "/tmp/botocore"))
 
-# Tolerate markdown-bold wrappers and leading whitespace — `**CLASSIFICATION**:`
-# and `CLASSIFICATION:` are both plausible model outputs; the previous
-# strict `^CLASSIFICATION:` would miss the bolded form and return
-# parse-error. Matches on any line start (MULTILINE) with optional
-# leading whitespace/asterisks around the label.
-VERDICT_RE = re.compile(
-    r"^\s*\**\s*CLASSIFICATION\s*\**\s*:\s*(\S+)",
-    re.MULTILINE,
+CLASSIFY_TOOL = classify_tool_schema(
+    tool_name="record_async_need_classification",
+    verdict_enum=["no-port", "port-required", "ambiguous"],
+    per_function_label="function",
 )
 
 
@@ -205,23 +201,18 @@ def build_user_message(
         {diff}
         ```
 
-        Output format — reason first, verdict last. Per Step 4 of
-        the system prompt:
+        Output protocol:
 
-        1. Write per-function verdicts FIRST. For each port-required
+        1. In your text response, reason through each changed function
+           per Step 3 of the system prompt. For any port-required
            verdict you must quote the exact string from `overrides`
            you matched (or the exact name from `async_methods` /
            `aio_classes` you contacted).
-        2. Then the Summary block.
-        3. LAST, emit `CLASSIFICATION: <verdict>` on its own line.
-           The verdict follows from the per-function verdicts via the
-           roll-up rule: any port-required → top-line port-required;
-           any ambiguous and none port-required → ambiguous; every
-           function pure-sync → no-port.
-        4. Do NOT emit the CLASSIFICATION line early. Do not
-           re-emit it after corrections — write it once, at the end,
-           consistent with the final per-function verdicts.
-        5. Never justify port-required with "the test_patches.py hash
+        2. Then call the `record_async_need_classification` tool
+           ONCE with your final verdict, summary, and per-function
+           verdicts. The tool call is the authoritative output — do
+           not emit a CLASSIFICATION label in text.
+        3. Never justify port-required with "the test_patches.py hash
            will break" — hash bumps are mechanical, NOT a port
            signal.
         """,
@@ -330,13 +321,21 @@ async def main() -> int:
         user = build_user_message(
             case, diff, override_symbols, async_methods, aio_classes
         )
-        return await invoke_and_parse(
+        verdict, raw, tool_input = await invoke_and_classify(
             client,
             skill_body,
             user,
             args.model,
-            VERDICT_RE,
+            CLASSIFY_TOOL,
         )
+        # Inline the structured tool input into the rationale so the
+        # JSON-out captures it alongside the narrative text.
+        rationale = raw
+        if tool_input is not None:
+            rationale += "\n\n---TOOL OUTPUT---\n" + json.dumps(
+                tool_input, indent=2
+            )
+        return (verdict, rationale)
 
     per_case_verdicts = await run_cases_concurrent(
         runnable, args.runs, invoke_one
