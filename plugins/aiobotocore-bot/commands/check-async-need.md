@@ -81,13 +81,22 @@ For each added/changed function, inspect the **new code** for these signals:
 - Instantiation or use of a botocore class that aiobotocore subclasses (search `aiobotocore/` for
   `class Aio<Name>(<Name>)` — if `<Name>` is instantiated in the new code, the override chain must
   extend to this new caller)
-- **Signature changes on functions aiobotocore overrides.** If botocore modifies a function/method
-  signature (added/removed/renamed/reordered parameter) AND aiobotocore has an `async def` override
-  of that same function in the mirrored file, the override must mirror the signature to avoid
-  breaking callers. Check: for each signature-changed function, grep `aiobotocore/<mirror>.py` for
-  `async def <same-name>` — if found, flag as needs-async even when the function body is pure-sync.
-  Rationale: a threading-the-param port like `get_client_args(new_param)` isn't async-need in the
-  "does this do I/O" sense, but IS port-required in the "subclass must stay compatible" sense.
+- **Any change to a function aiobotocore overrides.** If botocore modifies a function — signature
+  OR body (added/removed/renamed/reordered parameter; new internal call; removed internal call;
+  logic restructure) — AND aiobotocore has an `async def` override of that same function in the
+  mirrored file, the override must mirror the change. This holds even when the new/changed code
+  is pure-sync dict/arithmetic: the aiobotocore override has to stay in lockstep with botocore's
+  behavior, or callers silently diverge.
+
+  Check: for each changed function, grep `aiobotocore/<mirror>.py` for `async def <same-name>` or
+  `def <same-name>`. If found, flag as needs-async regardless of what the body change looks like.
+
+  Two examples this catches:
+  - `get_client_args` gains a `s3_disable_express_session_auth` parameter in botocore →
+    `AioClientArgsCreator.get_client_args` must mirror the signature.
+  - `_apply_request_trailer_checksum` body stops calling `_register_checksum_algorithm_feature_id`
+    internally (registration moved to a new helper) → aiobotocore's override of the same function
+    must drop the inner call too or behavior silently diverges.
 - Blocking primitives: `time.sleep`, `threading.*`, `queue.Queue.get` without timeout, `concurrent.*`
 - New event-hook handler registrations that may be fed awaitables downstream (handlers registered for
   events that aiobotocore resolves via `resolve_awaitable`)
