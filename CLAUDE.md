@@ -83,6 +83,15 @@ aiobotocore makes botocore async by **subclassing** (never monkey-patching). Eac
 follows the same pattern: subclass with `Aio` prefix, override sync methods with `async def`,
 call `await` on I/O operations. See [docs/override-patterns.md](docs/override-patterns.md).
 
+**Minimize divergence from botocore.** Unmatched behavioral changes to overridden code
+should be avoided — they make future syncs harder. Legitimate async gaps
+(`asyncio.Lock` replacing `threading.Lock`, `async with`, `resolve_awaitable()`,
+`Aio*` class use) are OK; cosmetic additions (docstrings, comments, type hints,
+refactors) that aren't in the matching botocore are drift. If you see an
+improvement that would benefit sync users too, PR it upstream to botocore first,
+then sync here. See docs/override-patterns.md §"Guiding principle: minimize
+divergence from botocore" for details.
+
 **Override chain:** `AioSession.create_client()` → `AioClientCreator.create_client()` →
 `AioBaseClient._make_api_call()` → `AioEndpoint._send_request()` → `AIOHTTPSession.send()`
 
