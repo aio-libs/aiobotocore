@@ -73,7 +73,17 @@ c) **Async patterns** (aiobotocore-specific): check that any botocore overrides 
   - Resource cleanup via async context managers
   - Correct Aio prefix naming
 
-d) **Port-vs-no-port sanity check** (only for sync-bot-authored PRs — `claude[bot]` with title starting
+d) **Override drift** (for any PR touching `aiobotocore/*.py` files that have a botocore mirror): run
+   `/aiobotocore-bot:check-override-drift --pr=$NUMBER`. The command flags unmatched behavioral changes
+   and cosmetic additions to overridden code. Principle: unmatched behavioral changes to overridden
+   code should be avoided; legitimate async gaps are OK. Map verdicts to comments:
+
+- `behavioral-drift` → high-confidence inline comment at the offending line, explaining the
+  mismatch and quoting botocore's version.
+  - `cosmetic-drift` → soft top-level comment listing the drift. Don't block the PR, but surface it.
+  - `clean` → no comment.
+
+e) **Port-vs-no-port sanity check** (only for sync-bot-authored PRs — `claude[bot]` with title starting
    `Relax botocore` or `Bump botocore`): extract the `$FROM` and `$TO` botocore tags from the botocore diff
    URL in the PR body, then run `/aiobotocore-bot:check-async-need --from=$FROM --to=$TO`. If the PR title
    starts with `Relax` (claiming no-port) but the command returns `port-required` or `ambiguous`, flag

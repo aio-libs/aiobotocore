@@ -26,6 +26,11 @@ design; this README only covers the plugin itself.
   truth for the port-vs-no-port decision; used by both the sync bot
   (at classification time) and the reviewer (as a sanity check on
   sync-bot PRs).
+- `/aiobotocore-bot:check-override-drift --pr=<number>` — flag
+  unmatched behavioral changes or cosmetic additions in overridden
+  code. Principle: unmatched behavioral changes should be avoided;
+  legitimate async gaps are OK. Used by the reviewer on any PR
+  that touches `aiobotocore/*.py` files with a botocore mirror.
 - `/aiobotocore-bot:open-pr --title=... --mode=generic|sync-no-port|sync-port`
   — re-read `pull_request_template.md`, fill placeholders, verify
   checked boxes against the diff, append sync-specific extra sections

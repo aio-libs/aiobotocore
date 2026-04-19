@@ -56,7 +56,7 @@ flowchart LR
     reviewPrompt --> action["anthropics/<br/>claude-code-action<br/>(Claude agent)"]
     syncPrompt --> action
 
-    action -->|invokes| commands["/aiobotocore-bot:review-pr<br/>/aiobotocore-bot:analyze-pr-feedback<br/>/aiobotocore-bot:check-async-need<br/>/aiobotocore-bot:open-pr<br/>/aiobotocore-bot:bump-version<br/>/aiobotocore-bot:pyright-delta<br/>/aiobotocore-bot:complete-run"]
+    action -->|invokes| commands["/aiobotocore-bot:review-pr<br/>/aiobotocore-bot:analyze-pr-feedback<br/>/aiobotocore-bot:check-async-need<br/>/aiobotocore-bot:check-override-drift<br/>/aiobotocore-bot:open-pr<br/>/aiobotocore-bot:bump-version<br/>/aiobotocore-bot:pyright-delta<br/>/aiobotocore-bot:complete-run"]
     hooks["PreToolUse hooks:<br/>no unsigned commits ·<br/>no push to main/master ·<br/>no commits on fork PRs"] -.guards.-> action
 
     action --> anthropic["Anthropic API"]
@@ -292,6 +292,7 @@ the repo so maintainers can iterate on them alongside the prompts.
 | `/aiobotocore-bot:review-pr [--comment]` | Sequential (not parallel) PR review. Checks CLAUDE.md compliance, bugs in the diff, async patterns, and port-vs-no-port sanity for sync-bot PRs. Scores each finding 0–100 and filters < 80. With `--comment`, posts inline review comments via `mcp__github_inline_comment__create_inline_comment`. |
 | `/aiobotocore-bot:analyze-pr-feedback [--focus=<id>] [--resolve]` | Fetch every review thread + top-level comment (including resolved) and synthesize into three buckets: *what was asked*, *what was done*, *what's still outstanding*. Act on bucket C with the three-outcome rule. Optionally resolve threads after posting a "fixed" reply. |
 | `/aiobotocore-bot:check-async-need --from=<ver> --to=<ver>` | Classify new/changed functions in overridden botocore files as `no-port`, `port-required`, or `ambiguous`. Single source of truth for the port-vs-no-port decision. Used by both the sync bot and the PR reviewer. |
+| `/aiobotocore-bot:check-override-drift --pr=<number>` | Flag unmatched behavioral changes or cosmetic additions to overridden code. Principle: unmatched behavioral changes should be avoided; legitimate async gaps are OK. Used by the reviewer on any PR touching `aiobotocore/*.py` files with a botocore mirror. |
 | `/aiobotocore-bot:open-pr --mode=generic\|sync-no-port\|sync-port ...` | Re-read `pull_request_template.md`, fill placeholders, verify checked boxes against the diff, append sync-specific extra sections when mode is `sync-no-port`/`sync-port`, create or update the PR. |
 | `/aiobotocore-bot:bump-version --mode=no-port\|port --target=<ver>` | Mechanical `pyproject.toml` bounds + `aiobotocore/__init__.py` + `CHANGES.rst` entry (with correct `^` underline length) + `uv lock`. |
 | `/aiobotocore-bot:pyright-delta` | Stash / run pyright baseline / pop / run pyright with changes; report only new errors in files the current changes touched. |

@@ -241,17 +241,44 @@ feedback instead of guessing.
     3. Port changes following these patterns:
        - Subclass with `Aio` prefix
        - Override sync methods as async
-       - Use `resolve_awaitable()` for mixed callbacks
+       - Use `resolve_awaitable()` for mixed callbacks — primarily in the event-hook
+         emit path (`AioHierarchicalEmitter._emit()`); see `docs/override-patterns.md`
+         Pattern 5 for details.
        - Register async components at session init
        - Keep method signatures identical
-       - Keep diffs from botocore minimal
-    4. Update hashes in `tests/test_patches.py`.
-2. Port relevant botocore tests to `tests/botocore_tests/`. Follow existing patterns:
-   - `async def test_*()` (no pytest.mark.asyncio)
-   - Use `AioSession`, `StubbedSession`
-   - Use `AioAWSResponse` for mocked responses
-3. Run `/aiobotocore-bot:bump-version --mode=bump --target=$LATEST_BOTOCORE`. The command updates both
+       - **Keep diffs from botocore minimal** — same line order, minimal refactoring,
+         no cosmetic changes (docstrings, comments, type hints) that aren't in the
+         matching botocore. Future syncs are easier when the diff is small. If an
+         override must diverge, the divergence should be async-explained.
+    4. Update hashes in `tests/test_patches.py` — see "test_patches.py scenarios" below.
+2. Port relevant botocore tests to `tests/botocore_tests/`. See `docs/override-patterns.md`
+   §"Test porting pattern" for the full 8-step procedure. Key points:
+   - `async def test_*()` (no `@pytest.mark.asyncio`)
+   - Use `AioSession`, `StubbedSession`, `AioAWSResponse`
+   - Add a docstring noting which botocore test the port is adapted from
+3. **Directory-diff sanity check.** After porting, do a directory diff between
+   `aiobotocore/` and the target version of `botocore/` to confirm the changes were
+   propagated everywhere they should be — it's easy to miss a secondary caller. This
+   is `CONTRIBUTING.rst` §"How to Upgrade Botocore" step 4.
+4. Run `/aiobotocore-bot:bump-version --mode=port --target=$LATEST_BOTOCORE`. The command updates both
    `pyproject.toml` bounds, bumps MINOR version, writes the `CHANGES.rst` entry, and runs `uv lock`.
+
+### test_patches.py scenarios
+
+`CONTRIBUTING.rst` §"Hashes of Botocore Code" describes two scenarios — make sure you
+know which one applies:
+
+- **Scenario 1 — existing hash mismatches on bump:** a hash test failure signals that
+  botocore changed a function we already patch. Read the new botocore code, decide
+  whether the aiobotocore override needs updating, then update the hash.
+- **Scenario 2 — adding new overrides:** if you introduce a new override (or newly
+  depend on a private method), add a hash entry for each newly-overridden/referenced
+  function. Nothing prompts you — no existing test fails — so this is easy to forget.
+
+`tests/test_patches.py` also hashes **aiohttp** private properties aiobotocore depends
+on. If a port changes which aiohttp internals we touch, update those entries too. For
+special cases (e.g. private attributes used across multiple methods), hashing the whole
+class is the pattern — see existing entries.
 
 If you complete all tasks, go to Step 6. If you run out of turns or time, go to Step 6b.
 
