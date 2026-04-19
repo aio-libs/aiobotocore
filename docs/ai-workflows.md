@@ -276,7 +276,7 @@ bug that motivated the allowlist.
   change across *all* `claude.yml` event types. Split-check the
   dispatch sections when editing.
 
-## Slash commands (`.claude/commands/`)
+## Slash commands (`plugins/aiobotocore-bot/commands/`)
 
 These are reusable procedures invoked by the top-level prompts and
 also available to humans running Claude Code locally. They live in
@@ -591,10 +591,17 @@ works against real PRs from your workstation. Or pass
 
 ### Adding a new slash command
 
-1. Create `.claude/commands/<name>.md` with a frontmatter `description`.
-2. Reference it from the top-level prompt where appropriate.
-3. Keep it self-contained — slash commands run with no prior
-   context from the invoking prompt.
+1. Create `plugins/aiobotocore-bot/commands/<name>.md` with frontmatter
+   (`description:` required; `allowed-tools:` strongly recommended to
+   restrict the command's tool surface).
+2. Reference it from `.github/claude-review-prompt.md` as
+   `/aiobotocore-bot:<name>` — plugin commands are namespaced by the
+   plugin name.
+3. Keep it self-contained — slash commands run with no prior context
+   from the invoking prompt.
+4. Locally, `claude /plugin marketplace add ./` + `claude /plugin install
+   aiobotocore-bot@aiobotocore` picks up the new command (or
+   `claude --plugin-dir ./plugins/aiobotocore-bot` per-invocation).
 
 ### Changing guardrails
 
@@ -637,7 +644,8 @@ git log -- .github/workflows/claude.yml \
             .github/workflows/botocore-sync.yml \
             .github/claude-review-prompt.md \
             .github/botocore-sync-prompt.md \
-            .claude/commands/
+            plugins/aiobotocore-bot/ \
+            .claude-plugin/
 ```
 
 - [#1498](https://github.com/aio-libs/aiobotocore/pull/1498) — Initial
