@@ -210,20 +210,16 @@ c) New logic in files we override: new classes, methods, network calls, I/O, blo
    we subclass
 d) Changes in files we don't override (no action)
 
-**Async-need check (critical for relax-vs-bump):** For every changed *or added* function in an overridden file,
-inspect the function body for async-relevant signals — not just whether the function itself was previously
-subclassed. The relevant question is "would aiobotocore need to override this going forward?", not "did we
-override the old version?". Flag as bump-worthy if the new/changed code:
+**Async-need check (critical for relax-vs-bump):** run `/aiobotocore-bot:check-async-need --from=$LAST_SUPPORTED
+--to=$LATEST_BOTOCORE`. The command inspects every new/changed function in overridden files for async-relevant
+signals (I/O, blocking calls, use of aiobotocore-subclassed classes) and returns `relax-safe`, `bump-required`,
+or `ambiguous` with per-function verdicts.
 
-- performs network or disk I/O, or calls anything that might (e.g. `requests`, `urllib`, `open`, subprocess)
-- calls a function that is already async in aiobotocore (check `aiobotocore/<file>.py` for `async def` versions)
-- instantiates or uses a botocore class that aiobotocore subclasses (those instantiations must be swapped)
-- adds `time.sleep`, threading, or other blocking primitives
-- introduces new event-hook handlers that may be fed awaitables
-
-Pure data manipulation (dict/list/str ops, attribute access, regex) is safe for relax. When justifying a relax
-in the PR body, state the async-need conclusion explicitly (e.g. "new helper is pure-sync dict manipulation"),
-not just "functions not overridden" — the latter is not a sufficient test.
+- `relax-safe` → proceed as relax; quote the command's summary line in the PR body as the async-need
+  justification (e.g. "new helper is pure-sync dict manipulation"). Do NOT justify a relax with "functions
+  not overridden" — that is the wrong test.
+- `bump-required` → treat as bump.
+- `ambiguous` → escalate via Step 8 with the ambiguous verdicts as feedback questions.
 
 aiobotocore uses a **filename-mirror convention**: `botocore/foo.py` is overridden by `aiobotocore/foo.py` (and
 only by that path). To classify any changed botocore file, check for the mirror once:
@@ -410,55 +406,16 @@ Then use `mcp__github_file_ops__commit_files` to commit the squashed changes (th
 
 **If no WIP PR:** use `mcp__github_file_ops__commit_files` directly.
 
-Create or update the final PR:
+Create or update the final PR via `/aiobotocore-bot:open-pr`:
 
-- Base: `main`
-- Title: `Relax botocore dependency specification` or `Bump botocore dependency specification`
-- Body: roughly follow `.github/pull_request_template.md`. **Always re-read the template at PR creation time** —
-  do not rely on memory or a cached version, because the template may have changed since the last run:
+- `--title="Relax botocore dependency specification"` or `"Bump botocore dependency specification"`
+- `--mode=sync-relax` or `--mode=sync-bump`
+- `--botocore-diff-url=https://github.com/boto/botocore/compare/OLD...NEW`
+- `--async-need-summary="<the summary from /aiobotocore-bot:check-async-need>"` (relax only)
+- `--changed-aiobotocore="<files/classes/tests for bump, or 'Version bounds updated only, no code changes.' for relax>"`
+- `--assumptions="<design decisions>"` (bump only, if any)
 
-  ```text
-  cat .github/pull_request_template.md
-  ```
-
-  Use the template as the foundation (see the shared "Creating PRs" guidance below — all of it applies). Apply
-  these sync-specific details on top:
-  - **Description of Change** — one or two paragraphs explaining the relax vs bump, the target version, and a link
-    to the botocore diff (`https://github.com/boto/botocore/compare/OLD...NEW`).
-  - **Assumptions** — any design decisions you made during the bump. Omit if none.
-  - **Checklist when updating botocore and/or aiohttp versions** — fill in the diff URL with both version tags.
-
-  Append these extra sections below the template's content (the template stays first):
-  - **What changed in botocore** — categorized summary: schema-only, patched code, new logic.
-  - **What changed in aiobotocore** — for bumps: files modified, classes added, tests ported. For relax: "Version
-    bounds updated only, no code changes."
-  - **Reviewer checklist** — items for human reviewers (async patterns, hashes current, version bump type correct,
-    no unrelated changes).
-  - **How to help** — instructions for responding via `@claude` or leaving review comments.
-
-## Creating PRs
-
-Every PR you open should roughly follow the repository's current PR template. The template may change over time —
-always re-read it at PR creation time:
-
-```text
-cat .github/pull_request_template.md
-```
-
-Use the template as the foundation:
-
-1. Include its headings and checklist items. Keep them in the template's original order.
-2. Replace every `*Replace this text with ...*` placeholder with concrete details — never leave placeholders.
-3. You may omit a section if it clearly does not apply, tweak phrasing for clarity, and add new sections below the
-   template's items to enhance it. Added sections should go after the template's content, not replace it.
-4. If the template gains new sections or checklist items in the future, include them too.
-
-Tick a checklist box only for work you actually completed. For items that don't apply, either omit with a brief
-note or leave unchecked with a one-line reason.
-
-Before marking the PR ready, verify each checked box against the actual diff (e.g. `git diff origin/main --
-CHANGES.rst` must show the new top entry if you checked that box). Unchecked with a reason is always better than
-a false check.
+The command handles template re-reading, placeholder filling, extra sync sections, and checklist verification.
 
 If a WIP PR exists, close it (post a comment linking to the final PR first).
 
