@@ -1,5 +1,5 @@
 ---
-allowed-tools: Bash(uv lock:*), Bash(date:*), Bash(cat:*), Bash(grep:*), Bash(sed:*), mcp__github_file_ops__commit_files
+allowed-tools: Bash(uv lock:*), Bash(date:*), Bash(cat:*), Bash(grep:*), Bash(sed:*), Bash(printf:*), Bash(wc:*), Bash(seq:*), Bash(tr:*), mcp__github_file_ops__commit_files
 description: Update pyproject.toml bounds, aiobotocore/__init__.py, and CHANGES.rst for a relax or bump
 ---
 
@@ -37,17 +37,26 @@ Replace `__version__ = "<old>"` with `__version__ = "<new>"`.
 ## Step 4: Update CHANGES.rst
 
 Insert a new entry at the top with today's date (`date +%Y-%m-%d`). **The `^` underline MUST match
-the header length exactly** — miscounts break Sphinx rendering:
+the header length exactly** — miscounts break Sphinx rendering.
+
+Build the header and underline mechanically — do not eyeball the length:
 
 ```text
-X.Y.Z (YYYY-MM-DD)
-^^^^^^^^^^^^^^^^^^
+HEADER="X.Y.Z ($(date +%Y-%m-%d))"
+LEN=$(printf '%s' "$HEADER" | wc -c | tr -d ' ')
+UNDERLINE=$(printf '^%.0s' $(seq 1 "$LEN"))
+```
+
+Then write:
+
+```text
+$HEADER
+$UNDERLINE
 * <default or --changelog>
 * <each --extra-changelog entry, if any>
 ```
 
-Count characters in the header line (including the parenthesized date) and emit that many `^`
-characters. Do not eyeball the length.
+Verify before writing: `[ "${#HEADER}" -eq "${#UNDERLINE}" ]` — if not equal, abort.
 
 ## Step 5: Run uv lock
 

@@ -22,6 +22,9 @@ so template changes flow through automatically and checklist-verification stays 
 - `--assumptions=<text>` (optional): design decisions for the "Assumptions" slot (bumps only).
 - `--changed-aiobotocore=<text>` (optional): summary of aiobotocore changes — files modified,
   classes added, tests ported. For relax: pass `"Version bounds updated only, no code changes."`.
+- `--extra-sections=<text>` (optional, `mode=generic` only): extra markdown sections appended
+  below the template content. For sync modes the extra sections are generated from the
+  mode-specific fields above; ignored here.
 - `--update-only` (optional): if set, only update the existing PR's title/body (for dirty-PR in-place
   edits). Never create.
 

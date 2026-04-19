@@ -3,6 +3,12 @@ allowed-tools: Bash(git -C /tmp/botocore:*), Bash(ls:*), Bash(cat:*), Bash(test:
 description: Classify new/changed botocore functions in overridden files as pure-sync, needs-async, or ambiguous
 ---
 
+<!--
+Tool note: Step 3's async-def lookup inside `aiobotocore/<file>.py` uses the Read tool, not
+Bash, so no Bash(cat aiobotocore/*) entry is needed in allowed-tools above. Only the botocore
+clone and filesystem-mirror checks go through Bash.
+-->
+
 Given a botocore version range, inspect every new or changed function in botocore files that have a mirror in
 `aiobotocore/` and return a structured verdict for each. This is the shared async-need classifier used by both
 the sync bot (to decide relax vs bump and justify it) and the PR reviewer (to independently sanity-check a
