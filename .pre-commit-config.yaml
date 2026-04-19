@@ -4,24 +4,32 @@ ci:
   autoupdate_schedule: quarterly
 
 repos:
+# All hooks pinned by full commit SHA rather than tag. Tags are
+# mutable; SHAs are not. `pre-commit autoupdate` still bumps these
+# on the quarterly `autoupdate_schedule`, and the trailing comment
+# shows the corresponding tag for human review.
 - repo: 'https://github.com/pre-commit/pre-commit-hooks'
-  rev: v5.0.0
+  # yamllint disable-line rule:line-length
+  rev: cef0300fd0fc4d2a87a85fa2093c6b283ea36f4b  # v5.0.0
   hooks:
   - id: check-yaml
   - id: end-of-file-fixer
   - id: trailing-whitespace
 - repo: https://github.com/astral-sh/ruff-pre-commit
-  rev: v0.12.0
+  # yamllint disable-line rule:line-length
+  rev: 8a948e557ca98afa9489998ad0b85515964df9c4  # v0.12.0
   hooks:
   - id: ruff-check
     args: [--fix]
   - id: ruff-format
 - repo: https://github.com/astral-sh/uv-pre-commit
-  rev: 0.11.3
+  # yamllint disable-line rule:line-length
+  rev: 0397b68f6f88c024f1d2b355a9818779f6336d16  # 0.11.3
   hooks:
   - id: uv-lock
 - repo: https://github.com/adrienverge/yamllint
-  rev: v1.37.1
+  # yamllint disable-line rule:line-length
+  rev: 79a6b2b1392eaf49cdd32ac4f14be1a809bbd8f7  # v1.37.1
   hooks:
   - id: yamllint
     args: [--strict]
@@ -31,7 +39,8 @@ repos:
   hooks:
   - id: rumdl
 - repo: https://github.com/python-jsonschema/check-jsonschema
-  rev: 0.36.1
+  # yamllint disable-line rule:line-length
+  rev: ba8f7ac0e0c0d25bae15b628b634316e7d201db5  # 0.36.1
   hooks:
   - id: check-dependabot
   - id: check-github-workflows
