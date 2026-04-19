@@ -51,9 +51,15 @@ The eval scripts expect the clone at `/tmp/botocore` (override with
 
 **aiobotocore ↔ botocore correlation:** `aiobotocore_version` is the version
 released by this sync (read from `aiobotocore/__init__.py` at `merge_commit`).
-Combined with `to` (the last supported botocore), the file doubles as a
-lookup table: "which aiobotocore version first supported botocore X.Y.Z?"
-Sort by `aiobotocore_version` to see the supported-botocore-range progression.
+Combined with `to` (the last supported botocore), the row records which
+aiobotocore version a given botocore range shipped in *as of this sync PR*.
+
+Caveat: aiobotocore can bump its own version for reasons unrelated to a
+botocore sync (internal refactors, new features, bug fixes). So the version
+shown here is the version the sync landed at, **not** the first or only
+version that supports that botocore range — subsequent non-sync releases
+keep the same range supported until the next sync lands. Sort by
+`aiobotocore_version` to see sync cadence, not absolute support windows.
 
 **Regenerate the stub** (fresh PRs, or after an override file is added/removed):
 

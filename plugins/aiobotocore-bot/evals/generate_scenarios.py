@@ -73,8 +73,17 @@ def decrement_patch(ver: str) -> str:
     return ".".join(map(str, parts))
 
 
-def overridden_basenames() -> set[str]:
-    return {p.name for p in AIOBOTOCORE_DIR.glob("*.py")}
+def overridden_paths() -> set[str]:
+    """Return relative paths under aiobotocore/ for every .py file.
+
+    Mirrors botocore/<same path>. Important: use full relative paths so
+    botocore/docs/client.py (nested) doesn't match aiobotocore/client.py.
+    """
+    paths = set()
+    for p in AIOBOTOCORE_DIR.rglob("*.py"):
+        rel = p.relative_to(AIOBOTOCORE_DIR).as_posix()
+        paths.add(rel)
+    return paths
 
 
 def gh_json(*args: str) -> object:
@@ -144,8 +153,12 @@ def touched_overridden_files(
         return []
     touched = []
     for line in out.splitlines():
-        name = Path(line).name
-        if name in overridden:
+        # Match against the relative path under botocore/, e.g. "client.py"
+        # or "retries/special.py". Only count exact path matches — not
+        # basename — so botocore/docs/client.py doesn't falsely map to
+        # aiobotocore/client.py.
+        rel = line.removeprefix("botocore/")
+        if rel in overridden:
             touched.append(line)
     return sorted(touched)
 
@@ -189,8 +202,14 @@ def scenarios_from_prs(
 
 
 def render_yaml(scenarios: list[Scenario]) -> str:
-    """Emit YAML by hand — no PyYAML dep, and the output is deterministic."""
+    """Emit YAML by hand — no PyYAML dep, and the output is deterministic.
+
+    Project .yamllint sets indent-sequences: false, so sequence items are not
+    indented from their parent key. Scenario items start at column 0; sub-keys
+    are indented 2 spaces.
+    """
     lines = [
+        "---",
         "# Auto-generated stub. Fill in `rationale` and `notes` by hand.",
         "#",
         "# `expected` uses the classifier's current verdict names",
@@ -203,37 +222,36 @@ def render_yaml(scenarios: list[Scenario]) -> str:
     for s in sorted(scenarios, key=lambda s: s.pr):
         lines.extend(
             [
-                "  - pr: " + str(s.pr),
-                "    title: " + json.dumps(s.title),
-                "    expected: " + s.expected,
-                "    from: " + json.dumps(s.from_ver),
-                "    to: " + json.dumps(s.to_ver),
-                "    merge_commit: " + s.merge_commit,
-                "    aiobotocore_version: "
-                + json.dumps(s.aiobotocore_version),
-                "    botocore_diff: "
+                "- pr: " + str(s.pr),
+                "  title: " + json.dumps(s.title),
+                "  expected: " + s.expected,
+                "  from: " + json.dumps(s.from_ver),
+                "  to: " + json.dumps(s.to_ver),
+                "  merge_commit: " + s.merge_commit,
+                "  aiobotocore_version: " + json.dumps(s.aiobotocore_version),
+                "  botocore_diff: "
                 + "https://github.com/boto/botocore/compare/"
                 + s.from_ver
                 + "..."
                 + s.to_ver,
-                "    aiobotocore_pr: "
+                "  aiobotocore_pr: "
                 + "https://github.com/aio-libs/aiobotocore/pull/"
                 + str(s.pr),
-                "    botocore_files_touched:",
+                "  botocore_files_touched:",
             ],
         )
         if s.botocore_files_touched:
             for f in s.botocore_files_touched:
-                lines.append("      - " + f)
+                lines.append("  - " + f)
         else:
-            lines.append("      []")
+            lines.append("    []")
         lines.extend(
             [
-                "    rationale: |",
-                "      TODO: one paragraph explaining WHY this was "
+                "  rationale: |",
+                "    TODO: one paragraph explaining WHY this was "
                 + s.expected
                 + ".",
-                "    notes: null",
+                "  notes: null",
                 "",
             ],
         )
@@ -269,7 +287,7 @@ def main() -> int:
         )
         return 2
 
-    overridden = overridden_basenames()
+    overridden = overridden_paths()
     prs = list_candidate_prs(args.limit)
     scenarios = scenarios_from_prs(prs, args.clone, overridden)
 

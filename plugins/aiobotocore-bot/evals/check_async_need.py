@@ -97,15 +97,15 @@ def load_scenarios_yaml(path: Path) -> list[Case] | None:
     current: dict[str, str] = {}
     for raw_line in path.read_text().splitlines():
         line = raw_line.rstrip()
-        if not line or line.lstrip().startswith("#"):
+        if not line or line.lstrip().startswith("#") or line == "---":
             continue
-        if line.startswith("  - pr:"):
+        if line.startswith("- pr:"):
             if current:
                 cases.append(_case_from_dict(current))
                 current = {}
             current["pr"] = line.split(":", 1)[1].strip()
             continue
-        if line.startswith("    ") and ":" in line:
+        if line.startswith("  ") and ":" in line:
             key, _, value = line.strip().partition(":")
             key = key.strip()
             value = value.strip()
