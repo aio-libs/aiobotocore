@@ -110,10 +110,26 @@ Inside each ported test body:
 - Any call to a method or function in the `async_methods` registry gets awaited:
   `session.create_client(...)` → `await session.create_client(...)`.
 - Context managers that are now async become `async with`: `with session.create_client(...)` →
-  `async with session.create_client(...)`.
+  `async with session.create_client(...)`. For `ExitStack` / `contextlib.ExitStack`, use
+  `contextlib.AsyncExitStack` and `enter_async_context`.
 - `for chunk in stream` → `async for chunk in stream` when `stream` is a response body.
 - `stream.read()` → `await stream.read()` (read is in async_methods).
+- `client.get_paginator(...).paginate(...)` returns an async iterator — use
+  `async for page in paginator.paginate(...)`, not `.build_full_result()` which isn't
+  directly available. See `aiobotocore/paginate.py::AioPageIterator` for what's supported.
 - `mock.Mock(return_value=...)` on a coroutine target → `mock.AsyncMock(return_value=...)`.
+- `patch.object(obj, 'method', return_value=X)` when `method` is in `async_methods`: use
+  `AsyncMock(return_value=X)` or `new_callable=mock.AsyncMock`.
+- `side_effect=[a, b, c]` on async mocks: AsyncMock handles this natively; no change needed.
+- `side_effect=ExceptionClass` on async mocks: AsyncMock also handles this natively.
+- Fixtures that yield a client / session: keep the `yield` pattern, convert to
+  `async def` + add `async with` for the resource. Pytest-asyncio handles await on yields.
+- Event loop: DO NOT create new loops in fixtures. `asyncio_mode = "auto"` is set in
+  `pyproject.toml` — rely on it. Any `loop = asyncio.new_event_loop()` / `loop.run_until_complete`
+  patterns must be rewritten: the test becomes `async def`, the inner awaitables just get `await`.
+- `time.sleep(X)` in a test: replace with `await asyncio.sleep(X)` ONLY if the purpose is to
+  trigger time-sensitive behavior (e.g. credential refresh). For pure wait-until-state,
+  prefer polling with `asyncio.wait_for`.
 
 ### 3d. Stubber replacement
 
@@ -121,10 +137,37 @@ Inside each ported test body:
 aiobotocore clients. Replace with the helpers already exported by `tests.botocore_tests`:
 
 - `ClientHTTPStubber` → `from tests.botocore_tests import ClientHTTPStubber` (aiobotocore's
-  version, already async-aware)
-- `SessionHTTPStubber` → same import path
-- `botocore.stub.Stubber` for low-level API stubbing: no direct equivalent; flag the test as
-  requiring manual review in the advisory output.
+  version, already async-aware). Usage is identical: `async with ClientHTTPStubber(client) as s:`.
+- `SessionHTTPStubber` → same import path.
+- `botocore.stub.Stubber` for low-level API-level stubbing (not HTTP-level): no direct
+  equivalent. Flag the test in the advisory output with the note
+  "API-level Stubber — port manually; consider rewriting as ClientHTTPStubber with canned
+  HTTP responses, or move the test to the aiobotocore-specific test dir."
+
+### 3e. HTTP mock libraries
+
+`botocore` tests sometimes use `responses` (for `requests`-based mocking) or raw `mock.patch`
+on HTTP internals. aiobotocore uses aiohttp and httpx — neither is compatible with `responses`.
+
+- `responses.add(...)` / `@responses.activate` → replace with `ClientHTTPStubber` (above) OR
+  if the test needs specific HTTP-layer behavior not expressible via Stubber, use
+  `aioresponses` (for aiohttp) / `pytest-httpx` (for httpx). Flag for human review if
+  unclear which backend the test needs.
+- `mock.patch('botocore.httpsession.URLLib3Session.send')` → no direct equivalent in
+  aiobotocore (the async equivalent is `AioHTTPSession.send`). Usually the right move is to
+  use `ClientHTTPStubber` instead of patching the session class.
+
+### 3f. Patterns that need manual review (flag, don't auto-port)
+
+- Tests using `threading` / `multiprocessing` for parallelism — async equivalents use
+  `asyncio.gather` / `asyncio.create_task`. Human judgment needed on whether the test
+  exercises something aiobotocore actually does differently.
+- Tests that assert on private internals whose names/types differ between botocore
+  and aiobotocore (e.g. `_endpoint`, `_auth`). Don't blindly substitute.
+- Tests with `@pytest.mark.parametrize` over sync/async variants — usually port just the
+  async variant; human picks if the sync case has value.
+- Tests using `botocore.tests.BaseSessionTest` or similar class hierarchies. Convert the
+  TestCase → top-level async functions pattern; the fixture conversion requires judgment.
 
 ## Step 4: Write, validate, commit
 
