@@ -37,38 +37,54 @@ Two GitHub Actions workflows drive everything. Both invoke
 with a prompt read from a template, signed commits via the GitHub
 File Ops MCP server, and PreToolUse hooks as guardrails.
 
+```mermaid
+flowchart LR
+    events["GitHub events<br/>PRs · reviews ·<br/>comments · issues"]
+    cron["Cron every 3 days<br/>+ workflow_dispatch"]
+
+    events --> claude["claude.yml<br/>trigger gate (if:)<br/>+ envsubst"]
+    cron --> sync["botocore-sync.yml<br/>detect → sync"]
+
+    claude --> reviewPrompt["claude-review-prompt.md<br/>dispatch by EVENT_NAME"]
+    sync --> syncPrompt["botocore-sync-prompt.md<br/>stateful, 8 steps"]
+
+    reviewPrompt --> action["anthropics/<br/>claude-code-action<br/>(Claude agent)"]
+    syncPrompt --> action
+
+    action -->|invokes| commands["/review-pr<br/>/analyze-pr-feedback"]
+    hooks["PreToolUse hooks:<br/>no unsigned commits ·<br/>no push to main/master ·<br/>no commits on fork PRs"] -.guards.-> action
+
+    action --> anthropic["Anthropic API"]
+    action --> ghMCP["GitHub API via MCP<br/>file_ops (signed commits) ·<br/>inline_comment"]
+    sync -.clone + fetch.-> botoMirror["PyPI +<br/>/tmp/botocore<br/>cached bare clone"]
+
+    ghMCP --> outputs["Review comments ·<br/>signed commits ·<br/>PRs / issues ·<br/>👀 → 👍 reactions"]
 ```
-                 .github/workflows/
-                 ├── claude.yml               ← PR review, @claude, issues
-                 └── botocore-sync.yml        ← scheduled botocore upgrades
 
-                 .github/
-                 ├── claude-review-prompt.md   ← main prompt (event-dispatched)
-                 ├── botocore-sync-prompt.md   ← sync prompt (stateful)
-                 └── usage-summary.py          ← cost/turns reporter
+**Layers:**
 
-                 .claude/commands/
-                 ├── review-pr.md              ← /review-pr slash command
-                 └── analyze-pr-feedback.md    ← /analyze-pr-feedback slash command
-```
-
-- **Workflow files** decide *when* the bot runs and set up the
+- **Workflow files** (`.github/workflows/claude.yml`,
+  `botocore-sync.yml`) decide *when* the bot runs and set up the
   execution environment (Python, `uv`, bun, git auth, hooks).
-- **Prompt files** decide *what* the bot does once invoked. They use
-  `envsubst` to interpolate a small allowlist of workflow-provided
-  variables (`$REPO`, `$NUMBER`, `$EVENT_NAME`, etc.).
-- **Slash commands** are reusable procedures the prompts call into.
-  They keep the top-level prompts short and let humans run the same
-  workflow locally via `/review-pr` or `/analyze-pr-feedback`.
+- **Prompt files** (`.github/claude-review-prompt.md`,
+  `botocore-sync-prompt.md`) decide *what* the bot does once invoked.
+  They use `envsubst` to interpolate a small allowlist of workflow-
+  provided variables (`$REPO`, `$NUMBER`, `$EVENT_NAME`, etc.).
+- **Slash commands** (`.claude/commands/review-pr.md`,
+  `analyze-pr-feedback.md`) are reusable procedures the prompts call
+  into. They keep the top-level prompts short and let humans run the
+  same workflow locally via `/review-pr` or `/analyze-pr-feedback`.
 - **Hooks** in `settings:` block `git commit` (requires signing) and
   push-to-`main`/`master` (branch-protected). Commits go through
   `mcp__github_file_ops__commit_files` instead, which signs via the
   GitHub API and is attributed to `claude[bot]`.
+- **Reporter** (`.github/usage-summary.py`) parses the action's
+  execution log and writes a cost/turn table into the job summary.
 
 ### The two workflows at a glance
 
-|-|-|-|-|
 | Workflow | Triggers | Job flow | Outputs |
+|-|-|-|-|
 | `claude.yml` | PR opened/synchronized, issue/PR comment with `@claude`, PR review (mention or CHANGES\_REQUESTED on bot PR), issue opened/assigned with `@claude` | Single job, dispatches on `$EVENT_NAME` inside the prompt | Inline review comments, summary replies, signed commits on bot/fork-free PRs, new PRs for `issues` events |
 | `botocore-sync.yml` | Cron (`0 10 */3 * *`) and `workflow_dispatch` | `detect` → `sync` (conditional) | PR to bump or relax `botocore` pin; feedback issue when bumps need human input |
 
@@ -167,6 +183,36 @@ The sync prompt explicitly uses two branches:
 For **relax** updates (no code changes needed, only bounds bump),
 the bot skips the WIP PR entirely.
 
+**Sync flow:**
+
+```mermaid
+flowchart TD
+    start([Trigger: cron or dispatch])
+    start --> detect["detect job:<br/>fetch PyPI latest,<br/>parse pyproject.toml"]
+    detect --> inrange{target in<br/>supported range?}
+    inrange -->|yes| exitOK([Exit: up to date])
+    inrange -->|no| step0["Step 0:<br/>read feedback issue<br/>for trusted answers"]
+    step0 --> wipCheck{WIP PR exists?}
+    wipCheck -->|yes| resume[Resume from<br/>WIP PR description]
+    wipCheck -->|no| finalCheck{Final PR exists?}
+    finalCheck -->|"dirty<br/>(human commits/reviews)"| dirty[Relax: edit in place<br/>Bump: comment only]
+    finalCheck -->|clean or none| diff["git diff<br/>last_supported..target"]
+    resume --> port
+    diff --> classify{overridden files<br/>changed?}
+    classify -->|no| relax[Relax path:<br/>bump upper bound,<br/>patch version]
+    classify -->|yes| bumpGate{enable_bump<br/>true?}
+    bumpGate -->|no| feedback[Open / update<br/>feedback issue]
+    bumpGate -->|yes| port[Port async overrides,<br/>update hashes,<br/>port tests]
+    port --> validate["Run pytest<br/>+ pyright delta"]
+    validate -->|pass| finalize["Squash to<br/>claude/botocore-sync,<br/>create final PR"]
+    validate -->|"fail or<br/>out of turns"| saveWIP[Save to<br/>claude/botocore-sync-wip<br/>with handoff doc]
+    relax --> finalize
+    dirty --> exitOK
+    finalize --> exitOK
+    feedback --> exitFB([Exit: await answers])
+    saveWIP --> exitWIP([Exit: next run resumes])
+```
+
 **Update-type decision tree:**
 
 1. `tests/test_patches.py` is run. Hash failures are a signal, not a
@@ -260,8 +306,8 @@ nothing happens.
 Decides whether the job runs at all. The `ANTHROPIC_API_KEY` is only
 spent on events that pass this gate.
 
-|-|-|-|
 | Event | Condition | Who can fire it |
+|-|-|-|
 | `pull_request` (opened, synchronize) | PR is not a draft | Anyone — including first-time contributors and fork PRs |
 | `issue_comment` (on issue or PR) | Body contains `@claude` | MEMBER, OWNER, or COLLABORATOR |
 | `pull_request_review_comment` (inline) | Body contains `@claude` | MEMBER, OWNER, or COLLABORATOR |
