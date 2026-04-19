@@ -91,6 +91,11 @@ the change into aiobotocore. See
 `docs/override-patterns.md <docs/override-patterns.md>`_ for the full principle
 and a list of legitimate async-gap patterns.
 
+**Keep botocore sync PRs tightly scoped.** A sync PR should update the botocore
+pin and port any required overrides — nothing else. Bundling unrelated bug
+fixes or refactors into a sync PR makes the reviewer's job harder and makes
+the bot's classifier noisier. If you have unrelated fixes, open a separate PR.
+
 How to Upgrade Botocore
 -----------------------
 aiobotocore's file names, and ordering of functions in files try to match the botocore files they override.

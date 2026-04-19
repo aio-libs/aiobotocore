@@ -84,6 +84,25 @@ arithmetic, or calls to other pure-sync botocore utilities.
 call graph is deep enough that you can't rule out I/O without tracing. Prefer `ambiguous` over a wrong
 confident verdict; the caller will escalate.
 
+### Common false-positive signal patterns (do NOT flag as needs-async)
+
+Not every `await` / `asyncio` / `threading` token in the diff is a real async-need signal:
+
+- **String literals and docstrings.** A log message, error text, or docstring that mentions
+  "await" or "threading" is not code. Ignore.
+- **Comments.** `# async version of X` is not executable.
+- **Test fixtures or test-only helpers.** Code under `botocore/tests/` or `botocore/stubbing.py`
+  is test scaffolding; aiobotocore doesn't override tests.
+- **Unreached paths.** A new sync-only helper defined in an overridden file but never called
+  from an aiobotocore-overridden code path isn't something we need to port. If you can verify
+  nothing in aiobotocore (including via the override chain) calls the new helper, it's
+  pure-sync regardless of what the helper itself does.
+- **`botocore/data/`** — schema and model JSON files are never code we override. They're
+  excluded by the filename-mirror filter in Step 1; if any leak through, ignore.
+
+When in doubt between `pure-sync` and `ambiguous`, choose `ambiguous`. A false `pure-sync` on
+a real need-to-override is worse than a false alarm.
+
 ## Step 4: Output
 
 Emit a structured report. Two sections: a summary line the caller can grep, followed by per-function detail.

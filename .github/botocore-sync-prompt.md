@@ -166,6 +166,11 @@ gh api repos/REPO/pulls/PR_NUM/reviews --jq \
 
 ## Step 3: Classify the botocore diff
 
+**The classifier is the authority, not the PR title.** Historical PRs have been
+mislabeled (e.g. a "Bump" title on what was actually a no-port update). If you are
+operating on an existing PR whose title contradicts the classifier's verdict, update the
+PR title to match — don't preserve a wrong inherited label.
+
 Run the classifier:
 
 ```text
