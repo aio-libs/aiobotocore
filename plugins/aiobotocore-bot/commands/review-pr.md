@@ -73,6 +73,15 @@ c) **Async patterns** (aiobotocore-specific): check that any botocore overrides 
   - Resource cleanup via async context managers
   - Correct Aio prefix naming
 
+d) **Relax-vs-bump sanity check** (only for sync-bot-authored PRs — `claude[bot]` with title starting
+   `Relax botocore` or `Bump botocore`): independently verify the classification against the botocore diff
+   linked in the PR body. For any new/changed function in an overridden botocore file (i.e. a file with a
+   mirror at `aiobotocore/<same-name>.py`), inspect the function body for async-relevant signals: network or
+   disk I/O, calls to functions aiobotocore already makes async, instantiation of classes aiobotocore
+   subclasses, or blocking primitives. A relax is only correct when the answer is "no such signals". Flag
+   if the PR is classified as relax but new logic would warrant an async override. "Function was not
+   previously overridden" is NOT a sufficient justification — the real test is async-need of the new code.
+
 **CRITICAL: Only flag HIGH SIGNAL issues.**
 
 Flag issues where:

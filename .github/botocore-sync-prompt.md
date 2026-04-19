@@ -210,6 +210,21 @@ c) New logic in files we override: new classes, methods, network calls, I/O, blo
    we subclass
 d) Changes in files we don't override (no action)
 
+**Async-need check (critical for relax-vs-bump):** For every changed *or added* function in an overridden file,
+inspect the function body for async-relevant signals — not just whether the function itself was previously
+subclassed. The relevant question is "would aiobotocore need to override this going forward?", not "did we
+override the old version?". Flag as bump-worthy if the new/changed code:
+
+- performs network or disk I/O, or calls anything that might (e.g. `requests`, `urllib`, `open`, subprocess)
+- calls a function that is already async in aiobotocore (check `aiobotocore/<file>.py` for `async def` versions)
+- instantiates or uses a botocore class that aiobotocore subclasses (those instantiations must be swapped)
+- adds `time.sleep`, threading, or other blocking primitives
+- introduces new event-hook handlers that may be fed awaitables
+
+Pure data manipulation (dict/list/str ops, attribute access, regex) is safe for relax. When justifying a relax
+in the PR body, state the async-need conclusion explicitly (e.g. "new helper is pure-sync dict manipulation"),
+not just "functions not overridden" — the latter is not a sufficient test.
+
 aiobotocore uses a **filename-mirror convention**: `botocore/foo.py` is overridden by `aiobotocore/foo.py` (and
 only by that path). To classify any changed botocore file, check for the mirror once:
 
