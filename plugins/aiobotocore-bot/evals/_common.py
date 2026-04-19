@@ -22,12 +22,14 @@ import anthropic
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 AIOBOTOCORE_DIR = REPO_ROOT / "aiobotocore"
-# Sonnet (not Opus) for the same reason claude-code-action defaults to
-# Sonnet in the other workflows: structured classification with a clear
-# system prompt doesn't need Opus-level reasoning, and Sonnet is faster
-# + ~5× cheaper per call. First-run comparison on this branch showed
-# 8/8 on both eval suites at Opus; Sonnet is expected to match.
-DEFAULT_MODEL = "claude-sonnet-4-6"
+# Opus 4.7 at default effort. The recent Opus 4.5+ pricing drop
+# (to $5/$25 per M input/output, down from $15/$75) narrowed the gap
+# to Sonnet+thinking to ~25%, so the accuracy advantage makes Opus the
+# better cost/quality point. Baseline Opus eval was 8/8 without
+# thinking; Sonnet+thinking was 7/8. Default across eval, sync, and
+# reviewer workflows. Switch back to Sonnet if Opus ever underperforms
+# on the regression suite.
+DEFAULT_MODEL = "claude-opus-4-7"
 
 UPPER_RE = re.compile(r'"botocore\s*>=\s*[\d.]+\s*,\s*<\s*([\d.]+)"')
 LOWER_RE = re.compile(r'"botocore\s*>=\s*([\d.]+)\s*,')
@@ -338,21 +340,6 @@ def new_client() -> anthropic.AsyncAnthropic:
     return anthropic.AsyncAnthropic()
 
 
-# Extended-thinking budget for the classifier. The work (walk every
-# changed function + consult three registries + apply roll-up +
-# sanity-check before committing) is exactly what thinking tokens pay
-# for. `type: enabled, budget_tokens: N` is the stable shape — the
-# newer `type: adaptive, effort: X` is documented for Sonnet 4.6 but
-# the API currently rejects it ("Extra inputs are not permitted" on
-# `anthropic==0.96.0`, 2026-04-19). Switch once upstream ships it.
-#
-# 8K is enough headroom for ~15 functions × several hundred reasoning
-# tokens each. Mirrors the `--effort high` setting on the
-# claude-code-action-driven sync workflow so eval and runtime share
-# reasoning depth.
-THINKING_BUDGET_TOKENS = 8000
-
-
 async def invoke_and_parse(
     client: anthropic.AsyncAnthropic,
     system: str,
@@ -365,9 +352,11 @@ async def invoke_and_parse(
     The verdict regex should capture the verdict string as group 1 (e.g.
     `^CLASSIFICATION:\\s*(\\S+)`).
 
-    Enables adaptive extended thinking so Sonnet can reason through
-    each changed function before committing to the top-line verdict —
-    classification-style problems regress without it.
+    Opus 4.7 at default effort (no explicit extended thinking) is good
+    enough for classification after the #1567 registry-injection work —
+    baseline eval was 8/8 and Opus's default reasoning matches the
+    Sonnet+thinking result at a smaller price premium under the new
+    Opus pricing tier.
 
     The system prompt uses ephemeral cache_control so repeated calls
     within the same eval session (N runs × M cases ≈ 96 calls at
@@ -375,11 +364,7 @@ async def invoke_and_parse(
     """
     resp = await client.messages.create(
         model=model,
-        max_tokens=16000,
-        thinking={
-            "type": "enabled",
-            "budget_tokens": THINKING_BUDGET_TOKENS,
-        },
+        max_tokens=4096,
         system=[
             {
                 "type": "text",

@@ -222,6 +222,7 @@ jobs:
         claude_args: |
           --dangerously-skip-permissions
           --plugin-dir plugins/aiobotocore-bot
+          --model opus
         # yamllint disable rule:line-length
         settings: |
           {
