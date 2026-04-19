@@ -1,5 +1,6 @@
 ---
-description: Fetch every PR comment + reply (including resolved), synthesize the discussion, and produce a grouped action plan
+allowed-tools: Bash(gh api graphql:*), Bash(gh api repos/*/pulls/*:*), Bash(gh api repos/*/issues/*:*), Bash(gh pr view:*), Bash(gh pr diff:*), Bash(git log:*), mcp__github_file_ops__commit_files
+description: Three-bucket synthesis of PR feedback plus per-thread action plan
 ---
 
 Fetch every piece of reviewer feedback on the PR — review threads and top-level PR comments, including resolved

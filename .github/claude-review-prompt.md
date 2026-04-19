@@ -28,7 +28,7 @@ Pick exactly ONE section below based on $EVENT_NAME. Do not run actions from oth
 
 ## Review the PR (only when EVENT=pull_request)
 
-Run `/review-pr --comment` to perform a sequential code review. This reviews the PR diff checking for:
+Run `/aiobotocore-bot:review-pr --comment` to perform a sequential code review. This reviews the PR diff checking for:
 
 - CLAUDE.md compliance
 - Bugs and logic errors in changed code
@@ -56,7 +56,7 @@ address their findings if they are actionable.
 ### Address reviewer feedback on claude[bot]-authored PRs
 
 When the PR was authored by `claude[bot]` specifically (not other bots), also go through open reviewer
-feedback and address or acknowledge each outstanding item — don't rely on your own `/review-pr` findings
+feedback and address or acknowledge each outstanding item — don't rely on your own `/aiobotocore-bot:review-pr` findings
 alone. Reviewer threads may have been posted days ago and need explicit handling on this run.
 
 Check PR author first:
@@ -66,14 +66,14 @@ gh api repos/$REPO/pulls/$NUMBER --jq '.user.login'
 # Proceed ONLY if this equals "claude[bot]"
 ```
 
-Then run `/analyze-pr-feedback` (no `--focus` — we want all items, none is the trigger). The command fetches
+Then run `/aiobotocore-bot:analyze-pr-feedback` (no `--focus` — we want all items, none is the trigger). The command fetches
 every review thread plus top-level PR comments, applies filters (trusted author, last reply not claude,
 actionable work), and returns the items that need attention.
 
-For each returned item, follow the 3-outcome rule documented in `/analyze-pr-feedback`: already-fixed →
+For each returned item, follow the 3-outcome rule documented in `/aiobotocore-bot:analyze-pr-feedback`: already-fixed →
 reply with commit SHA; not-fixed + confident → push fix + reply; ambiguous → ask for clarification.
 
-These per-thread replies are in addition to `/review-pr`'s summary comment — not a replacement.
+These per-thread replies are in addition to `/aiobotocore-bot:review-pr`'s summary comment — not a replacement.
 
 ## Git operations
 
@@ -139,7 +139,7 @@ This section handles two trigger paths:
 
 Both paths follow the same handling below.
 
-Do NOT run `/review-pr` — the reviewer is asking for something specific, not for a fresh code review.
+Do NOT run `/aiobotocore-bot:review-pr` — the reviewer is asking for something specific, not for a fresh code review.
 Read the comment/review that triggered this run (use $COMMENT_ID when provided; for the CHANGES_REQUESTED path
 $COMMENT_ID is empty — read the review body and its inline comments). Do exactly what the reviewer asks. They may
 ask you to address specific review comments, answer a question, push a fix, or just reply — follow their request.
@@ -152,23 +152,23 @@ To read the triggering comment:
   list `gh api repos/$REPO/pulls/$NUMBER/comments` for any inline comments submitted with the
   review (the review summary body is often empty when the @claude mention is in an inline comment).
 
-### Pull full context via /analyze-pr-feedback
+### Pull full context via /aiobotocore-bot:analyze-pr-feedback
 
-A single comment is rarely the full context. Before acting, run `/analyze-pr-feedback` to fetch every review
+A single comment is rarely the full context. Before acting, run `/aiobotocore-bot:analyze-pr-feedback` to fetch every review
 thread and top-level PR comment (with the trusted-author / last-reply-not-claude / actionable-work filters
 already applied). When a specific comment triggered this run, pass its databaseId as `--focus`:
 
-- `pull_request_review_comment`: `/analyze-pr-feedback --focus=$COMMENT_ID`
-- `issue_comment` (PR): `/analyze-pr-feedback --focus=$COMMENT_ID`
-- `pull_request_review` (CHANGES_REQUESTED or @claude in review body): `/analyze-pr-feedback` (no focus —
-  the review summary itself isn't a review-thread comment, so iterate all items and pay special attention
-  to ones submitted as part of this review)
+- `pull_request_review_comment`: `/aiobotocore-bot:analyze-pr-feedback --focus=$COMMENT_ID`
+- `issue_comment` (PR): `/aiobotocore-bot:analyze-pr-feedback --focus=$COMMENT_ID`
+- `pull_request_review` (CHANGES_REQUESTED or @claude in review body):
+  `/aiobotocore-bot:analyze-pr-feedback` (no focus — the review summary itself isn't a review-thread
+  comment, so iterate all items and pay special attention to ones submitted as part of this review)
 
 Prioritize the focused thread (if any). For broad asks like "address all the PR comments", handle every
 returned item. For narrow asks, use other items as context and only act on the focused one unless the
 reviewer explicitly scopes wider.
 
-For each item you touch, follow the 3-outcome rule documented in `/analyze-pr-feedback`:
+For each item you touch, follow the 3-outcome rule documented in `/aiobotocore-bot:analyze-pr-feedback`:
 already-fixed → reply with commit SHA; not-fixed + confident → push fix + reply; ambiguous → clarify.
 
 In your final top-level summary reply (required — see Cleanup below), list each thread you touched (with
@@ -218,8 +218,8 @@ IMPORTANT: Never merge or close pull requests. Never close issues. These actions
 ## Cleanup
 
 **This section runs at the END of every run in the "Respond to @claude" and "Implement the issue" branches — do
-not skip any step. Runs in the "Review the PR" branch skip the summary-reply step because `/review-pr` posts its
-own review comment; they still swap the reaction.**
+not skip any step. Runs in the "Review the PR" branch skip the summary-reply step because
+`/aiobotocore-bot:review-pr` posts its own review comment; they still swap the reaction.**
 
 ### 1. Post a summary reply (REQUIRED for @claude and issues events)
 

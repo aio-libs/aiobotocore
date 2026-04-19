@@ -1,8 +1,12 @@
 ---
-description: Review a pull request sequentially to minimize token usage
+allowed-tools: Bash(gh pr view:*), Bash(gh pr diff:*), Bash(gh pr comment:*), Bash(gh api graphql:*), Bash(gh api repos/*/pulls/*:*), mcp__github_inline_comment__create_inline_comment
+description: Review a pull request sequentially (aiobotocore-flavored)
 ---
 
 Provide a code review for the given pull request.
+
+**Agent assumptions:** All tools are functional. Only call a tool if it is required to complete the task.
+Every tool call should have a clear purpose.
 
 Do NOT launch parallel subagents. Perform all steps sequentially in this conversation to minimize cache token costs.
 

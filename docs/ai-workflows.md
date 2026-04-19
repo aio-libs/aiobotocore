@@ -51,7 +51,7 @@ flowchart LR
     reviewPrompt --> action["anthropics/<br/>claude-code-action<br/>(Claude agent)"]
     syncPrompt --> action
 
-    action -->|invokes| commands["/review-pr<br/>/analyze-pr-feedback"]
+    action -->|invokes| commands["/aiobotocore-bot:review-pr<br/>/aiobotocore-bot:analyze-pr-feedback"]
     hooks["PreToolUse hooks:<br/>no unsigned commits ·<br/>no push to main/master ·<br/>no commits on fork PRs"] -.guards.-> action
 
     action --> anthropic["Anthropic API"]
@@ -70,10 +70,14 @@ flowchart LR
   `botocore-sync-prompt.md`) decide *what* the bot does once invoked.
   They use `envsubst` to interpolate a small allowlist of workflow-
   provided variables (`$REPO`, `$NUMBER`, `$EVENT_NAME`, etc.).
-- **Slash commands** (`.claude/commands/review-pr.md`,
-  `analyze-pr-feedback.md`) are reusable procedures the prompts call
-  into. They keep the top-level prompts short and let humans run the
-  same workflow locally via `/review-pr` or `/analyze-pr-feedback`.
+- **Plugin** (`plugins/aiobotocore-bot/`) packages the slash commands
+  (`commands/review-pr.md`, `commands/analyze-pr-feedback.md`) so
+  `claude-code-action` loads them in CI. The repo-root
+  `.claude-plugin/marketplace.json` registers the plugin; the workflow
+  passes `plugin_marketplaces: ./.` and `plugins: aiobotocore-bot@aiobotocore`
+  to install from the checked-out working tree — so PR branches test
+  their own plugin changes. See
+  [plugins/aiobotocore-bot/README.md](../plugins/aiobotocore-bot/README.md).
 - **Hooks** in `settings:` block `git commit` (requires signing) and
   push-to-`main`/`master` (branch-protected). Commits go through
   `mcp__github_file_ops__commit_files` instead, which signs via the
@@ -111,13 +115,13 @@ injection via drive-by comments from untrusted accounts.
 
 `claude-review-prompt.md` branches on `$EVENT_NAME`:
 
-- `pull_request` → run `/review-pr --comment` (sequential,
+- `pull_request` → run `/aiobotocore-bot:review-pr --comment` (sequential,
   cache-friendly code review with ≥80 confidence threshold).
   Additionally, if the PR is authored by `claude[bot]`, run
-  `/analyze-pr-feedback` to address reviewer threads.
+  `/aiobotocore-bot:analyze-pr-feedback` to address reviewer threads.
 - `issue_comment`, `pull_request_review_comment`,
   `pull_request_review` → fetch the triggering comment, call
-  `/analyze-pr-feedback --focus=$COMMENT_ID`, and act per the
+  `/aiobotocore-bot:analyze-pr-feedback --focus=$COMMENT_ID`, and act per the
   three-outcome rule (already-fixed / fix-now / ask-clarification).
 - `issues` → implement the issue: create a `claude/`-prefixed
   branch, push signed commits, open a PR.
@@ -280,17 +284,17 @@ the repo so maintainers can iterate on them alongside the prompts.
 
 | Command | Purpose |
 |-|-|
-| `/review-pr [--comment]` | Sequential (not parallel) PR review. Checks CLAUDE.md compliance, bugs in the diff, and async patterns. Scores each finding 0–100 and filters < 80. With `--comment`, posts inline review comments via `mcp__github_inline_comment__create_inline_comment`. |
-| `/analyze-pr-feedback [--focus=<id>] [--resolve]` | Fetch every review thread + top-level comment (including resolved) and synthesize into three buckets: *what was asked*, *what was done*, *what's still outstanding*. Act on bucket C with the three-outcome rule. Optionally resolve threads after posting a "fixed" reply. |
+| `/aiobotocore-bot:review-pr [--comment]` | Sequential (not parallel) PR review. Checks CLAUDE.md compliance, bugs in the diff, and async patterns. Scores each finding 0–100 and filters < 80. With `--comment`, posts inline review comments via `mcp__github_inline_comment__create_inline_comment`. |
+| `/aiobotocore-bot:analyze-pr-feedback [--focus=<id>] [--resolve]` | Fetch every review thread + top-level comment (including resolved) and synthesize into three buckets: *what was asked*, *what was done*, *what's still outstanding*. Act on bucket C with the three-outcome rule. Optionally resolve threads after posting a "fixed" reply. |
 
 **Design note — sequential review:** An earlier iteration launched
 parallel subagents per file. It produced more findings but burned an
 order of magnitude more cache tokens. The sequential path in
-`/review-pr` was introduced in
+`/aiobotocore-bot:review-pr` was introduced in
 [#1507](https://github.com/aio-libs/aiobotocore/pull/1507) and cut
 cost per review dramatically while keeping signal quality.
 
-**Design note — three-bucket synthesis:** `/analyze-pr-feedback`
+**Design note — three-bucket synthesis:** `/aiobotocore-bot:analyze-pr-feedback`
 explicitly forbids "process threads in isolation". A single comment
 often makes no sense without the thread; a thread often makes no
 sense without the PR-wide history. The bucket structure forces the
@@ -348,7 +352,7 @@ the comment from @so-and-so". Gate 1 lets the request through because
 the asker is trusted; Gate 2 ensures the bot still reads @so-and-so's
 comment as data, not as instructions.
 
-`/analyze-pr-feedback` applies the same filter when building its "what's
+`/aiobotocore-bot:analyze-pr-feedback` applies the same filter when building its "what's
 actionable" list — items from non-trusted authors stay in the context
 summary but never become actions.
 
@@ -368,17 +372,17 @@ Even OWNER-level requests cannot bypass these:
 
 ### What "bot-authored" means for auto-fix behavior
 
-After `/review-pr` completes, the prompt decides whether to also push a
+After `/aiobotocore-bot:review-pr` completes, the prompt decides whether to also push a
 fix commit based on the PR author:
 
 | PR author | Auto-fix behavior |
 |-|-|
-| `claude[bot]` | Fix straightforward issues (confidence ≥ 80). Also run `/analyze-pr-feedback` to address open review threads. |
+| `claude[bot]` | Fix straightforward issues (confidence ≥ 80). Also run `/aiobotocore-bot:analyze-pr-feedback` to address open review threads. |
 | `github-actions[bot]`, `dependabot[bot]`, other bots | Fix straightforward issues (confidence ≥ 80). |
 | Human (any trusted association) | Review comments only. No commits. |
 | Human on a fork | Review comments only. No commits. |
 
-The `/analyze-pr-feedback` path is reserved for `claude[bot]` PRs
+The `/aiobotocore-bot:analyze-pr-feedback` path is reserved for `claude[bot]` PRs
 specifically, on the theory that review threads on Claude's own PRs are
 feedback the bot should close the loop on itself.
 
@@ -553,9 +557,11 @@ REPO=aio-libs/aiobotocore NUMBER=1234 EVENT_NAME=pull_request \
 # Inspect and feed into a local claude-code run
 ```
 
-The slash commands in `.claude/commands/` are picked up automatically
-by Claude Code locally, so `/review-pr 1234` works against real PRs
-from your workstation.
+For the slash commands, load the plugin locally once with
+`claude /plugin marketplace add ./` + `claude /plugin install
+aiobotocore-bot@aiobotocore`, then `/aiobotocore-bot:review-pr 1234`
+works against real PRs from your workstation. Or pass
+`--plugin-dir ./plugins/aiobotocore-bot` per-invocation.
 
 ### Adding a new trigger
 
@@ -647,7 +653,7 @@ git log -- .github/workflows/claude.yml \
 - [#1552](https://github.com/aio-libs/aiobotocore/pull/1552) — Guarantee
   summary replies on @claude runs (they were being silently dropped).
 - [#1553](https://github.com/aio-libs/aiobotocore/pull/1553) — Extract
-  `/analyze-pr-feedback` as its own slash command; auto-address
+  `/aiobotocore-bot:analyze-pr-feedback` as its own slash command; auto-address
   reviewer threads on `claude[bot]` PRs.
 - [#1554](https://github.com/aio-libs/aiobotocore/pull/1554),
   [#1555](https://github.com/aio-libs/aiobotocore/pull/1555) — Bypass
@@ -669,7 +675,7 @@ Captured as hooks for the next contributor, not commitments.
   sibling workflow that produces a weekly digest of dependency state
   (botocore, aiohttp, aws-sam-translator) and posts it as a comment on
   a pinned tracking issue.
-- **Tighter confidence calibration.** The 0–100 score in `/review-pr`
+- **Tighter confidence calibration.** The 0–100 score in `/aiobotocore-bot:review-pr`
   is currently self-assessed by the model. Wiring a post-hoc check
   against pyright/ruff output would let us raise the floor without
   losing signal.
