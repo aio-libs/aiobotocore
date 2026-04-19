@@ -31,7 +31,7 @@ The eval scripts expect the clone at `/tmp/botocore` (override with
 ```yaml
 - pr: 1534
   title: "Bump `botocore` dependency specification"
-  expected: bump-required
+  expected: port-required
   from: "1.40.20"
   to: "1.41.10"
   merge_commit: abc123...
@@ -94,8 +94,8 @@ Options:
 
 ### What it checks
 
-- Each `expected: relax-safe` row must classify as `relax-safe`
-- Each `expected: bump-required` row must classify as `bump-required`
+- Each `expected: no-port` row must classify as `no-port`
+- Each `expected: port-required` row must classify as `port-required`
 - Cases pass if `⌈runs/2⌉ + 1` or more runs agree with the expected verdict
 - Script exits 1 if any case fails
 

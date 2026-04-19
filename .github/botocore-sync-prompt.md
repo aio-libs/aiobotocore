@@ -65,7 +65,7 @@ tracks progress and state for handoff between runs. Messy incremental commits ar
 **Final PR** (branch: `claude/botocore-sync`, ready): clean result for human review. Created only when work is
 complete and tests pass. Changes are squashed from the WIP branch.
 
-For simple changes (relax, small bumps), skip the WIP PR and go directly to the final PR.
+For simple changes (no-port, small ports), skip the WIP PR and go directly to the final PR.
 
 ## Step 1: Check for feedback issue
 
@@ -102,7 +102,7 @@ gh pr list --head claude/botocore-sync --state all \
 ```
 
 **If a WIP PR exists:** this is a continuation of previous work. Read the WIP PR description to understand progress
-and remaining tasks. Checkout `claude/botocore-sync-wip`, skip to Step 5 (bump path) and continue from where the
+and remaining tasks. Checkout `claude/botocore-sync-wip`, skip to Step 5 (port path) and continue from where the
 previous run left off. If $LATEST_BOTOCORE differs from what the WIP targets, ignore the newer version and finish
 the current WIP first.
 
@@ -154,10 +154,10 @@ gh api repos/REPO/pulls/PR_NUM/reviews --jq \
 
 *Open + dirty-and-active:* proceed to Step 3 to determine update type, then:
 
-- If **relax**: safe to apply in-place on the dirty branch. Only update `pyproject.toml` upper bound,
+- If **no-port**: safe to apply in-place on the dirty branch. Only update `pyproject.toml` upper bound,
   `aiobotocore/__init__.py` version, `CHANGES.rst`, and `uv.lock` via `/aiobotocore-bot:bump-version
   --mode=relax --target=$LATEST_BOTOCORE`. Do NOT reset the branch. Update PR title and description.
-- If **bump**: do NOT modify the branch. Post a comment on the PR (replacing any previous botocore-sync-bot
+- If **port-required**: do NOT modify the branch. Post a comment on the PR (replacing any previous botocore-sync-bot
   comment) stating: "Botocore $LATEST_BOTOCORE is available but requires code changes. Upgrade is blocked on this
   PR. [botocore diff link]". To replace, search for comments containing "botocore-sync-bot" and delete before
   posting. Then exit.
@@ -174,14 +174,14 @@ Run the classifier:
 
 The command diffs the two botocore versions, finds new/changed functions in overridden files, and returns one of:
 
-- `relax-safe` → no async-need signals found. Go to Step 4 (relax path). Quote the command's summary line in the
-  PR body as the async-need justification. Do NOT justify a relax with "functions not overridden" — that is the
+- `no-port` → no async-need signals found. Go to Step 4 (no-port path). Quote the command's summary line in the
+  PR body as the async-need justification. Do NOT justify a no-port verdict with "functions not overridden" — that is the
   wrong test.
-- `bump-required` → at least one new/changed function has async-need signals. Go to Step 5 (bump path).
+- `port-required` → at least one new/changed function has async-need signals. Go to Step 5 (port path).
 - `ambiguous` → the classifier could not rule out async-need for one or more functions. Escalate via Step 9 with
   the ambiguous verdicts as feedback questions.
 - `error: <reason>` → the classifier itself failed (e.g. `/tmp/botocore` missing, tag not fetched). Treat as
-  `ambiguous`: escalate via Step 9 with the error message as context. Never silently assume relax-safe.
+  `ambiguous`: escalate via Step 9 with the error message as context. Never silently assume no-port.
 
 ### Major bump detection
 
@@ -206,16 +206,16 @@ uv run pytest tests/test_patches.py -x -v 2>&1
 ```
 
 Hashes are a SIGNAL that helps confirm the classifier's decision — they catch changes to code we already patch.
-Hashes passing alone does NOT prove relax-safe (the classifier is authoritative); hashes failing on a
-`relax-safe` verdict means the classifier missed something — escalate via Step 9.
+Hashes passing alone does NOT prove no-port (the classifier is authoritative); hashes failing on a
+`no-port` verdict means the classifier missed something — escalate via Step 9.
 
 **If DRY_RUN is true:** output the classifier's full report plus hash test results and exit. Do NOT create
 branches, make code changes, create PRs, or post comments.
 
-**If verdict is bump-required and ENABLE_BUMP is false:** go to Step 9 to create a feedback issue describing
+**If verdict is port-required and ENABLE_BUMP is false:** go to Step 9 to create a feedback issue describing
 what changes are needed. Do not attempt code changes.
 
-## Step 4: Relax path
+## Step 4: No-port path
 
 Run `/aiobotocore-bot:bump-version --mode=relax --target=$LATEST_BOTOCORE`. The command:
 
@@ -228,7 +228,7 @@ If new botocore functions we depend on appear in the diff, also add their hashes
 
 Go directly to Step 7 (no WIP PR needed).
 
-## Step 5: Bump path
+## Step 5: Port path
 
 Read `docs/override-patterns.md` for the patterns. Check Step 1's feedback-issue result for any human guidance.
 
@@ -259,7 +259,7 @@ If you complete all tasks, go to Step 6. If you run out of turns or time, go to 
 
 Run `uv run pytest tests/test_patches.py -x -v`. Fix remaining failures. Repeat until passing.
 
-**For bump PRs only** — run `/aiobotocore-bot:pyright-delta`. It stashes your changes, runs pyright against
+**For port PRs only** — run `/aiobotocore-bot:pyright-delta`. It stashes your changes, runs pyright against
 `aiobotocore/` for the baseline, pops the stash, runs pyright again, and reports new errors restricted to files
 you touched. aiobotocore has a long-standing baseline of pyright errors (intentional async-overriding-sync
 patterns and legacy type gaps), so absolute counts don't matter — we only care about drift in the files you
@@ -282,7 +282,7 @@ You did not finish in this run. Save your work:
 
    **Target:** botocore [VERSION]
    **Botocore diff:** [URL]
-   **Type:** bump (minor)
+   **Type:** port (minor)
 
    ### Completed
    - [x] Analysis: [summary of categorized changes]
@@ -333,11 +333,11 @@ is exactly what gets committed (as a signed commit).
 Create or update the final PR via `/aiobotocore-bot:open-pr`:
 
 - `--title="Relax botocore dependency specification"` or `"Bump botocore dependency specification"`
-- `--mode=sync-relax` or `--mode=sync-bump`
+- `--mode=sync-no-port` or `--mode=sync-port`
 - `--botocore-diff-url=https://github.com/boto/botocore/compare/OLD...NEW`
-- `--async-need-summary="<the summary from /aiobotocore-bot:check-async-need>"` (relax only)
-- `--changed-aiobotocore="<files/classes/tests for bump, or 'Version bounds updated only, no code changes.' for relax>"`
-- `--assumptions="<design decisions>"` (bump only, if any)
+- `--async-need-summary="<the summary from /aiobotocore-bot:check-async-need>"` (no-port only)
+- `--changed-aiobotocore="<files/classes/tests for port, or 'Version bounds updated only, no code changes.' for no-port>"`
+- `--assumptions="<design decisions>"` (port only, if any)
 
 If a WIP PR exists, close it (post a comment linking to the final PR first).
 

@@ -141,9 +141,9 @@ def scenarios_from_prs(
         # Use the classifier's current verdict names. If/when the rename lands,
         # replace both these literals AND the ones in check-async-need.md.
         if "relax" in title_low:
-            expected = "relax-safe"
+            expected = "no-port"
         elif "bump" in title_low:
-            expected = "bump-required"
+            expected = "port-required"
         else:
             continue
         versions = derive_versions(pr["mergeCommit"]["oid"])
@@ -173,7 +173,7 @@ def render_yaml(scenarios: list[Scenario]) -> str:
         "# Auto-generated stub. Fill in `rationale` and `notes` by hand.",
         "#",
         "# `expected` uses the classifier's current verdict names",
-        "# (`relax-safe` / `bump-required`). If those get renamed in",
+        "# (`no-port` / `port-required`). If those get renamed in",
         "# check-async-need.md, update this file too.",
         "#",
         "# Regenerate: python plugins/aiobotocore-bot/evals/generate_scenarios.py",

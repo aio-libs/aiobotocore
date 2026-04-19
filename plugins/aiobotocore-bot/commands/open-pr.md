@@ -11,17 +11,17 @@ so template changes flow through automatically and checklist-verification stays 
 ## Arguments
 
 - `--title=<title>` (required): PR title.
-- `--mode=<generic|sync-relax|sync-bump>` (default `generic`): controls which extra sections are
+- `--mode=<generic|sync-no-port|sync-port>` (default `generic`): controls which extra sections are
   appended below the template and how the description is framed.
 - `--description=<text>` (required for `generic`; optional for sync modes, which can synthesize it
   from the other fields): one or two paragraphs for the "Description of Change" slot.
 - `--botocore-diff-url=<url>` (required for sync modes): e.g.
   `https://github.com/boto/botocore/compare/1.42.84...1.42.89`.
-- `--async-need-summary=<text>` (required for `sync-relax`): the summary line from
-  `/aiobotocore-bot:check-async-need` that justifies the relax. Do not paraphrase — quote it.
+- `--async-need-summary=<text>` (required for `sync-no-port`): the summary line from
+  `/aiobotocore-bot:check-async-need` that justifies the no-port verdict. Do not paraphrase — quote it.
 - `--assumptions=<text>` (optional): design decisions for the "Assumptions" slot (bumps only).
 - `--changed-aiobotocore=<text>` (optional): summary of aiobotocore changes — files modified,
-  classes added, tests ported. For relax: pass `"Version bounds updated only, no code changes."`.
+  classes added, tests ported. For no-port: pass `"Version bounds updated only, no code changes."`.
 - `--extra-sections=<text>` (optional, `mode=generic` only): extra markdown sections appended
   below the template content. For sync modes the extra sections are generated from the
   mode-specific fields above; ignored here.
@@ -73,7 +73,7 @@ These go **after** the template's content, not instead of it.
 
 No extra sections unless the caller passes `--extra-sections=<text>`.
 
-### mode=sync-relax
+### mode=sync-no-port
 
 Append:
 
@@ -86,9 +86,9 @@ Append:
 <--changed-aiobotocore, default: Version bounds updated only, no code changes.>
 
 ### Reviewer checklist
-- [ ] Botocore diff reviewed — confirms relax vs bump
+- [ ] Botocore diff reviewed — confirms no-port vs port-required
 - [ ] `test_patches.py` hashes current
-- [ ] Version bump is patch (relax)
+- [ ] Version bump is patch (no-port)
 - [ ] `CHANGES.rst` entry added
 - [ ] No unrelated changes
 
@@ -99,9 +99,9 @@ Append:
 - Use `@claude` to ask questions or request modifications.
 ```
 
-### mode=sync-bump
+### mode=sync-port
 
-Same as `sync-relax` but:
+Same as `sync-no-port` but:
 
 - Description-of-change mentions it's a bump and why (new functionality requires async override).
 - Include `--assumptions` under a dedicated "Assumptions" section if provided.
@@ -134,5 +134,5 @@ made a wrong assumption about PR state.
 ## Honesty
 
 Never tick a checklist box you haven't verified. Never invent `--async-need-summary` — if the
-caller didn't run `/aiobotocore-bot:check-async-need`, refuse to use `mode=sync-relax` and tell
+caller didn't run `/aiobotocore-bot:check-async-need`, refuse to use `mode=sync-no-port` and tell
 them to run it first.

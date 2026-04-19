@@ -11,7 +11,7 @@ clone and filesystem-mirror checks go through Bash.
 
 Given a botocore version range, inspect every new or changed function in botocore files that have a mirror in
 `aiobotocore/` and return a structured verdict for each. This is the shared async-need classifier used by both
-the sync bot (to decide relax vs bump and justify it) and the PR reviewer (to independently sanity-check a
+the sync bot (to decide no-port vs port-required and justify it) and the PR reviewer (to independently sanity-check a
 sync-bot PR).
 
 The classifier answers: **"would aiobotocore need to override this function going forward?"** It does NOT
@@ -89,7 +89,7 @@ confident verdict; the caller will escalate.
 Emit a structured report. Two sections: a summary line the caller can grep, followed by per-function detail.
 
 ```text
-CLASSIFICATION: relax-safe | bump-required | ambiguous
+CLASSIFICATION: no-port | port-required | ambiguous
 
 Summary: <N> functions inspected across <M> overridden files. <P> pure-sync, <Q> needs-async, <R> ambiguous.
 
@@ -109,24 +109,24 @@ Summary: <N> functions inspected across <M> overridden files. <P> pure-sync, <Q>
 
 The top-level `CLASSIFICATION` is:
 
-- `relax-safe` if and only if every verdict is `pure-sync`
-- `bump-required` if any verdict is `needs-async`
+- `no-port` if and only if every verdict is `pure-sync`
+- `port-required` if any verdict is `needs-async`
 - `ambiguous` if there are no `needs-async` verdicts but at least one `ambiguous` (caller must resolve
-  before concluding relax)
+  before concluding no-port)
 
 ## Consumption
 
-**Sync bot** (`botocore-sync-prompt.md`): runs this in Step 3. If `CLASSIFICATION: relax-safe`, proceed to
-Step 4 (relax path) and quote the summary in the PR body as the async-need justification. If `bump-required`,
+**Sync bot** (`botocore-sync-prompt.md`): runs this in Step 3. If `CLASSIFICATION: no-port`, proceed to
+Step 4 (no-port path) and quote the summary in the PR body as the async-need justification. If `port-required`,
 go to Step 5 (bump path). If `ambiguous`, go to Step 9 (feedback issue) with the ambiguous verdicts as the
 questions.
 
 **Reviewer** (`review-pr.md`): runs this in Step 3d for sync-bot-authored PRs, extracting `$FROM` / `$TO`
-from the botocore diff URL in the PR body. If the PR claims relax but this command returns `bump-required`
+from the botocore diff URL in the PR body. If the PR claims no-port but this command returns `port-required`
 or `ambiguous`, flag the mismatch as a high-confidence review issue.
 
 ## Honesty
 
 Never classify as `pure-sync` without having read the new code. If you could not read a file (diff command
 failed, file missing), return `error: <reason>` instead of guessing. A false `pure-sync` verdict on a
-function with I/O would let a bad relax ship.
+function with I/O would let a bad no-port verdict ship.

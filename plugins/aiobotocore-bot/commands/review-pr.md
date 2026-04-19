@@ -73,11 +73,11 @@ c) **Async patterns** (aiobotocore-specific): check that any botocore overrides 
   - Resource cleanup via async context managers
   - Correct Aio prefix naming
 
-d) **Relax-vs-bump sanity check** (only for sync-bot-authored PRs — `claude[bot]` with title starting
+d) **Port-vs-no-port sanity check** (only for sync-bot-authored PRs — `claude[bot]` with title starting
    `Relax botocore` or `Bump botocore`): extract the `$FROM` and `$TO` botocore tags from the botocore diff
-   URL in the PR body, then run `/aiobotocore-bot:check-async-need --from=$FROM --to=$TO`. If the PR is
-   titled as a relax but the command returns `bump-required` or `ambiguous`, flag the mismatch as a
-   high-confidence issue.
+   URL in the PR body, then run `/aiobotocore-bot:check-async-need --from=$FROM --to=$TO`. If the PR title
+   starts with `Relax` (claiming no-port) but the command returns `port-required` or `ambiguous`, flag
+   the mismatch as a high-confidence issue.
 
 **CRITICAL: Only flag HIGH SIGNAL issues.**
 

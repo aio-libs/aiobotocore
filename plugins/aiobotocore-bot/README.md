@@ -10,7 +10,7 @@ design; this README only covers the plugin itself.
 
 - `/aiobotocore-bot:review-pr [--comment]` — sequential PR code review
   (CLAUDE.md compliance, bugs in the diff, aiobotocore-specific async
-  patterns, relax-vs-bump sanity check for sync-bot PRs). Scores each
+  patterns, port-vs-no-port sanity check for sync-bot PRs). Scores each
   finding 0–100 and filters < 80. With `--comment`, posts inline
   review comments via
   `mcp__github_inline_comment__create_inline_comment`.
@@ -22,15 +22,15 @@ design; this README only covers the plugin itself.
   ask-clarification).
 - `/aiobotocore-bot:check-async-need --from=<ver> --to=<ver>` —
   classify new/changed functions in overridden botocore files as
-  `relax-safe`, `bump-required`, or `ambiguous`. Single source of
-  truth for the relax-vs-bump decision; used by both the sync bot
+  `no-port`, `port-required`, or `ambiguous`. Single source of
+  truth for the port-vs-no-port decision; used by both the sync bot
   (at classification time) and the reviewer (as a sanity check on
   sync-bot PRs).
-- `/aiobotocore-bot:open-pr --title=... --mode=generic|sync-relax|sync-bump`
+- `/aiobotocore-bot:open-pr --title=... --mode=generic|sync-no-port|sync-port`
   — re-read `pull_request_template.md`, fill placeholders, verify
   checked boxes against the diff, append sync-specific extra sections
-  when mode is `sync-relax`/`sync-bump`, create or update the PR.
-- `/aiobotocore-bot:bump-version --mode=relax|bump --target=<ver>` —
+  when mode is `sync-no-port`/`sync-port`, create or update the PR.
+- `/aiobotocore-bot:bump-version --mode=no-port|port --target=<ver>` —
   mechanical updates: `pyproject.toml` bounds, `aiobotocore/__init__.py`
   version, `CHANGES.rst` entry (with correct `^` underline length),
   and `uv lock`.

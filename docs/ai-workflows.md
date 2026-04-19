@@ -18,8 +18,13 @@ aiobotocore's core maintenance cost is tracking a fast-moving upstream
 [override-patterns.md](override-patterns.md)). Every new botocore
 release risks breaking our async overrides in subtle ways that only
 `tests/test_patches.py` catches. Before automation, each release
-required a human to diff `botocore`, decide whether a "relax" (bump the
-upper bound) or a "bump" (re-port overrides) was needed, and open a PR.
+required a human to diff `botocore`, decide whether a *no-port* update
+(widen the upper bound only) or a *port-required* update (re-port
+overrides) was needed, and open a PR. The two verdicts are the output
+of the `/aiobotocore-bot:check-async-need` classifier. Historically and
+in PR titles they're described as "Relax" (no-port) and "Bump"
+(port-required); we keep that wording in PR titles for external
+discoverability but use `no-port` / `port-required` internally.
 
 A parallel pain point: PR review latency. Simple bugs, CLAUDE.md
 violations, and missed async patterns routinely slipped through because
@@ -90,7 +95,7 @@ flowchart LR
 | Workflow | Triggers | Job flow | Outputs |
 |-|-|-|-|
 | `claude.yml` | PR opened/synchronized, issue/PR comment with `@claude`, PR review (mention or CHANGES\_REQUESTED on bot PR), issue opened/assigned with `@claude` | Single job, dispatches on `$EVENT_NAME` inside the prompt | Inline review comments, summary replies, signed commits on bot/fork-free PRs, new PRs for `issues` events |
-| `botocore-sync.yml` | Cron (`0 10 */3 * *`) and `workflow_dispatch` | `detect` → `sync` (conditional) | PR to bump or relax `botocore` pin; feedback issue when bumps need human input |
+| `botocore-sync.yml` | Cron (`0 10 */3 * *`) and `workflow_dispatch` | `detect` → `sync` (conditional) | PR to update the `botocore` pin (no-port or port); feedback issue when bumps need human input |
 
 ## `claude.yml` — PR review & @claude responder
 
@@ -184,7 +189,7 @@ The sync prompt explicitly uses two branches:
 - `claude/botocore-sync` — the squashed, review-ready PR. Only
   created once tests pass.
 
-For **relax** updates (no code changes needed, only bounds bump),
+For **no-port** updates (no code changes needed, only bounds bump),
 the bot skips the WIP PR entirely.
 
 **Sync flow:**
@@ -199,18 +204,18 @@ flowchart TD
     step1 --> wipCheck{WIP PR exists?}
     wipCheck -->|yes| resume[Resume from<br/>WIP PR description]
     wipCheck -->|no| finalCheck{Final PR exists?}
-    finalCheck -->|"dirty<br/>(human commits/reviews)"| dirty[Relax: edit in place<br/>Bump: comment only]
+    finalCheck -->|"dirty<br/>(human commits/reviews)"| dirty[no-port: edit in place<br/>port-required: comment only]
     finalCheck -->|clean or none| diff["git diff<br/>last_supported..target"]
     resume --> port
     diff --> classify{overridden files<br/>changed?}
-    classify -->|no| relax[Relax path:<br/>bump upper bound,<br/>patch version]
+    classify -->|no| noport[No-port path:<br/>bump upper bound,<br/>patch version]
     classify -->|yes| bumpGate{enable_bump<br/>true?}
     bumpGate -->|no| feedback[Open / update<br/>feedback issue]
     bumpGate -->|yes| port[Port async overrides,<br/>update hashes,<br/>port tests]
     port --> validate["Run pytest<br/>+ pyright delta"]
     validate -->|pass| finalize["Squash to<br/>claude/botocore-sync,<br/>create final PR"]
     validate -->|"fail or<br/>out of turns"| saveWIP[Save to<br/>claude/botocore-sync-wip<br/>with handoff doc]
-    relax --> finalize
+    noport --> finalize
     dirty --> exitOK
     finalize --> exitOK
     feedback --> exitFB([Exit: await answers])
@@ -225,8 +230,8 @@ flowchart TD
    `aiobotocore/` (filename-mirror convention: `botocore/foo.py` ↔
    `aiobotocore/foo.py`). Files without a mirror are skipped —
    do not grep aiobotocore for references to their internals.
-3. **Relax** (patch bump) if diffs touch only schemas / untouched
-   files. **Bump** (minor bump) if any overridden file has code
+3. **No-port** (patch bump) if diffs touch only schemas / untouched
+   files. **Port-required** (minor bump) if any overridden file has code
    changes or new logic needing async treatment. **Major** is
    flagged for human review.
 
@@ -248,8 +253,8 @@ same PR — so the bot teaches itself across runs.
 **Dirty-PR policy:**
 
 If a final sync PR already exists and has human edits or reviews, the
-bot will not clobber it. For relaxes, it applies the bounds change
-in-place. For bumps, it refuses to touch the branch and posts a
+bot will not clobber it. For no-port updates, it applies the bounds change
+in-place. For port-required updates, it refuses to touch the branch and posts a
 comment noting the new version is blocked on the existing PR.
 
 ## Prompt templates
@@ -284,11 +289,11 @@ the repo so maintainers can iterate on them alongside the prompts.
 
 | Command | Purpose |
 |-|-|
-| `/aiobotocore-bot:review-pr [--comment]` | Sequential (not parallel) PR review. Checks CLAUDE.md compliance, bugs in the diff, async patterns, and relax-vs-bump sanity for sync-bot PRs. Scores each finding 0–100 and filters < 80. With `--comment`, posts inline review comments via `mcp__github_inline_comment__create_inline_comment`. |
+| `/aiobotocore-bot:review-pr [--comment]` | Sequential (not parallel) PR review. Checks CLAUDE.md compliance, bugs in the diff, async patterns, and port-vs-no-port sanity for sync-bot PRs. Scores each finding 0–100 and filters < 80. With `--comment`, posts inline review comments via `mcp__github_inline_comment__create_inline_comment`. |
 | `/aiobotocore-bot:analyze-pr-feedback [--focus=<id>] [--resolve]` | Fetch every review thread + top-level comment (including resolved) and synthesize into three buckets: *what was asked*, *what was done*, *what's still outstanding*. Act on bucket C with the three-outcome rule. Optionally resolve threads after posting a "fixed" reply. |
-| `/aiobotocore-bot:check-async-need --from=<ver> --to=<ver>` | Classify new/changed functions in overridden botocore files as `relax-safe`, `bump-required`, or `ambiguous`. Single source of truth for the relax-vs-bump decision. Used by both the sync bot and the PR reviewer. |
-| `/aiobotocore-bot:open-pr --mode=generic\|sync-relax\|sync-bump ...` | Re-read `pull_request_template.md`, fill placeholders, verify checked boxes against the diff, append sync-specific extra sections when mode is `sync-relax`/`sync-bump`, create or update the PR. |
-| `/aiobotocore-bot:bump-version --mode=relax\|bump --target=<ver>` | Mechanical `pyproject.toml` bounds + `aiobotocore/__init__.py` + `CHANGES.rst` entry (with correct `^` underline length) + `uv lock`. |
+| `/aiobotocore-bot:check-async-need --from=<ver> --to=<ver>` | Classify new/changed functions in overridden botocore files as `no-port`, `port-required`, or `ambiguous`. Single source of truth for the port-vs-no-port decision. Used by both the sync bot and the PR reviewer. |
+| `/aiobotocore-bot:open-pr --mode=generic\|sync-no-port\|sync-port ...` | Re-read `pull_request_template.md`, fill placeholders, verify checked boxes against the diff, append sync-specific extra sections when mode is `sync-no-port`/`sync-port`, create or update the PR. |
+| `/aiobotocore-bot:bump-version --mode=no-port\|port --target=<ver>` | Mechanical `pyproject.toml` bounds + `aiobotocore/__init__.py` + `CHANGES.rst` entry (with correct `^` underline length) + `uv lock`. |
 | `/aiobotocore-bot:pyright-delta` | Stash / run pyright baseline / pop / run pyright with changes; report only new errors in files the current changes touched. |
 | `/aiobotocore-bot:complete-run --event=... --number=... [--comment-id=...] [--skip-reply]` | End-of-run cleanup: post summary reply to the correct target (inline thread vs top-level PR comment vs issue comment) and swap 👀→👍 reaction. |
 

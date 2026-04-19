@@ -2,7 +2,7 @@
 """Evaluate /aiobotocore-bot:check-async-need against historical sync PRs.
 
 For each merged "Relax botocore" / "Bump botocore" PR, we know the correct
-relax-vs-bump verdict from the PR title. Replay the classifier against the
+port-vs-no-port verdict from the PR title. Replay the classifier against the
 pre-computed botocore diff and check whether it agrees.
 
 The eval is narrow on purpose: it pre-computes the diff and passes it to the
@@ -62,7 +62,7 @@ class Case:
     title: str
     from_ver: str
     to_ver: str
-    expected: str  # "relax-safe" | "bump-required"
+    expected: str  # "no-port" | "port-required"
 
 
 def load_command_body() -> str:
@@ -150,9 +150,9 @@ def list_historical_cases(limit: int) -> list[Case]:
     for pr in prs:
         title_low = pr["title"].lower()
         if "relax" in title_low:
-            expected = "relax-safe"
+            expected = "no-port"
         elif "bump" in title_low:
-            expected = "bump-required"
+            expected = "port-required"
         else:
             continue
 
@@ -233,7 +233,7 @@ def invoke_classifier(
 ) -> tuple[str, str]:
     """Ask Claude to run the classifier on a pre-computed diff; return (verdict, raw)."""
     if not filtered_diff.strip():
-        return ("relax-safe", "(pre-determined: empty filtered diff)")
+        return ("no-port", "(pre-determined: empty filtered diff)")
 
     user = (
         textwrap.dedent(

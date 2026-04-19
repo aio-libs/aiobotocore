@@ -1,6 +1,6 @@
 ---
 allowed-tools: Bash(uv lock:*), Bash(date:*), Bash(cat:*), Bash(grep:*), Bash(sed:*), Bash(printf:*), Bash(wc:*), Bash(seq:*), Bash(tr:*), mcp__github_file_ops__commit_files
-description: Update pyproject.toml bounds, aiobotocore/__init__.py, and CHANGES.rst for a relax or bump
+description: Update pyproject.toml bounds, aiobotocore/__init__.py, and CHANGES.rst for a no-port or port sync
 ---
 
 Apply the mechanical version+changelog+pyproject changes for a botocore sync. Use this instead of
@@ -8,26 +8,26 @@ hand-editing each file — the `^` underline length rule and `uv lock` step are 
 
 ## Arguments
 
-- `--mode=relax|bump` (required)
+- `--mode=no-port|port` (required)
 - `--target=<version>` (required): the target botocore version, e.g. `1.42.89`
-- `--changelog=<text>` (optional): custom CHANGES.rst bullet. Default for relax is
+- `--changelog=<text>` (optional): custom CHANGES.rst bullet. Default for --mode=no-port is
   `relax botocore dependency specification to support "botocore >= <lower>, < <upper>"`;
-  default for bump is `bump botocore dependency specification` with the same range.
+  default for --mode=port is `bump botocore dependency specification` with the same range.
 - `--extra-changelog=<text>` (optional): additional bullets appended under the same version entry
 
 ## Step 1: Determine new version
 
 Read `aiobotocore/__init__.py` to get the current `__version__`. Compute the new version:
 
-- `--mode=relax` → bump PATCH: `3.4.1 → 3.4.2`
-- `--mode=bump` → bump MINOR, reset patch: `3.4.1 → 3.5.0`
+- `--mode=no-port` → bump PATCH: `3.4.1 → 3.4.2`
+- `--mode=port` → bump MINOR, reset patch: `3.4.1 → 3.5.0`
 
 ## Step 2: Update pyproject.toml bounds
 
 - Locate the botocore dependency line (e.g. `botocore >= 1.42.79, < 1.42.90`).
 - New upper bound is always one patch above `--target`: if target is `1.42.89`, upper is `< 1.42.90`.
-- `--mode=relax`: keep the lower bound unchanged, update the upper bound.
-- `--mode=bump`: set lower bound to `--target`, set upper bound as above.
+- `--mode=no-port`: keep the lower bound unchanged, update the upper bound.
+- `--mode=port`: set lower bound to `--target`, set upper bound as above.
 - Do the same for the `boto3` dependency line if it's pinned (same range).
 
 ## Step 3: Update aiobotocore/**init**.py
