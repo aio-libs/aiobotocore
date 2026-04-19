@@ -8,12 +8,11 @@ Mechanical pass — no LLM. For each merged "Relax"/"Bump" sync PR, emit:
 - expected category (from title)
 - botocore and aiobotocore diff URLs
 - list of overridden botocore files touched by the diff
-- empty `rationale` / `notes` fields for a human to fill in
+- empty rationale / notes fields for a human to fill in
 
-The intent is to produce a stable, commit-tracked ground-truth file that the
-eval reads instead of re-deriving at runtime, AND that serves as an archaeology
-artifact — reviewing each row is a forcing function to find gaps in the
-workflow prompts.
+The intent: a stable, commit-tracked ground-truth file that the eval reads
+instead of re-deriving at runtime, AND an archaeology artifact — reviewing
+each row is a forcing function to find gaps in the workflow prompts.
 
 Run:
 
@@ -31,14 +30,19 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
-AIOBOTOCORE_DIR = REPO_ROOT / "aiobotocore"
+from _common import (
+    REPO_ROOT,
+    derive_versions,
+    list_sync_prs,
+    overridden_paths,
+)
+
 DEFAULT_CLONE = Path("/tmp/botocore")
-
-UPPER_RE = re.compile(r'"botocore\s*>=\s*[\d.]+\s*,\s*<\s*([\d.]+)"')
-
-
 AIOBOTOCORE_VERSION_RE = re.compile(r'__version__\s*=\s*["\']([\d.]+)["\']')
+# URL templates kept as plain strings (not f-strings) so the repo's
+# no-f-string-URLs rule isn't tripped on URL construction.
+BOTOCORE_COMPARE_URL = "https://github.com/boto/botocore/compare/"
+AIOBOTOCORE_PR_URL = "https://github.com/aio-libs/aiobotocore/pull/"
 
 
 @dataclass
@@ -54,79 +58,17 @@ class Scenario:
 
 
 def aiobotocore_version_at(sha: str) -> str:
-    """Read __version__ from aiobotocore/__init__.py at the given commit."""
     try:
         src = subprocess.check_output(
-            ["git", "show", sha + ":aiobotocore/__init__.py"],
+            ["git", "show", f"{sha}:aiobotocore/__init__.py"],
             cwd=REPO_ROOT,
             text=True,
         )
     except subprocess.CalledProcessError:
         return "unknown"
-    m = AIOBOTOCORE_VERSION_RE.search(src)
-    return m.group(1) if m else "unknown"
-
-
-def decrement_patch(ver: str) -> str:
-    parts = list(map(int, ver.split(".")))
-    parts[-1] = max(0, parts[-1] - 1)
-    return ".".join(map(str, parts))
-
-
-def overridden_paths() -> set[str]:
-    """Return relative paths under aiobotocore/ for every .py file.
-
-    Mirrors botocore/<same path>. Important: use full relative paths so
-    botocore/docs/client.py (nested) doesn't match aiobotocore/client.py.
-    """
-    paths = set()
-    for p in AIOBOTOCORE_DIR.rglob("*.py"):
-        rel = p.relative_to(AIOBOTOCORE_DIR).as_posix()
-        paths.add(rel)
-    return paths
-
-
-def gh_json(*args: str) -> object:
-    out = subprocess.check_output(["gh", *args])
-    return json.loads(out)
-
-
-def list_candidate_prs(limit: int) -> list[dict]:
-    return gh_json(
-        "pr",
-        "list",
-        "--repo",
-        "aio-libs/aiobotocore",
-        "--search",
-        "botocore dependency in:title",
-        "--state",
-        "merged",
-        "--limit",
-        str(limit),
-        "--json",
-        "number,title,mergeCommit,url",
-    )
-
-
-def derive_versions(sha: str) -> tuple[str, str] | None:
-    try:
-        before = subprocess.check_output(
-            ["git", "show", sha + "^:pyproject.toml"],
-            cwd=REPO_ROOT,
-            text=True,
-        )
-        after = subprocess.check_output(
-            ["git", "show", sha + ":pyproject.toml"],
-            cwd=REPO_ROOT,
-            text=True,
-        )
-    except subprocess.CalledProcessError:
-        return None
-    m_b = UPPER_RE.search(before)
-    m_a = UPPER_RE.search(after)
-    if not (m_b and m_a):
-        return None
-    return (decrement_patch(m_b.group(1)), decrement_patch(m_a.group(1)))
+    if m := AIOBOTOCORE_VERSION_RE.search(src):
+        return m.group(1)
+    return "unknown"
 
 
 def touched_overridden_files(
@@ -143,7 +85,7 @@ def touched_overridden_files(
                 str(clone),
                 "diff",
                 "--name-only",
-                from_ver + ".." + to_ver,
+                f"{from_ver}..{to_ver}",
                 "--",
                 "botocore/",
             ],
@@ -151,63 +93,55 @@ def touched_overridden_files(
         )
     except subprocess.CalledProcessError:
         return []
-    touched = []
-    for line in out.splitlines():
-        # Match against the relative path under botocore/, e.g. "client.py"
-        # or "retries/special.py". Only count exact path matches — not
-        # basename — so botocore/docs/client.py doesn't falsely map to
-        # aiobotocore/client.py.
-        rel = line.removeprefix("botocore/")
-        if rel in overridden:
-            touched.append(line)
-    return sorted(touched)
+    return sorted(
+        line
+        for line in out.splitlines()
+        if line.removeprefix("botocore/") in overridden
+    )
 
 
 def scenarios_from_prs(
-    prs: list[dict], clone: Path, overridden: set[str]
+    prs: list[dict],
+    clone: Path,
+    overridden: set[str],
 ) -> list[Scenario]:
-    scenarios = []
+    out: list[Scenario] = []
     for pr in prs:
         title_low = pr["title"].lower()
-        # Use the classifier's current verdict names. If/when the rename lands,
-        # replace both these literals AND the ones in check-async-need.md.
         if "relax" in title_low:
             expected = "no-port"
         elif "bump" in title_low:
             expected = "port-required"
         else:
             continue
-        versions = derive_versions(pr["mergeCommit"]["oid"])
-        if not versions:
+        sha = pr["mergeCommit"]["oid"]
+        if not (versions := derive_versions(sha)):
             continue
         from_ver, to_ver = versions
         if from_ver == to_ver:
             continue
-        touched = touched_overridden_files(clone, from_ver, to_ver, overridden)
-        scenarios.append(
+        out.append(
             Scenario(
                 pr=pr["number"],
                 title=pr["title"],
                 expected=expected,
                 from_ver=from_ver,
                 to_ver=to_ver,
-                merge_commit=pr["mergeCommit"]["oid"],
-                aiobotocore_version=aiobotocore_version_at(
-                    pr["mergeCommit"]["oid"],
+                merge_commit=sha,
+                aiobotocore_version=aiobotocore_version_at(sha),
+                botocore_files_touched=touched_overridden_files(
+                    clone,
+                    from_ver,
+                    to_ver,
+                    overridden,
                 ),
-                botocore_files_touched=touched,
-            ),
+            )
         )
-    return scenarios
+    return out
 
 
 def render_yaml(scenarios: list[Scenario]) -> str:
-    """Emit YAML by hand — no PyYAML dep, and the output is deterministic.
-
-    Project .yamllint sets indent-sequences: false, so sequence items are not
-    indented from their parent key. Scenario items start at column 0; sub-keys
-    are indented 2 spaces.
-    """
+    """Emit YAML matching the project .yamllint (indent-sequences: false)."""
     lines = [
         "---",
         "# Auto-generated stub. Fill in `rationale` and `notes` by hand.",
@@ -220,41 +154,30 @@ def render_yaml(scenarios: list[Scenario]) -> str:
         "scenarios:",
     ]
     for s in sorted(scenarios, key=lambda s: s.pr):
-        lines.extend(
-            [
-                "- pr: " + str(s.pr),
-                "  title: " + json.dumps(s.title),
-                "  expected: " + s.expected,
-                "  from: " + json.dumps(s.from_ver),
-                "  to: " + json.dumps(s.to_ver),
-                "  merge_commit: " + s.merge_commit,
-                "  aiobotocore_version: " + json.dumps(s.aiobotocore_version),
-                "  botocore_diff: "
-                + "https://github.com/boto/botocore/compare/"
-                + s.from_ver
-                + "..."
-                + s.to_ver,
-                "  aiobotocore_pr: "
-                + "https://github.com/aio-libs/aiobotocore/pull/"
-                + str(s.pr),
-                "  botocore_files_touched:",
-            ],
-        )
+        compare_url = BOTOCORE_COMPARE_URL + s.from_ver + "..." + s.to_ver
+        pr_url = AIOBOTOCORE_PR_URL + str(s.pr)
+        lines += [
+            f"- pr: {s.pr}",
+            f"  title: {json.dumps(s.title)}",
+            f"  expected: {s.expected}",
+            f"  from: {json.dumps(s.from_ver)}",
+            f"  to: {json.dumps(s.to_ver)}",
+            f"  merge_commit: {s.merge_commit}",
+            f"  aiobotocore_version: {json.dumps(s.aiobotocore_version)}",
+            f"  botocore_diff: {compare_url}",
+            f"  aiobotocore_pr: {pr_url}",
+            "  botocore_files_touched:",
+        ]
         if s.botocore_files_touched:
-            for f in s.botocore_files_touched:
-                lines.append("  - " + f)
+            lines += [f"  - {f}" for f in s.botocore_files_touched]
         else:
             lines.append("    []")
-        lines.extend(
-            [
-                "  rationale: |",
-                "    TODO: one paragraph explaining WHY this was "
-                + s.expected
-                + ".",
-                "  notes: null",
-                "",
-            ],
-        )
+        lines += [
+            "  rationale: |",
+            f"    TODO: one paragraph explaining WHY this was {s.expected}.",
+            "  notes: null",
+            "",
+        ]
     return "\n".join(lines) + "\n"
 
 
@@ -272,28 +195,23 @@ def main() -> int:
         help="Bare clone of boto/botocore (default: /tmp/botocore)",
     )
     parser.add_argument(
-        "--limit",
-        type=int,
-        default=40,
-        help="Max PRs to scan (default 40)",
+        "--limit", type=int, default=40, help="Max PRs to scan (default 40)"
     )
     args = parser.parse_args()
 
     if not args.clone.exists():
         sys.stderr.write(
-            "Bare botocore clone not found at " + str(args.clone) + ".\n"
-            "    git clone --bare <botocore-url> " + str(args.clone) + "\n"
-            "    git -C " + str(args.clone) + " fetch --tags\n",
+            f"Bare botocore clone not found at {args.clone}.\n"
+            f"    git clone --bare <botocore-url> {args.clone}\n"
+            f"    git -C {args.clone} fetch --tags\n",
         )
         return 2
 
     overridden = overridden_paths()
-    prs = list_candidate_prs(args.limit)
+    prs = list_sync_prs(args.limit, extra_fields=("url",))
     scenarios = scenarios_from_prs(prs, args.clone, overridden)
-
-    yaml = render_yaml(scenarios)
-    args.out.write_text(yaml)
-    print("Wrote " + str(len(scenarios)) + " scenarios to " + str(args.out))
+    args.out.write_text(render_yaml(scenarios))
+    print(f"Wrote {len(scenarios)} scenarios to {args.out}")
     return 0
 
 
