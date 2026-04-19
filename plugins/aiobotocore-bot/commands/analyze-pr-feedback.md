@@ -1,5 +1,6 @@
 ---
-description: Fetch every PR comment + reply (including resolved), synthesize the discussion, and produce a grouped action plan
+allowed-tools: Bash(gh api graphql:*), Bash(gh api repos/*/pulls/*:*), Bash(gh api repos/*/issues/*:*), Bash(gh pr view:*), Bash(gh pr diff:*), Bash(git log:*), mcp__github_file_ops__commit_files
+description: Three-bucket synthesis of PR feedback plus per-thread action plan
 ---
 
 Fetch every piece of reviewer feedback on the PR — review threads and top-level PR comments, including resolved
@@ -26,7 +27,7 @@ sense without the PR-wide context of prior discussions. Only after synthesis sho
 Assumes `$REPO` and `$NUMBER` are set by the workflow environment. Include resolved threads too — they are
 context even though you won't act on them.
 
-```
+```text
 gh api graphql -f query='
   query($o:String!, $n:String!, $p:Int!) {
     repository(owner:$o, name:$n) {
@@ -85,6 +86,7 @@ becomes one grouped ask).
 ### Bucket B — What was done
 
 For each ask in Bucket A, record what has already happened in response:
+
 - A claude[bot] reply explaining what was done (or why not) + the commit SHA.
 - A commit on the branch that addresses the ask, even without an explicit reply.
 - The reviewer acknowledged the fix (`isResolved: true`, or a follow-up comment like "thanks, fixed").
@@ -138,7 +140,8 @@ Three outcomes per action (or per group of related actions):
 
 To resolve a thread (GraphQL mutation — only when all of: `--resolve` flag AND outcome is 1 or 2 AND the
 post-commit validation passed):
-```
+
+```text
 gh api graphql -f query='
   mutation($tid: ID!) {
     resolveReviewThread(input: {threadId: $tid}) {
@@ -146,20 +149,24 @@ gh api graphql -f query='
     }
   }' -F tid=$THREAD_ID
 ```
+
 `$THREAD_ID` is the `id` field (not `databaseId`) from the `reviewThreads.nodes` entry.
 
 ## Step 5: Reply targets
 
 - **Inline review thread**: reply in the same thread so discussion stays attached to the code line:
-  ```
+
+  ```text
   gh api repos/$REPO/pulls/$NUMBER/comments/$PARENT_COMMENT_ID/replies \
     --method POST -f body='…reply text…'
   ```
+
   `$PARENT_COMMENT_ID` is the first comment's `databaseId` in that thread's `comments.nodes`.
 
 - **Top-level PR comment**: reply as a new top-level comment that quotes the original's first line so context
   is preserved:
-  ```
+
+  ```text
   gh api repos/$REPO/issues/$NUMBER/comments \
     --method POST -f body='> <reviewer>: <quoted first line>\n\n…reply text…'
   ```
@@ -172,7 +179,8 @@ your internal checklist, and the final top-level summary reply renders from the 
 ### Replies needed
 
 For each item in Bucket C (after filters), list:
-```
+
+```text
 - thread_url: <permalink>
   kind: <"review_thread" | "top_level_comment">
   parent_comment_id: <databaseId to use as the reply target>
@@ -191,7 +199,8 @@ plan, did I POST a reply?" to catch any skipped items.
 ### Commit groups
 
 For each planned `fix-now` group, list:
-```
+
+```text
 - group: <short name>
   threads: [<list of thread_urls this group addresses>]
   change_summary: <one-line description of what the commit will do>

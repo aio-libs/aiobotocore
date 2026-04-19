@@ -1,0 +1,16 @@
+{
+  "name": "aiobotocore",
+  "owner": {
+    "name": "aio-libs"
+  },
+  "metadata": {
+    "description": "Plugin marketplace for the aiobotocore repo; hosts the aiobotocore-bot plugin used by the Claude Code GitHub Actions workflows. See docs/ai-workflows.md."
+  },
+  "plugins": [
+    {
+      "name": "aiobotocore-bot",
+      "source": "./plugins/aiobotocore-bot",
+      "description": "Slash commands for the aiobotocore CI automation: /aiobotocore-bot:review-pr and /aiobotocore-bot:analyze-pr-feedback."
+    }
+  ]
+}
