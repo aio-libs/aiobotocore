@@ -284,7 +284,10 @@ async def invoke_and_parse(
         if getattr(block, "type", None) == "text"
     )
     if m := verdict_re.search(raw):
-        return (m.group(1).strip().rstrip(":").lower(), raw)
+        # strip trailing `:` and `*` — models sometimes emit
+        # `**CLASSIFICATION: no-port**` (bold wrapping both label AND value),
+        # which leaves `no-port**` in group 1.
+        return (m.group(1).strip().rstrip(":*").lower(), raw)
     return ("parse-error", raw)
 
 

@@ -246,3 +246,8 @@ def test_invoke_and_parse_verdict_regex_shape() -> None:
     # Leading whitespace
     m = verdict_re.search("  CLASSIFICATION: ambiguous\n")
     assert m is not None and m.group(1) == "ambiguous"
+    # Bold wrapping BOTH label and value — group 1 keeps the trailing `**`;
+    # the rstrip(":*") in invoke_and_parse strips them.
+    m = verdict_re.search("**CLASSIFICATION: no-port**\n")
+    assert m is not None
+    assert m.group(1).rstrip(":*") == "no-port"
