@@ -262,11 +262,22 @@ jobs:
         use_commit_signing: true
         display_report: true
         show_full_output: true
+        # Register the repo-local plugin so skills (check-async-need,
+        # bump-version, open-pr, port-tests, etc.) are discoverable by
+        # the Skill tool. See claude.yml for the companion comment on
+        # why --plugin-dir is also needed — without both, Skill-tool
+        # invocations return "Unknown skill: aiobotocore-bot:*" and the
+        # agent falls back to re-reading SKILL.md files (wastes ~2.5K
+        # tokens per invocation). Tracked upstream at
+        # anthropics/claude-code-action#1145.
+        plugin_marketplaces: ./.
+        plugins: aiobotocore-bot@aiobotocore
         prompt: ${{ steps.prompt.outputs.PROMPT }}
         claude_args: |
           --dangerously-skip-permissions
           --max-turns 100
           --model opus
+          --plugin-dir plugins/aiobotocore-bot
         # yamllint disable rule:line-length
         settings: |
           {

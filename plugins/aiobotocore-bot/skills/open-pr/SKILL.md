@@ -84,11 +84,20 @@ Append:
 
 ```text
 ### What changed in botocore
-- Schema/model-only, or [summarize categorized diff].
-- Async-need check: <--async-need-summary verbatim>
+One or two sentences at the topic level — e.g. "Model/schema-only updates
+for N services" or "Adds `auth_scheme_preference` threading through args
++ client." DO NOT list per-function bullets here when
+`--classifier-verdicts` is provided; the table below already enumerates
+every changed function. Keep this section for the human's big picture.
+
+Async-need check: <--async-need-summary verbatim>
 
 ### What changed in aiobotocore
 <--changed-aiobotocore, default: Version bounds updated only, no code changes.>
+
+For port PRs, describe aiobotocore-side code (new Aio* classes,
+overridden methods, ported tests) — NOT a re-listing of the botocore
+changes the table already shows. One short sentence per file is plenty.
 
 <Classifier verdicts table — see below — when --classifier-verdicts is provided>
 
@@ -116,6 +125,23 @@ Same as `sync-no-port` but:
 - Reviewer checklist items change to: async patterns correct, hashes updated for new overrides,
   version bump is minor, tests ported from botocore where applicable.
 - Omit the async-need summary line (the bump itself is the answer).
+
+### Anti-duplication rule (both sync modes)
+
+The classifier verdicts table and the two "What changed" sections each have a
+distinct purpose:
+
+- **"What changed in botocore"**: topic-level what-and-why (one-to-two sentences
+  about the feature / theme of the upstream changes).
+- **Classifier verdicts table**: per-function accountability (every changed
+  symbol with its verdict + one-line reason).
+- **"What changed in aiobotocore"**: per-file aiobotocore-side code work (new
+  classes, method overrides, tests ported).
+
+If you find yourself writing "botocore/args.py: ClientArgsCreator.X changed"
+in a prose bullet AND in the table, drop it from the prose — the table is the
+authoritative per-function view. Prose sections should abstract up to themes,
+not mirror the table's row structure.
 
 ### Classifier verdicts table (both sync modes)
 
