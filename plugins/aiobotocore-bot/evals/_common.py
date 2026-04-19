@@ -98,6 +98,55 @@ def overridden_symbols() -> set[str]:
     return names
 
 
+# Sync-signature methods that delegate to async internals in
+# aiobotocore. E.g. `HierarchicalEmitter.emit` stays sync but calls
+# `self._emit`, which aiobotocore overrides as `async def`. A caller in
+# a sync context hitting `.emit(...)` gets back a coroutine instead of
+# a result — so callers must be async-aware even though `emit` itself
+# isn't. `async_names()` can't auto-detect this from AST alone (we'd
+# need symbolic analysis of sync→async delegation), so it's an
+# explicit curated list. Grow as discovered.
+_SYNC_BUT_CONTAMINATED_NAMES: frozenset[str] = frozenset(
+    {
+        "emit",
+    }
+)
+
+
+def async_names() -> tuple[set[str], set[str]]:
+    """Scan aiobotocore/**/*.py for async surfaces.
+
+    Returns two sets:
+
+    - Async method / function names (bare): every `async def <name>`
+      defined anywhere under aiobotocore/, plus the curated
+      `_SYNC_BUT_CONTAMINATED_NAMES` entries. Used for duck-typed
+      contamination matching — e.g. if botocore adds new code that
+      calls `.read(...)` on any object, and `read` is in this set,
+      the new code is suspect because aiobotocore's version of that
+      method is async (or returns a coroutine).
+    - Aio* class names: every `class Aio<Name>(...)` definition. A
+      new botocore-side call that instantiates or references one of
+      these class's botocore parents (e.g. `ClientCreator(...)`) maps
+      to an async override in aiobotocore.
+    """
+    method_names: set[str] = set(_SYNC_BUT_CONTAMINATED_NAMES)
+    class_names: set[str] = set()
+    for path in AIOBOTOCORE_DIR.rglob("*.py"):
+        try:
+            tree = ast.parse(path.read_text())
+        except SyntaxError:
+            continue
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef):
+                method_names.add(node.name)
+            elif isinstance(node, ast.ClassDef) and node.name.startswith(
+                "Aio"
+            ):
+                class_names.add(node.name)
+    return method_names, class_names
+
+
 def decrement_patch(ver: str) -> str:
     parts = list(map(int, ver.split(".")))
     parts[-1] = max(0, parts[-1] - 1)

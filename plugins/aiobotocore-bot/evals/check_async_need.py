@@ -40,6 +40,7 @@ from _common import (
     DEFAULT_MODEL,
     REPO_ROOT,
     aiobotocore_port_happened,
+    async_names,
     derive_versions,
     invoke_and_parse,
     list_sync_prs,
@@ -150,8 +151,16 @@ def compute_filtered_diff(case: Case, overridden: set[str]) -> str:
         ) from e
 
 
-def build_user_message(case: Case, diff: str, overrides: set[str]) -> str:
+def build_user_message(
+    case: Case,
+    diff: str,
+    overrides: set[str],
+    async_methods: set[str],
+    aio_classes: set[str],
+) -> str:
     overrides_block = "\n".join(f"- {s}" for s in sorted(overrides))
+    async_methods_block = "\n".join(f"- {s}" for s in sorted(async_methods))
+    aio_classes_block = "\n".join(f"- {s}" for s in sorted(aio_classes))
     return (
         textwrap.dedent(
             """
@@ -161,46 +170,33 @@ def build_user_message(case: Case, diff: str, overrides: set[str]) -> str:
         The diff below is ALREADY FILTERED to changes in botocore files that have a
         mirror in aiobotocore/. Do NOT re-run git diff — use this content directly.
 
-        ## Authoritative aiobotocore override registry
+        ## Registries (your Step 1 inputs)
 
-        These are the botocore symbols aiobotocore currently overrides
-        (from `tests/test_patches.py`, the source of truth). Entry
-        shapes:
+        Three registries to consult during classification, per the
+        system prompt algorithm:
 
-        - `ClassName.method_name` — only that specific method is
-          mirrored.
-        - Bare function name (e.g. `_apply_request_trailer_checksum`) —
-          that specific module-level function is mirrored.
-        - Bare class name (e.g. `URLLib3Session`) — the class source is
-          hashed as a whole. This does NOT mean every method is
-          mirrored; only the specific dotted `ClassName.method` entries
-          are.
-
-        How to use the registry:
-
-        - **Existing code, changed**: if the function's dotted name is
-          NOT in the registry, a substantive body change alone does NOT
-          drive port-required — aiobotocore doesn't override it, so
-          aiobotocore's code path isn't affected. If it IS in the
-          registry and the change is substantive (signature, call
-          graph, control flow), flag port-required.
-        - **New code, added**: the registry doesn't cover new functions
-          yet — classify based on I/O signals per Step 3 of the system
-          prompt (`emit()`/`emit_first_non_none_response()` from an
-          aiobotocore-overridden hooks emitter, blocking primitives,
-          `resolve_awaitable`, etc.). A new function that calls a
-          function aiobotocore has already made async (e.g.
-          `self._emit(...)` where `HierarchicalEmitter.emit` is in the
-          registry) is needs-async.
-        - **Call-graph back-track**: if a new botocore function gets
-          classified needs-async, check the diff and registry for
-          callers: any caller already in the registry must be updated
-          to `await` this new call once aiobotocore mirrors it. Flag
-          those callers as port-required too, even if their body
-          changes look small.
-        - Do not infer overrides from file-mirror existence.
+        ### `overrides` — botocore symbols aiobotocore explicitly
+        overrides (from `tests/test_patches.py`). Entry shapes:
+        `ClassName.method` (specific method mirrored), bare function
+        name (module-level function mirrored), bare class name (class
+        source hashed as a whole; does NOT imply every method mirrored).
 
         {overrides_block}
+
+        ### `async_methods` — every `async def <name>` in aiobotocore,
+        plus curated sync-signature methods that delegate to async
+        internals (e.g. `emit` → `_emit`). A call `x.<name>(...)` where
+        `<name>` is in this set is suspect: if `x` is a known Aio*
+        instance or an aiobotocore self-attribute, it's async; on an
+        unknown receiver, emit `ambiguous`.
+
+        {async_methods_block}
+
+        ### `aio_classes` — every `class Aio<Name>(...)` in aiobotocore.
+        A new botocore call that instantiates or subclasses the non-Aio
+        parent needs to route through the Aio subclass.
+
+        {aio_classes_block}
 
         ## Diff
 
@@ -222,6 +218,8 @@ def build_user_message(case: Case, diff: str, overrides: set[str]) -> str:
             to_ver=case.to_ver,
             diff=diff,
             overrides_block=overrides_block,
+            async_methods_block=async_methods_block,
+            aio_classes_block=aio_classes_block,
         )
         .strip()
     )
@@ -262,10 +260,14 @@ async def main() -> int:
     skill_body = load_skill_body(SKILL_PATH)
     overridden = overridden_paths()
     override_symbols = overridden_symbols()
+    async_methods, aio_classes = async_names()
     print(
         f"Overridden files: {len(overridden)} ({', '.join(sorted(overridden)[:3])}, ...)"
     )
-    print(f"Override symbols from test_patches.py: {len(override_symbols)}")
+    print(
+        f"Registries: overrides={len(override_symbols)} "
+        f"async_methods={len(async_methods)} aio_classes={len(aio_classes)}"
+    )
 
     # Prefer the committed scenarios.yaml (faster, deterministic, has rationales).
     yaml_cases = load_scenarios_yaml(SCENARIOS_PATH)
@@ -302,7 +304,9 @@ async def main() -> int:
         diff = diffs[case.pr]
         if not diff.strip():
             return ("no-port", "")
-        user = build_user_message(case, diff, override_symbols)
+        user = build_user_message(
+            case, diff, override_symbols, async_methods, aio_classes
+        )
         return await invoke_and_parse(
             client,
             skill_body,
