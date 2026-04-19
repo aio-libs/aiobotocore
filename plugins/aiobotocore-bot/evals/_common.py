@@ -121,7 +121,8 @@ def list_sync_prs(
             str(limit),
             "--json",
             ",".join(fields),
-        ]
+        ],
+        text=True,
     )
     return json.loads(out)
 
@@ -137,13 +138,30 @@ _NO_PORT_OK_FILES = {
     "tests/test_patches.py",
 }
 
+# aiobotocore-only files (no botocore mirror). A change to one of these
+# isn't a "port" — aiobotocore is free to evolve these without upstream
+# tracking. If a sync PR bundles changes here they shouldn't flip the
+# classifier's ground-truth label.
+_AIOBOTOCORE_ONLY_FILES = {
+    "_constants.py",
+    "_endpoint_helpers.py",
+    "_helpers.py",
+    "context.py",
+    "httpxsession.py",
+}
+
 
 def aiobotocore_port_happened(pr_number: int) -> bool | None:
     """True if the PR modified overridden aiobotocore code (beyond housekeeping).
 
-    Authoritative port-required signal: regardless of how the PR was labeled or
-    how the pyproject bounds moved, did any non-trivial aiobotocore/*.py file
-    actually change? Returns None if the PR metadata can't be fetched.
+    Authoritative port-required signal: did the PR modify a `.py` file that
+    has a botocore mirror? Housekeeping files (`_NO_PORT_OK_FILES`) don't
+    count, and neither do aiobotocore-only files with no botocore mirror
+    (`_helpers.py`, `httpxsession.py`, `context.py`, `_constants.py`,
+    `_endpoint_helpers.py`) — a PR bundling an unrelated fix to one of
+    those is not a port in the classifier sense.
+
+    Returns None if the PR metadata can't be fetched.
     """
     try:
         out = subprocess.check_output(
@@ -167,8 +185,12 @@ def aiobotocore_port_happened(pr_number: int) -> bool | None:
     for p in paths:
         if p in _NO_PORT_OK_FILES:
             continue
-        if p.startswith("aiobotocore/") and p.endswith(".py"):
-            return True
+        if not (p.startswith("aiobotocore/") and p.endswith(".py")):
+            continue
+        rel = p.removeprefix("aiobotocore/")
+        if rel in _AIOBOTOCORE_ONLY_FILES:
+            continue
+        return True
     return False
 
 

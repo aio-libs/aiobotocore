@@ -145,12 +145,16 @@ gh pr view PR_NUM --json commits --jq '
     )] | length'
 
 # Active review threads (latest comment not from claude[bot], on current HEAD)
-gh api repos/REPO/pulls/PR_NUM/comments --jq \
-  "[.[] | select(.commit_id == \"$HEAD_SHA\" and .user.login != \"claude[bot]\")] | length"
+# Pipe to jq with --arg so the SHA is passed as a jq variable, not
+# shell-interpolated — avoids quoting ambiguity in the prompt.
+gh api repos/REPO/pulls/PR_NUM/comments \
+  | jq --arg sha "$HEAD_SHA" \
+      '[.[] | select(.commit_id == $sha and .user.login != "claude[bot]")] | length'
 
 # Reviews tied to current HEAD with CHANGES_REQUESTED
-gh api repos/REPO/pulls/PR_NUM/reviews --jq \
-  "[.[] | select(.state == \"CHANGES_REQUESTED\" and .commit_id == \"$HEAD_SHA\")] | length"
+gh api repos/REPO/pulls/PR_NUM/reviews \
+  | jq --arg sha "$HEAD_SHA" \
+      '[.[] | select(.state == "CHANGES_REQUESTED" and .commit_id == $sha)] | length'
 ```
 
 *Open + clean (or dirty-but-stale):* reset branch to `origin/main`, proceed to Step 3.

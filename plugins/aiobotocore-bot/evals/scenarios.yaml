@@ -39,7 +39,7 @@ scenarios:
   rationale: |
     Port required: botocore added new function(s) in __init__.py, endpoint.py, handlers.py —
     handle_expires_header, _has_expires_shape, document_expires_shape. aiobotocore needed matching
-    async overrides (or to delegate through existing overrides). 0 async-relevant signal(s).
+    async overrides (or to delegate through existing overrides).
   notes: null
 
 - pr: 1213
@@ -81,7 +81,7 @@ scenarios:
     Port required: botocore added new function(s) in __init__.py, args.py, config.py, handlers.py,
     regions.py, signers.py, utils.py — _compute_sigv4a_signing_region_set_config,
     _handle_200_error, _should_handle_200_error (+9 more). aiobotocore needed matching async
-    overrides (or to delegate through existing overrides). 0 async-relevant signal(s).
+    overrides (or to delegate through existing overrides).
   notes: null
 
 - pr: 1240
@@ -137,8 +137,7 @@ scenarios:
     Port required: botocore added new function(s) in __init__.py, args.py, config.py,
     configprovider.py, handlers.py, httpchecksum.py, utils.py — _compute_checksum_config,
     _handle_checksum_config, _handle_request_validation_mode_member (+6 more). aiobotocore needed
-    matching async overrides (or to delegate through existing overrides). 1 async-relevant
-    signal(s).
+    matching async overrides (or to delegate through existing overrides).
   notes: null
 
 - pr: 1276
@@ -176,7 +175,7 @@ scenarios:
     Port required: botocore added new function(s) in __init__.py, args.py, eventstream.py,
     httpchecksum.py, parsers.py — _resolve_protocol, _handle_checksum_config, _handle_boolean (+1
     more). aiobotocore needed matching async overrides (or to delegate through existing
-    overrides). 0 async-relevant signal(s).
+    overrides).
   notes: null
 
 - pr: 1307
@@ -200,8 +199,7 @@ scenarios:
     Port required: botocore added new function(s) in __init__.py, args.py, config.py,
     configprovider.py, credentials.py, regions.py, session.py —
     _compute_account_id_endpoint_mode_config, get_deferred_property, get_property (+10 more).
-    aiobotocore needed matching async overrides (or to delegate through existing overrides). 3
-    async-relevant signal(s).
+    aiobotocore needed matching async overrides (or to delegate through existing overrides).
   notes: null
 
 - pr: 1348
@@ -220,8 +218,7 @@ scenarios:
   rationale: |
     Port required: botocore added new function(s) in __init__.py, args.py, parsers.py —
     major_type_to_parsing_method_map, get_peekable_stream_from_bytes, parse_data_item (+24 more).
-    aiobotocore needed matching async overrides (or to delegate through existing overrides). 1
-    async-relevant signal(s).
+    aiobotocore needed matching async overrides (or to delegate through existing overrides).
   notes: null
 
 - pr: 1371
@@ -261,8 +258,7 @@ scenarios:
   rationale: |
     Port required: botocore added new function(s) in __init__.py, args.py, client.py, endpoint.py,
     handlers.py, httpsession.py, response.py, utils.py — ensure_boolean. aiobotocore needed
-    matching async overrides (or to delegate through existing overrides). 0 async-relevant
-    signal(s).
+    matching async overrides (or to delegate through existing overrides).
   notes: null
 
 - pr: 1376
@@ -288,7 +284,7 @@ scenarios:
   rationale: |
     Port required: botocore modified existing overridden functions in __init__.py, args.py,
     client.py, handlers.py, paginate.py, response.py, session.py, signers.py, utils.py, waiter.py
-    with 55 added non-comment line(s) and 0 async-relevant signal(s). aiobotocore's overrides
+    with 55 added non-comment line(s) and aiobotocore's overrides
     updated to match.
   notes: null
 
@@ -319,7 +315,7 @@ scenarios:
     configprovider.py, endpoint.py, handlers.py, parsers.py, session.py, signers.py, tokens.py,
     utils.py — _compute_auth_scheme_preference_config, _compute_signature_version_config, __new__
     (+9 more). aiobotocore needed matching async overrides (or to delegate through existing
-    overrides). 1 async-relevant signal(s).
+    overrides).
   notes: null
 
 - pr: 1389
@@ -340,8 +336,7 @@ scenarios:
   rationale: |
     Port required: botocore added new function(s) in __init__.py, credentials.py, session.py,
     tokens.py, utils.py — _register_client_plugins, create_nested_client. aiobotocore needed
-    matching async overrides (or to delegate through existing overrides). 0 async-relevant
-    signal(s).
+    matching async overrides (or to delegate through existing overrides).
   notes: null
 
 - pr: 1391
@@ -380,7 +375,7 @@ scenarios:
     httpchecksum.py, httpsession.py, paginate.py, parsers.py, regions.py, response.py, session.py,
     signers.py, stub.py, tokens.py, utils.py — __init__, check_and_register_feature_id,
     generate_presigned_url (+2 more). aiobotocore needed matching async overrides (or to delegate
-    through existing overrides). 1 async-relevant signal(s).
+    through existing overrides).
   notes: null
 
 - pr: 1409
@@ -403,7 +398,7 @@ scenarios:
   rationale: |
     Port required: botocore modified existing overridden functions in __init__.py, awsrequest.py,
     credentials.py, httpsession.py, session.py, signers.py, utils.py with 60 added non-comment
-    line(s) and 2 async-relevant signal(s). aiobotocore's overrides updated to match.
+    line(s) and aiobotocore's overrides updated to match.
   notes: null
 
 - pr: 1420
@@ -422,7 +417,7 @@ scenarios:
   rationale: |
     Port required: botocore added new function(s) in __init__.py, args.py, handlers.py —
     enable_millisecond_timestamp_precision, add_retry_headers. aiobotocore needed matching async
-    overrides (or to delegate through existing overrides). 0 async-relevant signal(s).
+    overrides (or to delegate through existing overrides).
   notes: null
 
 - pr: 1428
@@ -478,8 +473,7 @@ scenarios:
   rationale: |
     Port required: botocore added new function(s) in __init__.py, credentials.py, utils.py —
     _create_login_provider, get_credentials, _base64_url_encode_no_padding (+16 more). aiobotocore
-    needed matching async overrides (or to delegate through existing overrides). 0 async-relevant
-    signal(s).
+    needed matching async overrides (or to delegate through existing overrides).
   notes: null
 
 - pr: 1445
@@ -610,7 +604,7 @@ scenarios:
   rationale: |
     Port required: botocore added new function(s) in __init__.py, httpchecksum.py, utils.py —
     __init__, update, digest (+12 more). aiobotocore needed matching async overrides (or to
-    delegate through existing overrides). 0 async-relevant signal(s).
+    delegate through existing overrides).
   notes: null
 
 - pr: 1485
@@ -649,8 +643,7 @@ scenarios:
     Port required: botocore added new function(s) in __init__.py, handlers.py, httpchecksum.py,
     utils.py — remove_connecthealth_start_medical_scribe_listening_session,
     enable_millisecond_timestamp_precision, _map_oauth2_errors (+2 more). aiobotocore needed
-    matching async overrides (or to delegate through existing overrides). 0 async-relevant
-    signal(s).
+    matching async overrides (or to delegate through existing overrides).
   notes: null
 
 - pr: 1534
@@ -675,5 +668,5 @@ scenarios:
     configprovider.py, handlers.py, httpchecksum.py, regions.py —
     _validate_s3_disable_express_session_auth, _set_region_if_custom_s3_endpoint,
     _compute_s3_disable_express_session_auth (+3 more). aiobotocore needed matching async
-    overrides (or to delegate through existing overrides). 0 async-relevant signal(s).
+    overrides (or to delegate through existing overrides).
   notes: null

@@ -253,7 +253,10 @@ async def main() -> int:
 
     results: list[dict] = []
     failures: list[dict] = []
-    for case, verdicts in zip(runnable, per_case_verdicts, strict=True):
+    # zip without strict= for Python 3.9 compat; lengths are equal by
+    # construction (per_case_verdicts is gathered over runnable).
+    assert len(runnable) == len(per_case_verdicts)
+    for case, verdicts in zip(runnable, per_case_verdicts):
         print(f"\n#{case.pr} [{case.expected}] {case.title}")
         print(
             f"  from={case.from_ver} to={case.to_ver} diff={diffs[case.pr].count(chr(10))} lines"
