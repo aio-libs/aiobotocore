@@ -43,7 +43,7 @@ checked out as a branch somewhere). The `$$` in the path avoids collisions if tw
 ## Step 3: Run pyright baseline in the worktree
 
 ```text
-uv run --with pyright pyright "$WORKTREE/$PATH" 2>&1 > /tmp/pyright-before.txt
+uv run --with pyright pyright "$WORKTREE/$PYRIGHT_PATH" > /tmp/pyright-before.txt 2>&1
 tail -1 /tmp/pyright-before.txt
 ```
 
@@ -63,7 +63,7 @@ lives under `/tmp` and was never branch-tracking, there is nothing to lose.
 ## Step 5: Run pyright with the current changes
 
 ```text
-uv run --with pyright pyright "$PATH" 2>&1 > /tmp/pyright-after.txt
+uv run --with pyright pyright "$PYRIGHT_PATH" > /tmp/pyright-after.txt 2>&1
 tail -1 /tmp/pyright-after.txt
 ```
 

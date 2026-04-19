@@ -32,6 +32,7 @@ from pathlib import Path
 
 from _common import (
     REPO_ROOT,
+    aiobotocore_port_happened,
     derive_versions,
     list_sync_prs,
     overridden_paths,
@@ -113,13 +114,17 @@ def scenarios_from_prs(
         sha = pr["mergeCommit"]["oid"]
         if not (versions := derive_versions(sha)):
             continue
-        from_ver, to_ver, lower_changed = versions
+        from_ver, to_ver, _ = versions
         if from_ver == to_ver:
             continue
-        # pyproject.toml is authoritative: lower bound moved → port-required
-        # (minor bump); upper-only bump → no-port (patch). Titles are
-        # uniform ("Bump ...") going forward, so we can't rely on them.
-        expected = "port-required" if lower_changed else "no-port"
+        # Authoritative ground-truth signal: did the PR actually port code?
+        # The `_, lower_changed` from derive_versions is a proxy — lower
+        # bound can move for non-async reasons, which contaminates labels.
+        # aiobotocore_port_happened inspects the real PR diff.
+        port_happened = aiobotocore_port_happened(pr["number"])
+        if port_happened is None:
+            continue
+        expected = "port-required" if port_happened else "no-port"
         out.append(
             Scenario(
                 pr=pr["number"],

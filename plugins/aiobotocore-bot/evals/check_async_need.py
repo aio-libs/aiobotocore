@@ -39,6 +39,7 @@ from pathlib import Path
 from _common import (
     DEFAULT_MODEL,
     REPO_ROOT,
+    aiobotocore_port_happened,
     derive_versions,
     invoke_and_parse,
     list_sync_prs,
@@ -93,10 +94,13 @@ def list_historical_cases(limit: int) -> list[Case]:
             continue
         if not (versions := derive_versions(pr["mergeCommit"]["oid"])):
             continue
-        from_ver, to_ver, lower_changed = versions
+        from_ver, to_ver, _ = versions
         if from_ver == to_ver:
             continue
-        expected = "port-required" if lower_changed else "no-port"
+        port_happened = aiobotocore_port_happened(pr["number"])
+        if port_happened is None:
+            continue
+        expected = "port-required" if port_happened else "no-port"
         cases.append(
             Case(
                 pr=pr["number"],

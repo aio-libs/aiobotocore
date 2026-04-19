@@ -134,6 +134,52 @@ def list_sync_prs(
     return json.loads(out)
 
 
+# Files that can change on any botocore sync without implying a port.
+# Hash-only updates to test_patches.py can happen on no-port syncs too
+# (newly-tracked functions we depend on but don't override).
+_NO_PORT_OK_FILES = {
+    "aiobotocore/__init__.py",
+    "pyproject.toml",
+    "CHANGES.rst",
+    "uv.lock",
+    "tests/test_patches.py",
+}
+
+
+def aiobotocore_port_happened(pr_number: int) -> bool | None:
+    """True if the PR modified overridden aiobotocore code (beyond housekeeping).
+
+    Authoritative port-required signal: regardless of how the PR was labeled or
+    how the pyproject bounds moved, did any non-trivial aiobotocore/*.py file
+    actually change? Returns None if the PR metadata can't be fetched.
+    """
+    try:
+        out = subprocess.check_output(
+            [
+                "gh",
+                "pr",
+                "view",
+                str(pr_number),
+                "--repo",
+                "aio-libs/aiobotocore",
+                "--json",
+                "files",
+                "--jq",
+                "[.files[].path]",
+            ],
+            text=True,
+        )
+    except subprocess.CalledProcessError:
+        return None
+    paths = json.loads(out)
+    for p in paths:
+        if p in _NO_PORT_OK_FILES:
+            continue
+        if p.startswith("aiobotocore/") and p.endswith(".py"):
+            return True
+    return False
+
+
 def parse_scenarios_yaml(
     path: Path,
     scalar_keys: set[str],
