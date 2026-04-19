@@ -250,7 +250,17 @@ feedback instead of guessing.
 1. For each changed/new function needing porting:
     1. Diff old vs new botocore source.
     2. Find corresponding `aiobotocore/*.py` file.
-    3. Port changes following these patterns:
+    3. **Cross-diff as context**: before applying changes, diff the aiobotocore
+       override against botocore at the **target** version. Lines in the aiobotocore
+       override that don't appear in target-botocore are pre-existing async adaptations
+       (async/await, AsyncIO*, resolve_awaitable, etc.) — preserve them. Lines in
+       target-botocore that don't appear in the aiobotocore override are either already
+       async-adapted under a different name or genuinely missing — the port should
+       mirror them unless there's an async-explained reason to diverge. This cross-diff
+       is what CONTRIBUTING.rst §"How to Upgrade Botocore" steps 1+4 guide humans to do;
+       explicitly calling it out here prevents accidentally wiping existing adaptations
+       when mirroring a body change.
+    4. Port changes following these patterns:
        - Subclass with `Aio` prefix
        - Override sync methods as async
        - Use `resolve_awaitable()` for mixed callbacks — primarily in the event-hook
@@ -262,7 +272,7 @@ feedback instead of guessing.
          no cosmetic changes (docstrings, comments, type hints) that aren't in the
          matching botocore. Future syncs are easier when the diff is small. If an
          override must diverge, the divergence should be async-explained.
-    4. Update hashes in `tests/test_patches.py` — see "test_patches.py scenarios" below.
+    5. Update hashes in `tests/test_patches.py` — see "test_patches.py scenarios" below.
 2. Port relevant botocore tests to `tests/botocore_tests/`. See `docs/override-patterns.md`
    §"Test porting pattern" for the full 8-step procedure. Key points:
    - `async def test_*()` (no `@pytest.mark.asyncio`)
