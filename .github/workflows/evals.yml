@@ -80,6 +80,14 @@ jobs:
         git clone https://github.com/boto/botocore.git /tmp/botocore
         git -C /tmp/botocore fetch --tags
 
+    - name: Refresh botocore tags
+      # On cache hit the clone's tag refs are frozen at cache-build time.
+      # A fetch is ~2s (just ref updates, no history redownload) and
+      # keeps us robust against --case <newer-pr> invocations and any
+      # future scenarios.yaml drift.
+      if: steps.botocore-cache.outputs.cache-hit == 'true'
+      run: git -C /tmp/botocore fetch --tags
+
     - name: Set up uv + Python
       # yamllint disable-line rule:line-length
       uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b  # v8.1.0
