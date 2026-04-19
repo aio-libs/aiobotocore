@@ -11,6 +11,24 @@
 # pass for scenarios.yaml (some sync PRs also make good drift cases — a
 # well-executed port should be `clean`).
 scenarios:
+- pr: 1534
+  title: "Bump `botocore` dependency specification"
+  expected: clean
+  rationale: |
+    Textbook clean port. Botocore added a new
+    `s3_disable_express_session_auth` config parameter; aiobotocore/args.py
+    threads the same parameter through `get_client_args` and
+    `_build_endpoint_resolver` with identical names/positions.
+    aiobotocore/httpchecksum.py mirrors botocore's new checksum handling
+    changes. No docstring additions, no type-hint drift, no non-async
+    behavioral changes, no null-guards that aren't upstream. Every new
+    parameter/line has a matching upstream equivalent.
+  notes: |
+    Good stable "no-drift" anchor — guards against the classifier regressing
+    to always-return-behavioral-drift (which the PR #1562 case alone can't
+    catch). Author is jakob-keller (project maintainer); same port pattern
+    any well-executed sync-bot port would follow.
+
 - pr: 1562
   title: "fix: code review improvements for oldest files"
   expected: behavioral-drift
