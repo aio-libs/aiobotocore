@@ -1,5 +1,5 @@
 ---
-allowed-tools: Bash(git -C /tmp/botocore:*), Bash(ls:*), Bash(cat:*), Bash(test:*)
+allowed-tools: Bash(git -C /tmp/botocore:*), Bash(find:*), Bash(sed:*), Bash(cat:*), Bash(test:*)
 description: Classify new/changed botocore functions in overridden files as pure-sync, needs-async, or ambiguous
 ---
 
@@ -30,19 +30,27 @@ missing or tag unavailable` and stop — the caller is responsible for provision
 
 ## Step 1: Enumerate overridden files
 
-Use the filename-mirror convention: `botocore/foo.py` is overridden iff `aiobotocore/foo.py` exists. Do not
-grep for references.
+Use the filename-mirror convention: `botocore/<relpath>` is overridden iff
+`aiobotocore/<relpath>` exists. Must recurse into subdirectories — `aiobotocore/retries/*.py`
+mirrors `botocore/retries/*.py`, and those paths do get modified on syncs.
 
 ```text
-ls $AIOBOTOCORE_ROOT/*.py | xargs -n1 basename
+find "$AIOBOTOCORE_ROOT" -name '*.py' | sed "s|^$AIOBOTOCORE_ROOT/||"
 ```
 
-Call this set `OVERRIDDEN`. Any changed botocore file not in this set is out of scope for the classifier —
-skip it.
+Call this set `OVERRIDDEN`. Entries are relative paths like `client.py` or
+`retries/adaptive.py` — NOT basenames. Any changed botocore file whose
+`botocore/`-stripped path isn't in this set is out of scope; skip it.
+
+Do not use `ls *.py | xargs basename`: that misses nested files AND
+strips the directory, so the pathspec in Step 2 would become
+`botocore/adaptive.py` instead of `botocore/retries/adaptive.py` — a
+non-existent path that silently returns an empty diff.
 
 ## Step 2: Enumerate changed functions in overridden files
 
-For each file `f` in `OVERRIDDEN` that appears in the diff:
+For each file `f` in `OVERRIDDEN` that appears in the diff (recall: `f` is a
+relative path, possibly including a subdirectory):
 
 ```text
 git -C $BOTOCORE_CLONE diff $FROM..$TO -- botocore/$f
