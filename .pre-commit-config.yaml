@@ -26,7 +26,8 @@ repos:
   - id: yamllint
     args: [--strict]
 - repo: https://github.com/rvben/rumdl-pre-commit
-  rev: v0.1.74
+  # yamllint disable-line rule:line-length
+  rev: e25bab4ecdcb2d86aaf956ad89f9ccda55e226ab  # v0.1.74
   hooks:
   - id: rumdl
 - repo: https://github.com/python-jsonschema/check-jsonschema
