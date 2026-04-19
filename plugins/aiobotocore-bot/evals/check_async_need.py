@@ -52,6 +52,7 @@ from _common import (
     parse_scenarios_yaml,
     require_env,
     run_cases_concurrent,
+    usage_summary,
 )
 
 SKILL_PATH = (
@@ -420,6 +421,9 @@ async def main() -> int:
     if args.json_out:
         args.json_out.write_text(json.dumps(results, indent=2))
         print(f"Wrote {args.json_out}")
+
+    if summary := usage_summary():
+        print(summary)
 
     return 0 if not failures else 1
 

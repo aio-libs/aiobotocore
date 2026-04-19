@@ -34,6 +34,93 @@ DEFAULT_MODEL = "claude-opus-4-7"
 UPPER_RE = re.compile(r'"botocore\s*>=\s*[\d.]+\s*,\s*<\s*([\d.]+)"')
 LOWER_RE = re.compile(r'"botocore\s*>=\s*([\d.]+)\s*,')
 
+# Per-million-token pricing (USD) for models we actually run the evals
+# against. From https://platform.claude.com/docs/en/about-claude/pricing
+# as of 2026-04-19. Update when Anthropic publishes new rates.
+# `cache_write_5m` is the short-duration write price; `cache_read` is
+# any cache-hit read. Thinking tokens bill as `output`.
+MODEL_PRICING: dict[str, dict[str, float]] = {
+    "claude-opus-4-7": {
+        "input": 5.0,
+        "output": 25.0,
+        "cache_write_5m": 6.25,
+        "cache_read": 0.50,
+    },
+    "claude-sonnet-4-6": {
+        "input": 3.0,
+        "output": 15.0,
+        "cache_write_5m": 3.75,
+        "cache_read": 0.30,
+    },
+    "claude-haiku-4-5": {
+        "input": 1.0,
+        "output": 5.0,
+        "cache_write_5m": 1.25,
+        "cache_read": 0.10,
+    },
+}
+
+
+# Per-model usage accumulator updated by every invoke_and_* call in
+# this module. Single-event-loop asyncio so no lock needed.
+_USAGE: dict[str, dict[str, int]] = {}
+
+
+def _record_usage(model: str, usage: object) -> None:
+    """Accumulate token counts from a Messages API response into the
+    module-level tally. `usage` is the `resp.usage` attribute.
+    """
+    bucket = _USAGE.setdefault(
+        model,
+        {
+            "input": 0,
+            "output": 0,
+            "cache_write_5m": 0,
+            "cache_read": 0,
+            "calls": 0,
+        },
+    )
+    bucket["calls"] += 1
+    bucket["input"] += getattr(usage, "input_tokens", 0) or 0
+    bucket["output"] += getattr(usage, "output_tokens", 0) or 0
+    bucket["cache_write_5m"] += (
+        getattr(usage, "cache_creation_input_tokens", 0) or 0
+    )
+    bucket["cache_read"] += getattr(usage, "cache_read_input_tokens", 0) or 0
+
+
+def usage_summary() -> str:
+    """Render a human-readable token+cost breakdown of the eval session.
+
+    Returns empty string if no API calls were made. Lines are one per
+    model: call count, each token bucket, and estimated cost.
+    """
+    if not _USAGE:
+        return ""
+    lines = ["", "== Token usage / cost =="]
+    grand_total = 0.0
+    for model, u in sorted(_USAGE.items()):
+        p = MODEL_PRICING.get(model)
+        if p is None:
+            lines.append(f"  {model}: {u} (pricing unknown)")
+            continue
+        cost = (
+            u["input"] * p["input"]
+            + u["output"] * p["output"]
+            + u["cache_write_5m"] * p["cache_write_5m"]
+            + u["cache_read"] * p["cache_read"]
+        ) / 1_000_000
+        grand_total += cost
+        lines.append(
+            f"  {model}: {u['calls']} calls, "
+            f"in={u['input']:,}, out={u['output']:,}, "
+            f"cache_r={u['cache_read']:,}, cache_w={u['cache_write_5m']:,}"
+            f" → ${cost:.4f}"
+        )
+    if len(_USAGE) > 1:
+        lines.append(f"  Total: ${grand_total:.4f}")
+    return "\n".join(lines)
+
 
 def require_env(name: str) -> None:
     if name not in os.environ:
@@ -423,13 +510,20 @@ async def invoke_and_classify(
     `raw_text` captures any text blocks the model emitted alongside the
     tool call — useful for debugging and for the follow-up-on-miss flow.
 
+    16K max_tokens headroom: per-function verdict arrays for 10+ changed
+    functions plus reasoning text can exceed 4K. A truncated tool_use
+    block returns empty-dict input and a `parse-error` verdict —
+    previously this manifested as mysterious failures on large PRs.
+    Stop reason is surfaced in `raw_text` on truncation so debugging
+    rationales show the cause.
+
     The system prompt uses ephemeral cache_control so repeated calls
     within the same eval session (N runs × M cases ≈ 96 calls at
     defaults) hit the cache on the ~2K-token command body.
     """
     resp = await client.messages.create(
         model=model,
-        max_tokens=4096,
+        max_tokens=16000,
         tools=[tool],
         tool_choice={"type": "tool", "name": tool["name"]},
         system=[
@@ -441,11 +535,14 @@ async def invoke_and_classify(
         ],
         messages=[{"role": "user", "content": user}],
     )
+    _record_usage(model, resp.usage)
     raw = "".join(
         block.text
         for block in resp.content
         if getattr(block, "type", None) == "text"
     )
+    if resp.stop_reason and resp.stop_reason != "end_turn":
+        raw = f"[stop_reason={resp.stop_reason}]\n{raw}"
     for block in resp.content:
         if getattr(block, "type", None) == "tool_use":
             tool_input = block.input
@@ -495,6 +592,7 @@ async def followup_on_misclassification(
             {"role": "user", "content": followup_q},
         ],
     )
+    _record_usage(model, resp.usage)
     return "".join(
         block.text
         for block in resp.content
