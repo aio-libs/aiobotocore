@@ -102,8 +102,10 @@ Inspect the NEW body (for added/changed) or OLD body (for deleted):
    `x.read(...)` on an unknown receiver is `ambiguous`; `self._emit(...)`
    or `self._client_creator(...)` where `_client_creator` is a known
    async factory is `port-required`.
-3. **Registered override, substantive change**: if `F`'s dotted name
-   is in `overrides` and the body change is anything other than
+3. **Registered override, substantive change**: if `F`'s EXACT dotted
+   name (e.g. `ClientArgsCreator.get_client_args`) or bare function
+   name (e.g. `_apply_request_trailer_checksum`) appears in the
+   `overrides` list, AND the body change is anything other than
    pure-cosmetic (see #4 below) — **including a line removal, a call
    swap, a rename, a control-flow tweak, or a new guard** — flag
    `port-required`. The aiobotocore override MUST mirror the upstream
@@ -113,6 +115,26 @@ Inspect the NEW body (for added/changed) or OLD body (for deleted):
    override to keep the sync diff minimal. "Cosmetic/minor refactor"
    is NOT a pass — if a code line was removed, added, or substituted,
    it's substantive.
+
+   **CRITICAL — do not extrapolate from class to method.** If a bare
+   class name appears in `overrides` (e.g. `URLLib3Session` with no
+   dot), that means the ENTIRE class source is hashed in
+   `test_patches.py` for byte-level change detection. It does NOT
+   mean any particular method of that class is mirrored by
+   aiobotocore. A change to `URLLib3Session._get_pool_manager_kwargs`
+   is `port-required` ONLY if `URLLib3Session._get_pool_manager_kwargs`
+   itself appears in the `overrides` list. If only the bare class
+   `URLLib3Session` appears (and not the method), a body change to a
+   method of that class requires a hash bump in `test_patches.py` but
+   is NOT port-required — aiobotocore inherits the method unchanged.
+
+   Concretely: before flagging port-required via rule #3, verify you
+   can point to the EXACT string in the `overrides` list (either the
+   full `ClassName.method` form or a bare name). If you find yourself
+   writing "ClassName is in overrides and method_name is a method of
+   ClassName, therefore method_name is mirrored" — STOP. That's the
+   extrapolation failure. You must find the exact dotted form
+   `ClassName.method_name` or don't apply rule #3.
 4. **Cosmetic only**: docstring edits, pure whitespace/formatting, pure
    type-hint additions, import reorder — `pure-sync` with reason
    `cosmetic`. These bust hashes in `tests/test_patches.py` (mechanical

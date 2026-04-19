@@ -110,8 +110,25 @@ jobs:
         python-version: '3.12'
         enable-cache: auto
 
+    # .venv caching: setup-uv caches uv's download cache (wheels), but
+    # `uv sync` still walks the lockfile and re-links the venv every
+    # run (~5-15s). Caching .venv directly short-circuits that on
+    # lockfile-unchanged runs. Invalidates on uv.lock or pyproject.toml
+    # changes.
+    - name: Cache .venv
+      # yamllint disable-line rule:line-length
+      uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5.0.4
+      with:
+        path: .venv
+        # yamllint disable-line rule:line-length
+        key: venv-${{ runner.os }}-py3.12-${{ hashFiles('uv.lock', 'pyproject.toml') }}
+
     - name: Install dependencies
-      run: uv sync
+      # --frozen is a guardrail: fail (not silently resolve) if uv.lock
+      # is somehow out of sync with pyproject.toml. On a warm .venv
+      # cache uv sync is near-instant; on a miss it re-links from the
+      # uv download cache.
+      run: uv sync --frozen
 
     - name: Run check_async_need eval
       env:
@@ -175,8 +192,25 @@ jobs:
         python-version: '3.12'
         enable-cache: auto
 
+    # .venv caching: setup-uv caches uv's download cache (wheels), but
+    # `uv sync` still walks the lockfile and re-links the venv every
+    # run (~5-15s). Caching .venv directly short-circuits that on
+    # lockfile-unchanged runs. Invalidates on uv.lock or pyproject.toml
+    # changes.
+    - name: Cache .venv
+      # yamllint disable-line rule:line-length
+      uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5.0.4
+      with:
+        path: .venv
+        # yamllint disable-line rule:line-length
+        key: venv-${{ runner.os }}-py3.12-${{ hashFiles('uv.lock', 'pyproject.toml') }}
+
     - name: Install dependencies
-      run: uv sync
+      # --frozen is a guardrail: fail (not silently resolve) if uv.lock
+      # is somehow out of sync with pyproject.toml. On a warm .venv
+      # cache uv sync is near-instant; on a miss it re-links from the
+      # uv download cache.
+      run: uv sync --frozen
 
     - name: Run check_override_drift eval
       env:
