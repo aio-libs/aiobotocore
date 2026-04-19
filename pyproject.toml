@@ -176,3 +176,28 @@ exclude_also = [
     "if TYPE_CHECKING",
     "@pytest.mark.localonly",
 ]
+
+[tool.rumdl]
+line-length = 120
+disable = [
+    # CLAUDE.md uses flat # per section; Anthropic's docs don't
+    # prescribe a single-H1 structure either.
+    "MD025",
+    # .github/*.md prompts and .claude/commands/*.md slash commands
+    # are fragments loaded into a larger prompt, not standalone docs
+    # with a title.
+    "MD041",
+    # .github/pull_request_template.md uses `*Replace this text...*`
+    # as placeholder text and .github/ISSUE_TEMPLATE/bug_report.md
+    # uses **Describe the bug** / **Checklist** as bold labels.
+    # Both are conventional GitHub template styling, not
+    # emphasis-used-as-heading.
+    "MD036",
+]
+
+[tool.rumdl.MD013]
+# Long table rows are legitimate in docs/ai-workflows.md; don't force
+# prose-length limits on them. Same for code blocks (mermaid diagrams,
+# shell examples) where line breaks can alter meaning.
+tables = false
+code_blocks = false

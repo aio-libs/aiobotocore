@@ -95,6 +95,12 @@ jobs:
       # yamllint disable-line rule:line-length
       uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b  # v8.1.0
       with:
+        # Pin uv so setup-uv does not query the GitHub API to resolve
+        # a matching release from pyproject.toml's required-version
+        # range. Each API call counts against the repo's installation
+        # rate limit; with this workflow + botocore-sync + matrix CI
+        # runs it is easy to exhaust and break zizmor. See ci-cd.yml.
+        version: '0.11.7'
         python-version: '3.12'
         enable-cache: auto
 
@@ -116,6 +122,25 @@ jobs:
       with:
         # yamllint disable-line rule:line-length
         bun-download-url: "https://github.com/oven-sh/bun/releases/latest/download/bun-linux-x64.zip"
+
+    # Must run BEFORE the "Read prompt" step: its outputs feed into
+    # IS_FORK which is substituted into the prompt. On issue_comment
+    # events `github.event.pull_request` does not exist (that payload
+    # field is only on pull_request* events), so without this step
+    # IS_FORK would fall through to the 'false' default even on fork
+    # PR `@claude` mentions — the downstream commit hook would still
+    # enforce correctly, but the agent's in-prompt IS_FORK would lie.
+    - name: Resolve PR metadata
+      id: pr_meta
+      if: github.event.issue.pull_request != null
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        meta=$(gh pr view ${{ github.event.issue.number }} \
+          --json headRefName,isCrossRepository \
+          --jq '{branch: .headRefName, fork: .isCrossRepository}')
+        echo "branch=$(echo "$meta" | jq -r .branch)" >> "$GITHUB_OUTPUT"
+        echo "is_fork=$(echo "$meta" | jq -r .fork)" >> "$GITHUB_OUTPUT"
 
     - name: Read prompt
       id: prompt
@@ -142,20 +167,8 @@ jobs:
           echo 'PROMPT_EOF'
         } >> "$GITHUB_OUTPUT"
 
-    - name: Resolve PR metadata
-      id: pr_meta
-      if: github.event.issue.pull_request != null
-      env:
-        GH_TOKEN: ${{ github.token }}
-      run: |
-        meta=$(gh pr view ${{ github.event.issue.number }} \
-          --json headRefName,isCrossRepository \
-          --jq '{branch: .headRefName, fork: .isCrossRepository}')
-        echo "branch=$(echo "$meta" | jq -r .branch)" >> "$GITHUB_OUTPUT"
-        echo "is_fork=$(echo "$meta" | jq -r .fork)" >> "$GITHUB_OUTPUT"
-
     # yamllint disable-line rule:line-length
-    - uses: anthropics/claude-code-action@ab8b1e6471c519c585ba17e8ecaccc9d83043541  # v1.0.101
+    - uses: anthropics/claude-code-action@38ec876110f9fbf8b950c79f534430740c3ac009  # v1.0.101
       id: claude
       env:
         CLAUDE_BRANCH: ${{ steps.pr_meta.outputs.branch || '' }}
@@ -175,6 +188,13 @@ jobs:
         # Skip the action's bundled setup-bun step — we installed bun
         # ourselves above via the rate-limit-safe download URL.
         path_to_bun_executable: /home/runner/.bun/bin/bun
+        # Register the repo-local plugin so /aiobotocore-bot:review-pr
+        # and /aiobotocore-bot:analyze-pr-feedback are available. Uses
+        # a local path (relative to the repo checkout) so PR branches
+        # test their own plugin edits — see
+        # https://github.com/anthropics/claude-code-action/pull/761.
+        plugin_marketplaces: ./.
+        plugins: aiobotocore-bot@aiobotocore
         prompt: ${{ steps.prompt.outputs.PROMPT }}
         claude_args: |
           --dangerously-skip-permissions

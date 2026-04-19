@@ -190,6 +190,8 @@ jobs:
       # yamllint disable-line rule:line-length
       uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b  # v8.1.0
       with:
+        # Pin uv — see claude.yml comment. Same rate-limit concern.
+        version: '0.11.7'
         python-version: '3.12'
         enable-cache: auto
 
@@ -239,7 +241,7 @@ jobs:
         } >> "$GITHUB_OUTPUT"
 
     # yamllint disable-line rule:line-length
-    - uses: anthropics/claude-code-action@57ab6717ca1d3d137264d60c630870bd3b903729  # v1.0.92
+    - uses: anthropics/claude-code-action@38ec876110f9fbf8b950c79f534430740c3ac009  # v1.0.101
       id: claude
       env:
         CLAUDE_BRANCH: claude/botocore-sync
