@@ -47,6 +47,7 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 COMMAND_PATH = (
     REPO_ROOT / "plugins/aiobotocore-bot/commands/check-async-need.md"
 )
+SCENARIOS_PATH = REPO_ROOT / "plugins/aiobotocore-bot/evals/scenarios.yaml"
 AIOBOTOCORE_DIR = REPO_ROOT / "aiobotocore"
 BOTOCORE_CLONE = Path(os.environ.get("BOTOCORE_CLONE", "/tmp/botocore"))
 DEFAULT_MODEL = "claude-opus-4-7"
@@ -82,6 +83,47 @@ def decrement_patch(ver: str) -> str:
     parts = list(map(int, ver.split(".")))
     parts[-1] = max(0, parts[-1] - 1)
     return ".".join(map(str, parts))
+
+
+def load_scenarios_yaml(path: Path) -> list[Case] | None:
+    """Read scenarios.yaml if present. Returns None if file doesn't exist.
+
+    Tiny YAML parser — only handles the subset that generate_scenarios.py emits.
+    Avoids adding PyYAML as a dep for a single data file with a known shape.
+    """
+    if not path.exists():
+        return None
+    cases: list[Case] = []
+    current: dict[str, str] = {}
+    for raw_line in path.read_text().splitlines():
+        line = raw_line.rstrip()
+        if not line or line.lstrip().startswith("#"):
+            continue
+        if line.startswith("  - pr:"):
+            if current:
+                cases.append(_case_from_dict(current))
+                current = {}
+            current["pr"] = line.split(":", 1)[1].strip()
+            continue
+        if line.startswith("    ") and ":" in line:
+            key, _, value = line.strip().partition(":")
+            key = key.strip()
+            value = value.strip()
+            if key in {"title", "expected", "from", "to"}:
+                current[key] = value.strip('"')
+    if current:
+        cases.append(_case_from_dict(current))
+    return cases
+
+
+def _case_from_dict(d: dict[str, str]) -> Case:
+    return Case(
+        pr=int(d["pr"]),
+        title=d.get("title", ""),
+        from_ver=d["from"],
+        to_ver=d["to"],
+        expected=d["expected"],
+    )
 
 
 def list_historical_cases(limit: int) -> list[Case]:
@@ -277,7 +319,19 @@ def main() -> int:
         + ", ...)"
     )
 
-    cases = list_historical_cases(args.limit)
+    # Prefer the committed scenarios.yaml (faster, deterministic, has human
+    # rationales). Fall back to deriving from gh pr list for unknown-PR cases.
+    yaml_cases = load_scenarios_yaml(SCENARIOS_PATH)
+    if yaml_cases is not None:
+        print(
+            "Using committed scenarios.yaml ("
+            + str(len(yaml_cases))
+            + " cases)"
+        )
+        cases = yaml_cases[: args.limit]
+    else:
+        print("scenarios.yaml not found — deriving from gh pr list")
+        cases = list_historical_cases(args.limit)
     if args.case:
         wanted = set(args.case)
         cases = [c for c in cases if c.pr in wanted]
