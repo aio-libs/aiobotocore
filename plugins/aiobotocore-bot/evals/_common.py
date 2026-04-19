@@ -338,15 +338,14 @@ def new_client() -> anthropic.AsyncAnthropic:
     return anthropic.AsyncAnthropic()
 
 
-# Extended-thinking budget for Sonnet. The classifier has to walk
-# every changed function + consult three registries + apply the
-# Step-4 roll-up + sanity-check before committing to a verdict —
-# exactly the kind of work where thinking tokens pay off. 8K is
-# enough headroom for ~15 functions × several hundred reasoning
-# tokens each. Smaller Sonnet runs (4.6) charge for thinking tokens
-# but at the sync-only eval frequency (manual workflow_dispatch)
-# the absolute cost is negligible.
-THINKING_BUDGET_TOKENS = 8000
+# Adaptive thinking for the classifier. The work (walk every changed
+# function + consult three registries + apply roll-up + sanity-check
+# before committing) is exactly what thinking tokens pay for.
+# `adaptive` + `effort: high` is Anthropic's recommended shape for
+# Sonnet 4.6 (manual `budget_tokens` is deprecated). Mirrors the
+# `--effort high` setting on the claude-code-action-driven sync
+# workflow so eval and runtime share reasoning depth.
+THINKING_EFFORT = "high"
 
 
 async def invoke_and_parse(
@@ -361,22 +360,20 @@ async def invoke_and_parse(
     The verdict regex should capture the verdict string as group 1 (e.g.
     `^CLASSIFICATION:\\s*(\\S+)`).
 
-    Enables extended thinking so Sonnet can reason through each
-    changed function before committing to the top-line verdict —
+    Enables adaptive extended thinking so Sonnet can reason through
+    each changed function before committing to the top-line verdict —
     classification-style problems regress without it.
 
     The system prompt uses ephemeral cache_control so repeated calls
     within the same eval session (N runs × M cases ≈ 96 calls at
     defaults) hit the cache on the ~2K-token command body.
     """
-    # max_tokens must be > budget_tokens (thinking + response share
-    # the envelope). 16K leaves ~8K for the actual response.
     resp = await client.messages.create(
         model=model,
         max_tokens=16000,
         thinking={
-            "type": "enabled",
-            "budget_tokens": THINKING_BUDGET_TOKENS,
+            "type": "adaptive",
+            "effort": THINKING_EFFORT,
         },
         system=[
             {

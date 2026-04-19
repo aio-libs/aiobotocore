@@ -254,6 +254,7 @@ jobs:
         claude_args: |
           --dangerously-skip-permissions
           --max-turns 100
+          --effort high
         # yamllint disable rule:line-length
         settings: |
           {
