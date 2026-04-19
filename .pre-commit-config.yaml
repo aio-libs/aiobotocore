@@ -25,6 +25,10 @@ repos:
   hooks:
   - id: yamllint
     args: [--strict]
+- repo: https://github.com/rvben/rumdl-pre-commit
+  rev: v0.1.74
+  hooks:
+  - id: rumdl
 - repo: https://github.com/python-jsonschema/check-jsonschema
   rev: 0.36.1
   hooks:

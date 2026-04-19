@@ -113,6 +113,7 @@ emitter. Its `_emit()` method awaits each handler response via
 ## Pattern 7: AioConfig
 
 `AioConfig(botocore.client.Config)` (config.py:42) adds:
+
 - `connector_args`: aiohttp connector tuning (ssl, keepalive, etc.)
 - `http_session_cls`: pluggable HTTP backend class
 

@@ -423,8 +423,9 @@ Every run ends with the `Usage summary` step, which parses the action's
 `execution_file` (a JSON message log) and appends a markdown table to
 the job summary:
 
-```
+```markdown
 ## Usage
+
 Turns: 12 | Duration: 84s | Total: $0.42
 
 | Model  | Input | Output | Cache read | Cache create | Cost  |
@@ -560,7 +561,15 @@ PRs on open and will often push the version-bump fix itself.
 
 ## History
 
-Selected milestones (see `git log -- .github/workflows/claude.yml .github/workflows/botocore-sync.yml .github/claude-review-prompt.md .github/botocore-sync-prompt.md .claude/commands/` for the full list):
+Selected milestones — for the full list, run:
+
+```bash
+git log -- .github/workflows/claude.yml \
+            .github/workflows/botocore-sync.yml \
+            .github/claude-review-prompt.md \
+            .github/botocore-sync-prompt.md \
+            .claude/commands/
+```
 
 - [#1498](https://github.com/aio-libs/aiobotocore/pull/1498) — Initial
   workflows added.

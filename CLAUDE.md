@@ -16,18 +16,19 @@ then read files directly — do not use `inspect.getsource()`.
 
 Run before committing:
 
-```
+```bash
 uv run pre-commit run --all --show-diff-on-failure
 ```
 
 Key constraints:
+
 - YAML lines must be ≤120 chars (`# yamllint disable-line rule:line-length` for exceptions)
 - All workflow jobs must have `timeout-minutes`
 - Python code formatted with `ruff`
 
 # Tests
 
-```
+```bash
 uv run pytest -sv tests/<path>           # run specific tests
 uv run make mototest                     # moto-based tests (CI runs these)
 uv run pytest -sv tests/test_patches.py  # hash validation
@@ -41,6 +42,7 @@ uv run pytest -sv tests/test_patches.py  # hash validation
 # Versioning
 
 When making code changes (bug fixes, features, enhancements), always:
+
 1. Bump the version in `aiobotocore/__init__.py` (patch for fixes, minor for features)
 2. Add an entry at the top of `CHANGES.rst` with the new version, date, and description
 
