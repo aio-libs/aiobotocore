@@ -102,39 +102,49 @@ Inspect the NEW body (for added/changed) or OLD body (for deleted):
    `x.read(...)` on an unknown receiver is `ambiguous`; `self._emit(...)`
    or `self._client_creator(...)` where `_client_creator` is a known
    async factory is `port-required`.
-3. **Registered override, substantive change**: if `F`'s EXACT dotted
-   name (e.g. `ClientArgsCreator.get_client_args`) or bare function
-   name (e.g. `_apply_request_trailer_checksum`) appears in the
-   `overrides` list, AND the body change is anything other than
-   pure-cosmetic (see #4 below) — **including a line removal, a call
-   swap, a rename, a control-flow tweak, or a new guard** — flag
-   `port-required`. The aiobotocore override MUST mirror the upstream
-   body. The goal here is byte-level alignment with botocore, not
-   whether the change affects async correctness: a registration-side-
-   effect line removed upstream still has to be removed in the
-   override to keep the sync diff minimal. "Cosmetic/minor refactor"
-   is NOT a pass — if a code line was removed, added, or substituted,
-   it's substantive.
+3. **Registered override, substantive change**: this rule has a hard
+   prerequisite — apply it ONLY after the following gate passes:
 
-   **CRITICAL — do not extrapolate from class to method.** If a bare
-   class name appears in `overrides` (e.g. `URLLib3Session` with no
-   dot), that means the ENTIRE class source is hashed in
-   `test_patches.py` for byte-level change detection. It does NOT
-   mean any particular method of that class is mirrored by
-   aiobotocore. A change to `URLLib3Session._get_pool_manager_kwargs`
-   is `port-required` ONLY if `URLLib3Session._get_pool_manager_kwargs`
-   itself appears in the `overrides` list. If only the bare class
-   `URLLib3Session` appears (and not the method), a body change to a
-   method of that class requires a hash bump in `test_patches.py` but
-   is NOT port-required — aiobotocore inherits the method unchanged.
+   **GATE — is `F` an aiobotocore-tracked override?**
 
-   Concretely: before flagging port-required via rule #3, verify you
-   can point to the EXACT string in the `overrides` list (either the
-   full `ClassName.method` form or a bare name). If you find yourself
-   writing "ClassName is in overrides and method_name is a method of
-   ClassName, therefore method_name is mirrored" — STOP. That's the
-   extrapolation failure. You must find the exact dotted form
-   `ClassName.method_name` or don't apply rule #3.
+   Scan the `overrides` list for an exact string match of:
+   - `F`'s full dotted name (e.g. `ClientArgsCreator.get_client_args`), OR
+   - `F`'s bare name when `F` is a module-level function (e.g.
+     `_apply_request_trailer_checksum`).
+
+   A bare class name in `overrides` (e.g. `URLLib3Session` with no
+   dot) does NOT match any of that class's methods. Class-level
+   tracking in `test_patches.py` only means the class's full source
+   is hashed for detecting upstream edits; it says NOTHING about
+   whether aiobotocore overrides any specific method. The only
+   thing that makes `URLLib3Session._get_pool_manager_kwargs` a
+   tracked override is `URLLib3Session._get_pool_manager_kwargs`
+   appearing verbatim in `overrides`.
+
+   If the gate fails — i.e. you cannot point to the exact string in
+   `overrides` — rule #3 does NOT apply. Do not substitute reasoning
+   about "parity", "divergence", "silent behavior drift", or "keeping
+   in sync". Those concerns are about the broader project philosophy,
+   not about this verdict. Proceed to the other Step-C rules; the
+   function may still be flagged via rule #1 (network I/O) or rule #2
+   (calls something in `async_methods` / `aio_classes`). Absent any
+   of those, it's `pure-sync` — aiobotocore inherits it unchanged.
+
+   If the gate PASSES, then: the body change is `port-required` if
+   it's anything other than pure-cosmetic (see #4) — including a line
+   removal, a call swap, a rename, a control-flow tweak, or a new
+   guard. aiobotocore's override file has to be updated to match the
+   new upstream body. "Cosmetic/minor refactor" is NOT a pass here —
+   if a code line was removed, added, or substituted inside a tracked
+   override, it's substantive.
+
+   **STOP-RULE**: if your draft rationale contains phrases like
+   "ClassName is in overrides, method is a method of ClassName,
+   therefore..." or "even though the method isn't overridden, we
+   should flag for parity/divergence" — ABORT that reasoning. Return
+   to the gate. If the exact name isn't in `overrides`, rule #3 is
+   not applicable regardless of how philosophically appealing a
+   port-required verdict feels.
 4. **Cosmetic only**: docstring edits, pure whitespace/formatting, pure
    type-hint additions, import reorder — `pure-sync` with reason
    `cosmetic`. These bust hashes in `tests/test_patches.py` (mechanical
