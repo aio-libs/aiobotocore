@@ -163,11 +163,42 @@ def build_user_message(case: Case, diff: str, overrides: set[str]) -> str:
 
         ## Authoritative aiobotocore override registry
 
-        These are the ONLY botocore symbols aiobotocore currently overrides
-        (from `tests/test_patches.py`, the source of truth). For a
-        changed function to drive a `port-required` verdict, its name or
-        dotted name MUST appear in this list. Do not assume overrides from
-        context — verify against this list.
+        These are the botocore symbols aiobotocore currently overrides
+        (from `tests/test_patches.py`, the source of truth). Entry
+        shapes:
+
+        - `ClassName.method_name` — only that specific method is
+          mirrored.
+        - Bare function name (e.g. `_apply_request_trailer_checksum`) —
+          that specific module-level function is mirrored.
+        - Bare class name (e.g. `URLLib3Session`) — the class source is
+          hashed as a whole. This does NOT mean every method is
+          mirrored; only the specific dotted `ClassName.method` entries
+          are.
+
+        How to use the registry:
+
+        - **Existing code, changed**: if the function's dotted name is
+          NOT in the registry, a substantive body change alone does NOT
+          drive port-required — aiobotocore doesn't override it, so
+          aiobotocore's code path isn't affected. If it IS in the
+          registry and the change is substantive (signature, call
+          graph, control flow), flag port-required.
+        - **New code, added**: the registry doesn't cover new functions
+          yet — classify based on I/O signals per Step 3 of the system
+          prompt (`emit()`/`emit_first_non_none_response()` from an
+          aiobotocore-overridden hooks emitter, blocking primitives,
+          `resolve_awaitable`, etc.). A new function that calls a
+          function aiobotocore has already made async (e.g.
+          `self._emit(...)` where `HierarchicalEmitter.emit` is in the
+          registry) is needs-async.
+        - **Call-graph back-track**: if a new botocore function gets
+          classified needs-async, check the diff and registry for
+          callers: any caller already in the registry must be updated
+          to `await` this new call once aiobotocore mirrors it. Flag
+          those callers as port-required too, even if their body
+          changes look small.
+        - Do not infer overrides from file-mirror existence.
 
         {overrides_block}
 

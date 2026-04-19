@@ -68,13 +68,18 @@ def overridden_symbols() -> set[str]:
     aiobotocore overrides.
 
     Each entry in the `test_patches` pytest.mark.parametrize body is
-    `(<symbol-reference>, {hashes})`. The symbol is either a bare name
-    (`_apply_request_trailer_checksum`) or an attribute chain
-    (`ClientArgsCreator.get_client_args`).
+    `(<symbol-reference>, {hashes})`. Three shapes are possible:
 
-    Returns a flat set containing both the full dotted name
-    (`ClientArgsCreator.get_client_args`) AND the tail component
-    (`get_client_args`) so name-only matches from diff hunks work too.
+    - Bare module-level function (`_apply_request_trailer_checksum`) —
+      returned as-is.
+    - Class method (`ClientArgsCreator.get_client_args`) — returned in
+      dotted form only. The bare tail is intentionally NOT added, so a
+      change to `SomeOtherClass.get_client_args` elsewhere doesn't
+      falsely match.
+    - Bare class name (`URLLib3Session`) — returned as-is, meaning the
+      class's whole source is tracked but NOT that every method is
+      mirrored. Callers must not generalize class-tracked to method-
+      tracked.
     """
     names: set[str] = set()
     tree = ast.parse(TEST_PATCHES_PATH.read_text())
@@ -90,7 +95,6 @@ def overridden_symbols() -> set[str]:
             parts.append(target.id)
             parts.reverse()
             names.add(".".join(parts))
-            names.add(parts[-1])
     return names
 
 

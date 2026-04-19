@@ -113,14 +113,41 @@ For each added/changed function, inspect the **new code** for these signals:
   not require a code port. They DO bust the hash in `tests/test_patches.py`, which needs a bump,
   but that's mechanical — not a classifier signal.
 
-  Check (authoritative): look up the function's dotted name
-  (`ClassName.method` or bare `function_name`) in the Step 1 symbol
-  registry from `tests/test_patches.py`. If absent, the function is NOT
-  overridden in aiobotocore — classify as `pure-sync` regardless of
-  I/O content in the botocore diff. A change to non-overridden code
-  does not require a port. Only if the symbol IS in the registry, then
-  determine whether the change is cosmetic or substantive; if
-  substantive, flag as needs-async regardless of body purity.
+  Check (authoritative for existing code): look up the function's
+  dotted name (`ClassName.method` or bare `function_name`) in the Step
+  1 symbol registry from `tests/test_patches.py`. If absent, the
+  function is NOT an existing tracked override — a change to it does
+  not force port-required on its own. Only if the symbol IS in the
+  registry AND the change is substantive (signature, call graph,
+  control flow), flag as needs-async.
+
+  Registry entry shapes — be strict:
+
+  - `ClassName.method_name` — only that specific method is mirrored.
+  - Bare function name — that module-level function is mirrored.
+  - Bare class name (e.g. `URLLib3Session` alone) — the class source
+    is hashed, but it does NOT mean every method is mirrored. A change
+    to a method like `URLLib3Session._get_pool_manager_kwargs` is
+    port-required ONLY if that specific dotted form is listed.
+
+  Do not generalize class-level presence to method-level. Do not infer
+  overrides from file-mirror existence.
+
+  **New functions** (not in registry): the registry lags behind — a
+  newly added botocore function won't be listed yet. Classify on I/O
+  signals in the new body: blocking primitives, calls to something
+  aiobotocore already overrides (e.g. `self._emit(...)` where
+  `HierarchicalEmitter.emit` is registered — aiobotocore's override is
+  async, so the new caller must be awaited-in-async too), instantiation
+  of a registered class where the constructor is async, etc. A new
+  function can be needs-async even though it isn't in the registry.
+
+  **Call-graph back-track**: if any function in the diff is classified
+  needs-async, scan the diff and the existing registry for callers.
+  Any caller that's already a registered override must be flagged as
+  port-required too — once aiobotocore mirrors the callee as `async
+  def`, callers need to `await` it, which is a signature change on the
+  caller's side.
 
   Three examples:
   - **needs-async**: `get_client_args` gains a `s3_disable_express_session_auth` parameter in
