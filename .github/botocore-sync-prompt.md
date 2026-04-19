@@ -284,16 +284,16 @@ If you encounter ambiguities or design decisions where multiple valid approaches
 feedback instead of guessing.
 
 1. For each changed/new function needing porting:
-   a. Diff old vs new botocore source.
-   b. Find corresponding `aiobotocore/*.py` file.
-   c. Port changes following the patterns:
-   - Subclass with `Aio` prefix
-   - Override sync methods as async
-   - Use `resolve_awaitable()` for mixed callbacks
-   - Register async components at session init
-   - Keep method signatures identical
-   - Keep diffs from botocore minimal
-   d. Update hashes in `test_patches.py`.
+    1. Diff old vs new botocore source.
+    2. Find corresponding `aiobotocore/*.py` file.
+    3. Port changes following these patterns:
+       - Subclass with `Aio` prefix
+       - Override sync methods as async
+       - Use `resolve_awaitable()` for mixed callbacks
+       - Register async components at session init
+       - Keep method signatures identical
+       - Keep diffs from botocore minimal
+    4. Update hashes in `test_patches.py`.
 2. Port relevant botocore tests to `tests/botocore_tests/`. Follow existing patterns:
    - `async def test_*()` (no pytest.mark.asyncio)
    - Use `AioSession`, `StubbedSession`
