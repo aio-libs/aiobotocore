@@ -293,9 +293,9 @@ Run `uv run pytest tests/test_patches.py -x -v`. Fix remaining failures. Repeat 
 
 **For port PRs only** — run `/aiobotocore-bot:pyright-delta`. It creates an isolated worktree at
 `origin/main`, runs pyright there for the baseline, removes the worktree, then runs pyright with your
-current changes and reports new errors restricted to files you touched. aiobotocore has a long-standing baseline of pyright errors (intentional async-overriding-sync
-patterns and legacy type gaps), so absolute counts don't matter — we only care about drift in the files you
-changed.
+current changes and reports new errors restricted to files you touched. aiobotocore has a long-standing
+baseline of pyright errors (intentional async-overriding-sync patterns and legacy type gaps), so
+absolute counts don't matter — we only care about drift in the files you changed.
 
 If all tests pass and no new pyright errors appeared in touched files, go to Step 7. If tests fail or new pyright
 errors appeared and you cannot resolve them, go to Step 6b to save progress.
