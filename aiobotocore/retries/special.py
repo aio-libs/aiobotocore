@@ -2,8 +2,24 @@ from botocore.retries.special import RetryDDBChecksumError, crc32, logger
 
 
 class AioRetryDDBChecksumError(RetryDDBChecksumError):
+    """Async retry handler for DynamoDB CRC32 checksum errors."""
+
     async def is_retryable(self, context):
-        service_name = context.operation_model.service_model.service_name
+        """Check if the request should be retried due to DynamoDB CRC32 mismatch.
+
+        Args:
+            context: The HTTP response context.
+
+        Returns:
+            True if the CRC32 checksum failed and request should be retried.
+        """
+        operation_model = context.operation_model
+        if operation_model is None:
+            return False
+        service_model = operation_model.service_model
+        if service_model is None:
+            return False
+        service_name = service_model.service_name
         if service_name != self._SERVICE_NAME:
             return False
         if context.http_response is None:
@@ -20,3 +36,4 @@ class AioRetryDDBChecksumError(RetryDDBChecksumError):
                 actual_crc32,
             )
             return True
+        return False
