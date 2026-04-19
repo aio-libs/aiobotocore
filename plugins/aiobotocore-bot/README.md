@@ -41,6 +41,17 @@ design; this README only covers the plugin itself.
   — end-of-run cleanup: post summary reply to the right target (inline
   thread vs top-level PR comment vs issue comment) and swap 👀→👍.
 
+## Evals
+
+Narrow LLM-driven evals for the slash commands live in `evals/`. Each one
+replays the command against labeled ground truth and asserts the output
+matches, run N times with majority vote to tolerate non-determinism.
+
+- `evals/check_async_need.py` — replays the async-need classifier against
+  historical botocore sync PRs (title tells us the correct verdict).
+
+See `evals/README.md` for setup and usage.
+
 ## Design notes
 
 - **Sequential, not parallel.** Our review launches steps in the main
