@@ -118,6 +118,24 @@ One would think we could just write enough unittests to catch all cases, however
 Until we can perform ALL unittests from new releases of botocore, we are stuck with the patches.
 
 
+AI Automation
+-------------
+This repository uses two Claude-driven GitHub Actions workflows to
+automate PR review and botocore upgrades:
+
+* ``.github/workflows/claude.yml`` — reviews every non-draft PR on
+  open/push, responds to ``@claude`` mentions from project members,
+  and implements ``@claude``-tagged issues.
+* ``.github/workflows/botocore-sync.yml`` — runs every three days,
+  detects new botocore releases, and opens a PR (or a feedback issue
+  for complex bumps).
+
+Full details — triggers, prompts, slash commands, guardrails, cost
+tracking, and how to extend the system — are documented in
+`docs/ai-workflows.md <https://github.com/aio-libs/aiobotocore/blob/main/docs/ai-workflows.md>`_.
+Contributors who just want to use the bot (for example, ``@claude`` a
+question on their PR) can jump to the "Using the bot" section there.
+
 The Future
 ----------
 The long term goal is that botocore will implement async functionality directly.
