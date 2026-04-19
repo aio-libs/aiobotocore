@@ -1,0 +1,68 @@
+---
+allowed-tools: Bash(uv lock:*), Bash(date:*), Bash(cat:*), Bash(grep:*), Bash(sed:*), mcp__github_file_ops__commit_files
+description: Update pyproject.toml bounds, aiobotocore/__init__.py, and CHANGES.rst for a relax or bump
+---
+
+Apply the mechanical version+changelog+pyproject changes for a botocore sync. Use this instead of
+hand-editing each file — the `^` underline length rule and `uv lock` step are both easy to miss.
+
+## Arguments
+
+- `--mode=relax|bump` (required)
+- `--target=<version>` (required): the target botocore version, e.g. `1.42.89`
+- `--changelog=<text>` (optional): custom CHANGES.rst bullet. Default for relax is
+  `relax botocore dependency specification to support "botocore >= <lower>, < <upper>"`;
+  default for bump is `bump botocore dependency specification` with the same range.
+- `--extra-changelog=<text>` (optional): additional bullets appended under the same version entry
+
+## Step 1: Determine new version
+
+Read `aiobotocore/__init__.py` to get the current `__version__`. Compute the new version:
+
+- `--mode=relax` → bump PATCH: `3.4.1 → 3.4.2`
+- `--mode=bump` → bump MINOR, reset patch: `3.4.1 → 3.5.0`
+
+## Step 2: Update pyproject.toml bounds
+
+- Locate the botocore dependency line (e.g. `botocore >= 1.42.79, < 1.42.90`).
+- New upper bound is always one patch above `--target`: if target is `1.42.89`, upper is `< 1.42.90`.
+- `--mode=relax`: keep the lower bound unchanged, update the upper bound.
+- `--mode=bump`: set lower bound to `--target`, set upper bound as above.
+- Do the same for the `boto3` dependency line if it's pinned (same range).
+
+## Step 3: Update aiobotocore/**init**.py
+
+Replace `__version__ = "<old>"` with `__version__ = "<new>"`.
+
+## Step 4: Update CHANGES.rst
+
+Insert a new entry at the top with today's date (`date +%Y-%m-%d`). **The `^` underline MUST match
+the header length exactly** — miscounts break Sphinx rendering:
+
+```text
+X.Y.Z (YYYY-MM-DD)
+^^^^^^^^^^^^^^^^^^
+* <default or --changelog>
+* <each --extra-changelog entry, if any>
+```
+
+Count characters in the header line (including the parenthesized date) and emit that many `^`
+characters. Do not eyeball the length.
+
+## Step 5: Run uv lock
+
+```text
+uv lock
+```
+
+This updates `uv.lock` to reflect the new constraints.
+
+## Step 6: Output
+
+Print the new version. The caller is responsible for committing (via
+`mcp__github_file_ops__commit_files`) — this command only mutates files.
+
+## Honesty
+
+If the current version in `aiobotocore/__init__.py` cannot be parsed, or the `^` count would not
+match, abort with an explicit error. Don't silently produce a broken CHANGES.rst.

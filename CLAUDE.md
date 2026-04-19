@@ -44,13 +44,32 @@ uv run pytest -sv tests/test_patches.py  # hash validation
 When making code changes (bug fixes, features, enhancements), always:
 
 1. Bump the version in `aiobotocore/__init__.py` (patch for fixes, minor for features)
-2. Add an entry at the top of `CHANGES.rst` with the new version, date, and description
+2. Add an entry at the top of `CHANGES.rst` with the new version, date, and description.
+   The `^` underline under the header line must match the header length exactly — miscounts
+   break Sphinx rendering.
 
 # Overriding botocore code
 
 When adding or modifying an override, update `tests/test_patches.py` with the SHA1 hash of the
 overridden botocore function. See the existing entries and `CONTRIBUTING.rst` "Hashes of Botocore
 Code" for details.
+
+# AI workflow conventions
+
+These rules apply to the Claude-driven GitHub Actions workflows (`.github/*-prompt.md`). They do
+not apply to humans editing the repo directly.
+
+- **Signed commits via MCP:** workflow runs must use `mcp__github_file_ops__commit_files` for
+  every commit. It creates signed commits attributed to `claude[bot]`; plain `git commit`
+  produces unsigned commits that block PR merges.
+- **Branches:** always use the `claude/` prefix for branches created by the bot. Never push to
+  `main` — it is protected.
+- **Pre-commit setup:** before committing, run `uv run pre-commit install` once, then
+  `uv run pre-commit run --all --show-diff-on-failure` before pushing. If pre-commit modifies
+  files, stage them and commit again (as a new commit — do not amend).
+- **Fork PRs are read-only:** when `IS_FORK` is true, never push commits. Review comments only.
+- **No `--amend`, no force-push to `main`:** the workflows never rewrite history. Every fix is
+  a new commit on top of the branch's HEAD.
 
 # Key documentation
 
