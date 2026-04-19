@@ -602,9 +602,14 @@ scenarios:
   - botocore/httpchecksum.py
   - botocore/utils.py
   rationale: |
-    Port required: botocore added new function(s) in __init__.py, httpchecksum.py, utils.py —
-    __init__, update, digest (+12 more). aiobotocore needed matching async overrides (or to
-    delegate through existing overrides).
+    Port required: botocore's `_apply_request_trailer_checksum` had a substantive body change
+    (not a cosmetic edit) — the internal `_register_checksum_algorithm_feature_id(algorithm)`
+    call was removed and the registration relocated to a new `_register_checksum_feature_ids`
+    helper that callers now invoke separately. aiobotocore overrides
+    `_apply_request_trailer_checksum` at aiobotocore/httpchecksum.py:259, so the override must
+    mirror the behavior shift or feature-ID registration silently diverges between sync and
+    async clients. New Crt checksum classes were also added but those are additive and don't
+    drive the port on their own.
   notes: null
 
 - pr: 1485
