@@ -1,7 +1,7 @@
 ---
 description: Use when porting botocore tests to aiobotocore (during a port-required sync, or when backfilling historical test coverage). Converts sync test files under `botocore/tests/...` to their async counterparts under `tests/botocore_tests/...`, validates each port with `pytest -x`, commits on pass, reverts on fail. Handles both new/changed tests from a botocore diff AND backfill of relevant-but-not-yet-ported tests.
 argument-hint: "[--from=<version>] [--to=<version>] [--backfill] [--paths=<file1,file2,...>] [--dry-run]"
-allowed-tools: Bash(git -C /tmp/botocore:*) Bash(git checkout:*) Bash(uv run pytest:*) Bash(uv run python:*) Bash(ls:*) Bash(find:*) Bash(cat:*) Bash(diff:*) Bash(cp:*) mcp__github_file_ops__commit_files
+allowed-tools: Bash(git -C /tmp/botocore:*) Bash(git checkout:*) Bash(rm tests/botocore_tests/:*) Bash(uv run pytest:*) Bash(uv run python:*) Bash(ls:*) Bash(find:*) Bash(cat:*) Bash(diff:*) Bash(cp:*) mcp__github_file_ops__commit_files
 ---
 
 Port botocore tests to aiobotocore. Two driving scenarios:
@@ -42,9 +42,27 @@ The modes are mutually exclusive: pass `--from/--to` OR `--backfill`, not both.
 git -C $BOTOCORE_CLONE diff --name-only $FROM..$TO -- 'botocore/tests/**/test_*.py'
 ```
 
-Filter to files with an aiobotocore mirror — `tests/botocore_tests/<unit|functional>/<same-name>`
-must exist. Files without a mirror are out of scope (we haven't ported that file at all; adding
-a new mirror is a separate decision).
+For each changed file, decide whether it's in scope via this order:
+
+1. **Existing mirror** at `tests/botocore_tests/<unit|functional>/<same-name>` → in scope,
+   port new/changed tests into that mirror.
+2. **No mirror, but the file exercises a tracked aiobotocore override** → in scope, CREATE
+   a new mirror file. A file exercises a tracked override when:
+   - Its new/changed tests reference a symbol in the `overrides` registry (any form:
+     `ClassName.method`, bare function, or bare class), OR
+   - Its new/changed tests construct a class whose `AioX` counterpart is in the
+     `aio_classes` registry, OR
+   - Its new/changed tests exercise behavior that aiobotocore's subclass inherits or
+     modifies (e.g. a botocore class-method test where `AioX` subclasses `X` — the test
+     validates inherited behavior of the aiobotocore subclass too).
+3. **No mirror, no tracked-override reference** → out of scope (adding a new mirror file
+   with no connection to aiobotocore's surface is a human decision, not a mechanical
+   port).
+
+When creating a new mirror file (case 2), bring only the test functions + their direct
+dependencies (module-level constants, imported helpers used in the port body). Do NOT copy
+the whole botocore file — that drags in fixtures and tests the aiobotocore surface doesn't
+exercise.
 
 **Backfill mode:**
 
@@ -53,7 +71,7 @@ find tests/botocore_tests -name 'test_*.py' -type f
 ```
 
 For each aiobotocore test file, identify its botocore counterpart. Use that file pair as the
-scope.
+scope. Backfill mode does not create new mirror files — it only fills gaps in existing ones.
 
 ## Step 2: Extract candidate test functions
 
@@ -180,10 +198,12 @@ For each successfully converted file:
    first failure; `-v` surfaces the failing test name; `-s` shows prints for debugging.
 3. **If pytest passes**: the file is ready to commit via `mcp__github_file_ops__commit_files`
    (the caller handles the actual commit batching).
-4. **If pytest fails**: revert the file to its pre-port state with
-   `git checkout -- <path>`. (Step 1 restricts us to files with an existing aiobotocore
-   mirror, so the target file always exists on disk — no new-file case to handle.) Emit
-   an advisory block describing which test(s) failed and which conversion rules were
+4. **If pytest fails**: revert the local change. If the mirror file existed before
+   (case 1 in Step 1), `git checkout -- <path>` restores it. If we created a new mirror
+   file (case 2 in Step 1), delete it with `rm tests/botocore_tests/<unit|functional>/<name>.py`
+   — there's no prior content to restore. (The `allowed-tools` entry scopes `rm` to
+   `tests/botocore_tests/` only; any other path requires human approval. Respect that.)
+   Emit an advisory block describing which test(s) failed and which conversion rules were
    applied; the human reviewer can pick up from there.
 
 ## Step 5: Output report
@@ -201,7 +221,8 @@ Emit a structured report:
 
 ### Skipped (out of scope)
 - botocore/tests/unit/test_awsrequest.py
-  - Reason: no aiobotocore mirror at tests/botocore_tests/unit/test_awsrequest.py
+  - Reason: no existing aiobotocore mirror, and the new tests don't reference any
+    symbol in `overrides` / `aio_classes` — nothing for aiobotocore to exercise.
 
 ### Failed — needs human review
 - tests/botocore_tests/unit/test_signers.py
