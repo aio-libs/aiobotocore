@@ -121,8 +121,19 @@ jobs:
         python-version: '3.12'
         enable-cache: auto
 
+    # Cache .venv — setup-uv covers the download cache (wheels) but
+    # `uv sync` still walks the lockfile and re-links the venv. Keyed
+    # on uv.lock + pyproject.toml so any dep change invalidates.
+    - name: Cache .venv
+      # yamllint disable-line rule:line-length
+      uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5.0.4
+      with:
+        path: .venv
+        # yamllint disable-line rule:line-length
+        key: venv-${{ runner.os }}-py3.12-${{ hashFiles('uv.lock', 'pyproject.toml') }}
+
     - name: Install dependencies
-      run: uv sync
+      run: uv sync --frozen
 
     # Pre-install bun and hand its path to claude-code-action so the
     # action's bundled setup-bun step (which would otherwise resolve a
