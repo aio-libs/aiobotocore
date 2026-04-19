@@ -1,7 +1,7 @@
 ---
 description: Use when classifying a botocore version bump as no-port, port-required, or ambiguous. Diffs `$FROM..$TO` in a bare botocore clone, inspects every added/changed function in overridden files, and emits `CLASSIFICATION:` plus per-function reasons. Shared by the sync bot (to pick no-port vs port path) and the PR reviewer (to sanity-check sync-bot PRs).
 argument-hint: "--from=<version> --to=<version> [--aiobotocore-root=<path>] [--botocore-clone=<path>]"
-allowed-tools: Bash(git -C /tmp/botocore:*) Bash(find:*) Bash(sed:*) Bash(cat:*) Bash(test:*)
+allowed-tools: Bash(git -C /tmp/botocore:*) Bash(find:*) Bash(sed:*) Bash(cat:*) Bash(test:*) Bash(grep:*)
 ---
 
 <!--
@@ -29,15 +29,31 @@ historical override status.
 Assume the clone already exists and has both tags fetched. If it does not, return `error: botocore clone
 missing or tag unavailable` and stop — the caller is responsible for provisioning it.
 
-## Step 1: Enumerate overridden files
+## Step 1: Enumerate overridden files and symbols
 
-Use the filename-mirror convention: `botocore/<relpath>` is overridden iff
-`aiobotocore/<relpath>` exists. Must recurse into subdirectories — `aiobotocore/retries/*.py`
-mirrors `botocore/retries/*.py`, and those paths do get modified on syncs.
+Two registries matter:
 
-```text
-find "$AIOBOTOCORE_ROOT" -name '*.py' | sed "s|^$AIOBOTOCORE_ROOT/||"
-```
+1. **File mirror**: `botocore/<relpath>` is a candidate for override iff
+   `aiobotocore/<relpath>` exists. Must recurse into subdirectories —
+   `aiobotocore/retries/*.py` mirrors `botocore/retries/*.py`, and those
+   paths do get modified on syncs.
+
+   ```text
+   find "$AIOBOTOCORE_ROOT" -name '*.py' | sed "s|^$AIOBOTOCORE_ROOT/||"
+   ```
+
+2. **Symbol registry** (authoritative): `tests/test_patches.py` is the
+   source of truth for every botocore class/method/function aiobotocore
+   overrides. Each `pytest.mark.parametrize` entry pairs a symbol
+   reference (e.g. `ClientArgsCreator.get_client_args` or
+   `_apply_request_trailer_checksum`) with its SHA-1 hash. A function's
+   presence or absence in this file is the deterministic answer to "is
+   this overridden in aiobotocore?" — **do not infer override status
+   from file mirror alone**; a file may contain many functions and only
+   some are actually overridden.
+
+   Read `tests/test_patches.py` up front and keep the symbol set in
+   working memory for Step 3's check.
 
 Call this set `OVERRIDDEN`. Entries are relative paths like `client.py` or
 `retries/adaptive.py` — NOT basenames. Any changed botocore file whose
@@ -97,8 +113,13 @@ For each added/changed function, inspect the **new code** for these signals:
   not require a code port. They DO bust the hash in `tests/test_patches.py`, which needs a bump,
   but that's mechanical — not a classifier signal.
 
-  Check: for each changed function, (1) grep `aiobotocore/<mirror>.py` for `async def <same-name>`
-  or `def <same-name>`; (2) if found, determine whether the change is cosmetic or substantive. If
+  Check (authoritative): look up the function's dotted name
+  (`ClassName.method` or bare `function_name`) in the Step 1 symbol
+  registry from `tests/test_patches.py`. If absent, the function is NOT
+  overridden in aiobotocore — classify as `pure-sync` regardless of
+  I/O content in the botocore diff. A change to non-overridden code
+  does not require a port. Only if the symbol IS in the registry, then
+  determine whether the change is cosmetic or substantive; if
   substantive, flag as needs-async regardless of body purity.
 
   Three examples:

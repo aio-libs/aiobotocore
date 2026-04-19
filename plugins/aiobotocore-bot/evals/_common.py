@@ -8,6 +8,7 @@ the pieces they share so behavior can only change in one place.
 
 from __future__ import annotations
 
+import ast
 import asyncio
 import json
 import os
@@ -57,6 +58,40 @@ def overridden_paths() -> set[str]:
         p.relative_to(AIOBOTOCORE_DIR).as_posix()
         for p in AIOBOTOCORE_DIR.rglob("*.py")
     }
+
+
+TEST_PATCHES_PATH = REPO_ROOT / "tests/test_patches.py"
+
+
+def overridden_symbols() -> set[str]:
+    """Parse tests/test_patches.py and return the set of botocore symbols
+    aiobotocore overrides.
+
+    Each entry in the `test_patches` pytest.mark.parametrize body is
+    `(<symbol-reference>, {hashes})`. The symbol is either a bare name
+    (`_apply_request_trailer_checksum`) or an attribute chain
+    (`ClientArgsCreator.get_client_args`).
+
+    Returns a flat set containing both the full dotted name
+    (`ClientArgsCreator.get_client_args`) AND the tail component
+    (`get_client_args`) so name-only matches from diff hunks work too.
+    """
+    names: set[str] = set()
+    tree = ast.parse(TEST_PATCHES_PATH.read_text())
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Tuple) or len(node.elts) != 2:
+            continue
+        target = node.elts[0]
+        parts: list[str] = []
+        while isinstance(target, ast.Attribute):
+            parts.append(target.attr)
+            target = target.value
+        if isinstance(target, ast.Name):
+            parts.append(target.id)
+            parts.reverse()
+            names.add(".".join(parts))
+            names.add(parts[-1])
+    return names
 
 
 def decrement_patch(ver: str) -> str:

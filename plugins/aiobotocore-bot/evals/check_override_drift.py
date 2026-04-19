@@ -38,6 +38,7 @@ from _common import (
     invoke_and_parse,
     load_skill_body,
     new_client,
+    overridden_symbols,
     parse_scenarios_yaml,
     require_env,
     run_cases_concurrent,
@@ -86,7 +87,8 @@ def fetch_pr_diff(pr: int) -> str:
     )
 
 
-def build_user_message(case: Case, diff: str) -> str:
+def build_user_message(case: Case, diff: str, overrides: set[str]) -> str:
+    overrides_block = "\n".join(f"- {s}" for s in sorted(overrides))
     return (
         textwrap.dedent(
             """
@@ -99,6 +101,15 @@ def build_user_message(case: Case, diff: str) -> str:
         currently-pinned version; you can assume botocore is approximately at its
         latest stable release). For `aiobotocore/` files without a botocore mirror
         (e.g. httpxsession.py), mark the file as out-of-scope and skip.
+
+        ## Authoritative aiobotocore override registry
+
+        These are the botocore symbols aiobotocore overrides (from
+        `tests/test_patches.py`). Use this to distinguish a tracked
+        override that must mirror botocore from new aiobotocore-only
+        code that isn't under drift-check scope.
+
+        {overrides_block}
 
         Output format — strict:
 
@@ -113,7 +124,12 @@ def build_user_message(case: Case, diff: str) -> str:
         ```
         """,
         )
-        .format(pr=case.pr, title=case.title, diff=diff)
+        .format(
+            pr=case.pr,
+            title=case.title,
+            diff=diff,
+            overrides_block=overrides_block,
+        )
         .strip()
     )
 
@@ -140,6 +156,8 @@ async def main() -> int:
     require_env("ANTHROPIC_API_KEY")
 
     skill_body = load_skill_body(SKILL_PATH)
+    override_symbols = overridden_symbols()
+    print(f"Override symbols from test_patches.py: {len(override_symbols)}")
     cases = load_scenarios(SCENARIOS_PATH)
     if args.case:
         wanted = set(args.case)
@@ -165,7 +183,7 @@ async def main() -> int:
 
     async def invoke_one(case: Case) -> str:
         diff = diffs[case.pr]
-        user = build_user_message(case, diff)
+        user = build_user_message(case, diff, override_symbols)
         verdict, _raw = await invoke_and_parse(
             client,
             skill_body,

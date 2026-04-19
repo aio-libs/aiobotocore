@@ -46,6 +46,7 @@ from _common import (
     load_skill_body,
     new_client,
     overridden_paths,
+    overridden_symbols,
     parse_scenarios_yaml,
     require_env,
     run_cases_concurrent,
@@ -149,7 +150,8 @@ def compute_filtered_diff(case: Case, overridden: set[str]) -> str:
         ) from e
 
 
-def build_user_message(case: Case, diff: str) -> str:
+def build_user_message(case: Case, diff: str, overrides: set[str]) -> str:
+    overrides_block = "\n".join(f"- {s}" for s in sorted(overrides))
     return (
         textwrap.dedent(
             """
@@ -158,6 +160,18 @@ def build_user_message(case: Case, diff: str) -> str:
 
         The diff below is ALREADY FILTERED to changes in botocore files that have a
         mirror in aiobotocore/. Do NOT re-run git diff — use this content directly.
+
+        ## Authoritative aiobotocore override registry
+
+        These are the ONLY botocore symbols aiobotocore currently overrides
+        (from `tests/test_patches.py`, the source of truth). For a
+        changed function to drive a `port-required` verdict, its name or
+        dotted name MUST appear in this list. Do not assume overrides from
+        context — verify against this list.
+
+        {overrides_block}
+
+        ## Diff
 
         ```diff
         {diff}
@@ -172,7 +186,12 @@ def build_user_message(case: Case, diff: str) -> str:
            of your system prompt.
         """,
         )
-        .format(from_ver=case.from_ver, to_ver=case.to_ver, diff=diff)
+        .format(
+            from_ver=case.from_ver,
+            to_ver=case.to_ver,
+            diff=diff,
+            overrides_block=overrides_block,
+        )
         .strip()
     )
 
@@ -211,9 +230,11 @@ async def main() -> int:
 
     skill_body = load_skill_body(SKILL_PATH)
     overridden = overridden_paths()
+    override_symbols = overridden_symbols()
     print(
         f"Overridden files: {len(overridden)} ({', '.join(sorted(overridden)[:3])}, ...)"
     )
+    print(f"Override symbols from test_patches.py: {len(override_symbols)}")
 
     # Prefer the committed scenarios.yaml (faster, deterministic, has rationales).
     yaml_cases = load_scenarios_yaml(SCENARIOS_PATH)
@@ -250,7 +271,7 @@ async def main() -> int:
         diff = diffs[case.pr]
         if not diff.strip():
             return ("no-port", "")
-        user = build_user_message(case, diff)
+        user = build_user_message(case, diff, override_symbols)
         return await invoke_and_parse(
             client,
             skill_body,
