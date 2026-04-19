@@ -9,9 +9,11 @@ and the labels are reviewable artifacts in their own right.
 ```text
 evals/
 ├── README.md                  # this file
-├── scenarios.yaml             # committed ground truth (PR # → expected verdict + rationale)
-├── generate_scenarios.py      # stub generator: queries gh, writes YAML rows for humans to annotate
-└── check_async_need.py        # eval runner for /aiobotocore-bot:check-async-need
+├── scenarios.yaml             # ground truth for check-async-need (sync PRs)
+├── drift_scenarios.yaml       # ground truth for check-override-drift (any PR)
+├── generate_scenarios.py      # stub generator for scenarios.yaml
+├── check_async_need.py        # eval runner for /aiobotocore-bot:check-async-need
+└── check_override_drift.py    # eval runner for /aiobotocore-bot:check-override-drift
 ```
 
 ## One-time setup
@@ -120,3 +122,67 @@ Options:
 - Historical PRs merged with the wrong classification would poison the ground
   truth. Use `notes: historical mislabel, ...` on the affected row and
   exclude it via `--case` filtering if needed.
+
+## check_override_drift.py
+
+Replays `/aiobotocore-bot:check-override-drift` against labeled PRs in
+`drift_scenarios.yaml`. Expected verdicts are `clean` | `cosmetic-drift` |
+`behavioral-drift`.
+
+### Ground truth — drift_scenarios.yaml
+
+```yaml
+- pr: 1562
+  title: "fix: code review improvements for oldest files"
+  expected: behavioral-drift
+  rationale: |
+    Multiple behavioral changes not mirrored in botocore:
+    - _helpers.py isawaitable → hasattr(__await__) (non-equivalent)
+    - configprovider.py added IMDS logging not in botocore
+    - retries/adaptive.py added div-by-zero guard not in botocore
+  notes: |
+    PR was closed after review flagged the drift. Retained as an eval case.
+```
+
+Seed the file by hand. Good cases to include over time:
+
+- **Clean cases** — any well-executed bot sync port where the override
+  exactly mirrors botocore's change.
+- **Cosmetic-drift cases** — PRs that added docstrings/types/comments
+  without a botocore counterpart.
+- **Behavioral-drift cases** — PRs that changed override logic not
+  mirrored in botocore. PR #1562 is the canonical example.
+
+### Run
+
+```bash
+export ANTHROPIC_API_KEY=sk-...
+uv run --with anthropic python plugins/aiobotocore-bot/evals/check_override_drift.py \
+    --runs 3
+```
+
+Options:
+
+- `--runs N` — runs per case; majority vote decides pass/fail (default 3)
+- `--case N` — only evaluate specific PR number (repeatable)
+- `--model <id>` — Anthropic model ID (default `claude-opus-4-7`)
+- `--json-out <path>` — write per-run results as JSON
+
+### When to run
+
+- After editing `plugins/aiobotocore-bot/commands/check-override-drift.md`
+- Before merging changes to the drift criteria
+- When adding new legitimate-async-gap patterns to the "OK" list — make sure
+  clean cases still classify as clean.
+
+### Known limitations
+
+Same as `check_async_need.py` — LLM non-determinism mitigated via majority
+vote, only top-line verdict compared, no tool-orchestration coverage. Plus
+one drift-specific caveat:
+
+- The classifier is asked to reason about botocore source "from knowledge of
+  the currently-pinned version" rather than being shown botocore source
+  directly. This is a shortcut; a production-fidelity run would fetch the
+  matching botocore source and include it in the prompt. Good enough for
+  regression detection on known-labeled cases.

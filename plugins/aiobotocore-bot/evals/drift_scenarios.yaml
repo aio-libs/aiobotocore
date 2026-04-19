@@ -1,0 +1,30 @@
+---
+# Ground-truth labels for /aiobotocore-bot:check-override-drift eval.
+#
+# Each row is a historical PR against aiobotocore with a known expected verdict.
+# The drift check is independent of sync-bot flow — any PR touching
+# aiobotocore/*.py files with a botocore mirror is in scope.
+#
+# `expected` values: clean | cosmetic-drift | behavioral-drift
+#
+# Seed cases are intentionally small. Add more as we do the PR archaeology
+# pass for scenarios.yaml (some sync PRs also make good drift cases — a
+# well-executed port should be `clean`).
+scenarios:
+- pr: 1562
+  title: "fix: code review improvements for oldest files"
+  expected: behavioral-drift
+  rationale: |
+    Multiple behavioral changes not mirrored in botocore:
+    - aiobotocore/_helpers.py: inspect.isawaitable(obj) → hasattr(obj, '__await__'),
+      different semantics for some awaitable types.
+    - aiobotocore/configprovider.py: added logger.warning on IMDS failure that
+      botocore doesn't log.
+    - aiobotocore/retries/adaptive.py: added division-by-zero guard not in
+      botocore's version.
+    Plus a pile of cosmetic drift (docstrings, type hints) none of which are
+    async-explained. This is the canonical example the check was designed to
+    catch.
+  notes: |
+    PR was closed after initial review flagged the drift issue. Do not
+    reopen — kept as an eval case for the pattern.

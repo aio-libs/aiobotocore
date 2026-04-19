@@ -121,13 +121,21 @@ injection via drive-by comments from untrusted accounts.
 `claude-review-prompt.md` branches on `$EVENT_NAME`:
 
 - `pull_request` → run `/aiobotocore-bot:review-pr --comment` (sequential,
-  cache-friendly code review with ≥80 confidence threshold).
+  cache-friendly code review with ≥80 confidence threshold). `review-pr`
+  internally calls `/aiobotocore-bot:check-override-drift` for any PR
+  touching `aiobotocore/*.py` files with a botocore mirror, and
+  `/aiobotocore-bot:check-async-need` as a sanity check on sync-bot PRs.
   Additionally, if the PR is authored by `claude[bot]`, run
   `/aiobotocore-bot:analyze-pr-feedback` to address reviewer threads.
 - `issue_comment`, `pull_request_review_comment`,
-  `pull_request_review` → fetch the triggering comment, call
-  `/aiobotocore-bot:analyze-pr-feedback --focus=$COMMENT_ID`, and act per the
-  three-outcome rule (already-fixed / fix-now / ask-clarification).
+  `pull_request_review` → first apply the **"Should this run do anything?"**
+  gate: for comment events, require a literal `@claude` mention from a
+  trusted author; for `pull_request_review`, require either an `@claude`
+  mention **or** `CHANGES_REQUESTED` on a bot-authored PR. Anything else
+  (APPROVED reviews, plain COMMENTED without `@claude`) exits cleanly
+  without posting. If the gate passes, fetch the triggering comment, call
+  `/aiobotocore-bot:analyze-pr-feedback --focus=$COMMENT_ID`, and act per
+  the three-outcome rule (already-fixed / fix-now / ask-clarification).
 - `issues` → implement the issue: create a `claude/`-prefixed
   branch, push signed commits, open a PR.
 
@@ -289,7 +297,7 @@ the repo so maintainers can iterate on them alongside the prompts.
 
 | Command | Purpose |
 |-|-|
-| `/aiobotocore-bot:review-pr [--comment]` | Sequential (not parallel) PR review. Checks CLAUDE.md compliance, bugs in the diff, async patterns, and port-vs-no-port sanity for sync-bot PRs. Scores each finding 0–100 and filters < 80. With `--comment`, posts inline review comments via `mcp__github_inline_comment__create_inline_comment`. |
+| `/aiobotocore-bot:review-pr [--comment]` | Sequential (not parallel) PR review. Checks CLAUDE.md compliance, bugs in the diff, async patterns, override drift (unmatched changes vs matching botocore), and port-vs-no-port sanity for sync-bot PRs. Scores each finding 0–100 and filters < 80. With `--comment`, posts inline review comments via `mcp__github_inline_comment__create_inline_comment`. |
 | `/aiobotocore-bot:analyze-pr-feedback [--focus=<id>] [--resolve]` | Fetch every review thread + top-level comment (including resolved) and synthesize into three buckets: *what was asked*, *what was done*, *what's still outstanding*. Act on bucket C with the three-outcome rule. Optionally resolve threads after posting a "fixed" reply. |
 | `/aiobotocore-bot:check-async-need --from=<ver> --to=<ver>` | Classify new/changed functions in overridden botocore files as `no-port`, `port-required`, or `ambiguous`. Single source of truth for the port-vs-no-port decision. Used by both the sync bot and the PR reviewer. |
 | `/aiobotocore-bot:check-override-drift --pr=<number>` | Flag unmatched behavioral changes or cosmetic additions to overridden code. Principle: unmatched behavioral changes should be avoided; legitimate async gaps are OK. Used by the reviewer on any PR touching `aiobotocore/*.py` files with a botocore mirror. |
