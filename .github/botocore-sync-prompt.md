@@ -129,12 +129,15 @@ Check with:
 # Current HEAD of the PR
 HEAD_SHA=$(gh pr view PR_NUM --json headRefOid --jq '.headRefOid')
 
-# Non-bot commits newer than the last bot commit
+# Non-bot commits newer than the last bot commit.
+# If there are zero bot commits (a human-only PR), last | .committedDate
+# null-derefs — guard with `if length == 0` and use an epoch-0 sentinel
+# so every commit counts as "newer than last bot".
 gh pr view PR_NUM --json commits --jq '
   (.commits | map(select(
     .authors[0].login == "github-actions[bot]" or
     .authors[0].login == "claude[bot]"
-  )) | last.committedDate) as $last_bot
+  )) | if length == 0 then "1970-01-01T00:00:00Z" else last.committedDate end) as $last_bot
   | [.commits[] | select(
       .authors[0].login != "github-actions[bot]" and
       .authors[0].login != "claude[bot]" and

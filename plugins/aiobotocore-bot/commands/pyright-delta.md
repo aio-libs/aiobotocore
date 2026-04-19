@@ -20,10 +20,19 @@ state just before the MCP commit step runs. Worktrees sidestep that class of fai
 - `--touched-files=<file1,file2,...>` (optional): restrict the delta report to these files. If
   omitted, derived from `git diff --name-only <base>`.
 
-## Step 1: Resolve touched files
+## Step 1: Resolve arguments
+
+Bind the args (or their defaults) into shell variables used by later steps:
 
 ```text
-git diff --name-only $BASE
+PYRIGHT_PATH="${PATH_ARG:-aiobotocore/}"   # --path value
+BASE="${BASE_ARG:-origin/main}"            # --base value
+```
+
+Then resolve touched files:
+
+```text
+git diff --name-only "$BASE"
 ```
 
 Call this `TOUCHED`. If `--touched-files` is set, use it instead. If the result is empty, return
