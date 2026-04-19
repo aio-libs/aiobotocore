@@ -284,6 +284,12 @@ feedback instead of guessing.
    is `CONTRIBUTING.rst` §"How to Upgrade Botocore" step 4.
 4. Run `/aiobotocore-bot:bump-version --mode=port --target=$LATEST_BOTOCORE`. The skill updates both
    `pyproject.toml` bounds, bumps MINOR version, writes the `CHANGES.rst` entry, and runs `uv lock`.
+5. Run `/aiobotocore-bot:port-tests --from=$LAST_SUPPORTED --to=$LATEST_BOTOCORE`. The skill identifies
+   new/changed tests in the botocore diff for files that have an aiobotocore mirror, applies the
+   sync→async conversion rules, validates each ported file with `pytest -x`, and commits on pass.
+   Files that fail validation are reverted and listed in the skill's report for human review.
+   Include the skill's report in the port PR's "What changed in aiobotocore" section so the
+   reviewer can see both successfully-ported tests and anything that needs manual attention.
 
 ### test_patches.py scenarios
 
@@ -387,6 +393,9 @@ Create or update the final PR via `/aiobotocore-bot:open-pr`:
 - `--mode=sync-no-port` or `--mode=sync-port`
 - `--botocore-diff-url=https://github.com/boto/botocore/compare/OLD...NEW`
 - `--async-need-summary="<the summary from /aiobotocore-bot:check-async-need>"` (no-port only)
+- `--classifier-verdicts="<the per-function rationale block from /aiobotocore-bot:check-async-need>"`
+  (both modes — `open-pr` renders this as a markdown table so the human reviewer can spot-check
+  each function's verdict and reason without re-running the classifier)
 - `--changed-aiobotocore="<files/classes/tests for port, or 'Version bounds updated only, no code changes.' for no-port>"`
 - `--assumptions="<design decisions>"` (port only, if any)
 
