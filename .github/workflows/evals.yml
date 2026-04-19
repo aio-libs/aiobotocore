@@ -47,6 +47,11 @@ on:
         required: false
         default: '8'
         type: string
+      cases:
+        description: Comma-separated PR numbers to evaluate (empty = use limit)
+        required: false
+        default: ''
+        type: string
 
 jobs:
   check-async-need:
@@ -62,6 +67,7 @@ jobs:
     env:
       EVAL_RUNS: ${{ inputs.runs || '3' }}
       EVAL_LIMIT: ${{ inputs.limit || '8' }}
+      EVAL_CASES: ${{ inputs.cases || '' }}
     steps:
     - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
       with:
@@ -112,9 +118,15 @@ jobs:
         ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         BOTOCORE_CLONE: /tmp/botocore
       run: |
+        case_args=()
+        if [ -n "$EVAL_CASES" ]; then
+          IFS=',' read -ra arr <<< "$EVAL_CASES"
+          for n in "${arr[@]}"; do case_args+=(--case "${n// /}"); done
+        fi
         uv run python plugins/aiobotocore-bot/evals/check_async_need.py \
           --runs "$EVAL_RUNS" \
           --limit "$EVAL_LIMIT" \
+          "${case_args[@]}" \
           --json-out /tmp/async-need-results.json \
           | tee /tmp/async-need-stdout.txt
 

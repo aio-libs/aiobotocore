@@ -246,19 +246,18 @@ async def main() -> int:
 
     runnable = [c for c in cases if c.pr in diffs]
 
-    async def invoke_one(case: Case) -> str:
+    async def invoke_one(case: Case) -> tuple[str, str]:
         diff = diffs[case.pr]
         if not diff.strip():
-            return "no-port"
+            return ("no-port", "")
         user = build_user_message(case, diff)
-        verdict, _raw = await invoke_and_parse(
+        return await invoke_and_parse(
             client,
             skill_body,
             user,
             args.model,
             VERDICT_RE,
         )
-        return verdict
 
     per_case_verdicts = await run_cases_concurrent(
         runnable, args.runs, invoke_one
@@ -269,7 +268,9 @@ async def main() -> int:
     # zip without strict= for Python 3.9 compat; lengths are equal by
     # construction (per_case_verdicts is gathered over runnable).
     assert len(runnable) == len(per_case_verdicts)
-    for case, verdicts in zip(runnable, per_case_verdicts):
+    for case, pairs in zip(runnable, per_case_verdicts):
+        verdicts = [v for v, _ in pairs]
+        rationales = [r for _, r in pairs]
         print(f"\n#{case.pr} [{case.expected}] {case.title}")
         print(
             f"  from={case.from_ver} to={case.to_ver} diff={diffs[case.pr].count(chr(10))} lines"
@@ -288,6 +289,7 @@ async def main() -> int:
             "to": case.to_ver,
             "expected": case.expected,
             "verdicts": verdicts,
+            "rationales": rationales,
             "majority": majority,
             "passed": passed,
         }
