@@ -15,7 +15,7 @@ from unittest.mock import patch
 import _common
 
 
-def test_load_command_body_strips_frontmatter(tmp_path: Path) -> None:
+def test_load_skill_body_strips_frontmatter(tmp_path: Path) -> None:
     p = tmp_path / "cmd.md"
     p.write_text(
         "---\n"
@@ -25,13 +25,13 @@ def test_load_command_body_strips_frontmatter(tmp_path: Path) -> None:
         "\n"
         "Body content here.\n",
     )
-    assert _common.load_command_body(p) == "Body content here."
+    assert _common.load_skill_body(p) == "Body content here."
 
 
-def test_load_command_body_no_frontmatter(tmp_path: Path) -> None:
+def test_load_skill_body_no_frontmatter(tmp_path: Path) -> None:
     p = tmp_path / "cmd.md"
     p.write_text("Plain body.\n")
-    assert _common.load_command_body(p) == "Plain body.\n"
+    assert _common.load_skill_body(p) == "Plain body.\n"
 
 
 def test_decrement_patch() -> None:

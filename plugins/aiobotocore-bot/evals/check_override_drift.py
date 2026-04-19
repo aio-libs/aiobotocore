@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Evaluate /aiobotocore-bot:check-override-drift against labeled historical PRs.
+"""Evaluate the check-override-drift skill against labeled historical PRs.
 
 Reads drift_scenarios.yaml, fetches each PR's diff via gh, invokes Claude with
-the check-override-drift command as system prompt, and compares the top-line
+the check-override-drift skill as system prompt, and compares the top-line
 verdict (`clean` | `cosmetic-drift` | `behavioral-drift`) against the label.
 
 Pre-computed inputs skip the command's tool-orchestration layer so the eval
@@ -36,15 +36,15 @@ from _common import (
     DEFAULT_MODEL,
     REPO_ROOT,
     invoke_and_parse,
-    load_command_body,
+    load_skill_body,
     new_client,
     parse_scenarios_yaml,
     require_env,
     run_cases_concurrent,
 )
 
-COMMAND_PATH = (
-    REPO_ROOT / "plugins/aiobotocore-bot/commands/check-override-drift.md"
+SKILL_PATH = (
+    REPO_ROOT / "plugins/aiobotocore-bot/skills/check-override-drift/SKILL.md"
 )
 SCENARIOS_PATH = (
     REPO_ROOT / "plugins/aiobotocore-bot/evals/drift_scenarios.yaml"
@@ -139,7 +139,7 @@ async def main() -> int:
 
     require_env("ANTHROPIC_API_KEY")
 
-    command_body = load_command_body(COMMAND_PATH)
+    skill_body = load_skill_body(SKILL_PATH)
     cases = load_scenarios(SCENARIOS_PATH)
     if args.case:
         wanted = set(args.case)
@@ -168,7 +168,7 @@ async def main() -> int:
         user = build_user_message(case, diff)
         verdict, _raw = await invoke_and_parse(
             client,
-            command_body,
+            skill_body,
             user,
             args.model,
             VERDICT_RE,

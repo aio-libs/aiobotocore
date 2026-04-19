@@ -1,7 +1,7 @@
 """Shared helpers for the plugin evals.
 
 The three eval scripts (check_async_need.py, check_override_drift.py,
-generate_scenarios.py) all load command bodies, parse a narrow YAML schema,
+generate_scenarios.py) all load skill bodies, parse a narrow YAML schema,
 run the Anthropic client, and consolidate verdicts. This module centralizes
 the pieces they share so behavior can only change in one place.
 """
@@ -38,7 +38,7 @@ def require_env(name: str) -> None:
         sys.exit(2)
 
 
-def load_command_body(path: Path) -> str:
+def load_skill_body(path: Path) -> str:
     """Strip YAML frontmatter and return the Markdown body."""
     text = path.read_text()
     if text.startswith("---"):

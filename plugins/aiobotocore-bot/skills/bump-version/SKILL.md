@@ -1,6 +1,7 @@
 ---
-allowed-tools: Bash(uv lock:*), Bash(date:*), Bash(cat:*), Bash(grep:*), Bash(sed:*), Bash(printf:*), Bash(wc:*), Bash(seq:*), Bash(tr:*), mcp__github_file_ops__commit_files
-description: Update pyproject.toml bounds, aiobotocore/__init__.py, and CHANGES.rst for a no-port or port sync
+description: Use when applying the mechanical version + CHANGES.rst + pyproject.toml + uv.lock updates for a botocore sync (no-port = patch bump; port = minor bump, lower bound moves). Handles the Sphinx `^`-underline exact-length rule and drives `uv lock`. Caller commits the result.
+argument-hint: "--mode=no-port|port --target=<version> [--changelog=<text>] [--extra-changelog=<text>]"
+allowed-tools: Bash(uv lock:*) Bash(date:*) Bash(cat:*) Bash(grep:*) Bash(sed:*) Bash(printf:*) Bash(wc:*) Bash(seq:*) Bash(tr:*) mcp__github_file_ops__commit_files
 ---
 
 Apply the mechanical version+changelog+pyproject changes for a botocore sync. Use this instead of
@@ -70,7 +71,7 @@ This updates `uv.lock` to reflect the new constraints.
 ## Step 6: Output
 
 Print the new version. The caller is responsible for committing (via
-`mcp__github_file_ops__commit_files`) — this command only mutates files.
+`mcp__github_file_ops__commit_files`) — this skill only mutates files.
 
 ## Honesty
 

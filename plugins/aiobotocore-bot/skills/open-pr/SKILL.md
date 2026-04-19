@@ -1,6 +1,7 @@
 ---
-allowed-tools: Bash(cat:*), Bash(git diff:*), Bash(gh pr create:*), Bash(gh pr edit:*), Bash(gh pr view:*), mcp__github_file_ops__commit_files
-description: Open or update a PR against main using the repo template, with optional sync-PR structure
+description: Use when opening or updating an aiobotocore PR against main. Re-reads `.github/pull_request_template.md` each run (authoritative), fills placeholders, verifies each ticked checklist box against the diff, and appends mode-specific sections for `generic`, `sync-no-port`, or `sync-port` PRs.
+argument-hint: "--title=TITLE [--mode=generic|sync-no-port|sync-port] [--description=TEXT] [--botocore-diff-url=URL] [--async-need-summary=TEXT] [--assumptions=TEXT] [--changed-aiobotocore=TEXT] [--extra-sections=TEXT] [--update-only]"
+allowed-tools: Bash(cat:*) Bash(git diff:*) Bash(gh pr create:*) Bash(gh pr edit:*) Bash(gh pr view:*) mcp__github_file_ops__commit_files
 ---
 
 Create or update a pull request whose body follows `.github/pull_request_template.md`, with
@@ -17,8 +18,8 @@ so template changes flow through automatically and checklist-verification stays 
   from the other fields): one or two paragraphs for the "Description of Change" slot.
 - `--botocore-diff-url=<url>` (required for sync modes): e.g.
   `https://github.com/boto/botocore/compare/1.42.84...1.42.89`.
-- `--async-need-summary=<text>` (required for `sync-no-port`): the summary line from
-  `/aiobotocore-bot:check-async-need` that justifies the no-port verdict. Do not paraphrase — quote it.
+- `--async-need-summary=<text>` (required for `sync-no-port`): the summary line from the
+  `check-async-need` skill that justifies the no-port verdict. Do not paraphrase — quote it.
 - `--assumptions=<text>` (optional): design decisions for the "Assumptions" slot (bumps only).
 - `--changed-aiobotocore=<text>` (optional): summary of aiobotocore changes — files modified,
   classes added, tests ported. For no-port: pass `"Version bounds updated only, no code changes."`.
@@ -134,5 +135,5 @@ made a wrong assumption about PR state.
 ## Honesty
 
 Never tick a checklist box you haven't verified. Never invent `--async-need-summary` — if the
-caller didn't run `/aiobotocore-bot:check-async-need`, refuse to use `mode=sync-no-port` and tell
+caller didn't run the `check-async-need` skill, refuse to use `mode=sync-no-port` and tell
 them to run it first.

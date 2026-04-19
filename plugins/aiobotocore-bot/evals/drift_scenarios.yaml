@@ -1,5 +1,5 @@
 ---
-# Ground-truth labels for /aiobotocore-bot:check-override-drift eval.
+# Ground-truth labels for the check-override-drift skill eval.
 #
 # Each row is a historical PR against aiobotocore with a known expected verdict.
 # The drift check is independent of sync-bot flow — any PR touching

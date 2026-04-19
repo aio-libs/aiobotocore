@@ -1,13 +1,14 @@
 ---
-allowed-tools: Bash(git worktree:*), Bash(git diff:*), Bash(git fetch:*), Bash(uv run:*), Bash(mktemp:*), Bash(mkdir:*), Bash(rm:*)
-description: Run pyright against HEAD and against origin/main in an isolated worktree, report new errors in touched files
+description: Use when measuring whether a PR introduces *new* pyright errors in touched files (as opposed to the repo's long-standing baseline). Runs pyright against HEAD and against `origin/main` in an isolated `git worktree`, then reports new errors restricted to files the PR modified. Worktree-based (not stash) so a failed cleanup can't corrupt the primary tree.
+argument-hint: "[--path=<path>] [--base=<ref>] [--touched-files=<file1,file2,...>]"
+allowed-tools: Bash(git worktree:*) Bash(git diff:*) Bash(git fetch:*) Bash(uv run:*) Bash(mktemp:*) Bash(mkdir:*) Bash(rm:*)
 ---
 
 aiobotocore has a long-standing baseline of pyright errors (intentional async-overriding-sync
 patterns plus legacy type gaps). Absolute counts are not a gate — what we care about is **drift
 introduced by the current changes**, especially in files the changes touched.
 
-This command captures the delta using `git worktree` rather than `git stash`: a throwaway worktree
+This skill captures the delta using `git worktree` rather than `git stash`: a throwaway worktree
 at `origin/main` provides the baseline without touching the primary tree. An earlier version of
 this flow used `git stash push/pop` (inherited from the pre-refactor inline sync-prompt); that
 approach is fragile because a failed `git stash pop` leaves the primary tree in a half-applied
@@ -107,6 +108,6 @@ No new errors: <true|false>
   one-sided run cannot produce a delta.
 - **Pyright crash** (import error, internal assertion) in either run: surface the failure
   instead of silently returning `no new errors`. A crashed run is not a passing run.
-- **Cleanup on failure:** if the command errors after creating the worktree but before Step 4,
+- **Cleanup on failure:** if the skill errors after creating the worktree but before Step 4,
   call `git worktree remove --force "$WORKTREE"` in a final cleanup to avoid orphaned worktree
   entries. Safe to call even if the worktree is already gone.

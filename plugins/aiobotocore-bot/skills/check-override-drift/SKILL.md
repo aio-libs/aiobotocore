@@ -1,6 +1,7 @@
 ---
-allowed-tools: Bash(gh pr diff:*), Bash(gh pr view:*), Bash(python3 -c:*), Bash(ls:*)
-description: Flag aiobotocore changes that drift from the matching botocore source — cosmetic additions or behavioral changes that aren't in upstream
+description: Use when reviewing an aiobotocore PR that touches `aiobotocore/*.py` files with a botocore mirror. Compares each added line against the matching botocore function and emits `OVERRIDE_DRIFT:` (`clean` | `cosmetic-drift` | `behavioral-drift`) plus per-function detail. Distinguishes legitimate async gaps from unmatched additions that widen the sync diff.
+argument-hint: "(--pr=<number> | --diff=<path>) [--botocore-path=<path>]"
+allowed-tools: Bash(gh pr diff:*) Bash(gh pr view:*) Bash(python3 -c:*) Bash(ls:*)
 ---
 
 aiobotocore exists to mirror botocore as closely as possible, with `async` sprinkled on
@@ -12,7 +13,7 @@ top. The principle is:
 > widens the diff from botocore without an async justification is drift.**
 
 Every line of divergence makes future syncs harder and hides subtle behavioral
-differences. This command evaluates changes to aiobotocore files that have a botocore
+differences. This skill evaluates changes to aiobotocore files that have a botocore
 mirror and flags:
 
 - **Behavioral changes** to overridden code that aren't in the matching botocore (e.g.
@@ -131,7 +132,7 @@ The top-line `OVERRIDE_DRIFT` rolls up:
 
 ## Consumption by the reviewer
 
-`review-pr.md` runs this in Step 3 for every non-sync PR that touches
+The `review-pr` skill runs this in Step 3 for every non-sync PR that touches
 `aiobotocore/*.py` files with botocore mirrors. Verdicts map to comment severity:
 
 - `behavioral-drift` → post as a high-confidence inline comment at the offending line,
