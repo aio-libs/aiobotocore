@@ -60,33 +60,29 @@ jobs:
         fetch-depth: 1
         persist-credentials: false
 
-    - name: Cache botocore clone
-      id: botocore-cache
+    - name: Cache botocore repo
+      # Shares the cache key with botocore-sync.yml so whichever workflow
+      # runs first warms /tmp/botocore for the other. Static key (no
+      # hashFiles invalidation) — fresh tags are always fetched below.
       # yamllint disable-line rule:line-length
       uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5.0.4
       with:
         path: /tmp/botocore
-        # Key on scenarios.yaml content — when new sync PRs land and scenarios
-        # regenerates, the cache busts and pulls fresh tags. Otherwise hits
-        # on every re-run of the same scenario set.
-        key: botocore-clone-${{ hashFiles('plugins/aiobotocore-bot/evals/scenarios.yaml') }}
+        key: botocore-repo
 
-    - name: Clone botocore
-      # Full clone (no --depth): scenarios.yaml references tags back to
-      # 1.35.x, far past what a shallow clone would cover. ~200MB, cached
-      # above — only fires on cache miss (new scenarios.yaml).
-      if: steps.botocore-cache.outputs.cache-hit != 'true'
+    - name: Clone or update botocore
+      # Mirrors botocore-sync.yml's step exactly. Bare clone is smaller
+      # (~100MB vs ~200MB) and scenarios.yaml references tags back to
+      # 1.35.x, far past what a shallow clone would cover. On cache hit
+      # the fetch is ~2s; on cache miss the initial clone is ~10-15s.
       run: |
-        git clone https://github.com/boto/botocore.git /tmp/botocore
-        git -C /tmp/botocore fetch --tags
-
-    - name: Refresh botocore tags
-      # On cache hit the clone's tag refs are frozen at cache-build time.
-      # A fetch is ~2s (just ref updates, no history redownload) and
-      # keeps us robust against --case <newer-pr> invocations and any
-      # future scenarios.yaml drift.
-      if: steps.botocore-cache.outputs.cache-hit == 'true'
-      run: git -C /tmp/botocore fetch --tags
+        if [ -f /tmp/botocore/HEAD ]; then
+          git -C /tmp/botocore fetch --tags --prune
+        else
+          git clone --bare \
+            https://github.com/boto/botocore.git \
+            /tmp/botocore
+        fi
 
     - name: Set up uv + Python
       # yamllint disable-line rule:line-length
@@ -126,7 +122,7 @@ jobs:
     - name: Upload full results
       if: always()
       # yamllint disable-line rule:line-length
-      uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874  # v4.4.0
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
       with:
         name: async-need-results
         path: /tmp/async-need-results.json
@@ -184,7 +180,7 @@ jobs:
     - name: Upload full results
       if: always()
       # yamllint disable-line rule:line-length
-      uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874  # v4.4.0
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
       with:
         name: drift-results
         path: /tmp/drift-results.json
