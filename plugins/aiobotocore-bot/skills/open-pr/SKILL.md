@@ -20,6 +20,10 @@ so template changes flow through automatically and checklist-verification stays 
   `https://github.com/boto/botocore/compare/1.42.84...1.42.89`.
 - `--async-need-summary=<text>` (required for `sync-no-port`): the summary line from the
   `check-async-need` skill that justifies the no-port verdict. Do not paraphrase — quote it.
+- `--classifier-verdicts=<text>` (optional, sync modes): the per-function verdict block from the
+  `check-async-need` skill's `rationale` field. When provided, rendered as a markdown table in
+  the PR body so a human reviewer can spot-check each classification without re-running the
+  classifier. See "Classifier verdicts table" below for expected shape.
 - `--assumptions=<text>` (optional): design decisions for the "Assumptions" slot (bumps only).
 - `--changed-aiobotocore=<text>` (optional): summary of aiobotocore changes — files modified,
   classes added, tests ported. For no-port: pass `"Version bounds updated only, no code changes."`.
@@ -86,6 +90,8 @@ Append:
 ### What changed in aiobotocore
 <--changed-aiobotocore, default: Version bounds updated only, no code changes.>
 
+<Classifier verdicts table — see below — when --classifier-verdicts is provided>
+
 ### Reviewer checklist
 - [ ] Botocore diff reviewed — confirms no-port vs port-required
 - [ ] `test_patches.py` hashes current
@@ -110,6 +116,23 @@ Same as `sync-no-port` but:
 - Reviewer checklist items change to: async patterns correct, hashes updated for new overrides,
   version bump is minor, tests ported from botocore where applicable.
 - Omit the async-need summary line (the bump itself is the answer).
+
+### Classifier verdicts table (both sync modes)
+
+When `--classifier-verdicts` is provided, append a `### Classifier verdicts` section with a
+markdown table extracted from the classifier's per-function `rationale`. Each row is one
+changed/added/removed function the classifier inspected. Columns:
+
+| File | Function | Change | Verdict | Reason |
+|-|-|-|-|-|
+| botocore/args.py | `ClientArgsCreator.get_client_args` | changed | needs-async | Added call to async `self._emit`; override must mirror |
+| botocore/httpchecksum.py | `Sha512Checksum` | added | pure-sync | New class, no I/O, not in overrides |
+| botocore/utils.py | `has_checksum_header` | changed | pure-sync | Refactor delegates to new pure-sync helper |
+
+This table is the primary signal the human reviewer uses to validate the classifier's work —
+one row per function gives them the per-entry accountability the raw verdict hides. Parse the
+rationale into rows verbatim; if the rationale doesn't have per-function detail, omit the
+table (do not synthesize rows). Keep reason text to one short sentence — reviewers skim this.
 
 ## Step 5: Open or update
 

@@ -41,6 +41,12 @@ design; this README only covers the plugin itself.
   mechanical updates: `pyproject.toml` bounds, `aiobotocore/__init__.py`
   version, `CHANGES.rst` entry (with correct `^` underline length),
   and `uv lock`.
+- `/aiobotocore-bot:port-tests [--from=<ver> --to=<ver>] [--backfill] [--paths=...]`
+  — convert botocore tests to aiobotocore-equivalent async form.
+  Two modes: port-PR (given a botocore version range, port new/changed
+  tests into the existing mirrored files) and backfill (port
+  not-yet-ported tests from the specified mirrored files). Validates
+  each file with `pytest -x`; commits on pass, reverts + advises on fail.
 - `/aiobotocore-bot:pyright-delta` — create a baseline worktree at
   origin/main, run pyright there, remove worktree, run pyright with
   current changes, report only new errors in files the changes touched.

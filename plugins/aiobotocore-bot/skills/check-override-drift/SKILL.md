@@ -1,7 +1,7 @@
 ---
 description: Use when reviewing an aiobotocore PR that touches `aiobotocore/*.py` files with a botocore mirror. Compares each added line against the matching botocore function and emits `OVERRIDE_DRIFT:` (`clean` | `cosmetic-drift` | `behavioral-drift`) plus per-function detail. Distinguishes legitimate async gaps from unmatched additions that widen the sync diff.
 argument-hint: "(--pr=<number> | --diff=<path>) [--botocore-path=<path>]"
-allowed-tools: Bash(gh pr diff:*) Bash(gh pr view:*) Bash(python3 -c:*) Bash(ls:*)
+allowed-tools: Bash(gh pr diff:*) Bash(gh pr view:*) Bash(python3 -c:*) Bash(ls:*) Bash(grep:*) Bash(cat:*)
 ---
 
 aiobotocore exists to mirror botocore as closely as possible, with `async` sprinkled on
@@ -64,6 +64,14 @@ botocore mirror exists at `$BOTOCORE_PATH/<same-name>.py`. Files without a mirro
 Identify the function name (by scanning the hunk for enclosing `def`/`async def`).
 Read the matching function in botocore. If the function does not exist in botocore —
 skip it (new aiobotocore-only helper; unusual but not in scope for drift checking).
+
+**Authoritative override registry**: `tests/test_patches.py` enumerates every
+botocore symbol aiobotocore overrides. If the changed function's dotted name
+(`ClassName.method`) or bare name is NOT in that file, it is not a tracked
+override — either it's new code aiobotocore is adding without a counterpart
+(which should be flagged separately in Step 3) or it's a passthrough not under
+drift-check scope. Use the registry to distinguish "tracked override we expect
+to mirror botocore" from "something else".
 
 ## Step 3: Categorize each added/changed line
 

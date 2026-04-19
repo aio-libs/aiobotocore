@@ -24,7 +24,6 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
-import re
 import subprocess
 import sys
 import textwrap
@@ -35,12 +34,15 @@ from pathlib import Path
 from _common import (
     DEFAULT_MODEL,
     REPO_ROOT,
-    invoke_and_parse,
+    classify_tool_schema,
+    invoke_and_classify,
     load_skill_body,
     new_client,
+    overridden_symbols,
     parse_scenarios_yaml,
     require_env,
     run_cases_concurrent,
+    usage_summary,
 )
 
 SKILL_PATH = (
@@ -50,13 +52,12 @@ SCENARIOS_PATH = (
     REPO_ROOT / "plugins/aiobotocore-bot/evals/drift_scenarios.yaml"
 )
 
-# Matches `OVERRIDE_DRIFT:`, `**OVERRIDE_DRIFT**:`, or leading whitespace —
-# same tolerance as check_async_need.py's VERDICT_RE.
-VERDICT_RE = re.compile(
-    r"^\s*\**\s*OVERRIDE_DRIFT\s*\**\s*:\s*(\S+)",
-    re.MULTILINE,
-)
 VALID_VERDICTS = {"clean", "cosmetic-drift", "behavioral-drift"}
+CLASSIFY_TOOL = classify_tool_schema(
+    tool_name="record_override_drift_classification",
+    verdict_enum=sorted(VALID_VERDICTS),
+    per_function_label="function",
+)
 
 
 @dataclass
@@ -86,7 +87,8 @@ def fetch_pr_diff(pr: int) -> str:
     )
 
 
-def build_user_message(case: Case, diff: str) -> str:
+def build_user_message(case: Case, diff: str, overrides: set[str]) -> str:
+    overrides_block = "\n".join(f"- {s}" for s in sorted(overrides))
     return (
         textwrap.dedent(
             """
@@ -100,20 +102,36 @@ def build_user_message(case: Case, diff: str) -> str:
         latest stable release). For `aiobotocore/` files without a botocore mirror
         (e.g. httpxsession.py), mark the file as out-of-scope and skip.
 
-        Output format — strict:
+        ## Authoritative aiobotocore override registry
 
-        1. The VERY FIRST line of your response must be `OVERRIDE_DRIFT: <verdict>`
-           where <verdict> is one of `clean`, `cosmetic-drift`, or `behavioral-drift`.
-           No preamble, no explanation, no markdown formatting on this line.
-        2. Any supporting reasoning goes AFTER the classification line, per Step 4
-           of your system prompt.
+        These are the botocore symbols aiobotocore overrides (from
+        `tests/test_patches.py`). Use this to distinguish a tracked
+        override that must mirror botocore from new aiobotocore-only
+        code that isn't under drift-check scope.
+
+        {overrides_block}
 
         ```diff
         {diff}
         ```
+
+        Output protocol:
+
+        1. Reason through each changed function in your text response.
+        2. Then call the `record_override_drift_classification` tool
+           ONCE with your final `verdict` (one of `clean`,
+           `cosmetic-drift`, `behavioral-drift`) and a `rationale`
+           containing the per-function breakdown plus a roll-up
+           summary. The tool call is the authoritative output — do
+           not emit an OVERRIDE_DRIFT label in text.
         """,
         )
-        .format(pr=case.pr, title=case.title, diff=diff)
+        .format(
+            pr=case.pr,
+            title=case.title,
+            diff=diff,
+            overrides_block=overrides_block,
+        )
         .strip()
     )
 
@@ -137,9 +155,20 @@ async def main() -> int:
     )
     args = parser.parse_args()
 
+    # Write an empty results file up front so `actions/upload-artifact`
+    # finds something even if the run aborts mid-way (e.g. Anthropic
+    # usage cap hit partway through). Real results overwrite at the end.
+    if args.json_out:
+        args.json_out.parent.mkdir(parents=True, exist_ok=True)
+        args.json_out.write_text(
+            json.dumps({"error": "not-started", "results": []}, indent=2)
+        )
+
     require_env("ANTHROPIC_API_KEY")
 
     skill_body = load_skill_body(SKILL_PATH)
+    override_symbols = overridden_symbols()
+    print(f"Override symbols from test_patches.py: {len(override_symbols)}")
     cases = load_scenarios(SCENARIOS_PATH)
     if args.case:
         wanted = set(args.case)
@@ -165,13 +194,13 @@ async def main() -> int:
 
     async def invoke_one(case: Case) -> str:
         diff = diffs[case.pr]
-        user = build_user_message(case, diff)
-        verdict, _raw = await invoke_and_parse(
+        user = build_user_message(case, diff, override_symbols)
+        verdict, _raw, _tool = await invoke_and_classify(
             client,
             skill_body,
             user,
             args.model,
-            VERDICT_RE,
+            CLASSIFY_TOOL,
         )
         if verdict not in VALID_VERDICTS and verdict != "parse-error":
             verdict = f"unknown:{verdict}"
@@ -219,6 +248,9 @@ async def main() -> int:
     if args.json_out:
         args.json_out.write_text(json.dumps(results, indent=2))
         print(f"Wrote {args.json_out}")
+
+    if summary := usage_summary():
+        print(summary)
 
     return 0 if not failures else 1
 

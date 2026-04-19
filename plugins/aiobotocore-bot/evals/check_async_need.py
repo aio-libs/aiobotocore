@@ -28,7 +28,6 @@ import argparse
 import asyncio
 import json
 import os
-import re
 import subprocess
 import sys
 import textwrap
@@ -40,15 +39,20 @@ from _common import (
     DEFAULT_MODEL,
     REPO_ROOT,
     aiobotocore_port_happened,
+    async_names,
+    classify_tool_schema,
     derive_versions,
-    invoke_and_parse,
+    followup_on_misclassification,
+    invoke_and_classify,
     list_sync_prs,
     load_skill_body,
     new_client,
     overridden_paths,
+    overridden_symbols,
     parse_scenarios_yaml,
     require_env,
     run_cases_concurrent,
+    usage_summary,
 )
 
 SKILL_PATH = (
@@ -57,14 +61,10 @@ SKILL_PATH = (
 SCENARIOS_PATH = REPO_ROOT / "plugins/aiobotocore-bot/evals/scenarios.yaml"
 BOTOCORE_CLONE = Path(os.environ.get("BOTOCORE_CLONE", "/tmp/botocore"))
 
-# Tolerate markdown-bold wrappers and leading whitespace — `**CLASSIFICATION**:`
-# and `CLASSIFICATION:` are both plausible model outputs; the previous
-# strict `^CLASSIFICATION:` would miss the bolded form and return
-# parse-error. Matches on any line start (MULTILINE) with optional
-# leading whitespace/asterisks around the label.
-VERDICT_RE = re.compile(
-    r"^\s*\**\s*CLASSIFICATION\s*\**\s*:\s*(\S+)",
-    re.MULTILINE,
+CLASSIFY_TOOL = classify_tool_schema(
+    tool_name="record_async_need_classification",
+    verdict_enum=["no-port", "port-required", "ambiguous"],
+    per_function_label="function",
 )
 
 
@@ -149,7 +149,16 @@ def compute_filtered_diff(case: Case, overridden: set[str]) -> str:
         ) from e
 
 
-def build_user_message(case: Case, diff: str) -> str:
+def build_user_message(
+    case: Case,
+    diff: str,
+    overrides: set[str],
+    async_methods: set[str],
+    aio_classes: set[str],
+) -> str:
+    overrides_block = "\n".join(f"- {s}" for s in sorted(overrides))
+    async_methods_block = "\n".join(f"- {s}" for s in sorted(async_methods))
+    aio_classes_block = "\n".join(f"- {s}" for s in sorted(aio_classes))
     return (
         textwrap.dedent(
             """
@@ -159,20 +168,66 @@ def build_user_message(case: Case, diff: str) -> str:
         The diff below is ALREADY FILTERED to changes in botocore files that have a
         mirror in aiobotocore/. Do NOT re-run git diff — use this content directly.
 
+        ## Registries (your Step 1 inputs)
+
+        Three registries to consult during classification, per the
+        system prompt algorithm:
+
+        ### `overrides` — botocore symbols aiobotocore explicitly
+        overrides (from `tests/test_patches.py`). Entry shapes:
+        `ClassName.method` (specific method mirrored), bare function
+        name (module-level function mirrored), bare class name (class
+        source hashed as a whole; does NOT imply every method mirrored).
+
+        {overrides_block}
+
+        ### `async_methods` — every `async def <name>` in aiobotocore,
+        plus curated sync-signature methods that delegate to async
+        internals (e.g. `emit` → `_emit`). A call `x.<name>(...)` where
+        `<name>` is in this set is suspect: if `x` is a known Aio*
+        instance or an aiobotocore self-attribute, it's async; on an
+        unknown receiver, emit `ambiguous`.
+
+        {async_methods_block}
+
+        ### `aio_classes` — every `class Aio<Name>(...)` in aiobotocore.
+        A new botocore call that instantiates or subclasses the non-Aio
+        parent needs to route through the Aio subclass.
+
+        {aio_classes_block}
+
+        ## Diff
+
         ```diff
         {diff}
         ```
 
-        Output format — strict:
+        Output protocol:
 
-        1. The VERY FIRST line of your response must be `CLASSIFICATION: <verdict>`
-           where <verdict> is one of `no-port`, `port-required`, or `ambiguous`.
-           No preamble, no explanation, no markdown formatting on this line.
-        2. Any supporting reasoning goes AFTER the classification line, per Step 4
-           of your system prompt.
+        1. In your text response, reason through each changed function
+           per Step 3 of the system prompt. For any port-required
+           verdict you must quote the exact string from `overrides`
+           you matched (or the exact name from `async_methods` /
+           `aio_classes` you contacted).
+        2. Then call the `record_async_need_classification` tool
+           ONCE with your final `verdict` and a `rationale` containing
+           the per-function breakdown (file, name, change-type,
+           verdict, reason) plus a roll-up summary. The tool call is
+           the authoritative output — do not emit a CLASSIFICATION
+           label in text.
+        3. Never justify port-required with "the test_patches.py hash
+           will break" — hash bumps are mechanical, NOT a port
+           signal.
         """,
         )
-        .format(from_ver=case.from_ver, to_ver=case.to_ver, diff=diff)
+        .format(
+            from_ver=case.from_ver,
+            to_ver=case.to_ver,
+            diff=diff,
+            overrides_block=overrides_block,
+            async_methods_block=async_methods_block,
+            aio_classes_block=aio_classes_block,
+        )
         .strip()
     )
 
@@ -197,7 +252,26 @@ async def main() -> int:
     parser.add_argument(
         "--json-out", type=Path, help="Write full per-run results here"
     )
+    parser.add_argument(
+        "--debug-misclassifications",
+        action="store_true",
+        help=(
+            "After the eval, for each majority-vote failure, send a "
+            "follow-up turn asking the model what rule led to the wrong "
+            "verdict. Captured in --json-out as `debug_followup`. Useful "
+            "for prompt-iteration debugging."
+        ),
+    )
     args = parser.parse_args()
+
+    # Write an empty results file up front so `actions/upload-artifact`
+    # finds something even if the run aborts mid-way (e.g. Anthropic
+    # usage cap hit partway through). Real results overwrite at the end.
+    if args.json_out:
+        args.json_out.parent.mkdir(parents=True, exist_ok=True)
+        args.json_out.write_text(
+            json.dumps({"error": "not-started", "results": []}, indent=2)
+        )
 
     if not BOTOCORE_CLONE.exists():
         sys.stderr.write(
@@ -211,8 +285,14 @@ async def main() -> int:
 
     skill_body = load_skill_body(SKILL_PATH)
     overridden = overridden_paths()
+    override_symbols = overridden_symbols()
+    async_methods, aio_classes = async_names()
     print(
         f"Overridden files: {len(overridden)} ({', '.join(sorted(overridden)[:3])}, ...)"
+    )
+    print(
+        f"Registries: overrides={len(override_symbols)} "
+        f"async_methods={len(async_methods)} aio_classes={len(aio_classes)}"
     )
 
     # Prefer the committed scenarios.yaml (faster, deterministic, has rationales).
@@ -246,19 +326,28 @@ async def main() -> int:
 
     runnable = [c for c in cases if c.pr in diffs]
 
-    async def invoke_one(case: Case) -> str:
+    async def invoke_one(case: Case) -> tuple[str, str]:
         diff = diffs[case.pr]
         if not diff.strip():
-            return "no-port"
-        user = build_user_message(case, diff)
-        verdict, _raw = await invoke_and_parse(
+            return ("no-port", "")
+        user = build_user_message(
+            case, diff, override_symbols, async_methods, aio_classes
+        )
+        verdict, raw, tool_input = await invoke_and_classify(
             client,
             skill_body,
             user,
             args.model,
-            VERDICT_RE,
+            CLASSIFY_TOOL,
         )
-        return verdict
+        # Inline the structured tool input into the rationale so the
+        # JSON-out captures it alongside the narrative text.
+        rationale = raw
+        if tool_input is not None:
+            rationale += "\n\n---TOOL OUTPUT---\n" + json.dumps(
+                tool_input, indent=2
+            )
+        return (verdict, rationale)
 
     per_case_verdicts = await run_cases_concurrent(
         runnable, args.runs, invoke_one
@@ -269,7 +358,9 @@ async def main() -> int:
     # zip without strict= for Python 3.9 compat; lengths are equal by
     # construction (per_case_verdicts is gathered over runnable).
     assert len(runnable) == len(per_case_verdicts)
-    for case, verdicts in zip(runnable, per_case_verdicts):
+    for case, pairs in zip(runnable, per_case_verdicts):
+        verdicts = [v for v, _ in pairs]
+        rationales = [r for _, r in pairs]
         print(f"\n#{case.pr} [{case.expected}] {case.title}")
         print(
             f"  from={case.from_ver} to={case.to_ver} diff={diffs[case.pr].count(chr(10))} lines"
@@ -288,24 +379,53 @@ async def main() -> int:
             "to": case.to_ver,
             "expected": case.expected,
             "verdicts": verdicts,
+            "rationales": rationales,
             "majority": majority,
             "passed": passed,
         }
         results.append(result)
         if not passed:
-            failures.append(result)
+            failures.append((case, result, rationales))
 
     print(
         f"\n== Summary: {len(results) - len(failures)}/{len(results)} passed =="
     )
-    for f in failures:
+    for _, f, _ in failures:
         print(
             f"  FAIL #{f['pr']}: expected {f['expected']}, got {f['verdicts']}"
         )
 
+    # On --debug-misclassifications, ask the model (in a continuing
+    # conversation) what rule led it to the wrong verdict. Uses run 1's
+    # rationale as the assistant turn to continue from. Attaches to the
+    # result dict so JSON-out captures it.
+    if args.debug_misclassifications and failures:
+        print("\n== Debug follow-ups on misclassifications ==")
+        for case, result, rationales in failures:
+            diff = diffs[case.pr]
+            if not diff.strip() or not rationales or not rationales[0]:
+                continue
+            user = build_user_message(
+                case, diff, override_symbols, async_methods, aio_classes
+            )
+            followup = await followup_on_misclassification(
+                client,
+                skill_body,
+                user,
+                args.model,
+                rationales[0],
+                case.expected,
+                result["majority"],
+            )
+            result["debug_followup"] = followup
+            print(f"\n--- #{case.pr} follow-up ---\n{followup}\n")
+
     if args.json_out:
         args.json_out.write_text(json.dumps(results, indent=2))
         print(f"Wrote {args.json_out}")
+
+    if summary := usage_summary():
+        print(summary)
 
     return 0 if not failures else 1
 

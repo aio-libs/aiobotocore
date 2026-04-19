@@ -99,6 +99,23 @@ e) **Port-vs-no-port sanity check** (only for sync-bot-authored PRs — `claude[
    the `pyproject.toml` diff: lower-bound change = port-required, upper-only = no-port. Any
    three-way disagreement between classifier / body / pyproject.toml is worth flagging.
 
+f) **Coverage-driven test-porting suggestions** (any PR that adds or modifies `aiobotocore/*.py`
+   code): if codecov[bot] has already posted a coverage comment on the PR, read it via the
+   same `gh api graphql` pattern used in Step 1 (include `body` in the comment nodes).
+   codecov renders a per-file coverage delta; any file with uncovered new lines is a
+   candidate. For a candidate file whose botocore counterpart exists (e.g.
+   `aiobotocore/httpchecksum.py` ↔ `botocore/tests/unit/test_httpchecksum.py`), post at
+   most ONE soft top-level suggestion per PR — listing every gap is noise:
+
+   > Coverage gap: `aiobotocore/<file>.py` has uncovered new lines per codecov. botocore
+   > tests at `botocore/tests/<path>.py` may cover this — consider running
+   > `/aiobotocore-bot:port-tests --backfill --paths=test_<file>.py`.
+
+   Skip entirely if codecov hasn't posted yet (don't block the review waiting for it) or
+   if every file's coverage is already ≥ the codecov patch threshold. Not a blocking
+   finding. Pick the file with the most uncovered lines that has a clear botocore test
+   counterpart.
+
 **CRITICAL: Only flag HIGH SIGNAL issues.**
 
 Flag issues where:

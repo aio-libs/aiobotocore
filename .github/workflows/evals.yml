@@ -47,6 +47,16 @@ on:
         required: false
         default: '8'
         type: string
+      cases:
+        description: Comma-separated PR numbers to evaluate (empty = use limit)
+        required: false
+        default: ''
+        type: string
+      debug_misclassifications:
+        description: On miss, ask the model which rule misled it (captured in JSON)
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   check-async-need:
@@ -62,6 +72,8 @@ jobs:
     env:
       EVAL_RUNS: ${{ inputs.runs || '3' }}
       EVAL_LIMIT: ${{ inputs.limit || '8' }}
+      EVAL_CASES: ${{ inputs.cases || '' }}
+      EVAL_DEBUG_MISCLASSIFICATIONS: ${{ inputs.debug_misclassifications && '1' || '' }}
     steps:
     - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
       with:
@@ -104,17 +116,45 @@ jobs:
         python-version: '3.12'
         enable-cache: auto
 
+    # .venv caching: setup-uv caches uv's download cache (wheels), but
+    # `uv sync` still walks the lockfile and re-links the venv every
+    # run (~5-15s). Caching .venv directly short-circuits that on
+    # lockfile-unchanged runs. Invalidates on uv.lock or pyproject.toml
+    # changes.
+    - name: Cache .venv
+      # yamllint disable-line rule:line-length
+      uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5.0.4
+      with:
+        path: .venv
+        # yamllint disable-line rule:line-length
+        key: venv-${{ runner.os }}-py3.12-${{ hashFiles('uv.lock', 'pyproject.toml') }}
+
     - name: Install dependencies
-      run: uv sync
+      # --frozen is a guardrail: fail (not silently resolve) if uv.lock
+      # is somehow out of sync with pyproject.toml. On a warm .venv
+      # cache uv sync is near-instant; on a miss it re-links from the
+      # uv download cache.
+      run: uv sync --frozen
 
     - name: Run check_async_need eval
       env:
         ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         BOTOCORE_CLONE: /tmp/botocore
       run: |
+        case_args=()
+        if [ -n "$EVAL_CASES" ]; then
+          IFS=',' read -ra arr <<< "$EVAL_CASES"
+          for n in "${arr[@]}"; do case_args+=(--case "${n// /}"); done
+        fi
+        debug_arg=()
+        if [ -n "$EVAL_DEBUG_MISCLASSIFICATIONS" ]; then
+          debug_arg=(--debug-misclassifications)
+        fi
         uv run python plugins/aiobotocore-bot/evals/check_async_need.py \
           --runs "$EVAL_RUNS" \
           --limit "$EVAL_LIMIT" \
+          "${case_args[@]}" \
+          "${debug_arg[@]}" \
           --json-out /tmp/async-need-results.json \
           | tee /tmp/async-need-stdout.txt
 
@@ -163,8 +203,25 @@ jobs:
         python-version: '3.12'
         enable-cache: auto
 
+    # .venv caching: setup-uv caches uv's download cache (wheels), but
+    # `uv sync` still walks the lockfile and re-links the venv every
+    # run (~5-15s). Caching .venv directly short-circuits that on
+    # lockfile-unchanged runs. Invalidates on uv.lock or pyproject.toml
+    # changes.
+    - name: Cache .venv
+      # yamllint disable-line rule:line-length
+      uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5.0.4
+      with:
+        path: .venv
+        # yamllint disable-line rule:line-length
+        key: venv-${{ runner.os }}-py3.12-${{ hashFiles('uv.lock', 'pyproject.toml') }}
+
     - name: Install dependencies
-      run: uv sync
+      # --frozen is a guardrail: fail (not silently resolve) if uv.lock
+      # is somehow out of sync with pyproject.toml. On a warm .venv
+      # cache uv sync is near-instant; on a miss it re-links from the
+      # uv download cache.
+      run: uv sync --frozen
 
     - name: Run check_override_drift eval
       env:

@@ -8,7 +8,6 @@ are tested via mocked check_output so tests don't hit git or the gh API.
 from __future__ import annotations
 
 import json
-import re
 from pathlib import Path
 from unittest.mock import patch
 
@@ -231,23 +230,21 @@ def test_committed_scenarios_yaml_parses() -> None:
     assert all(r["expected"] in {"no-port", "port-required"} for r in rows)
 
 
-def test_invoke_and_parse_verdict_regex_shape() -> None:
-    """The regex contract: group(1) captures the verdict token."""
-    verdict_re = re.compile(
-        r"^\s*\**\s*CLASSIFICATION\s*\**\s*:\s*(\S+)",
-        re.MULTILINE,
+def test_classify_tool_schema_shape() -> None:
+    """The tool schema used for structured verdict extraction constrains
+    `verdict` to the provided enum and requires a summary.
+    """
+    schema = _common.classify_tool_schema(
+        tool_name="test_tool",
+        verdict_enum=["no-port", "port-required", "ambiguous"],
+        per_function_label="function",
     )
-    # Plain form
-    m = verdict_re.search("Some preamble\nCLASSIFICATION: no-port\nMore text")
-    assert m is not None and m.group(1) == "no-port"
-    # Markdown-bold form (model likes to format headings this way)
-    m = verdict_re.search("**CLASSIFICATION**: port-required\nRationale...")
-    assert m is not None and m.group(1) == "port-required"
-    # Leading whitespace
-    m = verdict_re.search("  CLASSIFICATION: ambiguous\n")
-    assert m is not None and m.group(1) == "ambiguous"
-    # Bold wrapping BOTH label and value — group 1 keeps the trailing `**`;
-    # the rstrip(":*") in invoke_and_parse strips them.
-    m = verdict_re.search("**CLASSIFICATION: no-port**\n")
-    assert m is not None
-    assert m.group(1).rstrip(":*") == "no-port"
+    assert schema["name"] == "test_tool"
+    props = schema["input_schema"]["properties"]
+    assert props["verdict"]["enum"] == [
+        "no-port",
+        "port-required",
+        "ambiguous",
+    ]
+    assert "rationale" in props
+    assert set(schema["input_schema"]["required"]) == {"verdict", "rationale"}
