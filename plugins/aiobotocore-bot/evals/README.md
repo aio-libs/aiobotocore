@@ -89,7 +89,8 @@ uv run python plugins/aiobotocore-bot/evals/generate_scenarios.py
 
 The generator:
 
-- Queries merged PRs titled `Relax ...`/`Bump ...`
+- Queries merged PRs titled `Bump botocore ...` (historical PRs titled
+  `Relax botocore ...` are also picked up)
 - Derives `from`/`to` from the `pyproject.toml` upper-bound diff on the merge commit
 - Records which overridden files were touched by the botocore diff
 - Leaves `rationale` and `notes` blank for human annotation

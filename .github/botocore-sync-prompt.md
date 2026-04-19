@@ -364,7 +364,9 @@ is exactly what gets committed (as a signed commit).
 
 Create or update the final PR via `/aiobotocore-bot:open-pr`:
 
-- `--title="Relax botocore dependency specification"` or `"Bump botocore dependency specification"`
+- `--title="Bump botocore dependency specification"` (uniform for both no-port and port-required
+  syncs — the classifier's verdict lives in the PR body, not the title, for consistency and
+  external searchability)
 - `--mode=sync-no-port` or `--mode=sync-port`
 - `--botocore-diff-url=https://github.com/boto/botocore/compare/OLD...NEW`
 - `--async-need-summary="<the summary from /aiobotocore-bot:check-async-need>"` (no-port only)

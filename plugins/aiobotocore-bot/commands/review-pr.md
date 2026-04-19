@@ -82,10 +82,12 @@ d) **Override drift** (for any PR touching `aiobotocore/*.py` files that have a 
    `clean` → no comment.
 
 e) **Port-vs-no-port sanity check** (only for sync-bot-authored PRs — `claude[bot]` with title starting
-   `Relax botocore` or `Bump botocore`): extract the `$FROM` and `$TO` botocore tags from the botocore diff
-   URL in the PR body, then run `/aiobotocore-bot:check-async-need --from=$FROM --to=$TO`. If the PR title
-   starts with `Relax` (claiming no-port) but the command returns `port-required` or `ambiguous`, flag
-   the mismatch as a high-confidence issue.
+   `Bump botocore`): extract the `$FROM` and `$TO` botocore tags from the botocore diff URL in the PR
+   body, then run `/aiobotocore-bot:check-async-need --from=$FROM --to=$TO`. Compare the classifier's
+   verdict to the sync bot's claim in the PR body (`Version bounds updated only` = no-port claim;
+   otherwise port-required claim). If they disagree, flag as high-confidence. Also compare against
+   the `pyproject.toml` diff: lower-bound change = port-required, upper-only = no-port. Any
+   three-way disagreement between classifier / body / pyproject.toml is worth flagging.
 
 **CRITICAL: Only flag HIGH SIGNAL issues.**
 

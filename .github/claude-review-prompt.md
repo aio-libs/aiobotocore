@@ -72,7 +72,7 @@ Run `/aiobotocore-bot:review-pr --comment` to perform a sequential code review. 
 - CLAUDE.md compliance
 - Bugs and logic errors in changed code
 - Async pattern correctness (aiobotocore-specific)
-- Relax-vs-bump sanity check for sync-bot PRs (via `/aiobotocore-bot:check-async-need` against the botocore diff)
+- Port-vs-no-port sanity check for sync-bot PRs (via `/aiobotocore-bot:check-async-need` against the botocore diff)
 - Confidence scoring (only posts issues >= 80)
 - Skips draft, closed, or already-reviewed PRs
 

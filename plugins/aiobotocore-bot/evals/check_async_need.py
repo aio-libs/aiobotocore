@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Evaluate /aiobotocore-bot:check-async-need against historical sync PRs.
 
-For each merged "Relax botocore" / "Bump botocore" PR, we know the correct
-port-vs-no-port verdict from the PR title. Replay the classifier against the
-pre-computed botocore diff and check whether it agrees.
+For each merged botocore-sync PR, we know the correct port-vs-no-port verdict
+from the pyproject.toml diff (lower bound moved = port-required, upper only =
+no-port). Replay the classifier against the pre-computed botocore diff and
+check whether it agrees.
 
 The eval pre-computes the diff and passes it to the model as input, bypassing
 the tool-orchestration layer. That isolates classification quality — the exact
@@ -88,18 +89,14 @@ def load_scenarios_yaml(path: Path) -> list[Case] | None:
 def list_historical_cases(limit: int) -> list[Case]:
     cases: list[Case] = []
     for pr in list_sync_prs(limit * 2):
-        title_low = pr["title"].lower()
-        if "relax" in title_low:
-            expected = "no-port"
-        elif "bump" in title_low:
-            expected = "port-required"
-        else:
+        if "botocore" not in pr["title"].lower():
             continue
         if not (versions := derive_versions(pr["mergeCommit"]["oid"])):
             continue
-        from_ver, to_ver = versions
+        from_ver, to_ver, lower_changed = versions
         if from_ver == to_ver:
             continue
+        expected = "port-required" if lower_changed else "no-port"
         cases.append(
             Case(
                 pr=pr["number"],

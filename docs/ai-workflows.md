@@ -21,10 +21,13 @@ release risks breaking our async overrides in subtle ways that only
 required a human to diff `botocore`, decide whether a *no-port* update
 (widen the upper bound only) or a *port-required* update (re-port
 overrides) was needed, and open a PR. The two verdicts are the output
-of the `/aiobotocore-bot:check-async-need` classifier. Historically and
-in PR titles they're described as "Relax" (no-port) and "Bump"
-(port-required); we keep that wording in PR titles for external
-discoverability but use `no-port` / `port-required` internally.
+of the `/aiobotocore-bot:check-async-need` classifier. PR titles are
+uniform — `Bump botocore dependency specification` regardless of
+verdict — for consistent GitHub search. The classifier's verdict lives
+in the PR body (and is authoritative via the `pyproject.toml` lower-
+bound diff: if lower moved, it's a port-required sync). Historical PRs
+(pre-2026-04) used "Relax" for no-port and "Bump" for port-required;
+that convention is now retired for new PRs.
 
 A parallel pain point: PR review latency. Simple bugs, CLAUDE.md
 violations, and missed async patterns routinely slipped through because

@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Generate a stub scenarios.yaml from merged botocore sync PRs.
 
-Mechanical pass — no LLM. For each merged "Relax"/"Bump" sync PR, emit:
+Mechanical pass — no LLM. For each merged botocore-sync PR, emit:
 
 - PR number, title
 - from_ver / to_ver (derived from pyproject.toml upper-bound diff)
-- expected category (from title)
+- expected category (port-required if pyproject lower bound moved, else no-port)
 - botocore and aiobotocore diff URLs
 - list of overridden botocore files touched by the diff
 - empty rationale / notes fields for a human to fill in
@@ -107,19 +107,19 @@ def scenarios_from_prs(
 ) -> list[Scenario]:
     out: list[Scenario] = []
     for pr in prs:
-        title_low = pr["title"].lower()
-        if "relax" in title_low:
-            expected = "no-port"
-        elif "bump" in title_low:
-            expected = "port-required"
-        else:
+        # Skip PRs whose title isn't clearly a botocore sync.
+        if "botocore" not in pr["title"].lower():
             continue
         sha = pr["mergeCommit"]["oid"]
         if not (versions := derive_versions(sha)):
             continue
-        from_ver, to_ver = versions
+        from_ver, to_ver, lower_changed = versions
         if from_ver == to_ver:
             continue
+        # pyproject.toml is authoritative: lower bound moved → port-required
+        # (minor bump); upper-only bump → no-port (patch). Titles are
+        # uniform ("Bump ...") going forward, so we can't rely on them.
+        expected = "port-required" if lower_changed else "no-port"
         out.append(
             Scenario(
                 pr=pr["number"],

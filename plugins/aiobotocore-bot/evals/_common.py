@@ -25,6 +25,7 @@ AIOBOTOCORE_DIR = REPO_ROOT / "aiobotocore"
 DEFAULT_MODEL = "claude-opus-4-7"
 
 UPPER_RE = re.compile(r'"botocore\s*>=\s*[\d.]+\s*,\s*<\s*([\d.]+)"')
+LOWER_RE = re.compile(r'"botocore\s*>=\s*([\d.]+)\s*,')
 
 
 def require_anthropic(script_name: str) -> None:
@@ -72,8 +73,13 @@ def decrement_patch(ver: str) -> str:
     return ".".join(map(str, parts))
 
 
-def derive_versions(sha: str) -> tuple[str, str] | None:
-    """Extract (from_ver, to_ver) from pyproject.toml before/after a commit."""
+def derive_versions(sha: str) -> tuple[str, str, bool] | None:
+    """Extract (from_ver, to_ver, lower_changed) from pyproject.toml at commit.
+
+    `lower_changed` is True iff the botocore lower bound moved — the signal
+    for a port-required sync (a no-port sync only raises the upper bound).
+    Authoritative now that PR titles are uniform ("Bump ..." regardless).
+    """
     try:
         before = subprocess.check_output(
             ["git", "show", f"{sha}^:pyproject.toml"],
@@ -87,11 +93,20 @@ def derive_versions(sha: str) -> tuple[str, str] | None:
         )
     except subprocess.CalledProcessError:
         return None
-    m_b = UPPER_RE.search(before)
-    m_a = UPPER_RE.search(after)
-    if not (m_b and m_a):
+    upper_b = UPPER_RE.search(before)
+    upper_a = UPPER_RE.search(after)
+    if not (upper_b and upper_a):
         return None
-    return (decrement_patch(m_b.group(1)), decrement_patch(m_a.group(1)))
+    lower_b = LOWER_RE.search(before)
+    lower_a = LOWER_RE.search(after)
+    lower_changed = bool(
+        lower_b and lower_a and lower_b.group(1) != lower_a.group(1)
+    )
+    return (
+        decrement_patch(upper_b.group(1)),
+        decrement_patch(upper_a.group(1)),
+        lower_changed,
+    )
 
 
 def list_sync_prs(
