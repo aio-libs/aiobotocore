@@ -69,9 +69,13 @@ jobs:
         persist-credentials: false
 
     - name: Cache botocore repo
-      # Shares the cache key with botocore-sync.yml so whichever workflow
-      # runs first warms /tmp/botocore for the other. Static key (no
-      # hashFiles invalidation) — fresh tags are always fetched below.
+      # Only the check-async-need job uses the local botocore clone — it
+      # needs to diff two specific botocore versions. The check-override-
+      # drift job reads the PR diff via the gh API instead, so no clone
+      # step in that job. Shares the cache key with botocore-sync.yml so
+      # whichever workflow runs first warms /tmp/botocore for the other.
+      # Static key (no hashFiles invalidation) — fresh tags are always
+      # fetched below.
       # yamllint disable-line rule:line-length
       uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5.0.4
       with:
