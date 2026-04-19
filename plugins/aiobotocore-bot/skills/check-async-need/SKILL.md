@@ -166,39 +166,56 @@ function in aiobotocore's world), check the diff for callers:
   Only flag callers where the new call appears as a concrete added line
   inside a registered-override body.
 
-## Step 4: Output format — strict
+## Step 4: Output format — reason first, verdict last
 
 **Output protocol — follow in this order:**
 
-1. First, mentally work through each changed function and determine its
-   verdict per Step 3. Do not write anything yet.
-2. Apply the roll-up rule: if ANY per-function verdict is
-   `needs-async` / `port-required`, the top-line MUST be
-   `port-required`. If any is `ambiguous` and none are needs-async,
-   the top-line is `ambiguous`. Only if EVERY verdict is `pure-sync`
-   is the top-line `no-port`.
-3. **Sanity check**: before you write the CLASSIFICATION line, confirm
-   that the verdict on it is consistent with the per-function verdicts
-   you're about to emit. If your detailed reasoning below arrives at
-   `port-required` for any function but you're writing
-   `CLASSIFICATION: no-port`, STOP — the top-line is wrong. Rewrite.
-4. Now emit the response. The FIRST LINE must be
-   `CLASSIFICATION: <verdict>` where `<verdict>` is one of `no-port`,
-   `port-required`, or `ambiguous`. No preamble.
+1. Write per-function detail FIRST. For each changed function, run
+   through Step 3's rules in order and record the verdict. For any
+   port-required verdict, you MUST be able to quote the exact string
+   from the `overrides` list that the function's name matched (or the
+   exact async-method / aio-class name it contacted). If you can't
+   produce a specific quoted match, the verdict is not port-required
+   — try the remaining Step-C rules or fall to pure-sync.
+2. After all per-function detail, write the Summary block.
+3. LAST, emit `CLASSIFICATION: <verdict>` on its own line where
+   `<verdict>` is `no-port`, `port-required`, or `ambiguous`, chosen
+   by the roll-up rule: any function port-required → top-line
+   port-required; any ambiguous and none port-required → ambiguous;
+   every function pure-sync → no-port.
+4. If while writing the Summary or CLASSIFICATION line you realize an
+   earlier per-function verdict was wrong, DO NOT just flip the
+   top-line. Go back and correct the specific per-function entry,
+   THEN re-run the roll-up for CLASSIFICATION. The top-line must
+   follow from the per-function verdicts as written.
 
-After the classification line, emit per-function detail:
+Response shape:
 
 ```text
-CLASSIFICATION: no-port | port-required | ambiguous
-
-Summary: <N> functions inspected across <M> overridden files. <P> pure-sync, <Q> needs-async, <R> ambiguous.
-
 ## Per-function verdicts
 
 ### botocore/<file> → aiobotocore/<file>
 - `<name>` (added|changed|removed|renamed): <verdict>
   Reason: <one-line justification naming the specific signal or absence thereof>
+
+Summary: <N> functions inspected across <M> overridden files. <P> pure-sync, <Q> needs-async, <R> ambiguous.
+
+CLASSIFICATION: no-port | port-required | ambiguous
 ```
+
+### HASH-BUMP IS NOT A PORT CONCERN
+
+A recurring trap: when an upstream change will cause a
+`tests/test_patches.py` hash to change, the temptation is to flag
+port-required because "the hash will fail." That is WRONG.
+
+`tests/test_patches.py` hashes get bumped mechanically as part of every
+sync (port or no-port). A hash change is a build consequence, not a
+classification signal. If the only reason you can articulate for
+`port-required` is "the hash will break" or "the test will fail", the
+correct verdict is NOT port-required — it's whatever the async-need
+rules say (typically `pure-sync`, with a hash bump done by the caller
+mechanically during sync).
 
 Roll-up rules:
 

@@ -205,21 +205,25 @@ def build_user_message(
         {diff}
         ```
 
-        Output format — strict. Follow the Step 4 protocol in your
-        system prompt exactly:
+        Output format — reason first, verdict last. Per Step 4 of
+        the system prompt:
 
-        1. Mentally classify each changed function per Step 3.
-        2. Apply the roll-up rule: any function `port-required` →
-           top-line `port-required`. Any `ambiguous` and none needs-
-           async → top-line `ambiguous`. Every function `pure-sync` →
-           top-line `no-port`.
-        3. Sanity check: does the top-line verdict match the per-
-           function verdicts? If your reasoning has any function as
-           port-required but you're about to write CLASSIFICATION:
-           no-port, STOP and correct the top-line.
-        4. THEN emit the response. The VERY FIRST line must be
-           `CLASSIFICATION: <verdict>`. No preamble, no markdown
-           formatting on this line. Reasoning goes after.
+        1. Write per-function verdicts FIRST. For each port-required
+           verdict you must quote the exact string from `overrides`
+           you matched (or the exact name from `async_methods` /
+           `aio_classes` you contacted).
+        2. Then the Summary block.
+        3. LAST, emit `CLASSIFICATION: <verdict>` on its own line.
+           The verdict follows from the per-function verdicts via the
+           roll-up rule: any port-required → top-line port-required;
+           any ambiguous and none port-required → ambiguous; every
+           function pure-sync → no-port.
+        4. Do NOT emit the CLASSIFICATION line early. Do not
+           re-emit it after corrections — write it once, at the end,
+           consistent with the final per-function verdicts.
+        5. Never justify port-required with "the test_patches.py hash
+           will break" — hash bumps are mechanical, NOT a port
+           signal.
         """,
         )
         .format(

@@ -379,11 +379,17 @@ async def invoke_and_parse(
         for block in resp.content
         if getattr(block, "type", None) == "text"
     )
-    if m := verdict_re.search(raw):
+    # Take the LAST match, not the first. The model sometimes emits an
+    # initial verdict, reasons further, self-corrects, and re-emits the
+    # final CLASSIFICATION line at the end (Opus debug follow-up on PR
+    # #1466 confirmed this). The last line is the model's final answer;
+    # the first is a superseded draft.
+    matches = verdict_re.findall(raw)
+    if matches:
         # strip trailing `:` and `*` — models sometimes emit
         # `**CLASSIFICATION: no-port**` (bold wrapping both label AND value),
-        # which leaves `no-port**` in group 1.
-        return (m.group(1).strip().rstrip(":*").lower(), raw)
+        # which leaves `no-port**` in the capture group.
+        return (matches[-1].strip().rstrip(":*").lower(), raw)
     return ("parse-error", raw)
 
 
