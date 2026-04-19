@@ -44,11 +44,15 @@ Skip if `--skip-reply` is set. Pick the target by event:
 
 Delete the 👀 (`eyes`) reaction and add 👍 (`+1`). Target depends on whether `--comment-id` is set:
 
+The jq filter scopes the deletion to the bot's own reaction so a human
+coincidentally reacting with 👀 doesn't lose their reaction when the run
+completes.
+
 **Comment events** (`--comment-id` set):
 
 ```text
 gh api repos/$REPO/issues/comments/$COMMENT_ID/reactions \
-  --jq '.[] | select(.content == "eyes") | .id' \
+  --jq '.[] | select(.content == "eyes" and .user.login == "claude[bot]") | .id' \
   | xargs -I{} gh api repos/$REPO/issues/comments/$COMMENT_ID/reactions/{} --method DELETE
 gh api repos/$REPO/issues/comments/$COMMENT_ID/reactions \
   --method POST -f content=+1
@@ -58,7 +62,7 @@ gh api repos/$REPO/issues/comments/$COMMENT_ID/reactions \
 
 ```text
 gh api repos/$REPO/issues/$NUMBER/reactions \
-  --jq '.[] | select(.content == "eyes") | .id' \
+  --jq '.[] | select(.content == "eyes" and .user.login == "claude[bot]") | .id' \
   | xargs -I{} gh api repos/$REPO/issues/$NUMBER/reactions/{} --method DELETE
 gh api repos/$REPO/issues/$NUMBER/reactions \
   --method POST -f content=+1

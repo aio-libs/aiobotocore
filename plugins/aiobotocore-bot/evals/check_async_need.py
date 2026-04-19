@@ -206,7 +206,11 @@ async def main() -> int:
     yaml_cases = load_scenarios_yaml(SCENARIOS_PATH)
     if yaml_cases is not None:
         print(f"Using committed scenarios.yaml ({len(yaml_cases)} cases)")
-        cases = yaml_cases[: args.limit]
+        # scenarios.yaml is sorted oldest-first by PR number. Slice from the
+        # END so the default --limit evaluates the most recent N cases — those
+        # exercise current classifier criteria against current botocore; older
+        # cases are stable regression baselines and can be hit via --case.
+        cases = yaml_cases[-args.limit :] if args.limit > 0 else yaml_cases
     else:
         print("scenarios.yaml not found — deriving from gh pr list")
         cases = list_historical_cases(args.limit)

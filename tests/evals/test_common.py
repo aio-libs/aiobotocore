@@ -234,7 +234,7 @@ def test_committed_scenarios_yaml_parses() -> None:
 def test_invoke_and_parse_verdict_regex_shape() -> None:
     """The regex contract: group(1) captures the verdict token."""
     verdict_re = re.compile(r"^CLASSIFICATION:\s*(\S+)", re.MULTILINE)
-    raw = "Some preamble\nCLASSIFICATION: relax-safe\nMore text"
+    raw = "Some preamble\nCLASSIFICATION: no-port\nMore text"
     m = verdict_re.search(raw)
     assert m is not None
-    assert m.group(1) == "relax-safe"
+    assert m.group(1) == "no-port"

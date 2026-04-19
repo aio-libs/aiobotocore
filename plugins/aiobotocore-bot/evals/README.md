@@ -213,10 +213,21 @@ Options:
 
 Same as `check_async_need.py` — LLM non-determinism mitigated via majority
 vote, only top-line verdict compared, no tool-orchestration coverage. Plus
-one drift-specific caveat:
+two drift-specific caveats:
 
-- The classifier is asked to reason about botocore source "from knowledge of
-  the currently-pinned version" rather than being shown botocore source
-  directly. This is a shortcut; a production-fidelity run would fetch the
-  matching botocore source and include it in the prompt. Good enough for
-  regression detection on known-labeled cases.
+- **Botocore source comes from the model's training knowledge, not disk.**
+  The harness tells Claude to "use your knowledge of the botocore source
+  for the currently-pinned version; you can assume approximately the
+  latest stable release." This works well for recent PRs where the
+  model's botocore knowledge is fresh, but may misclassify older PRs
+  (e.g. a 2024 PR against botocore 1.35.x) because the model reasons
+  about "current botocore" not "botocore at the time." The
+  `check-override-drift.md` command itself accepts `--botocore-path` for
+  production use; the eval harness bypasses that path. A
+  production-fidelity fix would fetch the matching botocore tag into a
+  worktree and include its source in the prompt — worth doing if the
+  drift eval grows to cover many older historical PRs.
+- The classifier is asked to reason about the diff without running the
+  code. Some behavioral changes (subtle semantics, order-of-operations)
+  may be miscategorized as cosmetic. Majority-vote helps but doesn't
+  eliminate this class of miss.
