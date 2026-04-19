@@ -36,6 +36,22 @@ See `CLAUDE.md` §"AI workflow conventions" for signed-commit rules, pre-commit 
 naming (`claude/` prefix), versioning/changelog rules, and the `tests/test_patches.py` hash
 requirement. This prompt does not restate them.
 
+## Invoking `/aiobotocore-bot:*` commands
+
+Do **not** use the `Skill` tool. Plugin *commands* (what we ship) and *skills* (what the
+`Skill` tool sees) are separate registries in Claude Code — the plugin installs cleanly
+but `Skill` with `aiobotocore-bot:<anything>` returns `Unknown skill`. Commands aren't
+skills; this isn't a bug in the action.
+
+Instead, treat `/aiobotocore-bot:<command> [args]` as shorthand for: **read
+`plugins/aiobotocore-bot/commands/<command>.md` and follow its procedure directly.** The
+command files are self-contained — Steps 1..N are the full procedure. Pass any listed
+args (e.g. `--comment`, `--focus=<id>`) as inputs when the steps reference them.
+
+Applies to: `review-pr`, `analyze-pr-feedback`, `check-async-need`, `check-override-drift`,
+`open-pr`, `bump-version`, `complete-run`, `pyright-delta` — every command under
+`plugins/aiobotocore-bot/commands/`.
+
 ## Dispatch by EVENT
 
 Pick exactly ONE section below based on $EVENT_NAME. Do not run actions from other sections.
@@ -75,7 +91,9 @@ that adds ~90 seconds of wallclock for no benefit (cached or not — model laten
 bottleneck, not token cost). Prefer `Grep` for pattern checks (`--mode=relax` gone?) and reserve
 `Read` for when structural context actually matters.
 
-Run `/aiobotocore-bot:review-pr --comment` to perform a sequential code review. This reviews the PR diff checking for:
+Run `/aiobotocore-bot:review-pr --comment` (see §"Invoking `/aiobotocore-bot:*` commands"
+above — follow the command file directly, don't use the `Skill` tool). This reviews the PR
+diff checking for:
 
 - CLAUDE.md compliance
 - Bugs and logic errors in changed code
