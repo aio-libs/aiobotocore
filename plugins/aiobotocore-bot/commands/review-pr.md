@@ -8,7 +8,16 @@ Provide a code review for the given pull request.
 **Agent assumptions:** All tools are functional. Only call a tool if it is required to complete the task.
 Every tool call should have a clear purpose.
 
-Do NOT launch parallel subagents. Perform all steps sequentially in this conversation to minimize cache token costs.
+**Do NOT launch parallel subagents.** Perform all steps sequentially in this conversation to minimize
+cache token costs AND wallclock (each Agent spin-up + response adds seconds and the main agent typically
+re-reads the same files anyway, doubling the work).
+
+**Prefer `Grep` over `Read`** when you only need to verify a pattern — e.g. checking that an old term
+was renamed everywhere, or that a certain function isn't called. `Read` is right only when you genuinely
+need structural context (full-function review, cross-referencing surrounding code).
+
+**Do NOT pre-read all changed files at review start.** The PR diff from `gh pr diff` is sufficient for
+90% of review concerns. Read individual files only when a specific finding needs verification.
 
 ## Step 1: Eligibility check
 

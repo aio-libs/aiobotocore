@@ -67,6 +67,14 @@ no-op. Exit without posting a summary or swapping the reaction.
 
 ## Review the PR (only when EVENT=pull_request)
 
+**Do not pre-read files or spawn Agent subagents to gather context before invoking `review-pr`.**
+The command fetches the PR diff itself and reads only files it genuinely needs to verify specific
+findings. A common anti-pattern is spawning 3 parallel Agents that each read 5-9 files, then the
+main agent re-reads those files to verify — ~55 full-file reads, most redundant. On a 20-file PR
+that adds ~90 seconds of wallclock for no benefit (cached or not — model latency per turn is the
+bottleneck, not token cost). Prefer `Grep` for pattern checks (`--mode=relax` gone?) and reserve
+`Read` for when structural context actually matters.
+
 Run `/aiobotocore-bot:review-pr --comment` to perform a sequential code review. This reviews the PR diff checking for:
 
 - CLAUDE.md compliance
