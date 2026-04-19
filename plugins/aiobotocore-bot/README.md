@@ -1,12 +1,14 @@
 # aiobotocore-bot plugin
 
-Slash commands used by this repo's Claude Code GitHub Actions workflows
+Skills used by this repo's Claude Code GitHub Actions workflows
 (`.github/workflows/claude.yml`, `.github/workflows/botocore-sync.yml`).
+The agent invokes them via the `Skill` tool in agentic contexts; humans
+can invoke them interactively as `/aiobotocore-bot:<name>` slash commands.
 
 See [docs/ai-workflows.md](../../docs/ai-workflows.md) for the full system
 design; this README only covers the plugin itself.
 
-## Commands
+## Skills
 
 - `/aiobotocore-bot:review-pr [--comment]` — sequential PR code review
   (CLAUDE.md compliance, bugs in the diff, aiobotocore-specific async
@@ -49,8 +51,8 @@ design; this README only covers the plugin itself.
 
 ## Evals
 
-Narrow LLM-driven evals for the slash commands live in `evals/`. Each one
-replays the command against labeled ground truth and asserts the output
+Narrow LLM-driven evals for the skills live in `evals/`. Each one
+replays the skill against labeled ground truth and asserts the output
 matches, run N times with majority vote to tolerate non-determinism.
 
 - `evals/check_async_need.py` — replays the async-need classifier against

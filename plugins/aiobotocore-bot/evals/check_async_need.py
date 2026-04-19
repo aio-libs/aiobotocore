@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Evaluate /aiobotocore-bot:check-async-need against historical sync PRs.
+"""Evaluate the check-async-need skill against historical sync PRs.
 
 For each merged botocore-sync PR, the correct port-vs-no-port verdict is known
 via `aiobotocore_port_happened` — did the PR actually modify overridden `.py`
@@ -43,7 +43,7 @@ from _common import (
     derive_versions,
     invoke_and_parse,
     list_sync_prs,
-    load_command_body,
+    load_skill_body,
     new_client,
     overridden_paths,
     parse_scenarios_yaml,
@@ -51,13 +51,21 @@ from _common import (
     run_cases_concurrent,
 )
 
-COMMAND_PATH = (
-    REPO_ROOT / "plugins/aiobotocore-bot/commands/check-async-need.md"
+SKILL_PATH = (
+    REPO_ROOT / "plugins/aiobotocore-bot/skills/check-async-need/SKILL.md"
 )
 SCENARIOS_PATH = REPO_ROOT / "plugins/aiobotocore-bot/evals/scenarios.yaml"
 BOTOCORE_CLONE = Path(os.environ.get("BOTOCORE_CLONE", "/tmp/botocore"))
 
-VERDICT_RE = re.compile(r"^CLASSIFICATION:\s*(\S+)", re.MULTILINE)
+# Tolerate markdown-bold wrappers and leading whitespace — `**CLASSIFICATION**:`
+# and `CLASSIFICATION:` are both plausible model outputs; the previous
+# strict `^CLASSIFICATION:` would miss the bolded form and return
+# parse-error. Matches on any line start (MULTILINE) with optional
+# leading whitespace/asterisks around the label.
+VERDICT_RE = re.compile(
+    r"^\s*\**\s*CLASSIFICATION\s*\**\s*:\s*(\S+)",
+    re.MULTILINE,
+)
 
 
 @dataclass
@@ -155,8 +163,13 @@ def build_user_message(case: Case, diff: str) -> str:
         {diff}
         ```
 
-        Emit the exact structured output described in Step 4 of your system prompt,
-        starting with a line `CLASSIFICATION: <verdict>`.
+        Output format — strict:
+
+        1. The VERY FIRST line of your response must be `CLASSIFICATION: <verdict>`
+           where <verdict> is one of `no-port`, `port-required`, or `ambiguous`.
+           No preamble, no explanation, no markdown formatting on this line.
+        2. Any supporting reasoning goes AFTER the classification line, per Step 4
+           of your system prompt.
         """,
         )
         .format(from_ver=case.from_ver, to_ver=case.to_ver, diff=diff)
@@ -196,7 +209,7 @@ async def main() -> int:
         return 2
     require_env("ANTHROPIC_API_KEY")
 
-    command_body = load_command_body(COMMAND_PATH)
+    skill_body = load_skill_body(SKILL_PATH)
     overridden = overridden_paths()
     print(
         f"Overridden files: {len(overridden)} ({', '.join(sorted(overridden)[:3])}, ...)"
@@ -240,7 +253,7 @@ async def main() -> int:
         user = build_user_message(case, diff)
         verdict, _raw = await invoke_and_parse(
             client,
-            command_body,
+            skill_body,
             user,
             args.model,
             VERDICT_RE,

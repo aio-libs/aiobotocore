@@ -1,6 +1,6 @@
 # Evals
 
-Narrow eval harness for plugin slash commands. One script per command, plus a
+Narrow eval harness for plugin skills. One script per skill, plus a
 shared committed ground-truth file (`scenarios.yaml`) so the evals run fast
 and the labels are reviewable artifacts in their own right.
 
@@ -12,8 +12,8 @@ evals/
 ├── scenarios.yaml             # ground truth for check-async-need (sync PRs)
 ├── drift_scenarios.yaml       # ground truth for check-override-drift (any PR)
 ├── generate_scenarios.py      # stub generator for scenarios.yaml
-├── check_async_need.py        # eval runner for /aiobotocore-bot:check-async-need
-└── check_override_drift.py    # eval runner for /aiobotocore-bot:check-override-drift
+├── check_async_need.py        # eval runner for the check-async-need skill
+└── check_override_drift.py    # eval runner for the check-override-drift skill
 ```
 
 ## Running in CI (recommended)
@@ -103,12 +103,12 @@ note it in `notes` and consider a prompt change.
 
 ## check_async_need.py
 
-Replays `/aiobotocore-bot:check-async-need` against every row in
+Replays the `check-async-need` skill against every row in
 `scenarios.yaml` (or derives from `gh pr list` if the YAML is missing),
 comparing the classifier's verdict to `expected`.
 
 **Narrow on purpose.** The script pre-computes the filtered botocore diff
-and passes it to Claude as the user message, bypassing the command's
+and passes it to Claude as the user message, bypassing the skill's
 tool-orchestration layer. That isolates classification quality — the thing
 we actually worry about when the prompt drifts.
 
@@ -137,7 +137,7 @@ Options:
 
 ### When to run
 
-- After editing `plugins/aiobotocore-bot/commands/check-async-need.md`
+- After editing `plugins/aiobotocore-bot/skills/check-async-need/SKILL.md`
 - Before merging changes to the classifier criteria
 - After an override file is added/removed (the override set affects the filter)
 - Periodically to catch model-behavior regressions
@@ -159,7 +159,7 @@ Options:
 
 ## check_override_drift.py
 
-Replays `/aiobotocore-bot:check-override-drift` against labeled PRs in
+Replays the `check-override-drift` skill against labeled PRs in
 `drift_scenarios.yaml`. Expected verdicts are `clean` | `cosmetic-drift` |
 `behavioral-drift`.
 
@@ -204,7 +204,7 @@ Options:
 
 ### When to run
 
-- After editing `plugins/aiobotocore-bot/commands/check-override-drift.md`
+- After editing `plugins/aiobotocore-bot/skills/check-override-drift/SKILL.md`
 - Before merging changes to the drift criteria
 - When adding new legitimate-async-gap patterns to the "OK" list — make sure
   clean cases still classify as clean.

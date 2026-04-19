@@ -1,6 +1,7 @@
 ---
+description: Use at the end of every aiobotocore-bot workflow run to post the summary reply and swap the 👀 reaction for 👍. Handles the event-dependent target (inline-thread reply vs top-level PR/issue comment) and scopes reaction deletion to claude[bot] so human 👀 reactions aren't lost.
+argument-hint: "--event=EVENT --number=N [--comment-id=ID] [--summary=TEXT] [--skip-reply] [--repo=OWNER/REPO]"
 allowed-tools: Bash(gh api:*)
-description: Post summary reply and swap eyes→+1 reaction at the end of a workflow run
 ---
 
 End-of-run cleanup: posts the summary reply to the correct target based on the triggering event,
@@ -15,7 +16,7 @@ hand-rolling the two `gh api` blocks — the event-vs-comment-vs-PR target logic
 - `--comment-id=<id>` (optional): `$COMMENT_ID` — required for comment-triggered events.
 - `--summary=<body>` (optional, required unless `--skip-reply`): summary text to post.
 - `--skip-reply` (optional): reaction swap only. Use from `pull_request` flows where
-  `/aiobotocore-bot:review-pr` already posted its own review comment.
+  the `review-pr` skill already posted its own review comment.
 - `--repo=<owner/repo>` (optional): defaults to `$REPO`.
 
 ## Step 1: Post summary reply

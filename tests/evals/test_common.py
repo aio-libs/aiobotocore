@@ -15,7 +15,7 @@ from unittest.mock import patch
 import _common
 
 
-def test_load_command_body_strips_frontmatter(tmp_path: Path) -> None:
+def test_load_skill_body_strips_frontmatter(tmp_path: Path) -> None:
     p = tmp_path / "cmd.md"
     p.write_text(
         "---\n"
@@ -25,13 +25,13 @@ def test_load_command_body_strips_frontmatter(tmp_path: Path) -> None:
         "\n"
         "Body content here.\n",
     )
-    assert _common.load_command_body(p) == "Body content here."
+    assert _common.load_skill_body(p) == "Body content here."
 
 
-def test_load_command_body_no_frontmatter(tmp_path: Path) -> None:
+def test_load_skill_body_no_frontmatter(tmp_path: Path) -> None:
     p = tmp_path / "cmd.md"
     p.write_text("Plain body.\n")
-    assert _common.load_command_body(p) == "Plain body.\n"
+    assert _common.load_skill_body(p) == "Plain body.\n"
 
 
 def test_decrement_patch() -> None:
@@ -233,8 +233,21 @@ def test_committed_scenarios_yaml_parses() -> None:
 
 def test_invoke_and_parse_verdict_regex_shape() -> None:
     """The regex contract: group(1) captures the verdict token."""
-    verdict_re = re.compile(r"^CLASSIFICATION:\s*(\S+)", re.MULTILINE)
-    raw = "Some preamble\nCLASSIFICATION: no-port\nMore text"
-    m = verdict_re.search(raw)
+    verdict_re = re.compile(
+        r"^\s*\**\s*CLASSIFICATION\s*\**\s*:\s*(\S+)",
+        re.MULTILINE,
+    )
+    # Plain form
+    m = verdict_re.search("Some preamble\nCLASSIFICATION: no-port\nMore text")
+    assert m is not None and m.group(1) == "no-port"
+    # Markdown-bold form (model likes to format headings this way)
+    m = verdict_re.search("**CLASSIFICATION**: port-required\nRationale...")
+    assert m is not None and m.group(1) == "port-required"
+    # Leading whitespace
+    m = verdict_re.search("  CLASSIFICATION: ambiguous\n")
+    assert m is not None and m.group(1) == "ambiguous"
+    # Bold wrapping BOTH label and value — group 1 keeps the trailing `**`;
+    # the rstrip(":*") in invoke_and_parse strips them.
+    m = verdict_re.search("**CLASSIFICATION: no-port**\n")
     assert m is not None
-    assert m.group(1) == "no-port"
+    assert m.group(1).rstrip(":*") == "no-port"

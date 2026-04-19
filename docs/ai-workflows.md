@@ -59,7 +59,7 @@ flowchart LR
     reviewPrompt --> action["anthropics/<br/>claude-code-action<br/>(Claude agent)"]
     syncPrompt --> action
 
-    action -->|invokes| commands["/aiobotocore-bot:review-pr<br/>/aiobotocore-bot:analyze-pr-feedback<br/>/aiobotocore-bot:check-async-need<br/>/aiobotocore-bot:check-override-drift<br/>/aiobotocore-bot:open-pr<br/>/aiobotocore-bot:bump-version<br/>/aiobotocore-bot:pyright-delta<br/>/aiobotocore-bot:complete-run"]
+    action -->|invokes| skills["aiobotocore-bot skills<br/>review-pr · analyze-pr-feedback · check-async-need<br/>check-override-drift · open-pr · bump-version<br/>pyright-delta · complete-run"]
     hooks["PreToolUse hooks:<br/>no unsigned commits ·<br/>no push to main/master ·<br/>no commits on fork PRs"] -.guards.-> action
 
     action --> anthropic["Anthropic API"]
@@ -78,9 +78,10 @@ flowchart LR
   `botocore-sync-prompt.md`) decide *what* the bot does once invoked.
   They use `envsubst` to interpolate a small allowlist of workflow-
   provided variables (`$REPO`, `$NUMBER`, `$EVENT_NAME`, etc.).
-- **Plugin** (`plugins/aiobotocore-bot/`) packages the slash commands
-  (`commands/review-pr.md`, `commands/analyze-pr-feedback.md`) so
-  `claude-code-action` loads them in CI. The repo-root
+- **Plugin** (`plugins/aiobotocore-bot/`) packages the skills
+  (`skills/review-pr/SKILL.md`, `skills/analyze-pr-feedback/SKILL.md`, …) so
+  `claude-code-action` loads them in CI and the agent invokes them via the
+  `Skill` tool. The repo-root
   `.claude-plugin/marketplace.json` registers the plugin; the workflow
   passes `plugin_marketplaces: ./.` and `plugins: aiobotocore-bot@aiobotocore`
   to install from the checked-out working tree — so PR branches test
@@ -292,13 +293,14 @@ bug that motivated the allowlist.
   change across *all* `claude.yml` event types. Split-check the
   dispatch sections when editing.
 
-## Slash commands (`plugins/aiobotocore-bot/commands/`)
+## Skills (`plugins/aiobotocore-bot/skills/`)
 
-These are reusable procedures invoked by the top-level prompts and
-also available to humans running Claude Code locally. They live in
-the repo so maintainers can iterate on them alongside the prompts.
+These are reusable procedures invoked by the top-level prompts via the
+`Skill` tool, and also available to humans running Claude Code locally as
+`/aiobotocore-bot:<name>` slash invocations. They live in the repo so
+maintainers can iterate on them alongside the prompts.
 
-| Command | Purpose |
+| Skill | Purpose |
 |-|-|
 | `/aiobotocore-bot:review-pr [--comment]` | Sequential (not parallel) PR review. Checks CLAUDE.md compliance, bugs in the diff, async patterns, override drift (unmatched changes vs matching botocore), and port-vs-no-port sanity for sync-bot PRs. Scores each finding 0–100 and filters < 80. With `--comment`, posts inline review comments via `mcp__github_inline_comment__create_inline_comment`. |
 | `/aiobotocore-bot:analyze-pr-feedback [--focus=<id>] [--resolve]` | Fetch every review thread + top-level comment (including resolved) and synthesize into three buckets: *what was asked*, *what was done*, *what's still outstanding*. Act on bucket C with the three-outcome rule. Optionally resolve threads after posting a "fixed" reply. |
@@ -593,7 +595,7 @@ REPO=aio-libs/aiobotocore NUMBER=1234 EVENT_NAME=pull_request \
 # Inspect and feed into a local claude-code run
 ```
 
-For the slash commands, load the plugin locally once with
+For the skills, load the plugin locally once with
 `claude /plugin marketplace add ./` + `claude /plugin install
 aiobotocore-bot@aiobotocore`, then `/aiobotocore-bot:review-pr 1234`
 works against real PRs from your workstation. Or pass
@@ -611,18 +613,19 @@ works against real PRs from your workstation. Or pass
 5. Test by dispatching the workflow manually with a hand-crafted
    payload, or push a throwaway PR that exercises the path.
 
-### Adding a new slash command
+### Adding a new skill
 
-1. Create `plugins/aiobotocore-bot/commands/<name>.md` with frontmatter
-   (`description:` required; `allowed-tools:` strongly recommended to
-   restrict the command's tool surface).
+1. Create `plugins/aiobotocore-bot/skills/<name>/SKILL.md` with frontmatter
+   (`description:` required and trigger-phrased, e.g. "Use when …";
+   `allowed-tools:` space-separated, strongly recommended to restrict
+   the skill's tool surface; optional `argument-hint:`).
 2. Reference it from `.github/claude-review-prompt.md` as
-   `/aiobotocore-bot:<name>` — plugin commands are namespaced by the
-   plugin name.
-3. Keep it self-contained — slash commands run with no prior context
+   `/aiobotocore-bot:<name>` — the agent picks it up via the `Skill`
+   tool using the `aiobotocore-bot:<name>` identifier.
+3. Keep it self-contained — skills run with no prior context
    from the invoking prompt.
 4. Locally, `claude /plugin marketplace add ./` + `claude /plugin install
-   aiobotocore-bot@aiobotocore` picks up the new command (or
+   aiobotocore-bot@aiobotocore` picks up the new skill (or
    `claude --plugin-dir ./plugins/aiobotocore-bot` per-invocation).
 
 ### Changing guardrails

@@ -184,9 +184,9 @@ Run the classifier:
 /aiobotocore-bot:check-async-need --from=$LAST_SUPPORTED --to=$LATEST_BOTOCORE
 ```
 
-The command diffs the two botocore versions, finds new/changed functions in overridden files, and returns one of:
+The skill diffs the two botocore versions, finds new/changed functions in overridden files, and returns one of:
 
-- `no-port` → no async-need signals found. Go to Step 4 (no-port path). Quote the command's summary line in the
+- `no-port` → no async-need signals found. Go to Step 4 (no-port path). Quote the skill's summary line in the
   PR body as the async-need justification. Do NOT justify a no-port verdict with "functions not overridden" — that is the
   wrong test.
 - `port-required` → at least one new/changed function has async-need signals. Go to Step 5 (port path).
@@ -229,7 +229,7 @@ what changes are needed. Do not attempt code changes.
 
 ## Step 4: No-port path
 
-Run `/aiobotocore-bot:bump-version --mode=no-port --target=$LATEST_BOTOCORE`. The command:
+Run `/aiobotocore-bot:bump-version --mode=no-port --target=$LATEST_BOTOCORE`. The skill:
 
 - Updates the `pyproject.toml` upper bound (lower bound unchanged)
 - Bumps `aiobotocore/__init__.py` PATCH version
@@ -282,7 +282,7 @@ feedback instead of guessing.
    `aiobotocore/` and the target version of `botocore/` to confirm the changes were
    propagated everywhere they should be — it's easy to miss a secondary caller. This
    is `CONTRIBUTING.rst` §"How to Upgrade Botocore" step 4.
-4. Run `/aiobotocore-bot:bump-version --mode=port --target=$LATEST_BOTOCORE`. The command updates both
+4. Run `/aiobotocore-bot:bump-version --mode=port --target=$LATEST_BOTOCORE`. The skill updates both
    `pyproject.toml` bounds, bumps MINOR version, writes the `CHANGES.rst` entry, and runs `uv lock`.
 
 ### test_patches.py scenarios

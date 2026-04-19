@@ -1,6 +1,7 @@
 ---
-allowed-tools: Bash(gh api graphql:*), Bash(gh api repos/*/pulls/*:*), Bash(gh api repos/*/issues/*:*), Bash(gh pr view:*), Bash(gh pr diff:*), Bash(git log:*), mcp__github_file_ops__commit_files
-description: Three-bucket synthesis of PR feedback plus per-thread action plan
+description: Use when addressing reviewer feedback on an aiobotocore PR — fetches every thread and top-level comment (including resolved), synthesizes into three buckets (asked / done / outstanding), then produces a per-thread action plan with one commit per group. Accepts `--focus=<databaseId>` to rank the triggering comment first and `--resolve` to mark threads resolved after a fix.
+argument-hint: "[--focus=<databaseId>] [--resolve]"
+allowed-tools: Bash(gh api graphql:*) Bash(gh api repos/*/pulls/*:*) Bash(gh api repos/*/issues/*:*) Bash(gh pr view:*) Bash(gh pr diff:*) Bash(git log:*) mcp__github_file_ops__commit_files
 ---
 
 Fetch every piece of reviewer feedback on the PR — review threads and top-level PR comments, including resolved

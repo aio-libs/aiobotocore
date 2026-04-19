@@ -10,7 +10,7 @@
     {
       "name": "aiobotocore-bot",
       "source": "./plugins/aiobotocore-bot",
-      "description": "Slash commands for the aiobotocore CI automation: /aiobotocore-bot:review-pr and /aiobotocore-bot:analyze-pr-feedback."
+      "description": "Skills for the aiobotocore CI automation: review-pr, analyze-pr-feedback, check-async-need, check-override-drift, open-pr, bump-version, pyright-delta, complete-run."
     }
   ]
 }

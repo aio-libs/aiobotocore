@@ -1,6 +1,7 @@
 ---
-allowed-tools: Bash(git -C /tmp/botocore:*), Bash(find:*), Bash(sed:*), Bash(cat:*), Bash(test:*)
-description: Classify new/changed botocore functions in overridden files as pure-sync, needs-async, or ambiguous
+description: Use when classifying a botocore version bump as no-port, port-required, or ambiguous. Diffs `$FROM..$TO` in a bare botocore clone, inspects every added/changed function in overridden files, and emits `CLASSIFICATION:` plus per-function reasons. Shared by the sync bot (to pick no-port vs port path) and the PR reviewer (to sanity-check sync-bot PRs).
+argument-hint: "--from=<version> --to=<version> [--aiobotocore-root=<path>] [--botocore-clone=<path>]"
+allowed-tools: Bash(git -C /tmp/botocore:*) Bash(find:*) Bash(sed:*) Bash(cat:*) Bash(test:*)
 ---
 
 <!--
@@ -116,7 +117,7 @@ For each added/changed function, inspect the **new code** for these signals:
 **pure-sync** — none of the above; the new code is dict/list/str manipulation, attribute access, regex,
 arithmetic, or calls to other pure-sync botocore utilities.
 
-**ambiguous** — calls an unfamiliar helper whose body you cannot inspect within this command run, OR the
+**ambiguous** — calls an unfamiliar helper whose body you cannot inspect within this skill run, OR the
 call graph is deep enough that you can't rule out I/O without tracing. Prefer `ambiguous` over a wrong
 confident verdict; the caller will escalate.
 
@@ -176,8 +177,8 @@ Step 4 (no-port path) and quote the summary in the PR body as the async-need jus
 go to Step 5 (bump path). If `ambiguous`, go to Step 9 (feedback issue) with the ambiguous verdicts as the
 questions.
 
-**Reviewer** (`review-pr.md`): runs this in Step 3d for sync-bot-authored PRs, extracting `$FROM` / `$TO`
-from the botocore diff URL in the PR body. If the PR claims no-port but this command returns `port-required`
+**Reviewer** (`review-pr` skill): runs this in Step 3d for sync-bot-authored PRs, extracting `$FROM` / `$TO`
+from the botocore diff URL in the PR body. If the PR claims no-port but this skill returns `port-required`
 or `ambiguous`, flag the mismatch as a high-confidence review issue.
 
 ## Honesty
