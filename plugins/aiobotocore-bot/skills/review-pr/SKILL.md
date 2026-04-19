@@ -100,22 +100,21 @@ e) **Port-vs-no-port sanity check** (only for sync-bot-authored PRs — `claude[
    three-way disagreement between classifier / body / pyproject.toml is worth flagging.
 
 f) **Coverage-driven test-porting suggestions** (any PR that adds or modifies `aiobotocore/*.py`
-   code): check whether the added/changed lines have test coverage. Pull the codecov report
-   for the PR via their comment (codecov[bot] leaves one automatically within ~2 minutes of
-   push) or via the GitHub check run. For any added/changed aiobotocore function whose lines
-   show red (uncovered) AND whose botocore counterpart exists, look for a corresponding
-   `botocore/tests/unit/test_<file>.py::test_<name>*` pattern. If botocore has tests for that
-   code but aiobotocore's mirror doesn't, post a soft top-level suggestion:
+   code): if codecov[bot] has already posted a coverage comment on the PR, read it via the
+   same `gh api graphql` pattern used in Step 1 (include `body` in the comment nodes).
+   codecov renders a per-file coverage delta; any file with uncovered new lines is a
+   candidate. For a candidate file whose botocore counterpart exists (e.g.
+   `aiobotocore/httpchecksum.py` ↔ `botocore/tests/unit/test_httpchecksum.py`), post at
+   most ONE soft top-level suggestion per PR — listing every gap is noise:
 
-   > Coverage gap: `aiobotocore/<file>.py::<function>` has no test. botocore tests at
-   > `botocore/tests/<path>.py` cover this functionality — consider running
-   > `/aiobotocore-bot:port-tests --backfill --paths=test_<file>.py` to port them.
+   > Coverage gap: `aiobotocore/<file>.py` has uncovered new lines per codecov. botocore
+   > tests at `botocore/tests/<path>.py` may cover this — consider running
+   > `/aiobotocore-bot:port-tests --backfill --paths=test_<file>.py`.
 
-   This is NOT a blocking finding (coverage below the patch threshold may already be caught
-   by codecov's own comment). It's a hint to the author and the future reviewer that the
-   port-tests skill has a concrete target. Emit at most ONE such suggestion per PR —
-   listing every gap turns into noise. Pick the highest-confidence match: the file with the
-   most uncovered lines that have a clear botocore test counterpart.
+   Skip entirely if codecov hasn't posted yet (don't block the review waiting for it) or
+   if every file's coverage is already ≥ the codecov patch threshold. Not a blocking
+   finding. Pick the file with the most uncovered lines that has a clear botocore test
+   counterpart.
 
 **CRITICAL: Only flag HIGH SIGNAL issues.**
 

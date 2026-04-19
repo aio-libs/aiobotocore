@@ -1,7 +1,7 @@
 ---
 description: Use when porting botocore tests to aiobotocore (during a port-required sync, or when backfilling historical test coverage). Converts sync test files under `botocore/tests/...` to their async counterparts under `tests/botocore_tests/...`, validates each port with `pytest -x`, commits on pass, reverts on fail. Handles both new/changed tests from a botocore diff AND backfill of relevant-but-not-yet-ported tests.
 argument-hint: "[--from=<version>] [--to=<version>] [--backfill] [--paths=<file1,file2,...>] [--dry-run]"
-allowed-tools: Bash(git -C /tmp/botocore:*) Bash(uv run pytest:*) Bash(uv run python:*) Bash(ls:*) Bash(find:*) Bash(cat:*) Bash(diff:*) Bash(cp:*) mcp__github_file_ops__commit_files
+allowed-tools: Bash(git -C /tmp/botocore:*) Bash(git checkout:*) Bash(uv run pytest:*) Bash(uv run python:*) Bash(ls:*) Bash(find:*) Bash(cat:*) Bash(diff:*) Bash(cp:*) mcp__github_file_ops__commit_files
 ---
 
 Port botocore tests to aiobotocore. Two driving scenarios:
@@ -180,9 +180,11 @@ For each successfully converted file:
    first failure; `-v` surfaces the failing test name; `-s` shows prints for debugging.
 3. **If pytest passes**: the file is ready to commit via `mcp__github_file_ops__commit_files`
    (the caller handles the actual commit batching).
-4. **If pytest fails**: revert the file to its pre-port state (`git checkout -- <path>` or
-   delete if it was a new file), emit an advisory block describing which test(s) failed and
-   which conversion rules were applied. The human reviewer can pick up from there.
+4. **If pytest fails**: revert the file to its pre-port state with
+   `git checkout -- <path>`. (Step 1 restricts us to files with an existing aiobotocore
+   mirror, so the target file always exists on disk — no new-file case to handle.) Emit
+   an advisory block describing which test(s) failed and which conversion rules were
+   applied; the human reviewer can pick up from there.
 
 ## Step 5: Output report
 

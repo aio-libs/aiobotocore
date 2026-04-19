@@ -210,9 +210,11 @@ def build_user_message(
            you matched (or the exact name from `async_methods` /
            `aio_classes` you contacted).
         2. Then call the `record_async_need_classification` tool
-           ONCE with your final verdict, summary, and per-function
-           verdicts. The tool call is the authoritative output — do
-           not emit a CLASSIFICATION label in text.
+           ONCE with your final `verdict` and a `rationale` containing
+           the per-function breakdown (file, name, change-type,
+           verdict, reason) plus a roll-up summary. The tool call is
+           the authoritative output — do not emit a CLASSIFICATION
+           label in text.
         3. Never justify port-required with "the test_patches.py hash
            will break" — hash bumps are mechanical, NOT a port
            signal.

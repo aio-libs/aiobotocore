@@ -172,8 +172,9 @@ function in aiobotocore's world), check the diff for callers:
 tool call (`record_async_need_classification`). Reason through each
 changed function in text (quote the exact `overrides` / `async_methods`
 / `aio_classes` match for every port-required verdict), then call the
-tool ONCE with `verdict`, `summary`, and `per_function_verdicts`. The
-tool call is the authoritative output.
+tool ONCE with `verdict` and a `rationale` that contains the per-function
+breakdown + a roll-up summary. The tool call is the authoritative
+output.
 
 **When invoked directly (human via slash command or agent without tool
 schema)**: emit the following plain text at the END of your response,
