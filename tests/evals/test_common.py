@@ -233,8 +233,16 @@ def test_committed_scenarios_yaml_parses() -> None:
 
 def test_invoke_and_parse_verdict_regex_shape() -> None:
     """The regex contract: group(1) captures the verdict token."""
-    verdict_re = re.compile(r"^CLASSIFICATION:\s*(\S+)", re.MULTILINE)
-    raw = "Some preamble\nCLASSIFICATION: no-port\nMore text"
-    m = verdict_re.search(raw)
-    assert m is not None
-    assert m.group(1) == "no-port"
+    verdict_re = re.compile(
+        r"^\s*\**\s*CLASSIFICATION\s*\**\s*:\s*(\S+)",
+        re.MULTILINE,
+    )
+    # Plain form
+    m = verdict_re.search("Some preamble\nCLASSIFICATION: no-port\nMore text")
+    assert m is not None and m.group(1) == "no-port"
+    # Markdown-bold form (model likes to format headings this way)
+    m = verdict_re.search("**CLASSIFICATION**: port-required\nRationale...")
+    assert m is not None and m.group(1) == "port-required"
+    # Leading whitespace
+    m = verdict_re.search("  CLASSIFICATION: ambiguous\n")
+    assert m is not None and m.group(1) == "ambiguous"

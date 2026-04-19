@@ -21,7 +21,12 @@ import anthropic
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 AIOBOTOCORE_DIR = REPO_ROOT / "aiobotocore"
-DEFAULT_MODEL = "claude-opus-4-7"
+# Sonnet (not Opus) for the same reason claude-code-action defaults to
+# Sonnet in the other workflows: structured classification with a clear
+# system prompt doesn't need Opus-level reasoning, and Sonnet is faster
+# + ~5× cheaper per call. First-run comparison on this branch showed
+# 8/8 on both eval suites at Opus; Sonnet is expected to match.
+DEFAULT_MODEL = "claude-sonnet-4-6"
 
 UPPER_RE = re.compile(r'"botocore\s*>=\s*[\d.]+\s*,\s*<\s*([\d.]+)"')
 LOWER_RE = re.compile(r'"botocore\s*>=\s*([\d.]+)\s*,')

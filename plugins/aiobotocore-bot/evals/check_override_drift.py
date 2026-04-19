@@ -50,7 +50,12 @@ SCENARIOS_PATH = (
     REPO_ROOT / "plugins/aiobotocore-bot/evals/drift_scenarios.yaml"
 )
 
-VERDICT_RE = re.compile(r"^OVERRIDE_DRIFT:\s*(\S+)", re.MULTILINE)
+# Matches `OVERRIDE_DRIFT:`, `**OVERRIDE_DRIFT**:`, or leading whitespace —
+# same tolerance as check_async_need.py's VERDICT_RE.
+VERDICT_RE = re.compile(
+    r"^\s*\**\s*OVERRIDE_DRIFT\s*\**\s*:\s*(\S+)",
+    re.MULTILINE,
+)
 VALID_VERDICTS = {"clean", "cosmetic-drift", "behavioral-drift"}
 
 
@@ -95,8 +100,13 @@ def build_user_message(case: Case, diff: str) -> str:
         latest stable release). For `aiobotocore/` files without a botocore mirror
         (e.g. httpxsession.py), mark the file as out-of-scope and skip.
 
-        Emit the exact structured output described in your Step 4, starting with
-        `OVERRIDE_DRIFT: <verdict>`.
+        Output format — strict:
+
+        1. The VERY FIRST line of your response must be `OVERRIDE_DRIFT: <verdict>`
+           where <verdict> is one of `clean`, `cosmetic-drift`, or `behavioral-drift`.
+           No preamble, no explanation, no markdown formatting on this line.
+        2. Any supporting reasoning goes AFTER the classification line, per Step 4
+           of your system prompt.
 
         ```diff
         {diff}
