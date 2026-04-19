@@ -187,9 +187,11 @@ disable = [
     # are fragments loaded into a larger prompt, not standalone docs
     # with a title.
     "MD041",
-    # .github/pull_request_template.md and bug_report.md use
-    # `*Replace this text...*` as placeholder text, which this rule
-    # misreads as emphasis-used-as-heading.
+    # .github/pull_request_template.md uses `*Replace this text...*`
+    # as placeholder text and .github/ISSUE_TEMPLATE/bug_report.md
+    # uses **Describe the bug** / **Checklist** as bold labels.
+    # Both are conventional GitHub template styling, not
+    # emphasis-used-as-heading.
     "MD036",
 ]
 

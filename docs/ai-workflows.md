@@ -265,7 +265,7 @@ bug that motivated the allowlist.
 
 **Editing conventions:**
 
-- Reflow prose to ~120 chars (matches yamllint).
+- Reflow prose to ~120 chars (enforced by the `rumdl` pre-commit hook).
 - Keep code blocks small and commented — the prompt is still the
   LLM's instruction set, not a paper.
 - Any change to `claude-review-prompt.md` is effectively a behavior
@@ -382,6 +382,56 @@ The `/analyze-pr-feedback` path is reserved for `claude[bot]` PRs
 specifically, on the theory that review threads on Claude's own PRs are
 feedback the bot should close the loop on itself.
 
+### Trust surface in practice
+
+"Trusted author" as defined above maps to roughly 60 accounts on this
+repo today, reached through three aio-libs teams:
+
+| Team | Size | Grants |
+|-|-|-|
+| `aio-libs/admins` | 6 | admin on every aio-libs repo |
+| `aio-libs/aiobotocore-admins` | 4 | admin on this repo specifically |
+| `aio-libs/triagers` | 38 | triage on every aio-libs repo |
+
+Plus ~19 legacy aio-libs org members with read access who predate the
+triagers team. All pass the `MEMBER` / `COLLABORATOR` / `OWNER` check.
+
+Snapshot these live with:
+
+```bash
+gh api repos/aio-libs/aiobotocore/collaborators --paginate --jq \
+  '.[] | {login, permission: .role_name}'
+gh api orgs/aio-libs/teams/triagers/members --paginate --jq \
+  '[.[].login] | length'
+```
+
+Worth knowing:
+
+- The `triagers` team is **org-wide**. Being on it from aiohttp work
+  also trusts you on aiobotocore — membership doesn't prove
+  aiobotocore-specific context.
+- The `@claude` gate does not check permission level. A read-only
+  org member can fire the bot just as easily as an admin.
+- Blast radius is still bounded by the "will never do" list above —
+  no pushes to `main`, no fork commits, no human-PR commits, no
+  unsigned commits. The worst a trust-surface expansion buys an
+  attacker is burning API budget and posting noisy comments.
+
+If you want a tighter gate later, options:
+
+1. **Permission-level check** — filter on `push` permission via
+   `gh api repos/$REPO/collaborators/$USER/permission` in the `if:`
+   or prompt. Drops the surface from ~60 to ~13.
+2. **Team-scoped check** — require membership in
+   `aio-libs/aiobotocore-admins` (4 people). Very tight, probably
+   too tight for day-to-day use.
+3. **Two-tier trust** — keep MEMBER for auto-review; require
+   write+ for `@claude` action paths (the ones that push commits).
+
+None of these is recommended today; the current boundary has been
+stable and the hooks catch the high-blast-radius operations.
+Documented so the decision is explicit, not accidental.
+
 ### Manual override / emergency stop
 
 - **Stop an auto-review:** convert the PR to draft. Explicit `@claude`
@@ -407,10 +457,11 @@ Listed in order of defense layer:
    `pull-requests: write`, `issues: write`, `id-token: write`,
    `actions: read`.
 4. **PreToolUse hooks** (defined in `settings:` JSON):
-   - Block `git commit` → forces MCP commits → signed.
+   - Block `git commit` → forces MCP commits → signed. *(both workflows)*
    - Block `git push ... main|master` → branch protection would
-     reject it anyway, but fails fast.
+     reject it anyway, but fails fast. *(both workflows)*
    - Block `mcp__github_file_ops__commit_files` when `IS_FORK=true`.
+     *(`claude.yml` only — `botocore-sync.yml` never runs against forks.)*
 5. **Prompt-level rules**:
    - Trust only `MEMBER/OWNER/COLLABORATOR` comment bodies.
    - Confidence ≥ 80 before posting review findings.
@@ -421,15 +472,15 @@ Listed in order of defense layer:
 
 Every run ends with the `Usage summary` step, which parses the action's
 `execution_file` (a JSON message log) and appends a summary to the
-GitHub Actions job summary. It looks roughly like this:
+GitHub Actions job summary. It renders like this:
 
-> **Usage**
->
-> Turns: 12 | Duration: 84s | Total: **$0.42**
->
-> | Model | Input | Output | Cache read | Cache create | Cost |
-> |-|-|-|-|-|-|
-> | Opus | 12,400 | 3,200 | 180,000 | 24,000 | $0.42 |
+**Usage**
+
+Turns: 12 | Duration: 84s | Total: **$0.42**
+
+| Model | Input | Output | Cache read | Cache create | Cost |
+|-|-|-|-|-|-|
+| Opus | 12,400 | 3,200 | 180,000 | 24,000 | $0.42 |
 
 The step is `continue-on-error: true` — we don't want observability to
 fail a run. If you're investigating cost regressions, that table is
@@ -574,8 +625,9 @@ git log -- .github/workflows/claude.yml \
 - [#1500](https://github.com/aio-libs/aiobotocore/pull/1500) — Permissions
   scoped down, security hardening.
 - [#1505](https://github.com/aio-libs/aiobotocore/pull/1505) — Auto-review
-  only on open, not every push. *(Later partially reverted — see #1544
-  context — synchronize is back for re-review-on-new-commits.)*
+  only on open, not every push. *(Later reverted in
+  [#1551](https://github.com/aio-libs/aiobotocore/pull/1551) —
+  `synchronize` is back so re-review fires on new commits.)*
 - [#1507](https://github.com/aio-libs/aiobotocore/pull/1507) — Sequential
   review replaces parallel-subagent plugin. Dramatic cost reduction.
 - [#1511](https://github.com/aio-libs/aiobotocore/pull/1511),
@@ -587,8 +639,9 @@ git log -- .github/workflows/claude.yml \
   `envsubst` to documented placeholders; fixes silent-empty-string bug.
 - [#1536](https://github.com/aio-libs/aiobotocore/pull/1536) — Disambiguate
   PR vs issue number in `issue_comment` events.
-- [#1544](https://github.com/aio-libs/aiobotocore/pull/1544) — Workflow
-  efficiency pass (job-level concurrency, dependency caching).
+- [#1544](https://github.com/aio-libs/aiobotocore/pull/1544) — PR-vs-issue
+  dispatch fix (`IS_PR`), `gh auth setup-git`, PreToolUse hook switched
+  from blocking `git commit` to blocking `git push` to main/master.
 - [#1551](https://github.com/aio-libs/aiobotocore/pull/1551) — Improved
   sync prompt: two-PR model, feedback-issue loop, dry-run input.
 - [#1552](https://github.com/aio-libs/aiobotocore/pull/1552) — Guarantee

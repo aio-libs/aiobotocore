@@ -56,6 +56,7 @@ Code" for details.
 
 - [CONTRIBUTING.rst](CONTRIBUTING.rst) — upgrade process, hash validation, test running
 - [docs/override-patterns.md](docs/override-patterns.md) — async override patterns, test porting
+- [docs/ai-workflows.md](docs/ai-workflows.md) — AI automation: triggers, prompts, trust model, guardrails
 
 # How aiobotocore overrides botocore
 
