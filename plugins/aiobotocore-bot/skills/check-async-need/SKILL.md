@@ -103,14 +103,23 @@ Inspect the NEW body (for added/changed) or OLD body (for deleted):
    or `self._client_creator(...)` where `_client_creator` is a known
    async factory is `port-required`.
 3. **Registered override, substantive change**: if `F`'s dotted name
-   is in `overrides` and the body change is substantive — added/removed
-   internal call, changed control flow, signature added/removed/renamed
-   param — flag `port-required` regardless of explicit contamination.
-   The override must mirror upstream behavior.
+   is in `overrides` and the body change is anything other than
+   pure-cosmetic (see #4 below) — **including a line removal, a call
+   swap, a rename, a control-flow tweak, or a new guard** — flag
+   `port-required`. The aiobotocore override MUST mirror the upstream
+   body. The goal here is byte-level alignment with botocore, not
+   whether the change affects async correctness: a registration-side-
+   effect line removed upstream still has to be removed in the
+   override to keep the sync diff minimal. "Cosmetic/minor refactor"
+   is NOT a pass — if a code line was removed, added, or substituted,
+   it's substantive.
 4. **Cosmetic only**: docstring edits, pure whitespace/formatting, pure
    type-hint additions, import reorder — `pure-sync` with reason
    `cosmetic`. These bust hashes in `tests/test_patches.py` (mechanical
-   bump only) but don't require a code port.
+   bump only) but don't require a code port. If you're writing
+   "removed a line / added a line but it's just cosmetic" that's a
+   contradiction — removed/added code lines are substantive, not
+   cosmetic.
 5. **Nothing else matches**: `pure-sync`.
 
 ### D. Propagate up (call-graph back-track)
@@ -127,8 +136,23 @@ function in aiobotocore's world), check the diff for callers:
 
 ## Step 4: Output format — strict
 
-The FIRST LINE must be `CLASSIFICATION: <verdict>` where `<verdict>` is
-one of `no-port`, `port-required`, or `ambiguous`. No preamble.
+**Output protocol — follow in this order:**
+
+1. First, mentally work through each changed function and determine its
+   verdict per Step 3. Do not write anything yet.
+2. Apply the roll-up rule: if ANY per-function verdict is
+   `needs-async` / `port-required`, the top-line MUST be
+   `port-required`. If any is `ambiguous` and none are needs-async,
+   the top-line is `ambiguous`. Only if EVERY verdict is `pure-sync`
+   is the top-line `no-port`.
+3. **Sanity check**: before you write the CLASSIFICATION line, confirm
+   that the verdict on it is consistent with the per-function verdicts
+   you're about to emit. If your detailed reasoning below arrives at
+   `port-required` for any function but you're writing
+   `CLASSIFICATION: no-port`, STOP — the top-line is wrong. Rewrite.
+4. Now emit the response. The FIRST LINE must be
+   `CLASSIFICATION: <verdict>` where `<verdict>` is one of `no-port`,
+   `port-required`, or `ambiguous`. No preamble.
 
 After the classification line, emit per-function detail:
 

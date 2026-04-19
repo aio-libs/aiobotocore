@@ -204,13 +204,21 @@ def build_user_message(
         {diff}
         ```
 
-        Output format — strict:
+        Output format — strict. Follow the Step 4 protocol in your
+        system prompt exactly:
 
-        1. The VERY FIRST line of your response must be `CLASSIFICATION: <verdict>`
-           where <verdict> is one of `no-port`, `port-required`, or `ambiguous`.
-           No preamble, no explanation, no markdown formatting on this line.
-        2. Any supporting reasoning goes AFTER the classification line, per Step 4
-           of your system prompt.
+        1. Mentally classify each changed function per Step 3.
+        2. Apply the roll-up rule: any function `port-required` →
+           top-line `port-required`. Any `ambiguous` and none needs-
+           async → top-line `ambiguous`. Every function `pure-sync` →
+           top-line `no-port`.
+        3. Sanity check: does the top-line verdict match the per-
+           function verdicts? If your reasoning has any function as
+           port-required but you're about to write CLASSIFICATION:
+           no-port, STOP and correct the top-line.
+        4. THEN emit the response. The VERY FIRST line must be
+           `CLASSIFICATION: <verdict>`. No preamble, no markdown
+           formatting on this line. Reasoning goes after.
         """,
         )
         .format(
