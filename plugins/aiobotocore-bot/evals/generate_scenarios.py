@@ -38,6 +38,9 @@ DEFAULT_CLONE = Path("/tmp/botocore")
 UPPER_RE = re.compile(r'"botocore\s*>=\s*[\d.]+\s*,\s*<\s*([\d.]+)"')
 
 
+AIOBOTOCORE_VERSION_RE = re.compile(r'__version__\s*=\s*["\']([\d.]+)["\']')
+
+
 @dataclass
 class Scenario:
     pr: int
@@ -46,7 +49,22 @@ class Scenario:
     from_ver: str
     to_ver: str
     merge_commit: str
+    aiobotocore_version: str
     botocore_files_touched: list[str]
+
+
+def aiobotocore_version_at(sha: str) -> str:
+    """Read __version__ from aiobotocore/__init__.py at the given commit."""
+    try:
+        src = subprocess.check_output(
+            ["git", "show", sha + ":aiobotocore/__init__.py"],
+            cwd=REPO_ROOT,
+            text=True,
+        )
+    except subprocess.CalledProcessError:
+        return "unknown"
+    m = AIOBOTOCORE_VERSION_RE.search(src)
+    return m.group(1) if m else "unknown"
 
 
 def decrement_patch(ver: str) -> str:
@@ -161,6 +179,9 @@ def scenarios_from_prs(
                 from_ver=from_ver,
                 to_ver=to_ver,
                 merge_commit=pr["mergeCommit"]["oid"],
+                aiobotocore_version=aiobotocore_version_at(
+                    pr["mergeCommit"]["oid"],
+                ),
                 botocore_files_touched=touched,
             ),
         )
@@ -188,6 +209,8 @@ def render_yaml(scenarios: list[Scenario]) -> str:
                 "    from: " + json.dumps(s.from_ver),
                 "    to: " + json.dumps(s.to_ver),
                 "    merge_commit: " + s.merge_commit,
+                "    aiobotocore_version: "
+                + json.dumps(s.aiobotocore_version),
                 "    botocore_diff: "
                 + "https://github.com/boto/botocore/compare/"
                 + s.from_ver

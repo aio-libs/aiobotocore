@@ -37,6 +37,7 @@ The eval scripts expect the clone at `/tmp/botocore` (override with
   from: "1.40.20"
   to: "1.41.10"
   merge_commit: abc123...
+  aiobotocore_version: "3.2.0"     # the aiobotocore version this sync shipped
   botocore_diff: https://github.com/boto/botocore/compare/1.40.20...1.41.10
   aiobotocore_pr: https://github.com/aio-libs/aiobotocore/pull/1534
   botocore_files_touched:
@@ -47,6 +48,12 @@ The eval scripts expect the clone at `/tmp/botocore` (override with
     function needed to await the new internal call.
   notes: null
 ```
+
+**aiobotocore ↔ botocore correlation:** `aiobotocore_version` is the version
+released by this sync (read from `aiobotocore/__init__.py` at `merge_commit`).
+Combined with `to` (the last supported botocore), the file doubles as a
+lookup table: "which aiobotocore version first supported botocore X.Y.Z?"
+Sort by `aiobotocore_version` to see the supported-botocore-range progression.
 
 **Regenerate the stub** (fresh PRs, or after an override file is added/removed):
 
