@@ -51,7 +51,7 @@ flowchart LR
     reviewPrompt --> action["anthropics/<br/>claude-code-action<br/>(Claude agent)"]
     syncPrompt --> action
 
-    action -->|invokes| commands["/aiobotocore-bot:review-pr<br/>/aiobotocore-bot:analyze-pr-feedback"]
+    action -->|invokes| commands["/aiobotocore-bot:review-pr<br/>/aiobotocore-bot:analyze-pr-feedback<br/>/aiobotocore-bot:check-async-need<br/>/aiobotocore-bot:open-pr<br/>/aiobotocore-bot:bump-version<br/>/aiobotocore-bot:pyright-delta<br/>/aiobotocore-bot:complete-run"]
     hooks["PreToolUse hooks:<br/>no unsigned commits ·<br/>no push to main/master ·<br/>no commits on fork PRs"] -.guards.-> action
 
     action --> anthropic["Anthropic API"]
@@ -195,8 +195,8 @@ flowchart TD
     start --> detect["detect job:<br/>fetch PyPI latest,<br/>parse pyproject.toml"]
     detect --> inrange{target in<br/>supported range?}
     inrange -->|yes| exitOK([Exit: up to date])
-    inrange -->|no| step0["Step 0:<br/>read feedback issue<br/>for trusted answers"]
-    step0 --> wipCheck{WIP PR exists?}
+    inrange -->|no| step1["Step 1:<br/>read feedback issue<br/>for trusted answers"]
+    step1 --> wipCheck{WIP PR exists?}
     wipCheck -->|yes| resume[Resume from<br/>WIP PR description]
     wipCheck -->|no| finalCheck{Final PR exists?}
     finalCheck -->|"dirty<br/>(human commits/reviews)"| dirty[Relax: edit in place<br/>Bump: comment only]
@@ -284,8 +284,13 @@ the repo so maintainers can iterate on them alongside the prompts.
 
 | Command | Purpose |
 |-|-|
-| `/aiobotocore-bot:review-pr [--comment]` | Sequential (not parallel) PR review. Checks CLAUDE.md compliance, bugs in the diff, and async patterns. Scores each finding 0–100 and filters < 80. With `--comment`, posts inline review comments via `mcp__github_inline_comment__create_inline_comment`. |
+| `/aiobotocore-bot:review-pr [--comment]` | Sequential (not parallel) PR review. Checks CLAUDE.md compliance, bugs in the diff, async patterns, and relax-vs-bump sanity for sync-bot PRs. Scores each finding 0–100 and filters < 80. With `--comment`, posts inline review comments via `mcp__github_inline_comment__create_inline_comment`. |
 | `/aiobotocore-bot:analyze-pr-feedback [--focus=<id>] [--resolve]` | Fetch every review thread + top-level comment (including resolved) and synthesize into three buckets: *what was asked*, *what was done*, *what's still outstanding*. Act on bucket C with the three-outcome rule. Optionally resolve threads after posting a "fixed" reply. |
+| `/aiobotocore-bot:check-async-need --from=<ver> --to=<ver>` | Classify new/changed functions in overridden botocore files as `relax-safe`, `bump-required`, or `ambiguous`. Single source of truth for the relax-vs-bump decision. Used by both the sync bot and the PR reviewer. |
+| `/aiobotocore-bot:open-pr --mode=generic\|sync-relax\|sync-bump ...` | Re-read `pull_request_template.md`, fill placeholders, verify checked boxes against the diff, append sync-specific extra sections when mode is `sync-relax`/`sync-bump`, create or update the PR. |
+| `/aiobotocore-bot:bump-version --mode=relax\|bump --target=<ver>` | Mechanical `pyproject.toml` bounds + `aiobotocore/__init__.py` + `CHANGES.rst` entry (with correct `^` underline length) + `uv lock`. |
+| `/aiobotocore-bot:pyright-delta` | Stash / run pyright baseline / pop / run pyright with changes; report only new errors in files the current changes touched. |
+| `/aiobotocore-bot:complete-run --event=... --number=... [--comment-id=...] [--skip-reply]` | End-of-run cleanup: post summary reply to the correct target (inline thread vs top-level PR comment vs issue comment) and swap 👀→👍 reaction. |
 
 **Design note — sequential review:** An earlier iteration launched
 parallel subagents per file. It produced more findings but burned an
