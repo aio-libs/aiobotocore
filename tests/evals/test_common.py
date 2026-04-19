@@ -8,7 +8,6 @@ are tested via mocked check_output so tests don't hit git or the gh API.
 from __future__ import annotations
 
 import json
-import re
 from pathlib import Path
 from unittest.mock import patch
 
@@ -242,7 +241,11 @@ def test_classify_tool_schema_shape() -> None:
     )
     assert schema["name"] == "test_tool"
     props = schema["input_schema"]["properties"]
-    assert props["verdict"]["enum"] == ["no-port", "port-required", "ambiguous"]
+    assert props["verdict"]["enum"] == [
+        "no-port",
+        "port-required",
+        "ambiguous",
+    ]
     assert "summary" in props
     assert "per_function_verdicts" in props
     assert set(schema["input_schema"]["required"]) == {"verdict", "summary"}

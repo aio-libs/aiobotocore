@@ -261,6 +261,15 @@ async def main() -> int:
     )
     args = parser.parse_args()
 
+    # Write an empty results file up front so `actions/upload-artifact`
+    # finds something even if the run aborts mid-way (e.g. Anthropic
+    # usage cap hit partway through). Real results overwrite at the end.
+    if args.json_out:
+        args.json_out.parent.mkdir(parents=True, exist_ok=True)
+        args.json_out.write_text(
+            json.dumps({"error": "not-started", "results": []}, indent=2)
+        )
+
     if not BOTOCORE_CLONE.exists():
         sys.stderr.write(
             f"Bare botocore clone not found at {BOTOCORE_CLONE}.\n"
