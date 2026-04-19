@@ -15,10 +15,9 @@ import re
 import subprocess
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable
+from typing import Callable
 
-if TYPE_CHECKING:
-    import anthropic
+import anthropic
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 AIOBOTOCORE_DIR = REPO_ROOT / "aiobotocore"
@@ -26,18 +25,6 @@ DEFAULT_MODEL = "claude-opus-4-7"
 
 UPPER_RE = re.compile(r'"botocore\s*>=\s*[\d.]+\s*,\s*<\s*([\d.]+)"')
 LOWER_RE = re.compile(r'"botocore\s*>=\s*([\d.]+)\s*,')
-
-
-def require_anthropic(script_name: str) -> None:
-    """Exit early with an install hint if the anthropic SDK isn't importable."""
-    try:
-        import anthropic  # noqa: F401
-    except ImportError:
-        sys.stderr.write(
-            "anthropic package not installed. Run with:\n"
-            f"    uv run --with anthropic python {script_name}\n",
-        )
-        sys.exit(2)
 
 
 def require_env(name: str) -> None:
@@ -222,6 +209,13 @@ def parse_scenarios_yaml(
     if current:
         rows.append(current)
     return rows
+
+
+def new_client() -> anthropic.AsyncAnthropic:
+    """Construct the async Anthropic client. Keeps `anthropic` as an
+    implementation detail so callers don't import it directly.
+    """
+    return anthropic.AsyncAnthropic()
 
 
 async def invoke_and_parse(

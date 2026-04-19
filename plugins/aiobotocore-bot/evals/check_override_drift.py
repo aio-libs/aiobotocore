@@ -10,8 +10,7 @@ isolates classification quality.
 
 Run:
 
-    uv run --with anthropic python \\
-        plugins/aiobotocore-bot/evals/check_override_drift.py --runs 3
+    uv run python plugins/aiobotocore-bot/evals/check_override_drift.py --runs 3
 
 Env:
 
@@ -38,14 +37,11 @@ from _common import (
     REPO_ROOT,
     invoke_and_parse,
     load_command_body,
+    new_client,
     parse_scenarios_yaml,
-    require_anthropic,
     require_env,
     run_cases_concurrent,
 )
-
-require_anthropic("plugins/aiobotocore-bot/evals/check_override_drift.py")
-import anthropic  # noqa: E402
 
 COMMAND_PATH = (
     REPO_ROOT / "plugins/aiobotocore-bot/commands/check-override-drift.md"
@@ -147,7 +143,7 @@ async def main() -> int:
         f"Evaluating {len(cases)} case(s) x {args.runs} run(s) with {args.model}"
     )
 
-    client = anthropic.AsyncAnthropic()
+    client = new_client()
     diffs: dict[int, str] = {}
     for case in cases:
         try:

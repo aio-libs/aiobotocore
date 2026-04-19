@@ -61,9 +61,11 @@ jobs:
         persist-credentials: false
 
     - name: Clone botocore
+      # Full clone (no --depth): scenarios.yaml references tags back to
+      # 1.35.x, far past what a shallow clone would cover. ~200MB, one-time.
       run: |
-        git clone --depth 200 https://github.com/boto/botocore.git /tmp/botocore
-        git -C /tmp/botocore fetch --tags --depth 200
+        git clone https://github.com/boto/botocore.git /tmp/botocore
+        git -C /tmp/botocore fetch --tags
 
     - name: Set up uv + Python
       # yamllint disable-line rule:line-length
@@ -73,15 +75,15 @@ jobs:
         python-version: '3.12'
         enable-cache: auto
 
-    - name: Install anthropic SDK
-      run: uv pip install --system anthropic
+    - name: Install dependencies
+      run: uv sync
 
     - name: Run check_async_need eval
       env:
         ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         BOTOCORE_CLONE: /tmp/botocore
       run: |
-        python plugins/aiobotocore-bot/evals/check_async_need.py \
+        uv run python plugins/aiobotocore-bot/evals/check_async_need.py \
           --runs "$EVAL_RUNS" \
           --limit "$EVAL_LIMIT" \
           --json-out /tmp/async-need-results.json \
@@ -132,15 +134,15 @@ jobs:
         python-version: '3.12'
         enable-cache: auto
 
-    - name: Install anthropic SDK
-      run: uv pip install --system anthropic
+    - name: Install dependencies
+      run: uv sync
 
     - name: Run check_override_drift eval
       env:
         ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         GH_TOKEN: ${{ github.token }}
       run: |
-        python plugins/aiobotocore-bot/evals/check_override_drift.py \
+        uv run python plugins/aiobotocore-bot/evals/check_override_drift.py \
           --runs "$EVAL_RUNS" \
           --json-out /tmp/drift-results.json \
           | tee /tmp/drift-stdout.txt

@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Evaluate /aiobotocore-bot:check-async-need against historical sync PRs.
 
-For each merged botocore-sync PR, we know the correct port-vs-no-port verdict
-from the pyproject.toml diff (lower bound moved = port-required, upper only =
-no-port). Replay the classifier against the pre-computed botocore diff and
-check whether it agrees.
+For each merged botocore-sync PR, the correct port-vs-no-port verdict is known
+via `aiobotocore_port_happened` — did the PR actually modify overridden `.py`
+code? Replay the classifier against the pre-computed botocore diff and check
+whether it agrees.
 
 The eval pre-computes the diff and passes it to the model as input, bypassing
 the tool-orchestration layer. That isolates classification quality — the exact
@@ -12,7 +12,7 @@ thing we worry about when prompts drift.
 
 Run:
 
-    uv run --with anthropic python plugins/aiobotocore-bot/evals/check_async_need.py
+    uv run python plugins/aiobotocore-bot/evals/check_async_need.py
 
 Env:
 
@@ -44,15 +44,12 @@ from _common import (
     invoke_and_parse,
     list_sync_prs,
     load_command_body,
+    new_client,
     overridden_paths,
     parse_scenarios_yaml,
-    require_anthropic,
     require_env,
     run_cases_concurrent,
 )
-
-require_anthropic("plugins/aiobotocore-bot/evals/check_async_need.py")
-import anthropic  # noqa: E402
 
 COMMAND_PATH = (
     REPO_ROOT / "plugins/aiobotocore-bot/commands/check-async-need.md"
@@ -220,7 +217,7 @@ async def main() -> int:
         f"Evaluating {len(cases)} historical PR(s) x {args.runs} run(s) with {args.model}"
     )
 
-    client = anthropic.AsyncAnthropic()
+    client = new_client()
 
     # Pre-compute diffs once per case (used by all N runs).
     diffs: dict[int, str] = {}
