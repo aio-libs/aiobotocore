@@ -1,0 +1,168 @@
+---
+name: Plugin evals
+
+run-name: >-
+  Evals:
+  ${{ inputs.eval || 'both' }}
+  (runs=${{ inputs.runs || '3' }}, limit=${{ inputs.limit || '8' }})
+
+permissions: {}
+
+on:
+  # Manual, admin-only: workflow_dispatch requires repo write permission,
+  # and the `claude` environment gates access to ANTHROPIC_API_KEY — which
+  # narrows the trigger set to the aiobotocore-admins team plus other
+  # users with explicit write access.
+  #
+  # No scheduled run: scenarios.yaml is a fixed committed set and the
+  # classifier prompts only change via PR. A scheduled baseline adds no
+  # signal beyond what running on demand after a relevant edit provides.
+  # Revisit if we start varying the model ID or tracking drift over time.
+  workflow_dispatch:
+    inputs:
+      eval:
+        description: Which eval to run
+        required: false
+        default: both
+        type: choice
+        options:
+        - both
+        - check-async-need
+        - check-override-drift
+      runs:
+        description: Runs per case (majority vote tolerates non-determinism)
+        required: false
+        default: '3'
+        type: string
+      limit:
+        description: Max check-async-need scenarios (drift eval always runs full set)
+        required: false
+        default: '8'
+        type: string
+
+jobs:
+  check-async-need:
+    if: inputs.eval == 'check-async-need' || inputs.eval == 'both'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: claude
+    permissions:
+      contents: read
+    # Inputs land in env vars rather than being interpolated into `run:`
+    # scripts — avoids shell-injection surface if inputs are ever changed
+    # from typed choice/numeric strings to free text.
+    env:
+      EVAL_RUNS: ${{ inputs.runs || '3' }}
+      EVAL_LIMIT: ${{ inputs.limit || '8' }}
+    steps:
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      with:
+        fetch-depth: 1
+        persist-credentials: false
+
+    - name: Clone botocore
+      run: |
+        git clone --depth 200 https://github.com/boto/botocore.git /tmp/botocore
+        git -C /tmp/botocore fetch --tags --depth 200
+
+    - name: Set up uv + Python
+      # yamllint disable-line rule:line-length
+      uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b  # v8.1.0
+      with:
+        version: '0.11.7'
+        python-version: '3.12'
+        enable-cache: auto
+
+    - name: Install anthropic SDK
+      run: uv pip install --system anthropic
+
+    - name: Run check_async_need eval
+      env:
+        ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        BOTOCORE_CLONE: /tmp/botocore
+      run: |
+        python plugins/aiobotocore-bot/evals/check_async_need.py \
+          --runs "$EVAL_RUNS" \
+          --limit "$EVAL_LIMIT" \
+          --json-out /tmp/async-need-results.json \
+          | tee /tmp/async-need-stdout.txt
+
+    - name: Job summary
+      if: always()
+      run: |
+        {
+          echo "# check-async-need eval"
+          echo
+          echo "runs=$EVAL_RUNS limit=$EVAL_LIMIT"
+          echo
+          echo '```'
+          tail -n 40 /tmp/async-need-stdout.txt || true
+          echo '```'
+        } >> "$GITHUB_STEP_SUMMARY"
+
+    - name: Upload full results
+      if: always()
+      # yamllint disable-line rule:line-length
+      uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874  # v4.4.0
+      with:
+        name: async-need-results
+        path: /tmp/async-need-results.json
+        retention-days: 30
+
+  check-override-drift:
+    if: inputs.eval == 'check-override-drift' || inputs.eval == 'both'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: claude
+    permissions:
+      contents: read
+    env:
+      EVAL_RUNS: ${{ inputs.runs || '3' }}
+    steps:
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      with:
+        fetch-depth: 1
+        persist-credentials: false
+
+    - name: Set up uv + Python
+      # yamllint disable-line rule:line-length
+      uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b  # v8.1.0
+      with:
+        version: '0.11.7'
+        python-version: '3.12'
+        enable-cache: auto
+
+    - name: Install anthropic SDK
+      run: uv pip install --system anthropic
+
+    - name: Run check_override_drift eval
+      env:
+        ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        python plugins/aiobotocore-bot/evals/check_override_drift.py \
+          --runs "$EVAL_RUNS" \
+          --json-out /tmp/drift-results.json \
+          | tee /tmp/drift-stdout.txt
+
+    - name: Job summary
+      if: always()
+      run: |
+        {
+          echo "# check-override-drift eval"
+          echo
+          echo "runs=$EVAL_RUNS"
+          echo
+          echo '```'
+          tail -n 40 /tmp/drift-stdout.txt || true
+          echo '```'
+        } >> "$GITHUB_STEP_SUMMARY"
+
+    - name: Upload full results
+      if: always()
+      # yamllint disable-line rule:line-length
+      uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874  # v4.4.0
+      with:
+        name: drift-results
+        path: /tmp/drift-results.json
+        retention-days: 30

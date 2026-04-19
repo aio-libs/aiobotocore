@@ -16,7 +16,27 @@ evals/
 └── check_override_drift.py    # eval runner for /aiobotocore-bot:check-override-drift
 ```
 
-## One-time setup
+## Running in CI (recommended)
+
+`.github/workflows/evals.yml` runs both evals on manual trigger
+(`workflow_dispatch`). Admins can trigger it from the Actions tab or via
+the CLI:
+
+```bash
+gh workflow run evals.yml -f eval=both -f runs=3 -f limit=8
+```
+
+Permissions: `workflow_dispatch` requires repo write access, and the job
+also uses `environment: claude` to gate the `ANTHROPIC_API_KEY` secret.
+Between those, only the `aiobotocore-admins` team (jettify, asvetlov,
+thehesiod, jakob-keller) plus users with explicit write access can run
+it. No PR or schedule triggers — the eval is never auto-run, and fork
+PRs can't touch it.
+
+Results: a per-job step summary with the tail of stdout, plus full
+per-run JSON uploaded as an artifact (30-day retention).
+
+## Running locally
 
 ```bash
 git clone --bare https://github.com/boto/botocore.git /tmp/botocore
