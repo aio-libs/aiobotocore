@@ -199,7 +199,7 @@ For ``types-aiobotocore-lite`` package use explicit type annotations:
         # type checking and code completion is now enabled for client
 
 
-Full documentation for ``types-aiobotocore`` can be found here: https://youtype.github.io/types_aiobotocore_docs/
+Full documentation for types-aiobotocore_ is available online.
 
 
 Requirements
