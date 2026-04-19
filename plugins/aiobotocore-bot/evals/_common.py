@@ -430,25 +430,30 @@ def new_client() -> anthropic.AsyncAnthropic:
 def classify_tool_schema(
     tool_name: str,
     verdict_enum: list[str],
-    per_function_label: str,
+    per_function_label: str,  # noqa: ARG001 — kept for API stability
 ) -> dict:
-    """Build a tool schema that forces the model to emit its verdict
-    as structured data instead of regex-parseable text.
+    """Build a minimal tool schema for structured verdict extraction.
 
     `verdict_enum` constrains the top-line classification (e.g.
     `["no-port", "port-required", "ambiguous"]` for check-async-need,
     `["clean", "cosmetic-drift", "behavioral-drift"]` for
-    check-override-drift). `per_function_label` names what each row
-    represents (e.g. "function" or "line").
+    check-override-drift).
+
+    Intentionally schema-light: only `verdict` and `rationale` fields.
+    An earlier version included a rich `per_function_verdicts` array
+    of objects, but Opus 4.7 sometimes emitted an empty tool input
+    (`{}`) on larger PR diffs despite being forced via tool_choice,
+    even with 16K max_tokens and no truncation. The root cause was
+    likely the nested-array schema creating generation ambiguity.
+    `rationale` as a free-form string preserves the per-function
+    detail without the brittleness.
     """
     return {
         "name": tool_name,
         "description": (
             "Emit the final classification. Call this ONCE, at the end, "
-            "after you've reasoned through each changed function in your "
-            "text response. The top-line `verdict` must follow from the "
-            "per-function verdicts via the roll-up rule stated in the "
-            "system prompt."
+            "after you've reasoned through each changed function. "
+            "Include the per-function verdict breakdown in `rationale`."
         ),
         "input_schema": {
             "type": "object",
@@ -458,41 +463,16 @@ def classify_tool_schema(
                     "enum": verdict_enum,
                     "description": "Top-line roll-up classification.",
                 },
-                "summary": {
+                "rationale": {
                     "type": "string",
                     "description": (
-                        "One-line summary of the classification "
-                        "(counts, key drivers)."
+                        "Full reasoning: one paragraph per changed "
+                        "function with file, name, change-type, "
+                        "verdict, and reason. Rollup summary at the end."
                     ),
-                },
-                "per_function_verdicts": {
-                    "type": "array",
-                    "description": (
-                        f"One entry per changed/added/removed {per_function_label}."
-                    ),
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "file": {"type": "string"},
-                            "name": {"type": "string"},
-                            "change_type": {
-                                "type": "string",
-                                "enum": [
-                                    "added",
-                                    "changed",
-                                    "removed",
-                                    "renamed",
-                                    "refactored",
-                                ],
-                            },
-                            "verdict": {"type": "string"},
-                            "reason": {"type": "string"},
-                        },
-                        "required": ["file", "name", "verdict", "reason"],
-                    },
                 },
             },
-            "required": ["verdict", "summary"],
+            "required": ["verdict", "rationale"],
         },
     }
 
@@ -560,22 +540,37 @@ async def followup_on_misclassification(
     expected: str,
     got: str,
 ) -> str:
-    """Ask the model, in a continuing conversation, what rule led it to the
-    wrong verdict. Used for prompt-iteration debugging — when eval expected
-    and got diverge, a targeted follow-up often surfaces which phrase in
-    the system prompt Opus/Sonnet anchored on.
+    """Ask the model, in a continuing conversation, what led to the bad
+    output. Handles two failure modes:
+
+    - Wrong verdict: ask which prompt phrase it anchored on.
+    - Parse error (empty or malformed tool call): ask why it didn't
+      populate the tool input — that's a non-classification failure
+      we otherwise can't diagnose.
 
     Returns the follow-up assistant text.
     """
-    followup_q = (
-        f"You classified this as `{got}` but the historical ground-truth "
-        f"label is `{expected}`. Walk through your reasoning step by step: "
-        "which exact phrase or rule in the system prompt led you to the "
-        "verdict you gave? Quote the text you relied on. Then identify "
-        "what would have needed to be different in the prompt for you to "
-        f"arrive at `{expected}` instead. Be specific about which rule "
-        "and which sentence misled (or failed to steer) you."
-    )
+    if got == "parse-error":
+        followup_q = (
+            "Your response did not produce a usable classification — "
+            "the tool call came back with empty or missing input. Why "
+            "didn't you populate the tool's `verdict` and `rationale` "
+            "fields? Was the prompt unclear, the diff too long to "
+            "reason through, the tool schema confusing, or something "
+            "else? Be specific: what would you have needed to complete "
+            f"the classification (expected answer was `{expected}`)?"
+        )
+    else:
+        followup_q = (
+            f"You classified this as `{got}` but the historical "
+            f"ground-truth label is `{expected}`. Walk through your "
+            "reasoning step by step: which exact phrase or rule in the "
+            "system prompt led you to the verdict you gave? Quote the "
+            "text you relied on. Then identify what would have needed "
+            "to be different in the prompt for you to arrive at "
+            f"`{expected}` instead. Be specific about which rule and "
+            "which sentence misled (or failed to steer) you."
+        )
     resp = await client.messages.create(
         model=model,
         max_tokens=2048,

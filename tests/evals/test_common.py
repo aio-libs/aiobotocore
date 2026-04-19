@@ -246,6 +246,5 @@ def test_classify_tool_schema_shape() -> None:
         "port-required",
         "ambiguous",
     ]
-    assert "summary" in props
-    assert "per_function_verdicts" in props
-    assert set(schema["input_schema"]["required"]) == {"verdict", "summary"}
+    assert "rationale" in props
+    assert set(schema["input_schema"]["required"]) == {"verdict", "rationale"}
