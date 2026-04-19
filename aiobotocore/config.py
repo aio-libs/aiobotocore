@@ -65,7 +65,11 @@ class AioConfig(botocore.client.Config):
         # Adapted from parent class
         config_options = copy.copy(self._user_provided_options)
         config_options.update(other_config._user_provided_options)
-        return AioConfig(self.connector_args, **config_options)
+        return AioConfig(
+            self.connector_args,
+            self.http_session_cls,
+            **config_options,
+        )
 
     @staticmethod
     def _validate_connector_args(

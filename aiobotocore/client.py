@@ -128,7 +128,7 @@ class AioClientCreator(ClientCreator):
             base_classes=bases,
         )
         class_name = get_service_module_name(service_model)
-        cls = type(str(class_name), tuple(bases), class_attributes)
+        cls = type(class_name, tuple(bases), class_attributes)
         return cls
 
     def _register_retries(self, client):

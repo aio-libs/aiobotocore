@@ -94,10 +94,10 @@ class AioEndpoint(Endpoint):
         request = create_request_object(params)
         if operation_model:
             request.stream_output = any(
-                [
+                (
                     operation_model.has_streaming_output,
                     operation_model.has_event_stream_output,
-                ]
+                )
             )
             service_id = operation_model.service_model.service_id.hyphenize()
             event_name = f'request-created.{service_id}.{operation_model.name}'
