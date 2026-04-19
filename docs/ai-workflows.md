@@ -420,18 +420,16 @@ Listed in order of defense layer:
 ## Cost & observability
 
 Every run ends with the `Usage summary` step, which parses the action's
-`execution_file` (a JSON message log) and appends a markdown table to
-the job summary:
+`execution_file` (a JSON message log) and appends a summary to the
+GitHub Actions job summary. It looks roughly like this:
 
-```markdown
-## Usage
-
-Turns: 12 | Duration: 84s | Total: $0.42
-
-| Model  | Input | Output | Cache read | Cache create | Cost  |
-|-|-|-|-|-|-|
-| Opus   | ...   | ...    | ...        | ...          | $0.42 |
-```
+> **Usage**
+>
+> Turns: 12 | Duration: 84s | Total: **$0.42**
+>
+> | Model | Input | Output | Cache read | Cache create | Cost |
+> |-|-|-|-|-|-|
+> | Opus | 12,400 | 3,200 | 180,000 | 24,000 | $0.42 |
 
 The step is `continue-on-error: true` — we don't want observability to
 fail a run. If you're investigating cost regressions, that table is
