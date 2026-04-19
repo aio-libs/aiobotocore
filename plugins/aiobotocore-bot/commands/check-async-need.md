@@ -110,9 +110,10 @@ The top-level `CLASSIFICATION` is:
 
 ## Consumption
 
-**Sync bot** (`botocore-sync-prompt.md`): runs this in Step 2. If `CLASSIFICATION: relax-safe`, proceed to
-Step 4a and quote the summary in the PR body as the async-need justification. If `bump-required`, go to
-Step 4b. If `ambiguous`, go to Step 8 (feedback issue) with the ambiguous verdicts as the questions.
+**Sync bot** (`botocore-sync-prompt.md`): runs this in Step 3. If `CLASSIFICATION: relax-safe`, proceed to
+Step 4 (relax path) and quote the summary in the PR body as the async-need justification. If `bump-required`,
+go to Step 5 (bump path). If `ambiguous`, go to Step 9 (feedback issue) with the ambiguous verdicts as the
+questions.
 
 **Reviewer** (`review-pr.md`): runs this in Step 3d for sync-bot-authored PRs, extracting `$FROM` / `$TO`
 from the botocore diff URL in the PR body. If the PR claims relax but this command returns `bump-required`
