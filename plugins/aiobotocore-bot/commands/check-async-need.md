@@ -65,8 +65,10 @@ For a changed function, compare the new body against the old body — the releva
 the whole function. If a new branch adds `requests.get(...)` to an otherwise-pure function, that's a
 needs-async verdict even if the rest of the function was fine.
 
-Pure-docstring, pure-type-annotation, and pure-import reordering changes are not interesting — classify as
-`pure-sync` with reason `cosmetic`.
+Pure-docstring, pure-type-annotation, pure-whitespace/formatting, and pure-import-reorder changes are
+not interesting — classify as `pure-sync` with reason `cosmetic`. They bust the SHA1 hashes in
+`tests/test_patches.py` (which hashes bytes, not semantics) but that's a mechanical one-line update,
+not a port. Don't let a hash mismatch alone drive a port-required verdict.
 
 ## Step 3: Classify each function
 
@@ -81,22 +83,32 @@ For each added/changed function, inspect the **new code** for these signals:
 - Instantiation or use of a botocore class that aiobotocore subclasses (search `aiobotocore/` for
   `class Aio<Name>(<Name>)` — if `<Name>` is instantiated in the new code, the override chain must
   extend to this new caller)
-- **Any change to a function aiobotocore overrides.** If botocore modifies a function — signature
-  OR body (added/removed/renamed/reordered parameter; new internal call; removed internal call;
-  logic restructure) — AND aiobotocore has an `async def` override of that same function in the
-  mirrored file, the override must mirror the change. This holds even when the new/changed code
-  is pure-sync dict/arithmetic: the aiobotocore override has to stay in lockstep with botocore's
-  behavior, or callers silently diverge.
+- **Substantive changes to functions aiobotocore overrides.** If botocore modifies a function in
+  a way that affects behavior — signature (params added/removed/renamed/reordered) OR body
+  (new internal call, removed internal call, changed control flow, guard added/removed, return
+  value shape change) — AND aiobotocore has an `async def` override of that same function, the
+  override must mirror the change. This holds even when the new code is pure-sync
+  dict/arithmetic: the override has to stay in lockstep with botocore's behavior or callers
+  silently diverge.
 
-  Check: for each changed function, grep `aiobotocore/<mirror>.py` for `async def <same-name>` or
-  `def <same-name>`. If found, flag as needs-async regardless of what the body change looks like.
+  **Cosmetic-only changes are not port-driving** (Step 2's cosmetic carve-out applies): docstring
+  edits, pure whitespace/formatting changes, pure type-hint additions, and import reordering do
+  not require a code port. They DO bust the hash in `tests/test_patches.py`, which needs a bump,
+  but that's mechanical — not a classifier signal.
 
-  Two examples this catches:
-  - `get_client_args` gains a `s3_disable_express_session_auth` parameter in botocore →
-    `AioClientArgsCreator.get_client_args` must mirror the signature.
-  - `_apply_request_trailer_checksum` body stops calling `_register_checksum_algorithm_feature_id`
-    internally (registration moved to a new helper) → aiobotocore's override of the same function
-    must drop the inner call too or behavior silently diverges.
+  Check: for each changed function, (1) grep `aiobotocore/<mirror>.py` for `async def <same-name>`
+  or `def <same-name>`; (2) if found, determine whether the change is cosmetic or substantive. If
+  substantive, flag as needs-async regardless of body purity.
+
+  Three examples:
+  - **needs-async**: `get_client_args` gains a `s3_disable_express_session_auth` parameter in
+    botocore → `AioClientArgsCreator.get_client_args` must mirror the signature.
+  - **needs-async**: `_apply_request_trailer_checksum` body stops calling
+    `_register_checksum_algorithm_feature_id` internally (registration moved to a new helper) →
+    aiobotocore's override must drop the inner call too, or behavior silently diverges.
+  - **pure-sync / cosmetic**: `_make_api_call` gains a new docstring describing existing behavior
+    → hash update only; aiobotocore's override doesn't need to mirror the docstring to stay
+    behaviorally aligned.
 - Blocking primitives: `time.sleep`, `threading.*`, `queue.Queue.get` without timeout, `concurrent.*`
 - New event-hook handler registrations that may be fed awaitables downstream (handlers registered for
   events that aiobotocore resolves via `resolve_awaitable`)

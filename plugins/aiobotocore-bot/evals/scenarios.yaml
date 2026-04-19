@@ -602,12 +602,14 @@ scenarios:
   - botocore/httpchecksum.py
   - botocore/utils.py
   rationale: |
-    Port required: botocore's `_apply_request_trailer_checksum` body changed — the internal
-    `_register_checksum_algorithm_feature_id(algorithm)` call was removed and relocated to a new
-    `_register_checksum_feature_ids(request)` helper. aiobotocore overrides
+    Port required: botocore's `_apply_request_trailer_checksum` had a substantive body change
+    (not a cosmetic edit) — the internal `_register_checksum_algorithm_feature_id(algorithm)`
+    call was removed and the registration relocated to a new `_register_checksum_feature_ids`
+    helper that callers now invoke separately. aiobotocore overrides
     `_apply_request_trailer_checksum` at aiobotocore/httpchecksum.py:259, so the override must
-    mirror the body change to stay behaviorally aligned. New Crt checksum classes were also
-    added but those are additive; the body change is the port-driver.
+    mirror the behavior shift or feature-ID registration silently diverges between sync and
+    async clients. New Crt checksum classes were also added but those are additive and don't
+    drive the port on their own.
   notes: null
 
 - pr: 1485
