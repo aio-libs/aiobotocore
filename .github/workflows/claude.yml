@@ -213,8 +213,15 @@ jobs:
         plugin_marketplaces: ./.
         plugins: aiobotocore-bot@aiobotocore
         prompt: ${{ steps.prompt.outputs.PROMPT }}
+        # --plugin-dir is the SDK-level plugin-load path. `plugin_marketplaces` +
+        # `plugins` above run `claude plugin install`, which writes to user
+        # scope, but the SDK spawns claude with its own flags and doesn't
+        # auto-discover user-scope plugins reliably — the Skill tool returns
+        # "Unknown skill: aiobotocore-bot:*" without this flag. Tracked upstream
+        # at anthropics/claude-code-action#1145.
         claude_args: |
           --dangerously-skip-permissions
+          --plugin-dir plugins/aiobotocore-bot
         # yamllint disable rule:line-length
         settings: |
           {
