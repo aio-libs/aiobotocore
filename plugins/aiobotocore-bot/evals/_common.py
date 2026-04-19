@@ -338,14 +338,19 @@ def new_client() -> anthropic.AsyncAnthropic:
     return anthropic.AsyncAnthropic()
 
 
-# Adaptive thinking for the classifier. The work (walk every changed
-# function + consult three registries + apply roll-up + sanity-check
-# before committing) is exactly what thinking tokens pay for.
-# `adaptive` + `effort: high` is Anthropic's recommended shape for
-# Sonnet 4.6 (manual `budget_tokens` is deprecated). Mirrors the
-# `--effort high` setting on the claude-code-action-driven sync
-# workflow so eval and runtime share reasoning depth.
-THINKING_EFFORT = "high"
+# Extended-thinking budget for the classifier. The work (walk every
+# changed function + consult three registries + apply roll-up +
+# sanity-check before committing) is exactly what thinking tokens pay
+# for. `type: enabled, budget_tokens: N` is the stable shape — the
+# newer `type: adaptive, effort: X` is documented for Sonnet 4.6 but
+# the API currently rejects it ("Extra inputs are not permitted" on
+# `anthropic==0.96.0`, 2026-04-19). Switch once upstream ships it.
+#
+# 8K is enough headroom for ~15 functions × several hundred reasoning
+# tokens each. Mirrors the `--effort high` setting on the
+# claude-code-action-driven sync workflow so eval and runtime share
+# reasoning depth.
+THINKING_BUDGET_TOKENS = 8000
 
 
 async def invoke_and_parse(
@@ -372,8 +377,8 @@ async def invoke_and_parse(
         model=model,
         max_tokens=16000,
         thinking={
-            "type": "adaptive",
-            "effort": THINKING_EFFORT,
+            "type": "enabled",
+            "budget_tokens": THINKING_BUDGET_TOKENS,
         },
         system=[
             {
