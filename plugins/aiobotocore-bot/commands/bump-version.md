@@ -10,9 +10,10 @@ hand-editing each file — the `^` underline length rule and `uv lock` step are 
 
 - `--mode=no-port|port` (required)
 - `--target=<version>` (required): the target botocore version, e.g. `1.42.89`
-- `--changelog=<text>` (optional): custom CHANGES.rst bullet. Default for --mode=no-port is
-  `relax botocore dependency specification to support "botocore >= <lower>, < <upper>"`;
-  default for --mode=port is `bump botocore dependency specification` with the same range.
+- `--changelog=<text>` (optional): custom CHANGES.rst bullet. Default for either mode is
+  `bump botocore dependency specification to support "botocore >= <lower>, < <upper>"`.
+  Single wording matches the unified "Bump ..." PR-title convention; the no-port vs
+  port-required distinction lives in the PR body, not in changelog text.
 - `--extra-changelog=<text>` (optional): additional bullets appended under the same version entry
 
 ## Step 1: Determine new version
