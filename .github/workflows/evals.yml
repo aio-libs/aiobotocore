@@ -52,6 +52,11 @@ on:
         required: false
         default: ''
         type: string
+      debug_misclassifications:
+        description: On miss, ask the model which rule misled it (captured in JSON)
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   check-async-need:
@@ -68,6 +73,7 @@ jobs:
       EVAL_RUNS: ${{ inputs.runs || '3' }}
       EVAL_LIMIT: ${{ inputs.limit || '8' }}
       EVAL_CASES: ${{ inputs.cases || '' }}
+      EVAL_DEBUG_MISCLASSIFICATIONS: ${{ inputs.debug_misclassifications && '1' || '' }}
     steps:
     - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
       with:
@@ -140,10 +146,15 @@ jobs:
           IFS=',' read -ra arr <<< "$EVAL_CASES"
           for n in "${arr[@]}"; do case_args+=(--case "${n// /}"); done
         fi
+        debug_arg=()
+        if [ -n "$EVAL_DEBUG_MISCLASSIFICATIONS" ]; then
+          debug_arg=(--debug-misclassifications)
+        fi
         uv run python plugins/aiobotocore-bot/evals/check_async_need.py \
           --runs "$EVAL_RUNS" \
           --limit "$EVAL_LIMIT" \
           "${case_args[@]}" \
+          "${debug_arg[@]}" \
           --json-out /tmp/async-need-results.json \
           | tee /tmp/async-need-stdout.txt
 

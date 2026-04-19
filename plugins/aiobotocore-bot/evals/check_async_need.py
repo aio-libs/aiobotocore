@@ -42,6 +42,7 @@ from _common import (
     aiobotocore_port_happened,
     async_names,
     derive_versions,
+    followup_on_misclassification,
     invoke_and_parse,
     list_sync_prs,
     load_skill_body,
@@ -253,6 +254,16 @@ async def main() -> int:
     parser.add_argument(
         "--json-out", type=Path, help="Write full per-run results here"
     )
+    parser.add_argument(
+        "--debug-misclassifications",
+        action="store_true",
+        help=(
+            "After the eval, for each majority-vote failure, send a "
+            "follow-up turn asking the model what rule led to the wrong "
+            "verdict. Captured in --json-out as `debug_followup`. Useful "
+            "for prompt-iteration debugging."
+        ),
+    )
     args = parser.parse_args()
 
     if not BOTOCORE_CLONE.exists():
@@ -359,15 +370,40 @@ async def main() -> int:
         }
         results.append(result)
         if not passed:
-            failures.append(result)
+            failures.append((case, result, rationales))
 
     print(
         f"\n== Summary: {len(results) - len(failures)}/{len(results)} passed =="
     )
-    for f in failures:
+    for _, f, _ in failures:
         print(
             f"  FAIL #{f['pr']}: expected {f['expected']}, got {f['verdicts']}"
         )
+
+    # On --debug-misclassifications, ask the model (in a continuing
+    # conversation) what rule led it to the wrong verdict. Uses run 1's
+    # rationale as the assistant turn to continue from. Attaches to the
+    # result dict so JSON-out captures it.
+    if args.debug_misclassifications and failures:
+        print("\n== Debug follow-ups on misclassifications ==")
+        for case, result, rationales in failures:
+            diff = diffs[case.pr]
+            if not diff.strip() or not rationales or not rationales[0]:
+                continue
+            user = build_user_message(
+                case, diff, override_symbols, async_methods, aio_classes
+            )
+            followup = await followup_on_misclassification(
+                client,
+                skill_body,
+                user,
+                args.model,
+                rationales[0],
+                case.expected,
+                result["majority"],
+            )
+            result["debug_followup"] = followup
+            print(f"\n--- #{case.pr} follow-up ---\n{followup}\n")
 
     if args.json_out:
         args.json_out.write_text(json.dumps(results, indent=2))

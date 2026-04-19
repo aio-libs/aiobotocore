@@ -387,6 +387,54 @@ async def invoke_and_parse(
     return ("parse-error", raw)
 
 
+async def followup_on_misclassification(
+    client: anthropic.AsyncAnthropic,
+    system: str,
+    user: str,
+    model: str,
+    assistant_reply: str,
+    expected: str,
+    got: str,
+) -> str:
+    """Ask the model, in a continuing conversation, what rule led it to the
+    wrong verdict. Used for prompt-iteration debugging — when eval expected
+    and got diverge, a targeted follow-up often surfaces which phrase in
+    the system prompt Opus/Sonnet anchored on.
+
+    Returns the follow-up assistant text.
+    """
+    followup_q = (
+        f"You classified this as `{got}` but the historical ground-truth "
+        f"label is `{expected}`. Walk through your reasoning step by step: "
+        "which exact phrase or rule in the system prompt led you to the "
+        "verdict you gave? Quote the text you relied on. Then identify "
+        "what would have needed to be different in the prompt for you to "
+        f"arrive at `{expected}` instead. Be specific about which rule "
+        "and which sentence misled (or failed to steer) you."
+    )
+    resp = await client.messages.create(
+        model=model,
+        max_tokens=2048,
+        system=[
+            {
+                "type": "text",
+                "text": system,
+                "cache_control": {"type": "ephemeral"},
+            },
+        ],
+        messages=[
+            {"role": "user", "content": user},
+            {"role": "assistant", "content": assistant_reply},
+            {"role": "user", "content": followup_q},
+        ],
+    )
+    return "".join(
+        block.text
+        for block in resp.content
+        if getattr(block, "type", None) == "text"
+    )
+
+
 async def run_cases_concurrent(
     cases: list,
     runs: int,
