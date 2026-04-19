@@ -156,7 +156,7 @@ gh api repos/REPO/pulls/PR_NUM/reviews --jq \
 
 - If **no-port**: safe to apply in-place on the dirty branch. Only update `pyproject.toml` upper bound,
   `aiobotocore/__init__.py` version, `CHANGES.rst`, and `uv.lock` via `/aiobotocore-bot:bump-version
-  --mode=relax --target=$LATEST_BOTOCORE`. Do NOT reset the branch. Update PR title and description.
+  --mode=no-port --target=$LATEST_BOTOCORE`. Do NOT reset the branch. Update PR title and description.
 - If **port-required**: do NOT modify the branch. Post a comment on the PR (replacing any previous botocore-sync-bot
   comment) stating: "Botocore $LATEST_BOTOCORE is available but requires code changes. Upgrade is blocked on this
   PR. [botocore diff link]". To replace, search for comments containing "botocore-sync-bot" and delete before
@@ -222,7 +222,7 @@ what changes are needed. Do not attempt code changes.
 
 ## Step 4: No-port path
 
-Run `/aiobotocore-bot:bump-version --mode=relax --target=$LATEST_BOTOCORE`. The command:
+Run `/aiobotocore-bot:bump-version --mode=no-port --target=$LATEST_BOTOCORE`. The command:
 
 - Updates the `pyproject.toml` upper bound (lower bound unchanged)
 - Bumps `aiobotocore/__init__.py` PATCH version

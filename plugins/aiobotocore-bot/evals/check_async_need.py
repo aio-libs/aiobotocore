@@ -74,9 +74,18 @@ def load_command_body() -> str:
     return text
 
 
-def overridden_basenames() -> set[str]:
-    """Filename-mirror convention: aiobotocore/foo.py overrides botocore/foo.py."""
-    return {p.name for p in AIOBOTOCORE_DIR.glob("*.py")}
+def overridden_paths() -> set[str]:
+    """Return relative paths under aiobotocore/ for every .py file.
+
+    Mirrors botocore/<same path>. Use full relative paths (via rglob) so nested
+    files like botocore/retries/adaptive.py are covered, and so
+    botocore/docs/client.py doesn't falsely match aiobotocore/client.py by
+    basename. Must stay in sync with generate_scenarios.py:overridden_paths.
+    """
+    return {
+        p.relative_to(AIOBOTOCORE_DIR).as_posix()
+        for p in AIOBOTOCORE_DIR.rglob("*.py")
+    }
 
 
 def decrement_patch(ver: str) -> str:
@@ -196,8 +205,14 @@ def list_historical_cases(limit: int) -> list[Case]:
 
 
 def compute_filtered_diff(case: Case, overridden: set[str]) -> str:
-    """Diff between two botocore tags, restricted to overridden files."""
-    pathspecs = ["botocore/" + name for name in overridden]
+    """Diff between two botocore tags, restricted to overridden files.
+
+    `overridden` is the set of relative paths under aiobotocore/ (e.g.
+    'client.py', 'retries/adaptive.py'); each becomes a full 'botocore/<path>'
+    pathspec. Nested-path matching matters — aiobotocore/retries/adaptive.py
+    mirrors botocore/retries/adaptive.py, and we must not miss those changes.
+    """
+    pathspecs = ["botocore/" + p for p in overridden]
     try:
         return subprocess.check_output(
             [
@@ -310,7 +325,7 @@ def main() -> int:
         return 2
 
     command_body = load_command_body()
-    overridden = overridden_basenames()
+    overridden = overridden_paths()
     print(
         "Overridden files: "
         + str(len(overridden))

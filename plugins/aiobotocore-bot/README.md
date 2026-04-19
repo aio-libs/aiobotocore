@@ -39,9 +39,10 @@ design; this README only covers the plugin itself.
   mechanical updates: `pyproject.toml` bounds, `aiobotocore/__init__.py`
   version, `CHANGES.rst` entry (with correct `^` underline length),
   and `uv lock`.
-- `/aiobotocore-bot:pyright-delta` — stash / run pyright baseline /
-  pop / run pyright with changes, report only new errors in files
-  the current changes touched.
+- `/aiobotocore-bot:pyright-delta` — create a baseline worktree at
+  origin/main, run pyright there, remove worktree, run pyright with
+  current changes, report only new errors in files the changes touched.
+  Worktree instead of git-stash avoids the failed-stash-pop hazard.
 - `/aiobotocore-bot:complete-run --event=... --number=... [--comment-id=...] [--skip-reply]`
   — end-of-run cleanup: post summary reply to the right target (inline
   thread vs top-level PR comment vs issue comment) and swap 👀→👍.

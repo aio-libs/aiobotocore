@@ -303,7 +303,7 @@ the repo so maintainers can iterate on them alongside the prompts.
 | `/aiobotocore-bot:check-override-drift --pr=<number>` | Flag unmatched behavioral changes or cosmetic additions to overridden code. Principle: unmatched behavioral changes should be avoided; legitimate async gaps are OK. Used by the reviewer on any PR touching `aiobotocore/*.py` files with a botocore mirror. |
 | `/aiobotocore-bot:open-pr --mode=generic\|sync-no-port\|sync-port ...` | Re-read `pull_request_template.md`, fill placeholders, verify checked boxes against the diff, append sync-specific extra sections when mode is `sync-no-port`/`sync-port`, create or update the PR. |
 | `/aiobotocore-bot:bump-version --mode=no-port\|port --target=<ver>` | Mechanical `pyproject.toml` bounds + `aiobotocore/__init__.py` + `CHANGES.rst` entry (with correct `^` underline length) + `uv lock`. |
-| `/aiobotocore-bot:pyright-delta` | Stash / run pyright baseline / pop / run pyright with changes; report only new errors in files the current changes touched. |
+| `/aiobotocore-bot:pyright-delta` | Create baseline worktree at `origin/main` / run pyright baseline / remove worktree / run pyright with current changes; report only new errors in files the current changes touched. Worktree avoids the failed-stash-pop hazard. |
 | `/aiobotocore-bot:complete-run --event=... --number=... [--comment-id=...] [--skip-reply]` | End-of-run cleanup: post summary reply to the correct target (inline thread vs top-level PR comment vs issue comment) and swap 👀→👍 reaction. |
 
 **Design note — sequential review:** An earlier iteration launched
