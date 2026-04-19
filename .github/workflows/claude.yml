@@ -17,6 +17,23 @@ run-name: >-
 
 permissions: {}
 
+# Cancel in-flight review runs when a new push lands on the same PR — two
+# quick commits should produce one review on the final HEAD, not two on
+# intermediate states. Scoped to `pull_request` events only; @claude
+# comments and reviews are independent user interactions and queue rather
+# than cancel.
+#
+# Cleanup on cancellation: the claude-code-action adds a 👀 reaction at job
+# start and swaps it to 👍 at the end. A cancelled run leaves the 👀
+# orphaned — but `/aiobotocore-bot:complete-run` deletes all `eyes`
+# reactions from claude[bot] (the jq filter is user-login-scoped), so the
+# superseding run's cleanup sweeps any stale reactions from prior
+# cancellations. Reaction state is self-healing across runs.
+concurrency:
+  # yamllint disable-line rule:line-length
+  group: claude-${{ github.event_name }}-${{ github.event.pull_request.number || github.event.issue.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 on:
   pull_request:
     types:
