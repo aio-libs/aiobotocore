@@ -8,7 +8,16 @@ Provide a code review for the given pull request.
 **Agent assumptions:** All tools are functional. Only call a tool if it is required to complete the task.
 Every tool call should have a clear purpose.
 
-Do NOT launch parallel subagents. Perform all steps sequentially in this conversation to minimize cache token costs.
+**Do NOT launch parallel subagents.** Perform all steps sequentially in this conversation to minimize
+cache token costs AND wallclock (each Agent spin-up + response adds seconds and the main agent typically
+re-reads the same files anyway, doubling the work).
+
+**Prefer `Grep` over `Read`** when you only need to verify a pattern — e.g. checking that an old term
+was renamed everywhere, or that a certain function isn't called. `Read` is right only when you genuinely
+need structural context (full-function review, cross-referencing surrounding code).
+
+**Do NOT pre-read all changed files at review start.** The PR diff from `gh pr diff` is sufficient for
+90% of review concerns. Read individual files only when a specific finding needs verification.
 
 ## Step 1: Eligibility check
 
@@ -72,6 +81,22 @@ c) **Async patterns** (aiobotocore-specific): check that any botocore overrides 
   - Proper use of `resolve_awaitable()`
   - Resource cleanup via async context managers
   - Correct Aio prefix naming
+
+d) **Override drift** (for any PR touching `aiobotocore/*.py` files that have a botocore mirror): run
+   `/aiobotocore-bot:check-override-drift --pr=$NUMBER`. The command flags unmatched behavioral changes
+   and cosmetic additions to overridden code. Principle: unmatched behavioral changes to overridden
+   code should be avoided; legitimate async gaps are OK. Verdict → action:
+   `behavioral-drift` → high-confidence inline comment at the offending line quoting botocore's version.
+   `cosmetic-drift` → soft top-level comment listing the drift; don't block the PR but surface it.
+   `clean` → no comment.
+
+e) **Port-vs-no-port sanity check** (only for sync-bot-authored PRs — `claude[bot]` with title starting
+   `Bump botocore`): extract the `$FROM` and `$TO` botocore tags from the botocore diff URL in the PR
+   body, then run `/aiobotocore-bot:check-async-need --from=$FROM --to=$TO`. Compare the classifier's
+   verdict to the sync bot's claim in the PR body (`Version bounds updated only` = no-port claim;
+   otherwise port-required claim). If they disagree, flag as high-confidence. Also compare against
+   the `pyproject.toml` diff: lower-bound change = port-required, upper-only = no-port. Any
+   three-way disagreement between classifier / body / pyproject.toml is worth flagging.
 
 **CRITICAL: Only flag HIGH SIGNAL issues.**
 

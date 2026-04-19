@@ -66,6 +66,7 @@ botocore-dev = [
     # "colorama>0.3.0", # Windows requirement
 ]
 dev = [
+    "anthropic >= 0.40.0", # Used in plugins/aiobotocore-bot/evals/
     "anyio >= 4.11.0",
     "dill >= 0.3.3, < 0.5", # Used in test_patches.py
     "docker >= 7.1, < 8",

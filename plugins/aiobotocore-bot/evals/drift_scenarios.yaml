@@ -1,0 +1,48 @@
+---
+# Ground-truth labels for /aiobotocore-bot:check-override-drift eval.
+#
+# Each row is a historical PR against aiobotocore with a known expected verdict.
+# The drift check is independent of sync-bot flow — any PR touching
+# aiobotocore/*.py files with a botocore mirror is in scope.
+#
+# `expected` values: clean | cosmetic-drift | behavioral-drift
+#
+# Seed cases are intentionally small. Add more as we do the PR archaeology
+# pass for scenarios.yaml (some sync PRs also make good drift cases — a
+# well-executed port should be `clean`).
+scenarios:
+- pr: 1534
+  title: "Bump `botocore` dependency specification"
+  expected: clean
+  rationale: |
+    Textbook clean port. Botocore added a new
+    `s3_disable_express_session_auth` config parameter; aiobotocore/args.py
+    threads the same parameter through `get_client_args` and
+    `_build_endpoint_resolver` with identical names/positions.
+    aiobotocore/httpchecksum.py mirrors botocore's new checksum handling
+    changes. No docstring additions, no type-hint drift, no non-async
+    behavioral changes, no null-guards that aren't upstream. Every new
+    parameter/line has a matching upstream equivalent.
+  notes: |
+    Good stable "no-drift" anchor — guards against the classifier regressing
+    to always-return-behavioral-drift (which the PR #1562 case alone can't
+    catch). Author is jakob-keller (project maintainer); same port pattern
+    any well-executed sync-bot port would follow.
+
+- pr: 1562
+  title: "fix: code review improvements for oldest files"
+  expected: behavioral-drift
+  rationale: |
+    Multiple behavioral changes not mirrored in botocore:
+    - aiobotocore/_helpers.py: inspect.isawaitable(obj) → hasattr(obj, '__await__'),
+      different semantics for some awaitable types.
+    - aiobotocore/configprovider.py: added logger.warning on IMDS failure that
+      botocore doesn't log.
+    - aiobotocore/retries/adaptive.py: added division-by-zero guard not in
+      botocore's version.
+    Plus a pile of cosmetic drift (docstrings, type hints) none of which are
+    async-explained. This is the canonical example the check was designed to
+    catch.
+  notes: |
+    PR was closed after initial review flagged the drift issue. Do not
+    reopen — kept as an eval case for the pattern.

@@ -76,6 +76,26 @@ works is by working backwards from ``AioEndpoint._request``.  Because of this ti
 integration aiobotocore is typically version locked to a particular release of
 botocore.
 
+**Guiding principle: minimize divergence from botocore.**
+Unmatched behavioral changes to overridden code should be avoided — they make
+future upstream syncs harder and can hide subtle behavioral differences.
+Legitimate **async gaps** (e.g. ``asyncio.Lock`` replacing ``threading.Lock``,
+``async with``, ``resolve_awaitable()``, ``Aio*`` class use) are expected — those
+are the whole reason aiobotocore exists. Cosmetic additions (docstrings,
+comments, type hints) or behavioral changes not present in the matching botocore
+are **drift** and will be flagged in review.
+
+If you see a genuine improvement that would benefit sync users too, please PR
+it `upstream to botocore <https://github.com/boto/botocore>`_ first — then sync
+the change into aiobotocore. See
+`docs/override-patterns.md <docs/override-patterns.md>`_ for the full principle
+and a list of legitimate async-gap patterns.
+
+**Keep botocore sync PRs tightly scoped.** A sync PR should update the botocore
+pin and port any required overrides — nothing else. Bundling unrelated bug
+fixes or refactors into a sync PR makes the reviewer's job harder and makes
+the bot's classifier noisier. If you have unrelated fixes, open a separate PR.
+
 How to Upgrade Botocore
 -----------------------
 aiobotocore's file names, and ordering of functions in files try to match the botocore files they override.
