@@ -81,6 +81,13 @@ For each added/changed function, inspect the **new code** for these signals:
 - Instantiation or use of a botocore class that aiobotocore subclasses (search `aiobotocore/` for
   `class Aio<Name>(<Name>)` — if `<Name>` is instantiated in the new code, the override chain must
   extend to this new caller)
+- **Signature changes on functions aiobotocore overrides.** If botocore modifies a function/method
+  signature (added/removed/renamed/reordered parameter) AND aiobotocore has an `async def` override
+  of that same function in the mirrored file, the override must mirror the signature to avoid
+  breaking callers. Check: for each signature-changed function, grep `aiobotocore/<mirror>.py` for
+  `async def <same-name>` — if found, flag as needs-async even when the function body is pure-sync.
+  Rationale: a threading-the-param port like `get_client_args(new_param)` isn't async-need in the
+  "does this do I/O" sense, but IS port-required in the "subclass must stay compatible" sense.
 - Blocking primitives: `time.sleep`, `threading.*`, `queue.Queue.get` without timeout, `concurrent.*`
 - New event-hook handler registrations that may be fed awaitables downstream (handlers registered for
   events that aiobotocore resolves via `resolve_awaitable`)

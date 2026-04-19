@@ -8,6 +8,14 @@ run-name: >-
 
 permissions: {}
 
+# Only one evals run active per branch. A new workflow_dispatch on the same
+# ref cancels the prior in-flight run — otherwise a quick re-trigger would
+# double-spend Anthropic tokens for stale input. Scheduled re-triggers on
+# different refs (if ever added) stay independent via the ref in the group.
+concurrency:
+  group: evals-${{ github.ref }}
+  cancel-in-progress: true
+
 on:
   # Manual, admin-only: workflow_dispatch requires repo write permission,
   # and the `claude` environment gates access to ANTHROPIC_API_KEY — which

@@ -605,7 +605,13 @@ scenarios:
     Port required: botocore added new function(s) in __init__.py, httpchecksum.py, utils.py —
     __init__, update, digest (+12 more). aiobotocore needed matching async overrides (or to
     delegate through existing overrides).
-  notes: null
+  notes: |
+    Known classifier/ground-truth tension: botocore added new CrtXxhash*Checksum classes
+    (additive, no signature changes on subclassed classes, no async I/O). The classifier
+    returns `no-port` — defensibly correct under its "would this REQUIRE async treatment"
+    semantic. Ground-truth `port-required` stands because aiobotocore did port code
+    (conservative mirroring of new checksum types). Expect 3/3 `no-port` from the
+    classifier; majority-vote FAIL here is not a regression signal.
 
 - pr: 1485
   title: "Relax `botocore` dependency specification"
