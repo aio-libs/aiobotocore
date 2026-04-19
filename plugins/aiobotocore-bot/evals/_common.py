@@ -83,6 +83,11 @@ def derive_versions(sha: str) -> tuple[str, str, bool] | None:
     upper_b = UPPER_RE.search(before)
     upper_a = UPPER_RE.search(after)
     if not (upper_b and upper_a):
+        sys.stderr.write(
+            f"derive_versions({sha}): could not parse botocore upper "
+            "bound from pyproject.toml — has the dependency spec format "
+            "changed? Check UPPER_RE in _common.py.\n",
+        )
         return None
     lower_b = LOWER_RE.search(before)
     lower_a = LOWER_RE.search(after)
@@ -229,11 +234,21 @@ async def invoke_and_parse(
 
     The verdict regex should capture the verdict string as group 1 (e.g.
     `^CLASSIFICATION:\\s*(\\S+)`).
+
+    The system prompt uses ephemeral cache_control so repeated calls
+    within the same eval session (N runs × M cases ≈ 96 calls at
+    defaults) hit the cache on the ~2K-token command body.
     """
     resp = await client.messages.create(
         model=model,
         max_tokens=4096,
-        system=system,
+        system=[
+            {
+                "type": "text",
+                "text": system,
+                "cache_control": {"type": "ephemeral"},
+            },
+        ],
         messages=[{"role": "user", "content": user}],
     )
     raw = "".join(

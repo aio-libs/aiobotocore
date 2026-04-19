@@ -60,9 +60,22 @@ jobs:
         fetch-depth: 1
         persist-credentials: false
 
+    - name: Cache botocore clone
+      id: botocore-cache
+      # yamllint disable-line rule:line-length
+      uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5.0.4
+      with:
+        path: /tmp/botocore
+        # Key on scenarios.yaml content — when new sync PRs land and scenarios
+        # regenerates, the cache busts and pulls fresh tags. Otherwise hits
+        # on every re-run of the same scenario set.
+        key: botocore-clone-${{ hashFiles('plugins/aiobotocore-bot/evals/scenarios.yaml') }}
+
     - name: Clone botocore
       # Full clone (no --depth): scenarios.yaml references tags back to
-      # 1.35.x, far past what a shallow clone would cover. ~200MB, one-time.
+      # 1.35.x, far past what a shallow clone would cover. ~200MB, cached
+      # above — only fires on cache miss (new scenarios.yaml).
+      if: steps.botocore-cache.outputs.cache-hit != 'true'
       run: |
         git clone https://github.com/boto/botocore.git /tmp/botocore
         git -C /tmp/botocore fetch --tags

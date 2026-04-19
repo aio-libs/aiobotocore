@@ -1,5 +1,5 @@
 ---
-allowed-tools: Bash(git worktree:*), Bash(git diff:*), Bash(git fetch:*), Bash(uv run:*), Bash(mkdir:*), Bash(rm:*)
+allowed-tools: Bash(git worktree:*), Bash(git diff:*), Bash(git fetch:*), Bash(uv run:*), Bash(mktemp:*), Bash(mkdir:*), Bash(rm:*)
 description: Run pyright against HEAD and against origin/main in an isolated worktree, report new errors in touched files
 ---
 
@@ -33,12 +33,14 @@ Call this `TOUCHED`. If `--touched-files` is set, use it instead. If the result 
 
 ```text
 git fetch origin main --quiet
-WORKTREE=/tmp/pyright-baseline-$$
+WORKTREE=$(mktemp -d -t pyright-baseline-XXXXXX)
 git worktree add --detach "$WORKTREE" "$BASE"
 ```
 
 Use `--detach` so the worktree is not tied to a branch (the caller may already have `origin/main`
-checked out as a branch somewhere). The `$$` in the path avoids collisions if two runs overlap.
+checked out as a branch somewhere). `mktemp -d` gives a unique path that can't collide under
+concurrent invocations — `/tmp/pyright-baseline-$$` (PID) would collide for two shells with the
+same PID on different hosts or in edge cases.
 
 ## Step 3: Run pyright baseline in the worktree
 
