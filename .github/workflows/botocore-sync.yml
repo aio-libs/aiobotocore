@@ -7,8 +7,9 @@ permissions: {}
 
 on:
   schedule:
-  # Every 3 days at 10:00 UTC
-  - cron: '0 10 */3 * *'
+  # Weekly, Monday at 10:00 UTC. Cost: each sync run costs $1-5 (more on
+  # port-required bumps); weekly balances "stay current" against budget.
+  - cron: '0 10 * * 1'
   workflow_dispatch:
     inputs:
       botocore_version:
@@ -163,9 +164,208 @@ jobs:
                     f"{sv if supported else nv} |\n")
         PYEOF
 
-  sync:
+  # Classify the diff with Sonnet before deciding which model to use for the
+  # actual sync. The classifier is mechanical (diff-walking + registry lookups)
+  # — Sonnet handles it for ~$0.10 per run versus ~$1+ if we ran the same step
+  # inside the Opus sync. Outputs `verdict` so `sync` below can pick the model:
+  # no-port → Sonnet (cheap), anything else → Opus (full reasoning).
+  classify:
     needs: detect
     if: needs.detect.outputs.needs_update == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: claude
+    permissions:
+      contents: read
+      id-token: write
+      actions: read
+    outputs:
+      verdict: ${{ steps.parse.outputs.verdict }}
+      summary: ${{ steps.parse.outputs.summary }}
+      rationale: ${{ steps.parse.outputs.rationale }}
+      affected_files: ${{ steps.affected.outputs.files }}
+    steps:
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      with:
+        persist-credentials: false
+
+    - name: Set up uv + Python
+      # yamllint disable-line rule:line-length
+      uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b  # v8.1.0
+      with:
+        version: '0.11.7'
+        python-version: '3.12'
+        enable-cache: auto
+
+    - name: Cache .venv
+      # yamllint disable-line rule:line-length
+      uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5.0.4
+      with:
+        path: .venv
+        # yamllint disable-line rule:line-length
+        key: venv-${{ runner.os }}-py3.12-${{ hashFiles('uv.lock', 'pyproject.toml') }}
+
+    - name: Install dependencies
+      run: uv sync --frozen
+
+    - name: Cache botocore repo
+      uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5.0.4
+      with:
+        path: /tmp/botocore
+        key: botocore-repo
+
+    - name: Clone or update botocore
+      run: |
+        if [ -f /tmp/botocore/HEAD ]; then
+          git -C /tmp/botocore fetch --tags --prune
+        else
+          git clone --bare \
+            https://github.com/boto/botocore.git \
+            /tmp/botocore
+        fi
+
+    # Pre-compute the list of aiobotocore source files that mirror botocore
+    # files changed in the diff range. Pure bash — no Claude needed. Passes
+    # downstream so the sync job's prompt can reference it instead of
+    # re-running the same `git diff` + mirror-glob.
+    - name: List affected aiobotocore files
+      id: affected
+      env:
+        FROM: ${{ needs.detect.outputs.last_supported }}
+        TO: ${{ needs.detect.outputs.latest_botocore }}
+      run: |
+        files=$(git -C /tmp/botocore diff --name-only \
+          "$FROM..$TO" -- 'botocore/**/*.py' 2>/dev/null \
+          | sed -E 's|^botocore/|aiobotocore/|' \
+          | while read -r f; do [ -f "$f" ] && echo "$f"; done \
+          | sort -u | paste -sd ',' -)
+        echo "files=$files" >> "$GITHUB_OUTPUT"
+        if [ -n "$files" ]; then
+          echo "Affected aiobotocore mirrors: $files" \
+            >> "$GITHUB_STEP_SUMMARY"
+        fi
+
+    - name: Read classify prompt
+      id: prompt
+      env:
+        LATEST_BOTOCORE: >-
+          ${{ needs.detect.outputs.latest_botocore }}
+        LAST_SUPPORTED: >-
+          ${{ needs.detect.outputs.last_supported }}
+        DRY_RUN: >-
+          ${{ inputs.dry_run || 'false' }}
+      run: |
+        VARS='$LATEST_BOTOCORE $LAST_SUPPORTED $DRY_RUN'
+        prompt=$(envsubst "$VARS" < .github/botocore-classify-prompt.md)
+        {
+          echo 'PROMPT<<PROMPT_EOF'
+          echo "$prompt"
+          echo 'PROMPT_EOF'
+        } >> "$GITHUB_OUTPUT"
+
+    # yamllint disable-line rule:line-length
+    - uses: anthropics/claude-code-action@38ec876110f9fbf8b950c79f534430740c3ac009  # v1.0.101
+      id: claude
+      with:
+        anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+        # No commits in classify — it's a read-only stage.
+        use_commit_signing: false
+        display_report: true
+        show_full_output: true
+        plugin_marketplaces: ./.
+        plugins: aiobotocore-bot@aiobotocore
+        prompt: ${{ steps.prompt.outputs.PROMPT }}
+        # Sonnet for the classifier. The check-async-need skill is largely
+        # mechanical (diff-walk + registry lookup); Sonnet matches Opus on
+        # this task at ~5× lower output cost.
+        claude_args: |
+          --dangerously-skip-permissions
+          --max-turns 30
+          --model sonnet
+          --plugin-dir plugins/aiobotocore-bot
+        # yamllint disable rule:line-length
+        settings: |
+          {
+            "hooks": {
+              "PreToolUse": [{
+                "matcher": "Bash",
+                "command": "if echo \"$TOOL_INPUT\" | grep -qE '\\b(git commit|git push|gh pr (create|edit|comment|merge|close)|gh issue create)\\b'; then echo 'BLOCKED: classify stage is read-only — no commits, pushes, PRs, or issues. Just write /tmp/classification.json.' >&2; exit 2; fi"
+              }]
+            }
+          }
+        # yamllint enable rule:line-length
+
+    - name: Hash test sanity check
+      # Only run for dry-run dispatches — for real sync runs the downstream
+      # `sync` job runs the same hash tests as part of its prompt. Running
+      # them here too would just double the wallclock for no extra signal.
+      if: inputs.dry_run == true
+      continue-on-error: true
+      env:
+        TARGET: ${{ needs.detect.outputs.latest_botocore }}
+      run: |
+        uv pip install "botocore==$TARGET"
+        if uv run pytest tests/test_patches.py -x 2>&1 \
+            | tee /tmp/hash_tests.log; then
+          echo "✅ Hash tests pass against $TARGET" \
+            >> "$GITHUB_STEP_SUMMARY"
+        else
+          {
+            echo "❌ Hash tests FAIL against $TARGET — sanity-check the verdict"
+            echo ''
+            echo '```'
+            tail -50 /tmp/hash_tests.log
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+        fi
+
+    - name: Parse classification
+      id: parse
+      run: |
+        if [ ! -f /tmp/classification.json ]; then
+          msg="classify did not write /tmp/classification.json"
+          echo "::warning::$msg — defaulting to ambiguous"
+          {
+            echo "verdict=ambiguous"
+            echo "summary=Classifier output missing — see classify-job logs"
+            echo 'rationale<<RATIONALE_EOF'
+            echo "(classifier did not produce output)"
+            echo 'RATIONALE_EOF'
+          } >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+        verdict=$(jq -r '.verdict // "ambiguous"' /tmp/classification.json)
+        summary=$(jq -r '.summary // ""' /tmp/classification.json)
+        echo "verdict=$verdict" >> "$GITHUB_OUTPUT"
+        echo "summary=$summary" >> "$GITHUB_OUTPUT"
+        {
+          echo 'rationale<<RATIONALE_EOF'
+          jq -r '.rationale // "(none)"' /tmp/classification.json
+          echo 'RATIONALE_EOF'
+        } >> "$GITHUB_OUTPUT"
+        {
+          echo "## Classification: $verdict"
+          echo ""
+          echo "$summary"
+          echo ""
+          echo "<details><summary>Per-function rationale</summary>"
+          echo ""
+          jq -r '.rationale // "(none)"' /tmp/classification.json
+          echo ""
+          echo "</details>"
+        } >> "$GITHUB_STEP_SUMMARY"
+
+    - name: Usage summary
+      if: always()
+      continue-on-error: true
+      env:
+        EXEC_FILE: >-
+          ${{ steps.claude.outputs.execution_file }}
+      run: python3 .github/usage-summary.py
+
+  sync:
+    needs: [detect, classify]
+    if: needs.detect.outputs.needs_update == 'true' && inputs.dry_run != true
     runs-on: ubuntu-latest
     timeout-minutes: 60
     environment: claude
@@ -241,10 +441,26 @@ jobs:
           ${{ inputs.enable_bump || 'false' }}
         DRY_RUN: >-
           ${{ inputs.dry_run || 'false' }}
+        # Pre-computed by the classify job. Sync's prompt Step 3 short-
+        # circuits the classifier when these are non-empty — saves the
+        # cost of re-classifying on the Opus side.
+        CLASSIFIER_VERDICT: >-
+          ${{ needs.classify.outputs.verdict }}
+        CLASSIFIER_SUMMARY: >-
+          ${{ needs.classify.outputs.summary }}
+        CLASSIFIER_RATIONALE: >-
+          ${{ needs.classify.outputs.rationale }}
+        # Pre-computed by classify (pure bash). Comma-separated list of
+        # aiobotocore source files that have a botocore counterpart that
+        # changed in the diff range. Empty if no Python source changed.
+        AFFECTED_AIOBOTOCORE_FILES: >-
+          ${{ needs.classify.outputs.affected_files }}
       # yamllint disable-line rule:line-length
       run: |
         VARS='$LATEST_BOTOCORE $CURRENT_UPPER $CURRENT_LOWER'
         VARS="$VARS"' $LAST_SUPPORTED $ENABLE_BUMP $DRY_RUN'
+        VARS="$VARS"' $CLASSIFIER_VERDICT $CLASSIFIER_SUMMARY $CLASSIFIER_RATIONALE'
+        VARS="$VARS"' $AFFECTED_AIOBOTOCORE_FILES'
         prompt=$(envsubst "$VARS" < .github/botocore-sync-prompt.md)
         {
           echo 'PROMPT<<PROMPT_EOF'
@@ -273,10 +489,15 @@ jobs:
         plugin_marketplaces: ./.
         plugins: aiobotocore-bot@aiobotocore
         prompt: ${{ steps.prompt.outputs.PROMPT }}
+        # Model is conditional on the classify job's verdict:
+        # - no-port → Sonnet (mechanical bump+PR; ~5× cheaper output)
+        # - everything else → Opus (real porting work, ambiguity, escalation)
+        # When `verdict` is empty (classify failed/skipped) the fallback is
+        # Opus, matching the prior single-job behavior.
         claude_args: |
           --dangerously-skip-permissions
           --max-turns 100
-          --model opus
+          --model ${{ needs.classify.outputs.verdict == 'no-port' && 'sonnet' || 'opus' }}
           --plugin-dir plugins/aiobotocore-bot
         # yamllint disable rule:line-length
         settings: |
