@@ -54,6 +54,7 @@ class AioClientArgsCreator(ClientArgsCreator):
         s3_disable_express_session_auth = config_kwargs[
             's3_disable_express_session_auth'
         ]
+        auth_scheme_preference = config_kwargs['auth_scheme_preference']
 
         event_emitter = copy.copy(self._event_emitter)
         signer = AioRequestSigner(
@@ -129,6 +130,7 @@ class AioClientArgsCreator(ClientArgsCreator):
             credentials,
             account_id_endpoint_mode,
             s3_disable_express_session_auth,
+            auth_scheme_preference,
         )
 
         # Copy the session's user agent factory and adds client configuration.
@@ -169,6 +171,7 @@ class AioClientArgsCreator(ClientArgsCreator):
         credentials,
         account_id_endpoint_mode,
         s3_disable_express_session_auth,
+        auth_scheme_preference,
     ):
         if endpoints_ruleset_data is None:
             return None
@@ -231,4 +234,5 @@ class AioClientArgsCreator(ClientArgsCreator):
             event_emitter=event_emitter,
             use_ssl=is_secure,
             requested_auth_scheme=sig_version,
+            auth_scheme_preference=auth_scheme_preference,
         )
