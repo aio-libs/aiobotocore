@@ -10,6 +10,25 @@ pyproject.toml for version info:
 - Current supported range: $CURRENT_LOWER — $LAST_SUPPORTED
 - Exclusive upper bound: $CURRENT_UPPER
 
+The `classify` job (a separate Sonnet-driven stage that runs before this one) has already
+produced the async-need verdict — use it directly in Step 3, do NOT re-run the classifier:
+
+- Verdict: $CLASSIFIER_VERDICT
+- One-line summary: $CLASSIFIER_SUMMARY
+- Per-function rationale (markdown table): $CLASSIFIER_RATIONALE
+
+The classify job also pre-computed the list of aiobotocore source files whose botocore
+counterpart changed in the diff range — comma-separated, empty if none changed:
+
+- Affected aiobotocore files: $AFFECTED_AIOBOTOCORE_FILES
+
+Use this list as the starting point for Step 5 (port path) instead of re-running
+`git diff --name-only` and walking the mirror tree. The list excludes files without an
+existing aiobotocore mirror (those are out of scope per `port-tests` skill rules).
+
+If `$CLASSIFIER_VERDICT` is empty (rare — only when the classify job failed entirely),
+re-run the classifier yourself in Step 3 as a fallback.
+
 ## Configuration
 
 - ENABLE_BUMP: $ENABLE_BUMP (if false, bumps create a feedback issue instead of attempting code changes)
@@ -171,29 +190,37 @@ gh api repos/REPO/pulls/PR_NUM/reviews \
 
 **No PRs at all:** proceed to Step 3.
 
-## Step 3: Classify the botocore diff
+## Step 3: Use the pre-computed classifier verdict
 
 **The classifier is the authority, not the PR title.** Historical PRs have been
 mislabeled (e.g. a "Bump" title on what was actually a no-port update). If you are
 operating on an existing PR whose title contradicts the classifier's verdict, update the
 PR title to match — don't preserve a wrong inherited label.
 
-Run the classifier:
+The `classify` job has already run `/aiobotocore-bot:check-async-need` for the target
+range. Use `$CLASSIFIER_VERDICT` directly — do NOT re-invoke the classifier (that
+duplicates work the cheap Sonnet stage already did). The per-function rationale in
+`$CLASSIFIER_RATIONALE` is also pre-formatted as a markdown table — pass it verbatim to
+`/aiobotocore-bot:open-pr --classifier-verdicts=...` in Step 7.
+
+Branch on `$CLASSIFIER_VERDICT`:
+
+- `no-port` → Go to Step 4 (no-port path). Quote `$CLASSIFIER_SUMMARY` in the PR body as
+  the async-need justification. Do NOT justify a no-port verdict with "functions not
+  overridden" — that is the wrong test.
+- `port-required` → Go to Step 5 (port path).
+- `ambiguous` → Escalate via Step 9 with the ambiguous verdicts as feedback questions.
+- `error` → The classifier itself failed. Treat as `ambiguous`: escalate via Step 9 with
+  the error message (in `$CLASSIFIER_SUMMARY`) as context. Never silently assume no-port.
+
+**Fallback:** if `$CLASSIFIER_VERDICT` is empty (the classify job failed before producing
+output), re-run the classifier yourself:
 
 ```text
 /aiobotocore-bot:check-async-need --from=$LAST_SUPPORTED --to=$LATEST_BOTOCORE
 ```
 
-The skill diffs the two botocore versions, finds new/changed functions in overridden files, and returns one of:
-
-- `no-port` → no async-need signals found. Go to Step 4 (no-port path). Quote the skill's summary line in the
-  PR body as the async-need justification. Do NOT justify a no-port verdict with "functions not overridden" — that is the
-  wrong test.
-- `port-required` → at least one new/changed function has async-need signals. Go to Step 5 (port path).
-- `ambiguous` → the classifier could not rule out async-need for one or more functions. Escalate via Step 9 with
-  the ambiguous verdicts as feedback questions.
-- `error: <reason>` → the classifier itself failed (e.g. `/tmp/botocore` missing, tag not fetched). Treat as
-  `ambiguous`: escalate via Step 9 with the error message as context. Never silently assume no-port.
+This should be rare; the classify job uses Sonnet and has its own retry policy.
 
 ### Major bump detection
 

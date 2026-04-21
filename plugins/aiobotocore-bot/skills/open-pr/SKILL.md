@@ -53,6 +53,29 @@ Treat the template as the foundation for the body. Apply these rules:
 4. If the template has new sections or checklist items compared to your memory, include them
    anyway — treat the file as authoritative on each run.
 
+### Do NOT hard-wrap PR bodies or comments
+
+GitHub renders Markdown with natural word-wrap; hard-wrapped lines display as awkwardly short
+paragraphs and bloat cached input on every follow-up turn. Write each paragraph as ONE long
+logical line. The same applies to inline review comments and top-level PR comments produced by
+sibling skills (`review-pr`, `complete-run`, `analyze-pr-feedback`).
+
+Hard-wrap is for source files only (yamllint compliance); rendered Markdown does not need it.
+
+### Verbosity ceiling
+
+Reviewers skim. Length costs cache on every follow-up @claude run. Defaults:
+
+- **"Description of Change"**: at most 2 sentences. Say what version range and what theme of
+  change (e.g. "Bump botocore to 1.42.91. New `auth_scheme_preference` threading needs async
+  porting"). Per-symbol detail belongs in the classifier table, not here.
+- **"Assumptions"**: include only if a non-obvious decision was made that the reviewer should
+  validate. Inheriting from a base class without an override is NOT a non-obvious decision —
+  it's the default. Omit the section if the only "assumptions" are restatements of the diff.
+- **"What changed in aiobotocore"**: at most one short line per file. No prose paragraphs. Do
+  NOT restate per-symbol botocore changes — the table covers those.
+- **Reviewer checklist**: keep to ≤6 items. Don't pad with items that overlap.
+
 Tick a checklist box only for work the current branch actually did. For items you didn't do,
 either omit with a brief note or leave the box unchecked with a one-line reason, e.g.
 `[ ] Detailed description of issue — N/A, no linked issue`. **Unchecked with a reason is always
@@ -80,24 +103,19 @@ No extra sections unless the caller passes `--extra-sections=<text>`.
 
 ### mode=sync-no-port
 
-Append:
+Append (conditional sections marked with `[only if ...]`):
 
 ```text
+[only if --classifier-verdicts NOT provided]
 ### What changed in botocore
 One or two sentences at the topic level — e.g. "Model/schema-only updates
 for N services" or "Adds `auth_scheme_preference` threading through args
-+ client." DO NOT list per-function bullets here when
-`--classifier-verdicts` is provided; the table below already enumerates
-every changed function. Keep this section for the human's big picture.
++ client."
 
 Async-need check: <--async-need-summary verbatim>
 
 ### What changed in aiobotocore
 <--changed-aiobotocore, default: Version bounds updated only, no code changes.>
-
-For port PRs, describe aiobotocore-side code (new Aio* classes,
-overridden methods, ported tests) — NOT a re-listing of the botocore
-changes the table already shows. One short sentence per file is plenty.
 
 <Classifier verdicts table — see below — when --classifier-verdicts is provided>
 
@@ -110,38 +128,49 @@ changes the table already shows. One short sentence per file is plenty.
 
 ### How to help
 - Review the botocore diff: <--botocore-diff-url>
-- If something looks wrong, leave a review comment — the bot will attempt to fix straightforward
-  issues automatically.
-- Use `@claude` to ask questions or request modifications.
+- `@claude <ask>` to request modifications. Reviewer comments → automatic fix attempt.
 ```
+
+When `--classifier-verdicts` is provided, omit the "What changed in botocore" section entirely
+— the table is the authoritative per-function view (see Anti-duplication rule below). Keep the
+async-need summary line; it's a one-line top-line verdict the table doesn't repeat.
 
 ### mode=sync-port
 
 Same as `sync-no-port` but:
 
-- Description-of-change mentions it's a bump and why (new functionality requires async override).
-- Include `--assumptions` under a dedicated "Assumptions" section if provided.
-- "What changed in aiobotocore" should list files modified, classes added, tests ported.
+- Description-of-change is one sentence: `Bump botocore to X.Y.Z. <one-clause summary of the
+  feature requiring the port>`. Per-symbol detail belongs in the classifier table.
+- Include `--assumptions` under an "Assumptions" section ONLY if provided AND non-tautological
+  (see Anti-duplication rule).
+- "What changed in aiobotocore": ≤1 line per file. List new `Aio*` classes, overridden methods,
+  ported tests. Never restate the botocore-side change.
 - Reviewer checklist items change to: async patterns correct, hashes updated for new overrides,
   version bump is minor, tests ported from botocore where applicable.
 - Omit the async-need summary line (the bump itself is the answer).
 
 ### Anti-duplication rule (both sync modes)
 
-The classifier verdicts table and the two "What changed" sections each have a
-distinct purpose:
+When `--classifier-verdicts` is provided, the classifier verdicts table is the
+authoritative per-function view. To prevent the description from saying the
+same thing five times (description ¶1, assumptions, what-changed-in-botocore,
+what-changed-in-aiobotocore, classifier table), apply these mechanical rules:
 
-- **"What changed in botocore"**: topic-level what-and-why (one-to-two sentences
-  about the feature / theme of the upstream changes).
-- **Classifier verdicts table**: per-function accountability (every changed
-  symbol with its verdict + one-line reason).
-- **"What changed in aiobotocore"**: per-file aiobotocore-side code work (new
-  classes, method overrides, tests ported).
+- **Drop the "What changed in botocore" section entirely** when
+  `--classifier-verdicts` is provided. The table replaces it. Do not write
+  prose bullets summarizing what the table already enumerates per-row.
+- **Description of Change**: 2 sentences max — see "Verbosity ceiling" above.
+  Never restate per-file or per-symbol changes; that's the table's job.
+- **What changed in aiobotocore**: per-file aiobotocore-side work only — new
+  classes, overridden methods, ported tests. ≤1 line per file. Never restate
+  the botocore-side change for that file (the table already shows it).
+- **Assumptions**: omit when "assumption" is a tautology of inheritance
+  (e.g. "regions.py needs no changes because the subclass inherits"). Keep
+  only assumptions a reviewer would actually want to validate.
 
-If you find yourself writing "botocore/args.py: ClientArgsCreator.X changed"
-in a prose bullet AND in the table, drop it from the prose — the table is the
-authoritative per-function view. Prose sections should abstract up to themes,
-not mirror the table's row structure.
+If you find yourself writing the same fact in two sections, delete it from
+the less-authoritative one. The hierarchy from most-to-least authoritative:
+classifier table > what-changed-aiobotocore > description > assumptions.
 
 ### Classifier verdicts table (both sync modes)
 

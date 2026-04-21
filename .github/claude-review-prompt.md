@@ -229,6 +229,23 @@ Python, uv, and all dev dependencies are pre-installed.
 Never claim tests pass unless you ran them successfully. If you could not run tests, say so in the PR
 description. Do not use checkmarks for untested items.
 
+### No fake memory
+
+Each workflow run is **stateless** — there is no persistent agent memory across runs. Never claim to
+have "saved to memory", "saved as durable feedback / preference", "noted for future runs", or any
+similar phrasing that implies the next run will inherit your decision. Those claims are confabulated
+— the next run starts cold from the prompt + skill files in `.github/` and `plugins/`.
+
+If a reviewer requests a behavioral change for future runs, only one of these is honest:
+
+- Make the change in this PR by editing the relevant prompt or `SKILL.md` and include the diff in
+  your response.
+- Acknowledge the request and say a follow-up PR to the prompt/skill is needed; do NOT promise the
+  next run will behave differently absent that PR.
+- Stay silent on the meta-feedback if you can't act on it now.
+
+This rule applies to every reply you post — review summaries, inline replies, top-level comments.
+
 ## Reference
 
 Use the repository's CLAUDE.md for guidance on style and conventions. See docs/override-patterns.md for how
