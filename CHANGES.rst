@@ -1,6 +1,19 @@
 Changes
 -------
 
+3.5.0 (2026-04-20)
+^^^^^^^^^^^^^^^^^^
+* define explicit ``StreamingBody`` API and add ``read(amt)`` support for the
+  httpx backend. ``StreamingBody`` and ``HttpxStreamingBody`` are now
+  ``AioStreamingBody`` (subclassing ``botocore.response.StreamingBody``) and
+  ``AioHttpxStreamingBody`` (subclassing ``AioStreamingBody``); the old names
+  remain as module-level aliases.
+* ``AioStreamingBody.__aenter__`` now returns ``self`` (previously returned the
+  raw aiohttp ``ClientResponse``). Use ``body.raw_stream`` for direct access.
+* ``HttpxStreamingChecksumBody.readinto`` no longer calls ``content.read`` on
+  an httpx ``Response`` (which would fail); it now delegates to the shared
+  ``_ChecksumMixin`` implementation.
+
 3.4.0 (2026-04-07)
 ^^^^^^^^^^^^^^^^^^
 * bump botocore dependency specification to support ``"botocore >= 1.42.79, < 1.42.85"``

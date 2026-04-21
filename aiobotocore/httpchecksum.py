@@ -12,7 +12,7 @@ from botocore.httpchecksum import (
 )
 
 from aiobotocore._helpers import resolve_awaitable
-from aiobotocore.response import HttpxStreamingBody, StreamingBody
+from aiobotocore.response import AioHttpxStreamingBody, AioStreamingBody
 
 try:
     import httpx
@@ -113,29 +113,34 @@ class _ChecksumMixin:
             raise FlexibleChecksumError(error_msg=error_msg)
 
 
-class StreamingChecksumBody(_ChecksumMixin, StreamingBody):
-    """StreamingBody with checksum validation (aiohttp backend)."""
+class AioStreamingChecksumBody(_ChecksumMixin, AioStreamingBody):
+    """AioStreamingBody with checksum validation (aiohttp backend)."""
 
     def __init__(self, raw_stream, content_length, checksum, expected):
         super().__init__(raw_stream, content_length)
         self._init_checksum(checksum, expected)
 
 
-class HttpxStreamingChecksumBody(_ChecksumMixin, HttpxStreamingBody):
-    """StreamingBody with checksum validation (httpx backend)."""
+class AioHttpxStreamingChecksumBody(_ChecksumMixin, AioHttpxStreamingBody):
+    """AioHttpxStreamingBody with checksum validation (httpx backend)."""
 
     def __init__(self, raw_stream, content_length, checksum, expected):
         super().__init__(raw_stream, content_length)
         self._init_checksum(checksum, expected)
+
+
+# Backwards-compatibility aliases for pre-Aio-prefix names.
+StreamingChecksumBody = AioStreamingChecksumBody
+HttpxStreamingChecksumBody = AioHttpxStreamingChecksumBody
 
 
 def _handle_streaming_response(http_response, response, algorithm):
     checksum_cls = _CHECKSUM_CLS.get(algorithm)
     header_name = f"x-amz-checksum-{algorithm}"
     if httpx is not None and isinstance(http_response.raw, httpx.Response):
-        streaming_cls = HttpxStreamingChecksumBody
+        streaming_cls = AioHttpxStreamingChecksumBody
     else:
-        streaming_cls = StreamingChecksumBody
+        streaming_cls = AioStreamingChecksumBody
     return streaming_cls(
         http_response.raw,
         response["headers"].get("content-length"),
