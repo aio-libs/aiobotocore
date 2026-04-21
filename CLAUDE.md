@@ -7,6 +7,8 @@
 
 # Environment
 
+Default branch is `main` (not `master`). Use `--base main` for PRs.
+
 Dependencies are managed by `uv`. Never use `pip install`.
 To read botocore source, find the installed path with
 `python3 -c "import botocore; print(botocore.__file__)"`,
