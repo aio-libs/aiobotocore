@@ -199,7 +199,7 @@ jobs:
 
     - name: Cache .venv
       # yamllint disable-line rule:line-length
-      uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5.0.4
+      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae  # v5.0.5
       with:
         path: .venv
         # yamllint disable-line rule:line-length
@@ -209,7 +209,7 @@ jobs:
       run: uv sync --frozen
 
     - name: Cache botocore repo
-      uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5.0.4
+      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae  # v5.0.5
       with:
         path: /tmp/botocore
         key: botocore-repo
@@ -401,7 +401,7 @@ jobs:
     # invalidates.
     - name: Cache .venv
       # yamllint disable-line rule:line-length
-      uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5.0.4
+      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae  # v5.0.5
       with:
         path: .venv
         # yamllint disable-line rule:line-length
@@ -411,7 +411,7 @@ jobs:
       run: uv sync --frozen
 
     - name: Cache botocore repo
-      uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5.0.4
+      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae  # v5.0.5
       with:
         path: /tmp/botocore
         key: botocore-repo
