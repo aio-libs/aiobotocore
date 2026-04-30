@@ -2,7 +2,7 @@ import collections.abc
 import copy
 import ssl
 import sys
-from typing import Optional, TypedDict, Union
+from typing import TypedDict
 
 import botocore.client
 from aiohttp import SocketFactoryType
@@ -26,23 +26,23 @@ TIMEOUT_ARGS = frozenset(
 
 class _ConnectorArgs(TypedDict):
     use_dns_cache: NotRequired[bool]
-    ttl_dns_cache: NotRequired[Optional[int]]
-    keepalive_timeout: NotRequired[Optional[float]]
-    write_timeout: NotRequired[Optional[float]]
-    pool_timeout: NotRequired[Optional[float]]
+    ttl_dns_cache: NotRequired[int | None]
+    keepalive_timeout: NotRequired[float | None]
+    write_timeout: NotRequired[float | None]
+    pool_timeout: NotRequired[float | None]
     force_close: NotRequired[bool]
     ssl_context: NotRequired[ssl.SSLContext]
     resolver: NotRequired[AbstractResolver]
-    socket_factory: NotRequired[Optional[SocketFactoryType]]
+    socket_factory: NotRequired[SocketFactoryType | None]
 
 
-_HttpSessionType = Union[AIOHTTPSession, HttpxSession]
+_HttpSessionType = AIOHTTPSession | HttpxSession
 
 
 class AioConfig(botocore.client.Config):
     def __init__(
         self,
-        connector_args: Optional[_ConnectorArgs] = None,
+        connector_args: _ConnectorArgs | None = None,
         http_session_cls: type[_HttpSessionType] = DEFAULT_HTTP_SESSION_CLS,
         **kwargs,
     ):

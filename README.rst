@@ -204,7 +204,7 @@ See the `types-aiobotocore <https://youtype.github.io/types_aiobotocore_docs/>`_
 
 Requirements
 ------------
-* Python_ 3.9+
+* Python_ 3.10+
 * aiohttp_
 * botocore_
 

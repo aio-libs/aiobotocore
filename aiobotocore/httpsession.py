@@ -4,7 +4,6 @@ import io
 import os
 import socket
 from concurrent.futures import CancelledError
-from typing import Optional
 
 import aiohttp  # lgtm [py/import-and-import-from]
 from aiohttp import (
@@ -62,9 +61,7 @@ class AIOHTTPSession:
 
         # TODO: handle socket_options
         # keep track of sessions by proxy url (if any)
-        self._sessions: Optional[
-            dict[Optional[str], aiohttp.ClientSession]
-        ] = None
+        self._sessions: dict[str | None, aiohttp.ClientSession] | None = None
         self._verify = verify
         self._proxy_config = ProxyConfiguration(
             proxies=proxies, proxies_settings=proxies_config
