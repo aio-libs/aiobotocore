@@ -597,7 +597,7 @@ def assumerolecredprovider_config_loader():
     }
 
     def _f(config=None):
-        return lambda: (config or fake_config)
+        return lambda: config or fake_config
 
     return _f
 
