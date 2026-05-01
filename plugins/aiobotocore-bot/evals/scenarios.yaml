@@ -1,0 +1,677 @@
+---
+# Auto-generated stub. Fill in `rationale` and `notes` by hand.
+#
+# `expected` uses the classifier's current verdict names
+# (`no-port` / `port-required`). If those get renamed in
+# check-async-need.md, update this file too.
+#
+# Regenerate: python plugins/aiobotocore-bot/evals/generate_scenarios.py
+scenarios:
+- pr: 1192
+  title: "Relax `botocore` dependency specification"
+  expected: no-port
+  from: "1.35.4"
+  to: "1.35.7"
+  merge_commit: 35ce0ef7e5bb08d1abf96e576a40779e1589e80e
+  aiobotocore_version: "2.14.0"
+  botocore_diff: https://github.com/boto/botocore/compare/1.35.4...1.35.7
+  aiobotocore_pr: https://github.com/aio-libs/aiobotocore/pull/1192
+  botocore_files_touched:
+  - botocore/__init__.py
+  rationale: |
+    Only botocore/__init__.py changed (version-bump constant). No code changes in any overridden
+    file.
+  notes: null
+
+- pr: 1202
+  title: "Bump `botocore` dependency specification"
+  expected: port-required
+  from: "1.35.7"
+  to: "1.35.16"
+  merge_commit: 283eca5ef42a93f0b0e34f4a3091ad2bb27748bb
+  aiobotocore_version: "2.15.0"
+  botocore_diff: https://github.com/boto/botocore/compare/1.35.7...1.35.16
+  aiobotocore_pr: https://github.com/aio-libs/aiobotocore/pull/1202
+  botocore_files_touched:
+  - botocore/__init__.py
+  - botocore/endpoint.py
+  - botocore/handlers.py
+  rationale: |
+    Port required: botocore added new function(s) in __init__.py, endpoint.py, handlers.py —
+    handle_expires_header, _has_expires_shape, document_expires_shape. aiobotocore needed matching
+    async overrides (or to delegate through existing overrides).
+  notes: null
+
+- pr: 1213
+  title: "Relax `botocore` dependency specification"
+  expected: no-port
+  from: "1.35.23"
+  to: "1.35.36"
+  merge_commit: a2b1b68583496b4d702f825de5393097c7ca4ef7
+  aiobotocore_version: "2.15.2"
+  botocore_diff: https://github.com/boto/botocore/compare/1.35.23...1.35.36
+  aiobotocore_pr: https://github.com/aio-libs/aiobotocore/pull/1213
+  botocore_files_touched:
+  - botocore/__init__.py
+  - botocore/regions.py
+  rationale: |
+    Touched __init__.py, regions.py with 3 added non-comment line(s). No new functions, no
+    async-relevant signals, no instantiation of aiobotocore-subclassed classes. Changes were data,
+    schema, or refactors of non-overridden code paths.
+  notes: null
+
+- pr: 1221
+  title: "Bump `botocore` dependency specification"
+  expected: port-required
+  from: "1.35.36"
+  to: "1.35.81"
+  merge_commit: f8af3d09f9de3b46f141b041005088e1b39afffc
+  aiobotocore_version: "2.16.0"
+  botocore_diff: https://github.com/boto/botocore/compare/1.35.36...1.35.81
+  aiobotocore_pr: https://github.com/aio-libs/aiobotocore/pull/1221
+  botocore_files_touched:
+  - botocore/__init__.py
+  - botocore/args.py
+  - botocore/config.py
+  - botocore/handlers.py
+  - botocore/regions.py
+  - botocore/signers.py
+  - botocore/utils.py
+  rationale: |
+    Port required: botocore added new function(s) in __init__.py, args.py, config.py, handlers.py,
+    regions.py, signers.py, utils.py — _compute_sigv4a_signing_region_set_config,
+    _handle_200_error, _should_handle_200_error (+9 more). aiobotocore needed matching async
+    overrides (or to delegate through existing overrides).
+  notes: null
+
+- pr: 1240
+  title: "Relax `botocore` dependency specification"
+  expected: no-port
+  from: "1.35.81"
+  to: "1.35.88"
+  merge_commit: 9e342787ff414c716df53beb3f210fbb7d1b96d0
+  aiobotocore_version: "2.16.1"
+  botocore_diff: https://github.com/boto/botocore/compare/1.35.81...1.35.88
+  aiobotocore_pr: https://github.com/aio-libs/aiobotocore/pull/1240
+  botocore_files_touched:
+  - botocore/__init__.py
+  rationale: |
+    Only botocore/__init__.py changed (version-bump constant). No code changes in any overridden
+    file.
+  notes: null
+
+- pr: 1256
+  title: "Relax `botocore` dependency specification"
+  expected: no-port
+  from: "1.35.88"
+  to: "1.35.93"
+  merge_commit: 74323389b8fb6fcbe415f27765e7d7712f440050
+  aiobotocore_version: "2.17.0"
+  botocore_diff: https://github.com/boto/botocore/compare/1.35.88...1.35.93
+  aiobotocore_pr: https://github.com/aio-libs/aiobotocore/pull/1256
+  botocore_files_touched:
+  - botocore/__init__.py
+  rationale: |
+    Only botocore/__init__.py changed (version-bump constant). No code changes in any overridden
+    file.
+  notes: null
+
+- pr: 1265
+  title: "Bump `botocore` dependency specification"
+  expected: port-required
+  from: "1.35.93"
+  to: "1.36.1"
+  merge_commit: ed34a55050977bc4c09daa2e06a136dd433c48e9
+  aiobotocore_version: "2.18.0"
+  botocore_diff: https://github.com/boto/botocore/compare/1.35.93...1.36.1
+  aiobotocore_pr: https://github.com/aio-libs/aiobotocore/pull/1265
+  botocore_files_touched:
+  - botocore/__init__.py
+  - botocore/args.py
+  - botocore/config.py
+  - botocore/configprovider.py
+  - botocore/handlers.py
+  - botocore/httpchecksum.py
+  - botocore/utils.py
+  rationale: |
+    Port required: botocore added new function(s) in __init__.py, args.py, config.py,
+    configprovider.py, handlers.py, httpchecksum.py, utils.py — _compute_checksum_config,
+    _handle_checksum_config, _handle_request_validation_mode_member (+6 more). aiobotocore needed
+    matching async overrides (or to delegate through existing overrides).
+  notes: null
+
+- pr: 1276
+  title: "Relax `botocore` dependency specification"
+  expected: no-port
+  from: "1.36.1"
+  to: "1.36.3"
+  merge_commit: af434cdefdac6f8a6f1b38b5234554a6f44c8ba2
+  aiobotocore_version: "2.19.0"
+  botocore_diff: https://github.com/boto/botocore/compare/1.36.1...1.36.3
+  aiobotocore_pr: https://github.com/aio-libs/aiobotocore/pull/1276
+  botocore_files_touched:
+  - botocore/__init__.py
+  rationale: |
+    Only botocore/__init__.py changed (version-bump constant). No code changes in any overridden
+    file.
+  notes: null
+
+- pr: 1292
+  title: "Bump `botocore` dependency specification"
+  expected: port-required
+  from: "1.36.3"
+  to: "1.36.23"
+  merge_commit: d65c685a2c05d646b9311866465f3b1c6d1c8453
+  aiobotocore_version: "2.20.0"
+  botocore_diff: https://github.com/boto/botocore/compare/1.36.3...1.36.23
+  aiobotocore_pr: https://github.com/aio-libs/aiobotocore/pull/1292
+  botocore_files_touched:
+  - botocore/__init__.py
+  - botocore/args.py
+  - botocore/eventstream.py
+  - botocore/httpchecksum.py
+  - botocore/parsers.py
+  rationale: |
+    Port required: botocore added new function(s) in __init__.py, args.py, eventstream.py,
+    httpchecksum.py, parsers.py — _resolve_protocol, _handle_checksum_config, _handle_boolean (+1
+    more). aiobotocore needed matching async overrides (or to delegate through existing
+    overrides).
+  notes: null
+
+- pr: 1307
+  title: "Bump `botocore` dependency specification"
+  expected: port-required
+  from: "1.36.23"
+  to: "1.37.1"
+  merge_commit: 1a35466ea7561af3a9ccf9c35c3091891fff78f4
+  aiobotocore_version: "2.21.0"
+  botocore_diff: https://github.com/boto/botocore/compare/1.36.23...1.37.1
+  aiobotocore_pr: https://github.com/aio-libs/aiobotocore/pull/1307
+  botocore_files_touched:
+  - botocore/__init__.py
+  - botocore/args.py
+  - botocore/config.py
+  - botocore/configprovider.py
+  - botocore/credentials.py
+  - botocore/regions.py
+  - botocore/session.py
+  rationale: |
+    Port required: botocore added new function(s) in __init__.py, args.py, config.py,
+    configprovider.py, credentials.py, regions.py, session.py —
+    _compute_account_id_endpoint_mode_config, get_deferred_property, get_property (+10 more).
+    aiobotocore needed matching async overrides (or to delegate through existing overrides).
+  notes: null
+
+- pr: 1348
+  title: "Bump `botocore` dependency specification"
+  expected: port-required
+  from: "1.37.1"
+  to: "1.37.3"
+  merge_commit: 54dba348e47c3541a50b0de291518d2ab0184859
+  aiobotocore_version: "2.22.0"
+  botocore_diff: https://github.com/boto/botocore/compare/1.37.1...1.37.3
+  aiobotocore_pr: https://github.com/aio-libs/aiobotocore/pull/1348
+  botocore_files_touched:
+  - botocore/__init__.py
+  - botocore/args.py
+  - botocore/parsers.py
+  rationale: |
+    Port required: botocore added new function(s) in __init__.py, args.py, parsers.py —
+    major_type_to_parsing_method_map, get_peekable_stream_from_bytes, parse_data_item (+24 more).
+    aiobotocore needed matching async overrides (or to delegate through existing overrides).
+  notes: null
+
+- pr: 1371
+  title: "Relax `botocore` dependency specification"
+  expected: no-port
+  from: "1.38.24"
+  to: "1.38.27"
+  merge_commit: 8834b892259342f686893425e704133af2a5e3a5
+  aiobotocore_version: "2.23.0"
+  botocore_diff: https://github.com/boto/botocore/compare/1.38.24...1.38.27
+  aiobotocore_pr: https://github.com/aio-libs/aiobotocore/pull/1371
+  botocore_files_touched:
+  - botocore/__init__.py
+  rationale: |
+    Only botocore/__init__.py changed (version-bump constant). No code changes in any overridden
+    file.
+  notes: null
+
+- pr: 1374
+  title: "Bump `botocore` dependency specification"
+  expected: port-required
+  from: "1.38.27"
+  to: "1.38.36"
+  merge_commit: adc7630686c95c60da8746e1dfa22055078d0f27
+  aiobotocore_version: "2.23.1"
+  botocore_diff: https://github.com/boto/botocore/compare/1.38.27...1.38.36
+  aiobotocore_pr: https://github.com/aio-libs/aiobotocore/pull/1374
+  botocore_files_touched:
+  - botocore/__init__.py
+  - botocore/args.py
+  - botocore/client.py
+  - botocore/endpoint.py
+  - botocore/handlers.py
+  - botocore/httpsession.py
+  - botocore/response.py
+  - botocore/utils.py
+  rationale: |
+    Port required: botocore added new function(s) in __init__.py, args.py, client.py, endpoint.py,
+    handlers.py, httpsession.py, response.py, utils.py — ensure_boolean. aiobotocore needed
+    matching async overrides (or to delegate through existing overrides).
+  notes: null
+
+- pr: 1376
+  title: "Bump `botocore` dependency specification"
+  expected: port-required
+  from: "1.38.36"
+  to: "1.38.46"
+  merge_commit: a2a236c61e4d7f5090f6a8b2c2f0a7e3c7831ae0
+  aiobotocore_version: "2.23.1"
+  botocore_diff: https://github.com/boto/botocore/compare/1.38.36...1.38.46
+  aiobotocore_pr: https://github.com/aio-libs/aiobotocore/pull/1376
+  botocore_files_touched:
+  - botocore/__init__.py
+  - botocore/args.py
+  - botocore/client.py
+  - botocore/handlers.py
+  - botocore/paginate.py
+  - botocore/response.py
+  - botocore/session.py
+  - botocore/signers.py
+  - botocore/utils.py
+  - botocore/waiter.py
+  rationale: |
+    Port required: botocore modified existing overridden functions in __init__.py, args.py,
+    client.py, handlers.py, paginate.py, response.py, session.py, signers.py, utils.py, waiter.py
+    with 55 added non-comment line(s) and aiobotocore's overrides
+    updated to match.
+  notes: null
+
+- pr: 1387
+  title: "Bump `botocore` dependency specification"
+  expected: port-required
+  from: "1.38.46"
+  to: "1.39.8"
+  merge_commit: 5adff190ef9774b01b7a63cdf72f83474e980563
+  aiobotocore_version: "2.23.2"
+  botocore_diff: https://github.com/boto/botocore/compare/1.38.46...1.39.8
+  aiobotocore_pr: https://github.com/aio-libs/aiobotocore/pull/1387
+  botocore_files_touched:
+  - botocore/__init__.py
+  - botocore/args.py
+  - botocore/client.py
+  - botocore/config.py
+  - botocore/configprovider.py
+  - botocore/endpoint.py
+  - botocore/handlers.py
+  - botocore/parsers.py
+  - botocore/session.py
+  - botocore/signers.py
+  - botocore/tokens.py
+  - botocore/utils.py
+  rationale: |
+    Port required: botocore added new function(s) in __init__.py, args.py, client.py, config.py,
+    configprovider.py, endpoint.py, handlers.py, parsers.py, session.py, signers.py, tokens.py,
+    utils.py — _compute_auth_scheme_preference_config, _compute_signature_version_config, __new__
+    (+9 more). aiobotocore needed matching async overrides (or to delegate through existing
+    overrides).
+  notes: null
+
+- pr: 1389
+  title: "Bump `botocore` dependency specification"
+  expected: port-required
+  from: "1.39.8"
+  to: "1.39.11"
+  merge_commit: d6a872de5bcc7c2af214d15421942d825544b782
+  aiobotocore_version: "2.24.0"
+  botocore_diff: https://github.com/boto/botocore/compare/1.39.8...1.39.11
+  aiobotocore_pr: https://github.com/aio-libs/aiobotocore/pull/1389
+  botocore_files_touched:
+  - botocore/__init__.py
+  - botocore/credentials.py
+  - botocore/session.py
+  - botocore/tokens.py
+  - botocore/utils.py
+  rationale: |
+    Port required: botocore added new function(s) in __init__.py, credentials.py, session.py,
+    tokens.py, utils.py — _register_client_plugins, create_nested_client. aiobotocore needed
+    matching async overrides (or to delegate through existing overrides).
+  notes: null
+
+- pr: 1391
+  title: "Bump `botocore` dependency specification"
+  expected: port-required
+  from: "1.39.11"
+  to: "1.40.18"
+  merge_commit: 56beacc6e24b81f0e7bbda996d2e08fc947148fc
+  aiobotocore_version: "2.24.2"
+  botocore_diff: https://github.com/boto/botocore/compare/1.39.11...1.40.18
+  aiobotocore_pr: https://github.com/aio-libs/aiobotocore/pull/1391
+  botocore_files_touched:
+  - botocore/__init__.py
+  - botocore/args.py
+  - botocore/client.py
+  - botocore/configprovider.py
+  - botocore/credentials.py
+  - botocore/discovery.py
+  - botocore/endpoint.py
+  - botocore/handlers.py
+  - botocore/hooks.py
+  - botocore/httpchecksum.py
+  - botocore/httpsession.py
+  - botocore/paginate.py
+  - botocore/parsers.py
+  - botocore/regions.py
+  - botocore/response.py
+  - botocore/session.py
+  - botocore/signers.py
+  - botocore/stub.py
+  - botocore/tokens.py
+  - botocore/utils.py
+  rationale: |
+    Port required: botocore added new function(s) in __init__.py, args.py, client.py,
+    configprovider.py, credentials.py, discovery.py, endpoint.py, handlers.py, hooks.py,
+    httpchecksum.py, httpsession.py, paginate.py, parsers.py, regions.py, response.py, session.py,
+    signers.py, stub.py, tokens.py, utils.py — __init__, check_and_register_feature_id,
+    generate_presigned_url (+2 more). aiobotocore needed matching async overrides (or to delegate
+    through existing overrides).
+  notes: null
+
+- pr: 1409
+  title: "Bump `botocore` dependency specification"
+  expected: port-required
+  from: "1.40.18"
+  to: "1.40.45"
+  merge_commit: 99de921eb9553517e9c5d99d768d7753e71c416f
+  aiobotocore_version: "2.24.3"
+  botocore_diff: https://github.com/boto/botocore/compare/1.40.18...1.40.45
+  aiobotocore_pr: https://github.com/aio-libs/aiobotocore/pull/1409
+  botocore_files_touched:
+  - botocore/__init__.py
+  - botocore/awsrequest.py
+  - botocore/credentials.py
+  - botocore/httpsession.py
+  - botocore/session.py
+  - botocore/signers.py
+  - botocore/utils.py
+  rationale: |
+    Port required: botocore modified existing overridden functions in __init__.py, awsrequest.py,
+    credentials.py, httpsession.py, session.py, signers.py, utils.py with 60 added non-comment
+    line(s) and aiobotocore's overrides updated to match.
+  notes: null
+
+- pr: 1420
+  title: "Bump `botocore` dependency specification"
+  expected: port-required
+  from: "1.40.45"
+  to: "1.40.49"
+  merge_commit: d236eb2b252cacd0c37aa844347c6414a0f6d985
+  aiobotocore_version: "2.25.0"
+  botocore_diff: https://github.com/boto/botocore/compare/1.40.45...1.40.49
+  aiobotocore_pr: https://github.com/aio-libs/aiobotocore/pull/1420
+  botocore_files_touched:
+  - botocore/__init__.py
+  - botocore/args.py
+  - botocore/handlers.py
+  rationale: |
+    Port required: botocore added new function(s) in __init__.py, args.py, handlers.py —
+    enable_millisecond_timestamp_precision, add_retry_headers. aiobotocore needed matching async
+    overrides (or to delegate through existing overrides).
+  notes: null
+
+- pr: 1428
+  title: "Bump botocore dependency"
+  expected: no-port
+  from: "1.40.49"
+  to: "1.40.61"
+  merge_commit: 73bb79b3117cd53b36c49a3ad2808a1c69ba1904
+  aiobotocore_version: "2.25.1"
+  botocore_diff: https://github.com/boto/botocore/compare/1.40.49...1.40.61
+  aiobotocore_pr: https://github.com/aio-libs/aiobotocore/pull/1428
+  botocore_files_touched:
+  - botocore/__init__.py
+  rationale: |
+    Only botocore/__init__.py (version-bump constant) and data/ schema files changed; the
+    aiobotocore PR itself only bumped aiobotocore/__init__.py. No actual port occurred.
+  notes: |
+    HISTORICAL MISLABEL: PR title says "Bump" (which convention maps to port-required) but the
+    diff shows no overridden code changes. Ground-truth `expected` overridden to `no-port` here so
+    the eval trains on correct labels. The classifier should return `no-port` on this input.
+
+- pr: 1433
+  title: "Relax botocore dependency specification"
+  expected: no-port
+  from: "1.40.61"
+  to: "1.40.70"
+  merge_commit: e39c8b3778802227ca2549c1946648e8a1034ef5
+  aiobotocore_version: "2.25.2"
+  botocore_diff: https://github.com/boto/botocore/compare/1.40.61...1.40.70
+  aiobotocore_pr: https://github.com/aio-libs/aiobotocore/pull/1433
+  botocore_files_touched:
+  - botocore/__init__.py
+  - botocore/config.py
+  rationale: |
+    Touched __init__.py, config.py with 2 added non-comment line(s). No new functions, no
+    async-relevant signals, no instantiation of aiobotocore-subclassed classes. Changes were data,
+    schema, or refactors of non-overridden code paths.
+  notes: null
+
+- pr: 1436
+  title: "Bump `botocore` dependency specification"
+  expected: port-required
+  from: "1.40.70"
+  to: "1.41.5"
+  merge_commit: 790af50af1e896ef819ca558952e0a3361bb3af3
+  aiobotocore_version: "2.26.0"
+  botocore_diff: https://github.com/boto/botocore/compare/1.40.70...1.41.5
+  aiobotocore_pr: https://github.com/aio-libs/aiobotocore/pull/1436
+  botocore_files_touched:
+  - botocore/__init__.py
+  - botocore/credentials.py
+  - botocore/utils.py
+  rationale: |
+    Port required: botocore added new function(s) in __init__.py, credentials.py, utils.py —
+    _create_login_provider, get_credentials, _base64_url_encode_no_padding (+16 more). aiobotocore
+    needed matching async overrides (or to delegate through existing overrides).
+  notes: null
+
+- pr: 1445
+  title: "Relax `botocore` dependency specification"
+  expected: no-port
+  from: "1.41.5"
+  to: "1.42.1"
+  merge_commit: f0d9275bb1034d48fd0f773d682652df56696a33
+  aiobotocore_version: "3.0.0"
+  botocore_diff: https://github.com/boto/botocore/compare/1.41.5...1.42.1
+  aiobotocore_pr: https://github.com/aio-libs/aiobotocore/pull/1445
+  botocore_files_touched:
+  - botocore/__init__.py
+  - botocore/credentials.py
+  rationale: |
+    Touched __init__.py, credentials.py with 4 added non-comment line(s). No new functions, no
+    async-relevant signals, no instantiation of aiobotocore-subclassed classes. Changes were data,
+    schema, or refactors of non-overridden code paths.
+  notes: null
+
+- pr: 1449
+  title: "Relax `botocore` dependency specification"
+  expected: no-port
+  from: "1.42.1"
+  to: "1.42.5"
+  merge_commit: f898d218eb79c097993cab3542688d59b84fac2b
+  aiobotocore_version: "3.0.0"
+  botocore_diff: https://github.com/boto/botocore/compare/1.42.1...1.42.5
+  aiobotocore_pr: https://github.com/aio-libs/aiobotocore/pull/1449
+  botocore_files_touched:
+  - botocore/__init__.py
+  - botocore/utils.py
+  rationale: |
+    Touched __init__.py, utils.py with 3 added non-comment line(s). No new functions, no
+    async-relevant signals, no instantiation of aiobotocore-subclassed classes. Changes were data,
+    schema, or refactors of non-overridden code paths.
+  notes: null
+
+- pr: 1461
+  title: "Relax `botocore` dependency specification"
+  expected: no-port
+  from: "1.42.5"
+  to: "1.42.19"
+  merge_commit: 41e938e0d417d8e4a0d39d242b4cca67e6f1747b
+  aiobotocore_version: "3.1.0"
+  botocore_diff: https://github.com/boto/botocore/compare/1.42.5...1.42.19
+  aiobotocore_pr: https://github.com/aio-libs/aiobotocore/pull/1461
+  botocore_files_touched:
+  - botocore/__init__.py
+  - botocore/utils.py
+  rationale: |
+    Touched __init__.py, utils.py with modifications to existing functions. The single
+    async-relevant signal is in a non-overridden code path (sync-only helper); no aiobotocore
+    override needed updating. Hash tests passed clean.
+  notes: |
+    Heuristic-flagged (1 async signal) but manual review confirms label: aiobotocore PR had no
+    .py code changes, only __init__.py version bump.
+
+- pr: 1466
+  title: "Relax `botocore` dependency specification"
+  expected: no-port
+  from: "1.42.19"
+  to: "1.42.30"
+  merge_commit: ff0f62bb1e1d533e1477163ccdecfd24d2b7f09a
+  aiobotocore_version: "3.1.1"
+  botocore_diff: https://github.com/boto/botocore/compare/1.42.19...1.42.30
+  aiobotocore_pr: https://github.com/aio-libs/aiobotocore/pull/1466
+  botocore_files_touched:
+  - botocore/__init__.py
+  - botocore/args.py
+  - botocore/config.py
+  - botocore/configprovider.py
+  rationale: |
+    Touched __init__.py, args.py, config.py, configprovider.py. Async signals are in non-overridden
+    sync-only paths that aiobotocore doesn't subclass into. Aiobotocore PR added one hash entry to
+    test_patches.py for a newly-tracked function but required no code port.
+  notes: |
+    Heuristic-flagged (4 async signals) but manual review confirms label: aiobotocore PR only
+    updated __init__.py and one test_patches.py hash entry; no .py code changes needed.
+
+- pr: 1472
+  title: "Relax `botocore` dependency specification"
+  expected: no-port
+  from: "1.42.30"
+  to: "1.42.42"
+  merge_commit: 30685422bfbd08a3ed89b78979da8703d72c46e8
+  aiobotocore_version: "3.1.2"
+  botocore_diff: https://github.com/boto/botocore/compare/1.42.30...1.42.42
+  aiobotocore_pr: https://github.com/aio-libs/aiobotocore/pull/1472
+  botocore_files_touched:
+  - botocore/__init__.py
+  rationale: |
+    Only botocore/__init__.py changed (version-bump constant). No code changes in any overridden
+    file.
+  notes: null
+
+- pr: 1474
+  title: "Relax `botocore` dependency specification"
+  expected: no-port
+  from: "1.42.42"
+  to: "1.42.49"
+  merge_commit: 65154a564cb548a2b23cea5fcf23f5b394ade880
+  aiobotocore_version: "3.1.3"
+  botocore_diff: https://github.com/boto/botocore/compare/1.42.42...1.42.49
+  aiobotocore_pr: https://github.com/aio-libs/aiobotocore/pull/1474
+  botocore_files_touched:
+  - botocore/__init__.py
+  - botocore/httpsession.py
+  rationale: |
+    Touched __init__.py, httpsession.py with 7 added non-comment line(s). No new functions, no
+    async-relevant signals, no instantiation of aiobotocore-subclassed classes. Changes were data,
+    schema, or refactors of non-overridden code paths.
+  notes: null
+
+- pr: 1480
+  title: "Bump `botocore` dependency specification"
+  expected: port-required
+  from: "1.42.49"
+  to: "1.42.55"
+  merge_commit: 1cdc0ecc7dc6d3fbc15a223c69f76c3d7d9f7d59
+  aiobotocore_version: "3.2.0"
+  botocore_diff: https://github.com/boto/botocore/compare/1.42.49...1.42.55
+  aiobotocore_pr: https://github.com/aio-libs/aiobotocore/pull/1480
+  botocore_files_touched:
+  - botocore/__init__.py
+  - botocore/httpchecksum.py
+  - botocore/utils.py
+  rationale: |
+    Port required: botocore's `_apply_request_trailer_checksum` had a substantive body change
+    (not a cosmetic edit) — the internal `_register_checksum_algorithm_feature_id(algorithm)`
+    call was removed and the registration relocated to a new `_register_checksum_feature_ids`
+    helper that callers now invoke separately. aiobotocore overrides
+    `_apply_request_trailer_checksum` at aiobotocore/httpchecksum.py:259, so the override must
+    mirror the behavior shift or feature-ID registration silently diverges between sync and
+    async clients. New Crt checksum classes were also added but those are additive and don't
+    drive the port on their own.
+  notes: null
+
+- pr: 1485
+  title: "Relax `botocore` dependency specification"
+  expected: no-port
+  from: "1.42.55"
+  to: "1.42.61"
+  merge_commit: ab48f58526fc2713930070ad8c1c6b4709eaacba
+  aiobotocore_version: "3.2.1"
+  botocore_diff: https://github.com/boto/botocore/compare/1.42.55...1.42.61
+  aiobotocore_pr: https://github.com/aio-libs/aiobotocore/pull/1485
+  botocore_files_touched:
+  - botocore/__init__.py
+  - botocore/parsers.py
+  rationale: |
+    Touched __init__.py, parsers.py with 5 added non-comment line(s). No new functions, no
+    async-relevant signals, no instantiation of aiobotocore-subclassed classes. Changes were data,
+    schema, or refactors of non-overridden code paths.
+  notes: null
+
+- pr: 1492
+  title: "Bump `botocore` dependency specification"
+  expected: port-required
+  from: "1.42.61"
+  to: "1.42.70"
+  merge_commit: fb51e5ed8cc7d3eb47e19ff37f26eccefebdda36
+  aiobotocore_version: "3.3.0"
+  botocore_diff: https://github.com/boto/botocore/compare/1.42.61...1.42.70
+  aiobotocore_pr: https://github.com/aio-libs/aiobotocore/pull/1492
+  botocore_files_touched:
+  - botocore/__init__.py
+  - botocore/handlers.py
+  - botocore/httpchecksum.py
+  - botocore/utils.py
+  rationale: |
+    Port required: botocore added new function(s) in __init__.py, handlers.py, httpchecksum.py,
+    utils.py — remove_connecthealth_start_medical_scribe_listening_session,
+    enable_millisecond_timestamp_precision, _map_oauth2_errors (+2 more). aiobotocore needed
+    matching async overrides (or to delegate through existing overrides).
+  notes: null
+
+- pr: 1534
+  title: "Bump `botocore` dependency specification"
+  expected: port-required
+  from: "1.42.70"
+  to: "1.42.84"
+  merge_commit: db757c7cf80176e00960e0a576edc22acb48d7cd
+  aiobotocore_version: "3.4.0"
+  botocore_diff: https://github.com/boto/botocore/compare/1.42.70...1.42.84
+  aiobotocore_pr: https://github.com/aio-libs/aiobotocore/pull/1534
+  botocore_files_touched:
+  - botocore/__init__.py
+  - botocore/args.py
+  - botocore/config.py
+  - botocore/configprovider.py
+  - botocore/handlers.py
+  - botocore/httpchecksum.py
+  - botocore/regions.py
+  rationale: |
+    Port required: botocore added new function(s) in __init__.py, args.py, config.py,
+    configprovider.py, handlers.py, httpchecksum.py, regions.py —
+    _validate_s3_disable_express_session_auth, _set_region_if_custom_s3_endpoint,
+    _compute_s3_disable_express_session_auth (+3 more). aiobotocore needed matching async
+    overrides (or to delegate through existing overrides).
+  notes: null

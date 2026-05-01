@@ -16,7 +16,6 @@ import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 from functools import partial
-from typing import Optional
 from unittest import TestCase, mock
 
 import botocore.exceptions
@@ -597,7 +596,7 @@ def assumerolecredprovider_config_loader():
     }
 
     def _f(config=None):
-        return lambda: (config or fake_config)
+        return lambda: config or fake_config
 
     return _f
 
@@ -1077,7 +1076,7 @@ async def test_originalec2provider_file_missing():
 # From class TestCreateCredentialResolver
 @pytest.fixture
 def mock_session():
-    def _f(config_loader: Optional[ConfigValueStore] = None) -> AioSession:
+    def _f(config_loader: ConfigValueStore | None = None) -> AioSession:
         if not config_loader:
             config_loader = ConfigValueStore()
 

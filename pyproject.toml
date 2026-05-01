@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "aiobotocore"
 description = "Async client for aws services using botocore and aiohttp"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 authors = [
     { name = "Nikolay Novik", email = "nickolainovik@gmail.com" },
 ]
@@ -16,7 +16,6 @@ classifiers = [
     'Intended Audience :: System Administrators',
     'Natural Language :: English',
     'Programming Language :: Python :: 3',
-    'Programming Language :: Python :: 3.9',
     'Programming Language :: Python :: 3.10',
     'Programming Language :: Python :: 3.11',
     'Programming Language :: Python :: 3.12',
@@ -31,7 +30,7 @@ dynamic = ["version", "readme"]
 dependencies = [
     "aiohttp >= 3.12.0, < 4.0.0",
     "aioitertools >= 0.5.1, < 1.0.0",
-    "botocore >= 1.42.79, < 1.42.85",
+    "botocore >= 1.42.90, < 1.43.1",
     "python-dateutil >= 2.1, < 3.0.0",
     "jmespath >= 0.7.1, < 2.0.0",
     "multidict >= 6.0.0, < 7.0.0",
@@ -66,6 +65,7 @@ botocore-dev = [
     # "colorama>0.3.0", # Windows requirement
 ]
 dev = [
+    "anthropic >= 0.40.0", # Used in plugins/aiobotocore-bot/evals/
     "anyio >= 4.11.0",
     "dill >= 0.3.3, < 0.5", # Used in test_patches.py
     "docker >= 7.1, < 8",
@@ -137,7 +137,7 @@ exclude = [
 line-length = 79
 indent-width = 4
 
-target-version = "py39"
+target-version = "py310"
 
 [tool.ruff.lint]
 # Unlike Flake8, Ruff doesn't enable pycodestyle warnings (`W`) or
@@ -176,3 +176,28 @@ exclude_also = [
     "if TYPE_CHECKING",
     "@pytest.mark.localonly",
 ]
+
+[tool.rumdl]
+line-length = 120
+disable = [
+    # CLAUDE.md uses flat # per section; Anthropic's docs don't
+    # prescribe a single-H1 structure either.
+    "MD025",
+    # .github/*.md prompts and .claude/commands/*.md slash commands
+    # are fragments loaded into a larger prompt, not standalone docs
+    # with a title.
+    "MD041",
+    # .github/pull_request_template.md uses `*Replace this text...*`
+    # as placeholder text and .github/ISSUE_TEMPLATE/bug_report.md
+    # uses **Describe the bug** / **Checklist** as bold labels.
+    # Both are conventional GitHub template styling, not
+    # emphasis-used-as-heading.
+    "MD036",
+]
+
+[tool.rumdl.MD013]
+# Long table rows are legitimate in docs/ai-workflows.md; don't force
+# prose-length limits on them. Same for code blocks (mermaid diagrams,
+# shell examples) where line breaks can alter meaning.
+tables = false
+code_blocks = false

@@ -1,7 +1,7 @@
 Changes
 -------
 
-3.5.0 (2026-04-20)
+3.7.0 (2026-05-01)
 ^^^^^^^^^^^^^^^^^^
 * define explicit ``StreamingBody`` API and add ``read(amt)`` support for the
   httpx backend. ``StreamingBody`` and ``HttpxStreamingBody`` are now
@@ -13,6 +13,15 @@ Changes
 * ``HttpxStreamingChecksumBody.readinto`` no longer calls ``content.read`` on
   an httpx ``Response`` (which would fail); it now delegates to the shared
   ``_ChecksumMixin`` implementation.
+
+3.6.0 (2026-04-30)
+^^^^^^^^^^^^^^^^^^
+* relax botocore dependency specification to support ``"botocore >= 1.42.90, < 1.43.1"``
+* drop support for Python 3.9 (EOL)
+
+3.5.0 (2026-04-19)
+^^^^^^^^^^^^^^^^^^
+* bump botocore dependency specification to support ``"botocore >= 1.42.90, < 1.42.92"``
 
 3.4.0 (2026-04-07)
 ^^^^^^^^^^^^^^^^^^
