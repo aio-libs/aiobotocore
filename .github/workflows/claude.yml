@@ -10,6 +10,9 @@ run-name: >-
     || github.event_name == 'issues'
       && format('Issue #{0}',
          github.event.issue.number)
+    || github.event_name == 'pull_request_target'
+      && format('Notify fork PR #{0}',
+         github.event.pull_request.number)
     || format('PR #{0} comment',
        github.event.issue.number
        || github.event.pull_request.number)
@@ -52,6 +55,12 @@ on:
     types:
     - opened
     - assigned
+  # Used ONLY by the notify-fork-pr job below — the claude job's `if:`
+  # has no pull_request_target clause, so it stays skipped on this event.
+  # Restricted to `opened` so we comment once per fork PR, not on every push.
+  pull_request_target:
+    types:
+    - opened
 
 jobs:
   claude:
@@ -269,3 +278,28 @@ jobs:
         EXEC_FILE: >-
           ${{ steps.claude.outputs.execution_file }}
       run: python3 .github/usage-summary.py
+
+  # Posts a one-time explanatory comment on fork PRs, since the claude job
+  # above skips them (GitHub downgrades id-token: write to read-only on fork
+  # pull_request events, breaking OIDC). Runs on pull_request_target so it
+  # has the base repo's GITHUB_TOKEN with pull-requests: write — safe because
+  # we never check out the fork SHA or execute any fork-supplied content;
+  # the comment body is hardcoded and we only read the PR number from the
+  # event payload.
+  notify-fork-pr:
+    if: >-
+      github.event_name == 'pull_request_target' &&
+      github.event.pull_request.head.repo.fork == true
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      pull-requests: write
+    steps:
+    - name: Comment on fork PR
+      env:
+        GH_TOKEN: ${{ github.token }}
+        PR: ${{ github.event.pull_request.number }}
+        REPO: ${{ github.repository }}
+        # yamllint disable-line rule:line-length
+        BODY: "Thanks for the contribution! Automated Claude review is disabled on fork PRs because GitHub Actions restricts the OIDC token on them. A maintainer can trigger a review by commenting `@claude please review` once they have had a chance to look at the PR."
+      run: gh pr comment "$PR" --repo "$REPO" --body "$BODY"
