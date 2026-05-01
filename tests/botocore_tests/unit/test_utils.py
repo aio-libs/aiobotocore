@@ -5,7 +5,6 @@ import json
 import unittest
 from collections.abc import Iterator
 from contextlib import asynccontextmanager
-from typing import Union
 from unittest import mock
 
 import pytest
@@ -575,8 +574,7 @@ class TestS3RegionRedirector(unittest.IsolatedAsyncioTestCase):
             await self.redirector.get_bucket_region('foo', response)
 
 
-# TypeAlias (requires typing_extensions or >=3.10 to annotate)
-Response = tuple[Union[str, object], int]
+Response = tuple[str | object, int]
 
 
 # From class TestContainerMetadataFetcher

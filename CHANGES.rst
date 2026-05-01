@@ -1,9 +1,10 @@
 Changes
 -------
 
-3.5.1 (2026-04-30)
+3.6.0 (2026-04-30)
 ^^^^^^^^^^^^^^^^^^
-* relax botocore dependency specification to support ``"botocore >= 1.42.90, < 1.42.98"``
+* relax botocore dependency specification to support ``"botocore >= 1.42.90, < 1.43.1"``
+* drop support for Python 3.9 (EOL)
 
 3.5.0 (2026-04-19)
 ^^^^^^^^^^^^^^^^^^
