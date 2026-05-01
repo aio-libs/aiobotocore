@@ -1,6 +1,10 @@
 Changes
 -------
 
+3.6.1 (2026-05-01)
+^^^^^^^^^^^^^^^^^^
+* fix race condition in ``AioAssumeRoleProvider._visited_profiles`` causing false ``InfiniteLoopConfigError`` under concurrent async usage
+
 3.6.0 (2026-04-30)
 ^^^^^^^^^^^^^^^^^^
 * relax botocore dependency specification to support ``"botocore >= 1.42.90, < 1.43.1"``
