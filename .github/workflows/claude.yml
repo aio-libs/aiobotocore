@@ -4,7 +4,11 @@ name: Claude Code
 run-name: >-
   Claude:
   ${{
-    github.event_name == 'pull_request'
+    github.event_name == 'pull_request_target'
+      && github.event.pull_request.head.repo.fork
+      && format('Notify fork PR #{0}',
+         github.event.pull_request.number)
+    || github.event_name == 'pull_request_target'
       && format('Review PR #{0}',
          github.event.pull_request.number)
     || github.event_name == 'issues'
@@ -32,10 +36,23 @@ permissions: {}
 concurrency:
   # yamllint disable-line rule:line-length
   group: claude-${{ github.event_name }}-${{ github.event.pull_request.number || github.event.issue.number || github.run_id }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request_target' }}
 
 on:
-  pull_request:
+  # Use pull_request_target instead of pull_request so the action runs
+  # against main's version of THIS workflow file. claude-code-action's
+  # anti-tampering validator hard-fails any run where the calling
+  # workflow file diverges from the default branch — i.e. every PR
+  # that touches claude.yml itself (dependabot bumps, maintainer
+  # tweaks). pull_request_target runs in the base repo's context, so
+  # the workflow file used IS main's and the validator passes.
+  #
+  # Security: forks are excluded in the claude job's `if:`, so this
+  # only grants base-repo secrets to same-repo PRs from authors who
+  # already have push access. The `actions/checkout` step below
+  # explicitly pins to the PR head SHA so the review actually sees the
+  # PR's diff.
+  pull_request_target:
     types:
     - opened
     - synchronize
@@ -56,12 +73,21 @@ on:
 jobs:
   claude:
     # Only trusted authors can trigger @claude interactions.
-    # Auto-review on pull_request events is unrestricted — except on drafts,
-    # which should not burn CI time. Explicit @claude mentions on a draft still
-    # fire via issue_comment / review_comment / review and are allowed.
+    # Auto-review on pull_request_target events is unrestricted — except on:
+    #   - drafts (should not burn CI time)
+    #   - dependabot PRs (claude-code-action's allowed_bots gate hard-fails
+    #     on dependabot[bot]; nothing useful to review on dep bumps anyway)
+    #   - fork PRs (pull_request_target on a fork would expose base-repo
+    #     secrets to fork-supplied code; not worth the risk for auto-review.
+    #     Maintainers can still trigger review on a fork PR via @claude in
+    #     an issue_comment, which runs in the base repo's context safely)
+    # Explicit @claude mentions on a draft still fire via
+    # issue_comment / review_comment / review and are allowed.
     if: >-
-      (github.event_name == 'pull_request' &&
-       github.event.pull_request.draft != true) ||
+      (github.event_name == 'pull_request_target' &&
+       github.event.pull_request.draft != true &&
+       github.event.pull_request.user.login != 'dependabot[bot]' &&
+       github.event.pull_request.head.repo.fork != true) ||
       (github.event_name == 'issue_comment' &&
        contains(github.event.comment.body, '@claude') &&
        contains(fromJSON('["MEMBER","OWNER","COLLABORATOR"]'),
@@ -100,6 +126,15 @@ jobs:
     steps:
     - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
       with:
+        # pull_request_target defaults to the base ref; pin to the PR
+        # head SHA so the review sees the PR's actual diff. Pinning
+        # the immutable SHA at job start (vs. the head ref name) is
+        # a TOCTOU guard — prevents a force-push mid-job from
+        # swapping in different code than the `if:` gate evaluated
+        # against. Falls through to the default (main) for
+        # comment-triggered events where head.sha is unset; the
+        # agent calls `gh pr checkout` itself when it needs PR code.
+        ref: ${{ github.event.pull_request.head.sha }}
         fetch-depth: 1
         persist-credentials: false
 
@@ -259,3 +294,32 @@ jobs:
         EXEC_FILE: >-
           ${{ steps.claude.outputs.execution_file }}
       run: python3 .github/usage-summary.py
+
+  # Posts a one-time explanatory comment on fork PRs, since the claude job
+  # above skips them (GitHub downgrades id-token: write to read-only on fork
+  # pull_request events, breaking OIDC). Runs on pull_request_target so it
+  # has the base repo's GITHUB_TOKEN with pull-requests: write — safe because
+  # we never check out the fork SHA or execute any fork-supplied content;
+  # the comment body is hardcoded and we only read the PR number from the
+  # event payload.
+  notify-fork-pr:
+    # pull_request_target now also fires on `synchronize` for the claude
+    # job above; gate this notice to `opened` only so we don't re-comment
+    # on every push to a fork PR.
+    if: >-
+      github.event_name == 'pull_request_target' &&
+      github.event.action == 'opened' &&
+      github.event.pull_request.head.repo.fork == true
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      pull-requests: write
+    steps:
+    - name: Comment on fork PR
+      env:
+        GH_TOKEN: ${{ github.token }}
+        PR: ${{ github.event.pull_request.number }}
+        REPO: ${{ github.repository }}
+        # yamllint disable-line rule:line-length
+        BODY: "Thanks for the contribution! Automated Claude review is disabled on fork PRs because GitHub Actions restricts the OIDC token on them. A maintainer can trigger a review by commenting `@claude please review` once they have had a chance to look at the PR."
+      run: gh pr comment "$PR" --repo "$REPO" --body "$BODY"
