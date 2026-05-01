@@ -195,19 +195,33 @@ IMPORTANT: Never merge or close pull requests. Never close issues. These actions
 End-of-run cleanup via `/aiobotocore-bot:complete-run`. The skill posts the summary reply to the right target
 (inline thread vs top-level PR comment vs issue comment, based on `--event`) and swaps the 👀 reaction for 👍.
 
+`claude.yml` enables `use_sticky_comment: true` + `track_progress: true`, so claude-code-action automatically
+posts a top-level PR comment containing your final assistant message. For events whose natural reply target
+*is* a top-level PR comment, that sticky comment already serves as the reply — passing `--skip-reply` to
+`complete-run` avoids duplicate top-level comments. For inline-thread replies (`pull_request_review_comment`)
+and issue threads (`issues`), the sticky comment is on a different surface, so `complete-run` still needs to
+post.
+
 Invocations by event:
 
-- `pull_request_review_comment` or `issue_comment`:
-  `/aiobotocore-bot:complete-run --event=$EVENT_NAME --number=$NUMBER --comment-id=$COMMENT_ID --summary="<body>"`
-- `pull_request_review`:
-  `/aiobotocore-bot:complete-run --event=pull_request_review --number=$NUMBER --summary="<body>"`
-- `issues`:
-  `/aiobotocore-bot:complete-run --event=issues --number=$NUMBER --summary="<body>"`
+- `pull_request_review_comment`:
+  `/aiobotocore-bot:complete-run --event=pull_request_review_comment --number=$NUMBER --comment-id=$COMMENT_ID --summary="<body>"`
+  — inline-thread reply, distinct surface from the sticky comment.
+- `issue_comment`: `/aiobotocore-bot:complete-run --event=issue_comment --number=$NUMBER --comment-id=$COMMENT_ID --skip-reply`
+  — sticky comment already posted your reply at the top level; just swap the reaction.
+- `pull_request_review`: `/aiobotocore-bot:complete-run --event=pull_request_review --number=$NUMBER --skip-reply`
+  — same as above; sticky comment is the reply.
+- `issues`: `/aiobotocore-bot:complete-run --event=issues --number=$NUMBER --summary="<body>"`
+  — issue thread is the only surface; sticky comment is PR-only.
 - `pull_request` (review path): `/aiobotocore-bot:complete-run --event=pull_request --number=$NUMBER --skip-reply`
   — `review-pr` already posted its own review comment; we only need the reaction swap.
 
-The summary body should say what you changed (with commit SHAs or file paths), what you decided NOT to do (and
-why), and any follow-up asks for the reviewer.
+When `--skip-reply` is set, your assistant-message output IS the user-visible reply (it lands in the sticky
+comment), so write it as the actual response to the reviewer — not as an internal status update.
+
+The reply body (whether posted by `complete-run` or surfaced via the sticky comment) should say what you
+changed (with commit SHAs or file paths), what you decided NOT to do (and why), and any follow-up asks for
+the reviewer.
 
 ## Environment
 
