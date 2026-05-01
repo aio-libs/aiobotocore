@@ -56,12 +56,22 @@ on:
 jobs:
   claude:
     # Only trusted authors can trigger @claude interactions.
-    # Auto-review on pull_request events is unrestricted — except on drafts,
-    # which should not burn CI time. Explicit @claude mentions on a draft still
-    # fire via issue_comment / review_comment / review and are allowed.
+    # Auto-review on pull_request events is unrestricted — except on:
+    #   - drafts (should not burn CI time)
+    #   - dependabot PRs (claude-code-action's allowed_bots gate hard-fails
+    #     on dependabot[bot]; nothing useful to review on dep bumps anyway)
+    #   - fork PRs (GitHub downgrades id-token: write to read-only on fork
+    #     pull_request events, so the action can't mint an OIDC token and
+    #     the run errors out; maintainers can still trigger review on a
+    #     fork PR via @claude in an issue_comment, which runs in the base
+    #     repo's context with full permissions)
+    # Explicit @claude mentions on a draft still fire via
+    # issue_comment / review_comment / review and are allowed.
     if: >-
       (github.event_name == 'pull_request' &&
-       github.event.pull_request.draft != true) ||
+       github.event.pull_request.draft != true &&
+       github.event.pull_request.user.login != 'dependabot[bot]' &&
+       github.event.pull_request.head.repo.fork != true) ||
       (github.event_name == 'issue_comment' &&
        contains(github.event.comment.body, '@claude') &&
        contains(fromJSON('["MEMBER","OWNER","COLLABORATOR"]'),
