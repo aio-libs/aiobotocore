@@ -38,6 +38,14 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 on:
+  # Don't "fix" the workflow-validation 401 on PRs that modify claude.yml
+  # by switching this to pull_request_target. It tempts because it'd run
+  # the workflow against main's file (passing the validator) — but the
+  # Claude Code GitHub App's OIDC exchange endpoint refuses tokens whose
+  # event_name claim is `pull_request_target`, so the action 401s at
+  # startup on EVERY run with `App token exchange failed: 401 Unauthorized
+  # - Invalid OIDC token`. Worse than the validator failure it works
+  # around. See #1583 for the post-mortem.
   pull_request:
     types:
     - opened
