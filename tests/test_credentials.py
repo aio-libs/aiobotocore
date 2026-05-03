@@ -1,33 +1,7 @@
 import asyncio
-from datetime import datetime, timedelta
 from unittest import mock
 
-from dateutil.tz import tzlocal
-
 from aiobotocore import credentials
-
-
-def _some_future_time():
-    return datetime.now(tzlocal()) + timedelta(hours=24)
-
-
-def _assume_role_client_creator(with_response):
-    class _Client:
-        def __init__(self, resp):
-            self._resp = resp
-
-        async def assume_role(self, *args, **kwargs):
-            if isinstance(self._resp, list):
-                return self._resp.pop(0)
-            return self._resp
-
-        async def __aenter__(self):
-            return self
-
-        async def __aexit__(self, exc_type, exc_val, exc_tb):
-            pass
-
-    return mock.Mock(return_value=_Client(with_response))
 
 
 async def test_assumerolecredprovider_concurrent_load_no_race_condition():
@@ -52,16 +26,6 @@ async def test_assumerolecredprovider_concurrent_load_no_race_condition():
         }
     }
 
-    response = {
-        'Credentials': {
-            'AccessKeyId': 'foo',
-            'SecretAccessKey': 'bar',
-            'SessionToken': 'baz',
-            'Expiration': _some_future_time().isoformat(),
-        },
-    }
-    client_creator = _assume_role_client_creator(response)
-
     # A mock provider whose load() yields control via asyncio.sleep(0),
     # allowing another task to interleave and expose the race condition.
     static_creds = credentials.AioCredentials('akid', 'skid')
@@ -77,9 +41,11 @@ async def test_assumerolecredprovider_concurrent_load_no_race_condition():
     mock_builder = mock.Mock()
     mock_builder.providers.return_value = [_YieldingProvider()]
 
+    # client_creator is never invoked: load() returns AioDeferredRefreshableCredentials
+    # without calling STS, so a bare Mock() is sufficient.
     provider = credentials.AioAssumeRoleProvider(
         lambda: fake_config,
-        client_creator,
+        mock.Mock(),
         cache={},
         profile_name='a',
         profile_provider_builder=mock_builder,
