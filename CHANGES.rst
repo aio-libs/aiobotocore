@@ -1,6 +1,13 @@
 Changes
 -------
 
+3.7.1 (2026-05-08)
+^^^^^^^^^^^^^^^^^^
+* fall back to synchronous ``subprocess.run`` (via ``asyncio.to_thread``) for
+  ``credential_process`` when the running event loop does not implement
+  subprocess transports — notably ``asyncio.SelectorEventLoop`` on Windows
+  (closes #1415)
+
 3.7.0 (2026-05-08)
 ^^^^^^^^^^^^^^^^^^
 * add ``AioSession.warm_up_loader_caches()`` and ``warm_up_loader_caches`` option in ``AioConfig`` to pre-populate
