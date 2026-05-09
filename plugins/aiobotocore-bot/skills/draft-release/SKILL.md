@@ -75,20 +75,59 @@ combined line, see Step 5). Also skip the eventual release PR itself
 
 ## Step 4: Compute the next version
 
+### Step 4a: Detect whether the current version is unreleased
+
+A previous draft-release run (or a botocore-sync via the legacy
+``bump-version`` skill) may have already bumped ``__version__`` past
+the latest PyPI release. In that case **the new release inherits
+the existing unreleased version, not a fresh bump on top of it** —
+otherwise we end up with ``3.7.0`` (unreleased) → ``3.7.1`` (this
+draft) → both shipping together as ``3.7.1`` and the ``3.7.0`` header
+becomes a phantom (#1588 review feedback from @jakob-keller).
+
 ```bash
 current=$(grep -oP "__version__\s*=\s*['\"]\\K[0-9]+\\.[0-9]+\\.[0-9]+" \
   aiobotocore/__init__.py)
+released=$(curl -s https://pypi.org/pypi/aiobotocore/json \
+  | python3 -c "import sys,json; print(json.load(sys.stdin)['info']['version'])")
+# `current` is unreleased iff it sorts strictly newer than `released`
+unreleased=$(python3 -c "
+from packaging.version import Version
+print('1' if Version('$current') > Version('$released') else '0')")
 ```
 
-Bump rule (any → first match wins):
+### Step 4b: Apply the bump rule
 
-- Any **breaking** entry → MAJOR (``X+1.0.0``)
-- Any **feature** entry → MINOR (``X.Y+1.0``)
-- Else                    → PATCH (``X.Y.Z+1``)
+Compute the *target* bump from PRs in the window (any → first match wins):
 
-Override with ``--version`` when provided. If the override skips a level
-(e.g. current ``3.7.1``, override ``3.9.0``), proceed but include the
-deviation in the PR body so the maintainer can confirm.
+- Any **breaking** entry → ``BREAKING``
+- Any **feature** entry → ``MINOR``
+- Else → ``PATCH``
+
+Then resolve the new version:
+
+- If ``unreleased=0`` (top of CHANGES.rst is already shipped):
+  apply the bump to ``current`` directly.
+  - ``BREAKING`` → ``X+1.0.0``
+  - ``MINOR``    → ``X.Y+1.0``
+  - ``PATCH``    → ``X.Y.Z+1``
+- If ``unreleased=1`` (``current`` is an in-progress draft):
+  the new release replaces ``current``. Compute what ``current``
+  *should be* given the combined window (``released..$TO``) and pick
+  the **stronger** of (current's existing bump intent, this run's
+  bump intent). That is:
+  - If ``current`` is already a MINOR-or-greater bump over ``released``
+    and this run only adds patches, keep ``current`` (no version change).
+  - If this run adds a feature/breaking entry that lifts the bump
+    level (e.g. ``current=3.6.1`` over ``released=3.6.0`` was a patch
+    but a new ``feat:`` PR landed), bump ``current`` up to the right
+    level (``3.6.1`` → ``3.7.0``).
+  - Folding the new bullets into the existing unreleased entry
+    happens in Step 5 — Step 4 only computes the version number.
+
+Override with ``--version`` when provided. If the override skips a
+level (e.g. current ``3.7.0``, override ``3.9.0``), proceed but
+include the deviation in the PR body so the maintainer can confirm.
 
 ## Step 5: Build the CHANGES.rst entry
 
@@ -117,9 +156,15 @@ LEN=$(printf '%s' "$HEADER" | wc -c | tr -d ' ')
 UNDERLINE=$(printf '^%.0s' $(seq 1 "$LEN"))
 ```
 
-Insert the new section above the most recent existing entry in
-``CHANGES.rst`` (between the ``Changes\n-------`` header and the first
-existing version entry).
+Where to write:
+
+- If Step 4a found ``unreleased=1`` (top entry is in-progress):
+  **fold into the existing entry** — replace the ``X.Y.Z (date)``
+  header + underline with the new computed version, recompute the
+  ``^`` underline length, append the new bullets under the same
+  header (preserving prior bullets, in the bucket order above).
+- Else: insert a fresh section between the ``Changes\n-------``
+  header and the most recent existing entry.
 
 ## Step 6: Bump the version
 
