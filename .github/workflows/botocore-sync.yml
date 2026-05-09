@@ -205,6 +205,17 @@ jobs:
         # yamllint disable-line rule:line-length
         key: venv-${{ runner.os }}-py3.12-${{ hashFiles('uv.lock', 'pyproject.toml') }}
 
+    # Cache pre-commit's per-hook environments. Without this every
+    # workflow run re-clones every hook repo (ruff, yamllint, rumdl,
+    # sphinx-lint, check-jsonschema, ...) and rebuilds their venvs.
+    - name: Cache pre-commit hook envs
+      # yamllint disable-line rule:line-length
+      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae  # v5.0.5
+      with:
+        path: ~/.cache/pre-commit
+        key: pre-commit-${{ runner.os }}-${{ hashFiles('.pre-commit-config.yaml') }}
+        restore-keys: pre-commit-${{ runner.os }}-
+
     - name: Install dependencies
       run: uv sync --frozen
 
@@ -406,6 +417,16 @@ jobs:
         path: .venv
         # yamllint disable-line rule:line-length
         key: venv-${{ runner.os }}-py3.12-${{ hashFiles('uv.lock', 'pyproject.toml') }}
+
+    # Cache pre-commit's per-hook environments (same rationale as the
+    # classify job above).
+    - name: Cache pre-commit hook envs
+      # yamllint disable-line rule:line-length
+      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae  # v5.0.5
+      with:
+        path: ~/.cache/pre-commit
+        key: pre-commit-${{ runner.os }}-${{ hashFiles('.pre-commit-config.yaml') }}
+        restore-keys: pre-commit-${{ runner.os }}-
 
     - name: Install dependencies
       run: uv sync --frozen
