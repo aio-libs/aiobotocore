@@ -140,21 +140,51 @@ Until we can perform ALL unittests from new releases of botocore, we are stuck w
 
 AI Automation
 -------------
-This repository uses two Claude-driven GitHub Actions workflows to
-automate PR review and botocore upgrades:
+This repository uses Claude-driven GitHub Actions workflows to
+automate PR review, botocore upgrades, and releases:
 
 * ``.github/workflows/claude.yml`` — reviews every non-draft PR on
   open/push, responds to ``@claude`` mentions from project members,
   and implements ``@claude``-tagged issues.
-* ``.github/workflows/botocore-sync.yml`` — runs every three days,
-  detects new botocore releases, and opens a PR (or a feedback issue
-  for complex bumps).
+* ``.github/workflows/botocore-sync.yml`` — runs weekly, detects new
+  botocore releases, and opens a PR (or a feedback issue for complex
+  bumps).
+* ``.github/workflows/draft-release.yml`` — manually triggered via
+  Actions UI. Reads merged PRs since the last release tag, summarizes
+  them, computes the next version (major/minor/patch from PR
+  prefixes/labels), and opens a release PR titled ``Release vX.Y.Z``.
+* ``.github/workflows/auto-release-on-merge.yml`` — when the release
+  PR is merged, creates the git tag and a draft GitHub Release. Tag
+  push triggers the existing ``pypi-publish`` job in ``ci-cd.yml``.
 
 Full details — triggers, prompts, slash commands, guardrails, cost
 tracking, and how to extend the system — are documented in
 `docs/ai-workflows.md <https://github.com/aio-libs/aiobotocore/blob/main/docs/ai-workflows.md>`_.
 Contributors who just want to use the bot (for example, ``@claude`` a
 question on their PR) can jump to the "Using the bot" section there.
+
+Contributor note: change-log entries
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+You **don't** edit ``CHANGES.rst`` or bump
+``aiobotocore/__init__.py`` in your PR. Both are handled at release
+time by the ``draft-release`` workflow, which synthesizes the change
+log from the merged PRs in the release window.
+
+For the best automated entry, write your PR with:
+
+* A **Conventional-Commits-style title prefix** so the workflow can
+  bucket it correctly:
+
+  - ``fix:`` → bug-fix bullet, contributes to a PATCH bump
+  - ``feat:`` → feature bullet, contributes to a MINOR bump
+  - ``BREAKING:`` → breaking-change bullet, contributes to a MAJOR bump
+  - ``docs:``, ``ci:``, ``chore:``, ``test:`` → contributor-facing
+    bullet, no version-bump effect
+* A **one-paragraph body** describing the user-visible effect.
+  The skill summarizes from the body, not the diff — write for the
+  end user.
+* A ``closes #NNNN`` line if your PR resolves a tracked issue.
 
 The Future
 ----------

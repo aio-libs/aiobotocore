@@ -38,9 +38,18 @@ design; this README only covers the plugin itself.
   checked boxes against the diff, append sync-specific extra sections
   when mode is `sync-no-port`/`sync-port`, create or update the PR.
 - `/aiobotocore-bot:bump-version --mode=no-port|port --target=<ver>` —
-  mechanical updates: `pyproject.toml` bounds, `aiobotocore/__init__.py`
-  version, `CHANGES.rst` entry (with correct `^` underline length),
-  and `uv lock`.
+  **botocore-sync only.** Mechanical updates: `pyproject.toml` bounds,
+  `aiobotocore/__init__.py` version, `CHANGES.rst` entry (with correct
+  `^` underline length), and `uv lock`. Normal PRs no longer use this —
+  see `draft-release` below.
+- `/aiobotocore-bot:draft-release [--version=X.Y.Z] [--dry-run]` — read
+  merged PRs since the last release tag, categorize them, compute the
+  next version, write the `CHANGES.rst` entry, bump
+  `aiobotocore/__init__.py`, and open a `Release vX.Y.Z` PR. Triggered
+  by `.github/workflows/draft-release.yml` (manual via Actions UI).
+  Merge of the release PR triggers
+  `.github/workflows/auto-release-on-merge.yml` which creates the tag
+  and a draft GitHub Release; the existing tag-push CI publishes to PyPI.
 - `/aiobotocore-bot:port-tests [--from=<ver> --to=<ver>] [--backfill] [--paths=...]`
   — convert botocore tests to aiobotocore-equivalent async form.
   Two modes: port-PR (given a botocore version range, port new/changed

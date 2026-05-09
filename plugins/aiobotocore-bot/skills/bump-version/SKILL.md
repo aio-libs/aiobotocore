@@ -1,8 +1,12 @@
 ---
-description: Use when applying the mechanical version + CHANGES.rst + pyproject.toml + uv.lock updates for a botocore sync (no-port = patch bump; port = minor bump, lower bound moves). Handles the Sphinx `^`-underline exact-length rule and drives `uv lock`. Caller commits the result.
-argument-hint: "--mode=no-port|port --target=<version> [--lower-bound=<version>] [--changelog=<text>] [--extra-changelog=<text>]"
+description: Use only for botocore-sync PRs to apply the mechanical version + CHANGES.rst + pyproject.toml + uv.lock updates (no-port = patch bump; port = minor bump, lower bound moves). Normal feature PRs no longer touch CHANGES.rst or bump version — those are handled at release time by `/aiobotocore-bot:draft-release`. This skill is the legacy direct-edit path kept for now to keep botocore-sync running unchanged; it will be migrated to the draft-release flow in a follow-up.
+argument-hint: "--mode=no-port|port --target=VERSION [--lower-bound=VERSION] [--changelog=TEXT] [--extra-changelog=TEXT]"
 allowed-tools: Bash(uv lock:*) Bash(uv pip:*) Bash(curl:*) Bash(date:*) Bash(cat:*) Bash(grep:*) Bash(sed:*) Bash(printf:*) Bash(wc:*) Bash(seq:*) Bash(tr:*) Bash(python3:*) mcp__github_file_ops__commit_files
 ---
+
+> **Scope: botocore-sync only.** Normal feature PRs no longer use this
+> skill — `aiobotocore/__init__.py` and `CHANGES.rst` are owned by the
+> draft-release flow (`.github/workflows/draft-release.yml`).
 
 Apply the mechanical version+changelog+pyproject changes for a botocore sync. Use this instead of
 hand-editing each file — the `^` underline length rule and `uv lock` step are both easy to miss.

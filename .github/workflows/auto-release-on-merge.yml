@@ -1,0 +1,103 @@
+---
+name: Auto-release on merge
+
+run-name: >-
+  Release: ${{ github.event.pull_request.title }}
+
+permissions: {}
+
+# When a PR titled `Release vX.Y.Z` is merged, create the matching git
+# tag and a draft GitHub Release whose body is the PR's changelog
+# section. The tag push triggers the existing `pypi-publish` job in
+# ci-cd.yml, which uploads the artifact to PyPI.
+#
+# The Release is created as **draft** so the maintainer can review and
+# manually publish in the GitHub UI. Switch to `draft: false` here once
+# the flow has been exercised a few times and trust is established.
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+jobs:
+  tag-and-release:
+    if: >-
+      github.event.pull_request.merged &&
+      startsWith(github.event.pull_request.title, 'Release v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+      with:
+        ref: ${{ github.event.pull_request.merge_commit_sha }}
+        fetch-depth: 0
+        persist-credentials: true
+
+    - name: Extract version from __init__.py
+      id: ver
+      run: |
+        v=$(grep -oP "__version__\s*=\s*['\"]\\K[0-9]+\.[0-9]+\.[0-9]+" \
+          aiobotocore/__init__.py)
+        if [ -z "$v" ]; then
+          echo "::error::Could not parse version from aiobotocore/__init__.py"
+          exit 1
+        fi
+        # Sanity check: PR title's vX.Y.Z must match __init__.py's version.
+        title_v=$(echo "$PR_TITLE" \
+          | grep -oP 'Release v\K[0-9]+\.[0-9]+\.[0-9]+')
+        if [ "$title_v" != "$v" ]; then
+          echo "::error::PR title version ($title_v) doesn't match \
+            __init__.py version ($v)"
+          exit 1
+        fi
+        echo "version=$v" >> "$GITHUB_OUTPUT"
+      env:
+        PR_TITLE: ${{ github.event.pull_request.title }}
+
+    - name: Create and push tag
+      env:
+        VERSION: ${{ steps.ver.outputs.version }}
+        MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha }}
+      run: |
+        # Bot identity for the tag.
+        git config user.name "github-actions[bot]"
+        git config user.email \
+          "41898282+github-actions[bot]@users.noreply.github.com"
+        # Annotated tag, signed if signing is configured for the runner.
+        git tag -a "$VERSION" -m "Release $VERSION" "$MERGE_SHA"
+        git push origin "$VERSION"
+
+    - name: Extract changelog section from PR body
+      id: notes
+      env:
+        PR_BODY: ${{ github.event.pull_request.body }}
+        VERSION: ${{ steps.ver.outputs.version }}
+      run: |
+        # The release PR body has a `### Changelog` section followed by
+        # other sections. Extract just the changelog up to the next
+        # heading. Falls back to the full body if the markers aren't
+        # found.
+        notes=$(printf '%s' "$PR_BODY" \
+          | awk '/^### Changelog$/{flag=1;next}/^### /{flag=0}flag')
+        if [ -z "$notes" ]; then
+          notes="$PR_BODY"
+        fi
+        {
+          echo 'NOTES<<NOTES_EOF'
+          echo "$notes"
+          echo 'NOTES_EOF'
+        } >> "$GITHUB_OUTPUT"
+
+    - name: Create GitHub Release (draft)
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        VERSION: ${{ steps.ver.outputs.version }}
+        NOTES: ${{ steps.notes.outputs.NOTES }}
+      run: |
+        gh release create "$VERSION" \
+          --repo "$GITHUB_REPOSITORY" \
+          --title "$VERSION" \
+          --notes "$NOTES" \
+          --draft
