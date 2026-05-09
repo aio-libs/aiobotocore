@@ -65,12 +65,27 @@ For each remaining PR, also capture:
   where ``BREAKING CHANGE:`` footers surface when the PR title doesn't
   carry them. Merge-commit-merged PRs have a trivial ``Merge pull
   request #N`` message; scan the PR body directly in that case.
-- **Changed files** -- the ``files`` field above; you need it for both
-  doc/contrib bucketing and for detecting dependency-spec bumps.
-- **pyproject.toml diff if touched** -- ``gh api repos/$REPO/pulls/$N/files``
-  (or ``git show <mergeCommit> -- pyproject.toml``) to get the actual
-  before/after text of the ``botocore`` (and ``boto3`` / ``aiohttp``)
-  dependency lines. See Step 3, "Dependency-bound transitions".
+- **Changed files** -- the ``files`` field above; you need it for
+  doc/contrib bucketing and to identify which PRs land in the
+  ``dep-bump`` bucket (PRs whose ``files`` includes ``pyproject.toml``).
+
+**Net pyproject.toml transition** -- compute once for the whole window,
+not per PR (avoids an N+1 API call pattern):
+
+```bash
+git diff "$FROM..$TO" -- pyproject.toml > /tmp/pyproject.diff
+```
+
+Parse the before/after lower bound (the version after ``>=``) of
+``botocore`` and ``aiohttp`` from this single diff and label the net
+transition (major / minor / patch / range-only) per the rules in
+Step 3. The bump rule keys off this net transition. Per-PR
+classification of "did this PR touch pyproject.toml" comes from the
+``files`` field above; per-PR transition labels (for the breakdown)
+can be inferred from the per-PR slice ``git show <mergeCommit> --
+pyproject.toml`` if needed -- but if the window has many small bumps,
+collapse them in the body to one bullet citing the net transition
+rather than listing each.
 
 **Direct commits.** Also walk ``git log --no-merges $FROM..$TO`` for
 commits not associated with a PR. Branch protection should make this a
