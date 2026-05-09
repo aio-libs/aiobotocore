@@ -114,6 +114,13 @@ jobs:
       with:
         version: '0.11.7'
         python-version: '3.14'
+        # Disable cache: this job runs after `actions/download-artifact`
+        # pulls a freshly-built dist into the workspace, and the smoke
+        # test installs that artifact into a one-shot venv. Caching the
+        # uv install/wheel cache here would let a poisoned cache from a
+        # prior run influence the install (zizmor cache-poisoning #49)
+        # without saving meaningful time on a one-package install.
+        enable-cache: false
     # Install the built artifact into a fresh Python with no project source
     # checked out — verifies the dist is self-contained (MANIFEST is correct,
     # all required modules ship, dependencies resolve, ``import aiobotocore``
