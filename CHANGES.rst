@@ -1,6 +1,19 @@
 Changes
 -------
 
+3.8.0 (2026-05-08)
+^^^^^^^^^^^^^^^^^^
+* define explicit ``StreamingBody`` API and add ``read(amt)`` support for the
+  httpx backend. ``StreamingBody`` and ``HttpxStreamingBody`` are now
+  ``AioStreamingBody`` (subclassing ``botocore.response.StreamingBody``) and
+  ``AioHttpxStreamingBody`` (subclassing ``AioStreamingBody``); the old names
+  remain as module-level aliases.
+* ``AioStreamingBody.__aenter__`` now returns ``self`` (previously returned the
+  raw aiohttp ``ClientResponse``). Use ``body.raw_stream`` for direct access.
+* ``HttpxStreamingChecksumBody.readinto`` no longer calls ``content.read`` on
+  an httpx ``Response`` (which would fail); it now delegates to the shared
+  ``_ChecksumMixin`` implementation.
+
 3.7.0 (2026-05-08)
 ^^^^^^^^^^^^^^^^^^
 * add ``AioSession.warm_up_loader_caches()`` and ``warm_up_loader_caches`` option in ``AioConfig`` to pre-populate
