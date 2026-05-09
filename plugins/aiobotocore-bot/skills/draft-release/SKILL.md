@@ -43,7 +43,8 @@ If ``$FROM == $TO`` or the range contains no commits, abort: nothing to release.
 For each PR in the release window, gather every signal that influences
 the bump rule. PR title alone is not enough; a single PR can contribute
 several signals (title prefix, body footer, labels, files changed,
-dependency-spec deltas), and the strongest signal wins.
+dependency-spec deltas), and **each signal independently** lands the
+PR in its corresponding bucket and feeds the bump rule.
 
 ```bash
 from_iso=$(git log -1 --format=%cI "$FROM")
@@ -79,64 +80,85 @@ own subject prefix.
 
 ## Step 3: Categorize each PR / standalone commit
 
-For each item, classify into exactly one bucket. Priority order
-(first match wins):
+A PR can carry **multiple signals** -- e.g. a ``feat:`` PR that also
+bumps the ``botocore`` lower bound, or a ``fix:`` PR that pulls in a
+``BREAKING CHANGE:`` footer. Each signal goes in its own bucket
+*independently*; do not collapse to a single primary bucket.
+Buckets and the signals that place a PR in each:
 
-1. ``BREAKING:`` prefix in title, or ``BREAKING CHANGE:`` footer in
-   PR body or merge commit message, or label ``breaking`` → **breaking**
-2. **Dependency-bound major bump** in ``pyproject.toml`` (see below) → **breaking**
-3. ``feat:`` prefix, or label ``enhancement``/``feature`` → **feature**
-4. **Dependency-bound minor bump** in ``pyproject.toml`` (see below) → **feature**
-5. ``fix:`` prefix, or label ``bug`` → **bugfix**
-6. ``docs:`` prefix, or only files under ``docs/`` and ``*.md``/``*.rst``
-   touched → **doc**
-7. ``ci:``/``chore:``/``test:`` prefix, or only files under ``.github/``,
-   ``tests/``, ``Makefile``, ``pyproject.toml`` (without source changes)
-   touched → **contrib**
-8. Anything else with a user-visible effect → **misc**
+- **breaking** -- ``BREAKING:`` prefix in title, or ``BREAKING CHANGE:``
+  footer in PR body / merge commit message, or label ``breaking``
+- **dep-bump** -- ``pyproject.toml`` diff changes the ``botocore`` (or
+  ``boto3`` / ``aiohttp``) dependency line. See "Dep-bump bucket" below
+  for the transition-level sub-classification (major / minor / patch /
+  range-only)
+- **feature** -- ``feat:`` prefix, or label ``enhancement``/``feature``
+- **bugfix** -- ``fix:`` prefix, or label ``bug``
+- **doc** -- ``docs:`` prefix, or only files under ``docs/`` and
+  ``*.md``/``*.rst`` touched
+- **contrib** -- ``ci:``/``chore:``/``test:`` prefix, or only files
+  under ``.github/``, ``tests/``, ``Makefile``, ``pyproject.toml``
+  (without source changes) touched
+- **misc** -- anything else with a user-visible effect that didn't
+  match any rule above
 
-### Dependency-bound transitions (rules 2 + 4)
+A PR present in N buckets shows up in N sections of the PR-body
+breakdown (with its own signal trace each time), and contributes to
+the bump rule via *each* of its signals -- it's the union of
+signals across all PRs in the window that drives the bump level.
 
-aiobotocore re-exports much of botocore, so a major bump of the
-``botocore`` lower bound implies API breakage for users and forces
-a MAJOR bump on aiobotocore. A minor bump implies new user-visible
-features and forces MINOR. This applies to ``aiohttp`` similarly --
-it's a public-API dependency.
+Most PRs have exactly one signal and land in one bucket. The mixed
+case -- the user's ``feat: ... and bump botocore minor`` shape, or
+a ``fix:`` that also corrects docs -- gets treated honestly: the PR
+appears in both ``feature`` and ``dep-bump``, both of which feed the
+bump rule.
 
-For each PR that touches ``pyproject.toml``, parse the before/after
-text of the ``botocore`` and ``aiohttp`` dependency lines (``boto3``
-follows ``botocore``; treat as a duplicate signal, not an additional
-one). Compare the **lower bound** (the version after ``>=``) before
-and after:
+### Dep-bump bucket
 
-- ``botocore >= 1.42.79`` → ``botocore >= 1.43.0``: minor advance
-  (1.42 → 1.43) → **feature** bucket, signal
-  ``dep-bound minor: botocore 1.42 → 1.43``.
-- ``botocore >= 1.42.79`` → ``botocore >= 2.0.0``: major advance
-  → **breaking** bucket.
-- ``botocore >= 1.42.79`` → ``botocore >= 1.42.90``: patch only
-  (same major.minor) → no forced bump from this signal; the PR
-  goes to whichever bucket its title prefix lands in.
+aiobotocore re-exports much of botocore, so the underlying-dep range
+matters to users. The bucket has its own bump-forcing rule (see Step
+4b) keyed off the *transition level*, not just bucket presence:
+
+For each PR in this bucket, parse the before/after text of the
+``botocore`` and ``aiohttp`` dependency lines from the
+``pyproject.toml`` diff (``boto3`` follows ``botocore``; treat as a
+duplicate signal, not an additional one). Compare the **lower
+bound** (the version after ``>=``) before and after, and label the
+transition:
+
+- ``botocore >= 1.42.79`` → ``botocore >= 1.43.0`` = **minor advance**
+- ``botocore >= 1.42.79`` → ``botocore >= 2.0.0`` = **major advance**
+- ``botocore >= 1.42.79`` → ``botocore >= 1.42.90`` (same major.minor) = **patch advance**
 - Upper-bound-only changes (``< 1.42.85`` → ``< 1.42.92`` with
-  lower unchanged) → no forced bump.
+  lower unchanged) = **range-only** (no transition)
 
-If multiple PRs in the window touch ``pyproject.toml``, the **net
-transition** across the whole window matters, not any single PR's.
-Compute the lower bound at ``$FROM`` and at ``$TO``; the strongest
-transition (major > minor > none) is the forcing signal.
+Bump-rule effect of dep-bump entries (Step 4b applies):
+
+- Any **major-advance** dep-bump → forces MAJOR
+- Any **minor-advance** dep-bump → forces at least MINOR
+- **patch-advance** / **range-only** dep-bumps don't force anything;
+  the release stays PATCH unless other buckets push it higher
+
+Multi-PR windows: if several PRs in the window each advance the dep
+bound, the **net transition** from ``$FROM`` to ``$TO`` is what
+matters (compute once across the whole window). The individual PRs
+still each get their own entry in the dep-bump bucket of the body
+breakdown, but the bump rule fires off the aggregate.
 
 ### Signal trace
 
-For each item, **also record the specific signal that placed it in
-its bucket** -- you'll cite this in the PR body's bump-reasoning
-section. Examples:
+For each (PR, bucket) pair, **also record the specific signal that
+placed the PR in that bucket** -- you'll cite this in the PR body's
+breakdown section. Examples (note ``#1610`` appears twice because
+it carried two distinct signals):
 
-- ``#1539: feature (title prefix 'feat:')``
-- ``#1602: breaking (BREAKING CHANGE: footer in PR body)``
-- ``#1610: feature (dep-bound minor: botocore 1.42 → 1.43)``
-- ``#1587: bugfix (title prefix 'fix:')``
-- ``#1591: doc (only docs/ + .readthedocs.yml touched)``
-- ``#1589: contrib (title prefix 'ci:')``
+- ``#1539 → feature: title prefix 'feat:'``
+- ``#1602 → breaking: BREAKING CHANGE: footer in PR body``
+- ``#1610 → feature: title prefix 'feat:'``
+- ``#1610 → dep-bump (minor advance): botocore 1.42 → 1.43``
+- ``#1587 → bugfix: title prefix 'fix:'``
+- ``#1591 → doc: only docs/ + .readthedocs.yml touched``
+- ``#1589 → contrib: title prefix 'ci:'``
 
 **Skip noise.** Drop PRs whose title indicates pure dependency
 patches from ``dependabot[bot]`` or the botocore-sync bot AND whose
@@ -153,13 +175,21 @@ collapsed").
 ### Step 4a: Detect whether the current version is unreleased
 
 A previous draft-release run may have already bumped ``__version__``
-past the latest PyPI release (e.g. an earlier release PR was
-abandoned, or a maintainer bumped manually). In that case **the new
-release inherits the existing unreleased version, not a fresh bump on
-top of it** — otherwise we end up with ``3.7.0`` (unreleased) →
-``3.7.1`` (this draft) → both shipping together as ``3.7.1`` and the
-``3.7.0`` header becomes a phantom (#1588 review feedback from
-@jakob-keller).
+past the latest PyPI release, OR the top entry in ``CHANGES.rst`` may
+be a draft from a prior run that was never merged. In either case
+the top entry is **unreleased** and is fair game to fully rewrite --
+treat it as a draft, not as history.
+
+Concretely: if ``__version__`` (or the top CHANGES.rst entry) is
+strictly newer than the latest PyPI version, recompute the release
+window from ``released..$TO`` (i.e. start from the *released* boundary,
+not the unreleased boundary), redo the categorization (Step 3), and
+**replace** the existing top entry's version, date, and bullets in
+Step 5. Don't try to preserve hand-polished wording from the prior
+draft -- if a maintainer polished bullets, those edits are lost on
+the next run, which is correct: the latest run reflects the latest
+reality. (Avoids the failure mode in #1588 where two unreleased
+entries stack and one becomes a phantom on release.)
 
 ```bash
 current=$(grep -oP "__version__\s*=\s*['\"]\\K[0-9]+\\.[0-9]+\\.[0-9]+" \
@@ -174,18 +204,19 @@ print('1' if Version('$current') > Version('$released') else '0')")
 
 ### Step 4b: Apply the bump rule
 
-Compute the *target* bump from PRs in the window (any → first match wins):
+Compute the *target* bump from buckets populated in Step 3 (first
+match wins):
 
 - Any **breaking** entry → ``BREAKING``
+- Any **dep-bump** with **major-advance** transition → ``BREAKING``
 - Any **feature** entry → ``MINOR``
-- Else → ``PATCH``
+- Any **dep-bump** with **minor-advance** transition → ``MINOR``
+- Else → ``PATCH`` (covers bugfix-only releases, doc/contrib-only
+  releases, and dep-bumps with patch-advance / range-only
+  transitions)
 
-Reminder: a dep-bound major / minor transition (Step 3 rules 2 + 4)
-already lands the PR(s) in the **breaking** / **feature** bucket
-respectively, so this rule picks up dep-bound forcing automatically
-without a separate clause. When that's what fired, the PR-body
-"Forcing signal(s)" line should cite the dep-bound transition
-explicitly so reviewers see the trail.
+Whichever clause fires, cite it explicitly in the PR body's
+"Forcing signal(s)" line so reviewers see the trail.
 
 Then resolve the new version:
 
@@ -241,13 +272,18 @@ UNDERLINE=$(printf '^%.0s' $(seq 1 "$LEN"))
 
 Where to write:
 
-- If Step 4a found ``unreleased=1`` (top entry is in-progress):
-  **fold into the existing entry** — replace the ``X.Y.Z (date)``
-  header + underline with the new computed version, recompute the
-  ``^`` underline length, append the new bullets under the same
-  header (preserving prior bullets, in the bucket order above).
-- Else: insert a fresh section between the ``Changes\n-------``
-  header and the most recent existing entry.
+- If Step 4a found ``unreleased=1`` (top entry is an unreleased draft):
+  **delete the existing top entry entirely** (header + underline +
+  bullets, up to but not including the next version header) and write
+  a fresh entry in its place. The new entry's version, date, and
+  bullets all come from the recomputed ``released..$TO`` window.
+  Don't try to preserve prior bullets -- if the maintainer polished
+  them, that polish is lost on this run, which is correct: the goal
+  is "what should ship in the next release given current main",
+  not "additive accretion on top of an old draft".
+- Else (top entry is already released on PyPI): insert a fresh
+  section between the ``Changes\n-------`` header and the most
+  recent existing entry. Don't touch the existing entries.
 
 ## Step 6: Bump the version
 
@@ -309,16 +345,25 @@ Otherwise:
    - **Window:** ``<FROM_REF>..<TO_REF>`` (`<short_FROM_SHA>` ...
      `<short_TO_SHA>`)
 
-   ### Categorization breakdown (N PRs included)
+   ### Categorization breakdown (N unique PRs included)
 
-   *Group every PR/commit by the bucket it landed in. Use this exact
-   shape so reviewers can scan -- one section per non-empty bucket,
-   in priority order. Each entry: PR/issue ref, one-line title or
-   summary, and the signal that placed it in this bucket.*
+   *Group by bucket. **A PR can appear in multiple buckets if it
+   carried multiple signals** (e.g. a ``feat:`` PR that also bumped
+   botocore minor shows up in both **Features** and **Dependency
+   bumps**) -- list it under each, with the appropriate signal each
+   time. The unique-PR count above is for the header; bucket totals
+   may add up to more than N.*
+
+   *Each entry: PR ref, one-line title, signal that placed the PR in
+   this bucket.*
 
    **Breaking changes (M)**
 
    - #NNNN -- `<summary>` -- *signal*
+
+   **Dependency bumps (M)**
+
+   - #NNNN -- `<summary>` -- *transition: botocore A.B → A'.B'*
 
    **Features (M)**
 
@@ -341,9 +386,10 @@ Otherwise:
    - #NNNN -- `<summary>` -- *signal*
 
    *(Omit empty buckets entirely. If dependabot / botocore-sync bumps
-   were collapsed, add a final note: "K dependabot/sync bumps
-   collapsed into the dep-bound signal above" and DO NOT list them
-   individually.)*
+   were many and clustered on the same dep, list all of them under
+   **Dependency bumps** but combine them into a single bullet that
+   cites the net transition: ``#A, #B, #C -- bump botocore -- net
+   1.42.79 → 1.42.92 (patch)``.)*
 
    ### Dependency-bound check
 
