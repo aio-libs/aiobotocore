@@ -41,12 +41,29 @@ uv run pytest -sv tests/test_patches.py  # hash validation
 
 # Versioning
 
-When making code changes (bug fixes, features, enhancements), always:
+**Don't bump `aiobotocore/__init__.py` and don't edit `CHANGES.rst` in feature PRs.**
+Both are owned by the AI-drafted release flow:
 
-1. Bump the version in `aiobotocore/__init__.py` (patch for fixes, minor for features)
-2. Add an entry at the top of `CHANGES.rst` with the new version, date, and description.
-   The `^` underline under the header line must match the header length exactly — miscounts
-   break Sphinx rendering.
+- `.github/workflows/draft-release.yml` (manual trigger) summarizes merged PRs
+  since the last tag, computes the next version, writes the changelog entry,
+  and opens a `Release vX.Y.Z` PR.
+- `.github/workflows/auto-release-on-merge.yml` runs when that PR merges:
+  creates the tag, drafts the GitHub Release, and the existing tag-push CI
+  publishes to PyPI.
+
+For your feature PR to land in the changelog cleanly, write a
+Conventional-Commits-style title (`fix:`, `feat:`, `BREAKING:`, `docs:`,
+`ci:`, `chore:`, `test:`) and a one-paragraph body describing the
+user-visible effect. The bump rule keys off these:
+
+- any `BREAKING:` or `breaking` label → MAJOR
+- any `feat:` or `enhancement`/`feature` label → MINOR
+- otherwise → PATCH
+
+The `update-botocore-bounds` skill (the only thing the automated
+`botocore-sync` workflow runs today, formerly named `bump-version`)
+only updates `pyproject.toml` bounds and `uv.lock` — `__init__.py`
+and `CHANGES.rst` are off-limits to per-PR automation.
 
 # Overriding botocore code
 

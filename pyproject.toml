@@ -98,6 +98,9 @@ include = ["aiobotocore*"]
 [tool.pytest.ini_options]
 cache_dir = "/tmp/pytest_aiobotocore_cache"
 anyio_mode = "auto"
+# So tests can ``from scripts.changelog import ...`` (the centralized
+# CHANGES.rst parser shared with .github/workflows/auto-release-on-merge.yml).
+pythonpath = ["."]
 markers = [
     "localonly",
     "config_kwargs",

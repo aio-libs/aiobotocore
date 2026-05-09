@@ -1,0 +1,50 @@
+---
+name: Reusable PyPI publish
+
+permissions: {}
+
+# Reusable: download the ``python-package-distributions`` artifact
+# (uploaded by ``reusable-build.yml`` earlier in the same workflow run),
+# verify the wheel/sdist names match ``inputs.version``, and publish to
+# PyPI via OIDC trusted publishing.
+#
+# Both ``ci-cd.yml`` (on tag push) and ``auto-release-on-merge.yml`` (on
+# release-PR merge) call this so neither workflow inlines the publish
+# steps. The caller is responsible for invoking ``reusable-build.yml``
+# first; this workflow only consumes the artifact.
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: >-
+          The version to publish, used to build the PyPI environment URL
+          and to verify the dist filenames.
+        type: string
+        required: true
+
+jobs:
+  publish:
+    name: Publish Python 🐍 distribution 📦 to PyPI
+    runs-on: ubuntu-24.04
+    environment:
+      name: pypi
+      url: https://pypi.org/project/aiobotocore/${{ inputs.version }}
+    permissions:
+      # IMPORTANT: this permission is mandatory for trusted publishing
+      id-token: write
+    timeout-minutes: 5
+
+    steps:
+    - name: Download distribution 📦
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+      with:
+        name: python-package-distributions
+        path: dist/
+    - name: Check if distribution 📦 names match version
+      env:
+        VERSION: ${{ inputs.version }}
+      run: |
+        test -f "dist/aiobotocore-${VERSION}.tar.gz"
+        test -f "dist/aiobotocore-${VERSION}-py3-none-any.whl"
+    - name: Publish distribution 📦 to PyPI
+      uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b  # v1.14.0
