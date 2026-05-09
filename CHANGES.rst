@@ -1,6 +1,13 @@
 Changes
 -------
 
+3.7.1 (2026-05-08)
+^^^^^^^^^^^^^^^^^^
+* build SSL context off the event loop in ``AIOHTTPSession`` and ``HttpxSession``
+  to avoid blocking ``ssl_context.load_verify_locations`` /
+  ``load_cert_chain`` / ``create_urllib3_context`` calls on first request
+  (closes #1469)
+
 3.7.0 (2026-05-08)
 ^^^^^^^^^^^^^^^^^^
 * add ``AioSession.warm_up_loader_caches()`` and ``warm_up_loader_caches`` option in ``AioConfig`` to pre-populate
