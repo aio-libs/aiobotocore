@@ -50,9 +50,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
-      contents: write
-    outputs:
-      version: ${{ steps.ver.outputs.version }}
+      contents: write  # gh release create
+      actions: write   # gh workflow run ci-cd.yml
     steps:
     - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
       with:
