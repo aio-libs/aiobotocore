@@ -21,4 +21,14 @@ build:
   - pip install uv
   - uv sync --group docs
   - uv run --group docs sphinx-build -W -b html docs $READTHEDOCS_OUTPUT/html
-  - uv run --group docs sphinx-build -b epub docs $READTHEDOCS_OUTPUT/epub
+  # Build epub into a staging dir and copy only the resulting
+  # `.epub` file into ``$READTHEDOCS_OUTPUT/epub/``. RTD enforces
+  # that the epub output dir contains exactly one file
+  # (``build:user:output:has-multiple-files``), but sphinx's epub
+  # builder writes a large pile of intermediates (META-INF/,
+  # _images/, _static/, *.xhtml, content.opf, mimetype, nav.xhtml,
+  # toc.ncx, .doctrees/, ...) alongside the .epub. Staging +
+  # selective copy is the simplest way to satisfy the RTD constraint.
+  - uv run --group docs sphinx-build -b epub docs /tmp/epub-staging
+  - mkdir -p $READTHEDOCS_OUTPUT/epub
+  - cp /tmp/epub-staging/aiobotocore.epub $READTHEDOCS_OUTPUT/epub/
