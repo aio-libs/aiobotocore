@@ -19,6 +19,12 @@ on:
     types: [closed]
     branches: [main]
 
+# Serialize so two ``Release v...`` PRs merged back-to-back don't race
+# on ``git push origin <tag>`` and ``gh release create``. Extremely
+# unlikely in practice but cheap insurance.
+concurrency:
+  group: auto-release-on-merge
+
 jobs:
   tag-and-release:
     if: >-
@@ -65,7 +71,13 @@ jobs:
         git config user.name "github-actions[bot]"
         git config user.email \
           "41898282+github-actions[bot]@users.noreply.github.com"
-        # Annotated tag, signed if signing is configured for the runner.
+        # Annotated tag. The github-actions runner has no signing key
+        # configured, so the tag is unsigned — that's fine here because
+        # branch protection requires verified COMMITS (which the merged
+        # release commit is), not verified tags, and PyPI trusted
+        # publishing on the tag-push trigger uses OIDC rather than
+        # checking the tag signature. If we ever want signed tags,
+        # provision a signing key on the runner and add ``-s``.
         git tag -a "$VERSION" -m "Release $VERSION" "$MERGE_SHA"
         git push origin "$VERSION"
 

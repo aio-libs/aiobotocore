@@ -178,7 +178,11 @@ reasoning to stdout and exit. Don't commit, don't push, don't open a PR.
 
 Otherwise:
 
-1. Create branch ``release/X.Y.Z`` from ``$TO`` (typically ``origin/main``).
+1. Create branch ``claude/release-X.Y.Z`` from ``$TO`` (typically ``origin/main``).
+   The ``claude/`` prefix matches the convention in ``CLAUDE.md`` for
+   bot-created branches; ``auto-release-on-merge.yml`` keys off the PR
+   title (``Release v...``), not the branch name, so the branch name is
+   purely informational.
 2. Commit the two file changes via ``mcp__github_file_ops__commit_files``
    (signing required) with message:
 
