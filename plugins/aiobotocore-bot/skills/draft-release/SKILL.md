@@ -54,9 +54,34 @@ gh pr list --state merged --base main \
   --limit 200 > /tmp/release-prs.json
 ```
 
-Filter to PRs whose ``mergeCommit.oid`` is reachable from ``$TO`` (use
-``git merge-base --is-ancestor <oid> $TO``). This avoids pulling in
-PRs merged after the cutoff or onto sibling branches.
+**Filter to PRs strictly inside the ``$FROM..$TO`` window.** GitHub's
+``merged:>$from_iso`` search filters by timestamp, but two distinct
+edges can leak in:
+
+- PRs whose merge commit is the ``$FROM`` tag commit itself (last
+  release's release-PR, if there was one). The ``$FROM..$TO`` git
+  rev-range excludes ``$FROM`` itself, so these PRs are *already
+  released* and must not appear in the new window.
+- PRs merged onto sibling branches whose merge commit isn't in the
+  ancestor chain of ``$TO`` at all.
+
+The check is two-sided -- both must hold for a PR to be in the window:
+
+```bash
+# Reachable from $TO (commit is on the release-target branch's history)
+git merge-base --is-ancestor "$oid" "$TO"
+
+# AND not reachable from $FROM (commit is strictly newer than the
+# previous release boundary; excludes the $FROM tag commit itself
+# AND anything that already shipped in $FROM)
+! git merge-base --is-ancestor "$oid" "$FROM"
+```
+
+Equivalently and more directly, build the set of in-window merge
+commits up front via ``git rev-list "$FROM..$TO"`` and only keep PRs
+whose ``mergeCommit.oid`` appears in that set. Use whichever shape is
+clearer; both produce the same result. If a PR's ``mergeCommit.oid``
+is ``$FROM`` itself, it's the prior release commit -- exclude it.
 
 For each remaining PR, also capture:
 
@@ -366,8 +391,17 @@ Otherwise:
    carried multiple signals** (e.g. a ``feat:`` PR that also bumped
    botocore minor shows up in both **Features** and **Dependency
    bumps**) -- list it under each, with the appropriate signal each
-   time. The unique-PR count above is for the header; bucket totals
-   may add up to more than N.*
+   time.*
+
+   *``N`` = the count of **distinct PR numbers** that appear anywhere
+   in the breakdown below, NOT the sum of bucket totals (which can be
+   higher because a multi-signal PR is listed multiple times). Before
+   writing this section, build the union of PR numbers across all
+   buckets and verify ``N == len(set(prs_listed_in_breakdown))``;
+   bucket totals may add up to more than ``N`` and that's expected.
+   If you collapse a cluster of dependabot/sync-bot bumps into a
+   single combined bullet (per the noise rule below), each PR cited
+   in that combined bullet still counts once toward ``N``.*
 
    *Each entry: PR ref, one-line title, signal that placed the PR in
    this bucket.*
