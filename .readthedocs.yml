@@ -1,19 +1,34 @@
 ---
 version: 2
 
+# Build docs the same way locally and on Read the Docs:
+#   * locally:    `make docs`           (uses `uv run` via Makefile)
+#   * RTD:        the commands below    (also uses `uv run`)
+# Both pull sphinx from the ``docs`` dependency-group in pyproject.toml,
+# so the version is pinned in one place. (#1166)
 build:
   os: ubuntu-24.04
   tools:
     python: "3.13"
-
-sphinx:
-  configuration: docs/conf.py
-
-python:
-  install:
-  - path: .
-  - requirements: docs/requirements.txt
-
-formats:
-- htmlzip
-- epub
+  # htmlzip is dropped: the builder is provided by RTD's
+  # ``readthedocs-sphinx-ext`` package, which is only auto-installed when
+  # the build uses ``formats:`` instead of ``commands:``. Adding the ext
+  # to the docs group just to produce a downloadable zip didn't seem
+  # worth the maintenance — html is what users actually read, and it's
+  # served on the RTD website regardless. Keep epub since it's a stock
+  # Sphinx builder and serves the offline-reading use case.
+  commands:
+  - pip install uv
+  - uv sync --group docs
+  - uv run --group docs sphinx-build -W -b html docs $READTHEDOCS_OUTPUT/html
+  # Build epub into a staging dir and copy only the resulting
+  # `.epub` file into ``$READTHEDOCS_OUTPUT/epub/``. RTD enforces
+  # that the epub output dir contains exactly one file
+  # (``build:user:output:has-multiple-files``), but sphinx's epub
+  # builder writes a large pile of intermediates (META-INF/,
+  # _images/, _static/, *.xhtml, content.opf, mimetype, nav.xhtml,
+  # toc.ncx, .doctrees/, ...) alongside the .epub. Staging +
+  # selective copy is the simplest way to satisfy the RTD constraint.
+  - uv run --group docs sphinx-build -b epub docs /tmp/epub-staging
+  - mkdir -p $READTHEDOCS_OUTPUT/epub
+  - cp /tmp/epub-staging/aiobotocore.epub $READTHEDOCS_OUTPUT/epub/

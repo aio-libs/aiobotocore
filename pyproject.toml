@@ -80,6 +80,9 @@ dev = [
 awscrt = [
     "botocore[crt]",
 ]
+docs = [
+    "sphinx >= 8, < 10",
+]
 
 [tool.uv]
 default-groups = [
