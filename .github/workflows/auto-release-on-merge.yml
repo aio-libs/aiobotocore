@@ -9,15 +9,18 @@ permissions: {}
 # When a `Release vX.Y.Z` PR is merged, this workflow:
 #
 # 1. ``tag-and-release`` job -- creates the signed annotated tag at
-#    the merge commit and a draft GitHub Release whose body is
+#    the merge commit and a non-draft GitHub Release whose body is
 #    extracted from the new entry in ``CHANGES.rst`` (single source
 #    of truth, written by the ``draft-release`` skill and validated
 #    by ``tests/test_version.py``). Uses ``gh release create
 #    --target ...`` which routes through the Releases API; tags
-#    created that way are signed by GitHub's web-flow key.
+#    created that way are signed by GitHub's web-flow key and the
+#    tag ref is created immediately (draft Releases would defer tag
+#    creation until publish, which would break the dispatch step
+#    below -- see #1600 for the trail).
 # 2. The same job, last step -- dispatches ``ci-cd.yml`` via
-#    ``gh workflow run ... -f tag=$VERSION``. That run does the
-#    actual PyPI publish.
+#    ``gh workflow run ... --ref $VERSION -f tag=$VERSION``. The
+#    dispatched run does the actual PyPI publish.
 #
 # **Why dispatch instead of inline publish?** PyPI's Trusted
 # Publisher for this project is configured against ``ci-cd.yml``,
@@ -29,8 +32,25 @@ permissions: {}
 # ``ci-cd.yml`` the OIDC entry point -- ``workflow_ref`` matches
 # PyPI's config, no reusable-workflow warning, publish succeeds.
 #
-# The Release is drafted (``draft: true``) so a maintainer reviews
-# and clicks Publish in the GitHub UI after PyPI confirms upload.
+# **Could the tag-push trigger ci-cd.yml directly?** No. Tags
+# created here are created under ``GITHUB_TOKEN`` context, and
+# GitHub's loop-prevention rule blocks ``GITHUB_TOKEN``-driven
+# events from triggering other workflows. ``workflow_dispatch`` is
+# the explicit escape hatch -- it's the only event type that fires
+# from ``GITHUB_TOKEN``. (A future PR could replace the dispatch
+# with a PAT/App-token-driven tag push, which WOULD fire the
+# tag-push trigger and skip the dispatch entirely; that's a
+# heavier infra commitment for a marginal cleanup.)
+#
+# **Why no ``--draft``?** A maintainer-controlled draft → publish
+# step would let us gate visibility on PyPI confirmation, but
+# draft Releases don't create the tag ref, which prevents the
+# dispatch from finding ``--ref $VERSION``. The trade-off accepted
+# here: the GitHub Release becomes visible the moment this job
+# completes, and PyPI catches up ~5-10 min later when the
+# dispatched ci-cd.yml run finishes. If a watcher hits the release
+# page during that window, ``pip install`` returns nothing for
+# seconds-to-minutes. Acceptable.
 on:
   pull_request:
     types: [closed]
@@ -106,24 +126,26 @@ jobs:
           echo 'NOTES_EOF'
         } >> "$GITHUB_OUTPUT"
 
-    - name: Create signed tag + GitHub Release (draft)
+    - name: Create signed tag + GitHub Release
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         VERSION: ${{ steps.ver.outputs.version }}
         MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha }}
         NOTES: ${{ steps.ver.outputs.NOTES }}
-      # ``gh release create --target <SHA>`` routes through the
-      # Releases API, which creates AND signs the tag at the target
-      # commit. Plain ``git tag -a`` + ``git push`` from the runner
-      # cannot sign (no key on the runner), and the REST ``git/tags``
-      # endpoint doesn't sign either (GitHub Community #69847, #27016).
+      # ``gh release create --target <SHA>`` (without ``--draft``)
+      # routes through the Releases API, which creates AND signs
+      # the tag at the target commit immediately. The tag ref is
+      # then available as ``refs/tags/$VERSION`` for the dispatch
+      # step below. Plain ``git tag -a`` + ``git push`` from the
+      # runner cannot sign (no key on the runner), and the REST
+      # ``git/tags`` endpoint doesn't sign either (GitHub
+      # Community #69847, #27016).
       run: |
         gh release create "$VERSION" \
           --repo "$GITHUB_REPOSITORY" \
           --target "$MERGE_SHA" \
           --title "$VERSION" \
-          --notes "$NOTES" \
-          --draft
+          --notes "$NOTES"
 
     - name: Dispatch ci-cd.yml to publish to PyPI
       env:
@@ -137,6 +159,11 @@ jobs:
       # are the only event types that fire from ``GITHUB_TOKEN``-driven
       # calls (the loop-prevention rule blocks everything else), so
       # this is the supported escape hatch.
+      #
+      # ``--ref $VERSION`` works because the previous step's
+      # non-draft ``gh release create`` created the tag ref
+      # immediately. The dispatched run runs against the tagged
+      # commit -- exact, race-free.
       run: |
         gh workflow run ci-cd.yml \
           --repo "$GITHUB_REPOSITORY" \
