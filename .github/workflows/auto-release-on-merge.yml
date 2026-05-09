@@ -38,8 +38,9 @@ jobs:
     - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
       with:
         ref: ${{ github.event.pull_request.merge_commit_sha }}
-        fetch-depth: 0
-        persist-credentials: true
+        sparse-checkout: aiobotocore/__init__.py
+        sparse-checkout-cone-mode: false
+        persist-credentials: true  # needed for ``git push origin <tag>``
 
     - name: Extract version from __init__.py
       id: ver
@@ -66,18 +67,33 @@ jobs:
       env:
         VERSION: ${{ steps.ver.outputs.version }}
         MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha }}
+      # Two known limitations, both documented here so future maintainers
+      # don't re-discover them:
+      #
+      # 1. The tag is **unsigned**. GitHub's REST ``git/tags`` endpoint
+      #    does NOT sign annotated tags (in contrast to ``git/commits``,
+      #    which does); see GitHub Community discussion #69847 and #27016
+      #    where staff confirm this. The only ways to get a verified tag
+      #    are (a) import a GPG/SSH key onto the runner via something like
+      #    ``crazy-max/ghaction-import-gpg`` then ``git tag -s``, or (b)
+      #    create the tag via ``gh release create`` whose underlying
+      #    Releases API does sign — but option (b) trades the tag-push
+      #    event for a release event (see #2). For now we accept unsigned
+      #    tags: branch protection only checks commit signatures (the
+      #    merged release commit is signed by ``mcp__github_file_ops``),
+      #    and PyPI trusted publishing keys off OIDC, not tag signatures.
+      #
+      # 2. The tag-push event triggered here will NOT fire other workflows
+      #    listening on tag push (notably ``ci-cd.yml``'s ``pypi-publish``
+      #    job). GitHub blocks ``GITHUB_TOKEN``-triggered events from
+      #    starting new workflow runs, to prevent infinite loops. To
+      #    re-trigger ``pypi-publish``, a maintainer pushes the tag again
+      #    locally OR we wire a GitHub App / PAT here. Out of scope for
+      #    this initial flow; track in the follow-up issue.
       run: |
-        # Bot identity for the tag.
         git config user.name "github-actions[bot]"
         git config user.email \
           "41898282+github-actions[bot]@users.noreply.github.com"
-        # Annotated tag. The github-actions runner has no signing key
-        # configured, so the tag is unsigned — that's fine here because
-        # branch protection requires verified COMMITS (which the merged
-        # release commit is), not verified tags, and PyPI trusted
-        # publishing on the tag-push trigger uses OIDC rather than
-        # checking the tag signature. If we ever want signed tags,
-        # provision a signing key on the runner and add ``-s``.
         git tag -a "$VERSION" -m "Release $VERSION" "$MERGE_SHA"
         git push origin "$VERSION"
 
