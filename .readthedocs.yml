@@ -10,9 +10,15 @@ build:
   os: ubuntu-24.04
   tools:
     python: "3.13"
+  # htmlzip is dropped: the builder is provided by RTD's
+  # ``readthedocs-sphinx-ext`` package, which is only auto-installed when
+  # the build uses ``formats:`` instead of ``commands:``. Adding the ext
+  # to the docs group just to produce a downloadable zip didn't seem
+  # worth the maintenance — html is what users actually read, and it's
+  # served on the RTD website regardless. Keep epub since it's a stock
+  # Sphinx builder and serves the offline-reading use case.
   commands:
   - pip install uv
   - uv sync --group docs
   - uv run --group docs sphinx-build -W -b html docs $READTHEDOCS_OUTPUT/html
-  - uv run --group docs sphinx-build -b htmlzip docs $READTHEDOCS_OUTPUT/htmlzip
   - uv run --group docs sphinx-build -b epub docs $READTHEDOCS_OUTPUT/epub
