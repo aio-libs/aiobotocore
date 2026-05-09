@@ -196,14 +196,18 @@ Otherwise:
    ```
 
 3. Open the PR. **Title MUST start with ``Release v``** (the auto-tag
-   workflow keys off this prefix). Use ``Release vX.Y.Z``. Body:
+   workflow keys off this prefix). Use ``Release vX.Y.Z``. Body
+   (intentionally minimal — the changelog itself lives in
+   ``CHANGES.rst``, which is the only source of truth and is what
+   the auto-release workflow reads for the GitHub Release notes):
 
    ```markdown
    ## Release vX.Y.Z
 
-   ### Changelog
-
-   <the assembled CHANGES.rst entry, rendered as markdown>
+   The changelog for this release is in the `CHANGES.rst` diff below
+   (see the "Files changed" tab). Edit those bullets directly if any
+   need rewording — they're auto-synthesized from merged PRs in the
+   release window and may need a human pass.
 
    ### Bump reasoning
 
@@ -213,9 +217,11 @@ Otherwise:
 
    ### What happens on merge
 
-   Merging this PR triggers `.github/workflows/auto-release-on-merge.yml`
-   which creates the `X.Y.Z` git tag, drafts the GitHub Release, and the
-   existing tag-push CI publishes to PyPI.
+   Merging triggers `.github/workflows/auto-release-on-merge.yml`,
+   which extracts this release's entry from `CHANGES.rst`, creates
+   the signed `X.Y.Z` git tag at the merge commit, drafts a GitHub
+   Release with the extracted notes, builds the dist, and publishes
+   to PyPI via the shared `reusable-publish.yml` workflow.
 
    🤖 Generated with [Claude Code](https://claude.com/claude-code)
    ```

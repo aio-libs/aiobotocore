@@ -9,8 +9,10 @@ permissions: {}
 # When a `Release vX.Y.Z` PR is merged, three jobs run sequentially:
 #
 # 1. ``tag-and-release`` -- creates the signed annotated tag at the
-#    merge commit and a draft GitHub Release whose body is the PR's
-#    `### Changelog` section. Uses ``gh release create --target ...``
+#    merge commit and a draft GitHub Release whose body is extracted
+#    from the new entry in ``CHANGES.rst`` (single source of truth,
+#    written by the ``draft-release`` skill and validated by
+#    ``tests/test_version.py``). Uses ``gh release create --target ...``
 #    which routes through the Releases API; tags created that way are
 #    signed by GitHub's web-flow key (in contrast to ``git tag -a``
 #    from the runner, which is unsigned, and the REST ``git/tags``
@@ -57,14 +59,30 @@ jobs:
     - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
       with:
         ref: ${{ github.event.pull_request.merge_commit_sha }}
-        sparse-checkout: aiobotocore/__init__.py
+        # Need __init__.py for the version sanity check, CHANGES.rst
+        # for the release notes, and scripts/changelog.py for the
+        # parser/extractor (shared with tests/test_version.py).
+        sparse-checkout: |
+          aiobotocore/__init__.py
+          CHANGES.rst
+          scripts/changelog.py
         sparse-checkout-cone-mode: false
         persist-credentials: false
 
-    - name: Extract version from __init__.py
+    - name: Extract version + release notes from CHANGES.rst
       id: ver
       env:
         PR_TITLE: ${{ github.event.pull_request.title }}
+      # CHANGES.rst is the single source of truth -- written by the
+      # ``draft-release`` skill, validated by ``tests/test_version.py``
+      # (which uses the same ``scripts/changelog.py`` parser called
+      # below). Three checks here:
+      #   1. ``__init__.py`` version is parseable.
+      #   2. PR title's ``Release vX.Y.Z`` matches that version.
+      #   3. CHANGES.rst's top entry matches that version (via
+      #      ``scripts/changelog.py validate --expected-top-version``).
+      # Then ``scripts/changelog.py extract`` pulls the bullets for
+      # this release; those become the GitHub Release notes verbatim.
       run: |
         v=$(grep -oP "__version__\s*=\s*['\"]\\K[0-9]+\.[0-9]+\.[0-9]+" \
           aiobotocore/__init__.py)
@@ -72,29 +90,19 @@ jobs:
           echo "::error::Could not parse version from aiobotocore/__init__.py"
           exit 1
         fi
-        # Sanity check: PR title's vX.Y.Z must match __init__.py's version.
         title_v=$(echo "$PR_TITLE" \
           | grep -oP 'Release v\K[0-9]+\.[0-9]+\.[0-9]+')
         if [ "$title_v" != "$v" ]; then
-          echo "::error::PR title version ($title_v) doesn't match \
-            __init__.py version ($v)"
+          echo "::error::PR title version ($title_v) doesn't match __init__.py ($v)"
+          exit 1
+        fi
+        python3 scripts/changelog.py validate --expected-top-version "$v"
+        notes=$(python3 scripts/changelog.py extract --version "$v")
+        if [ -z "$notes" ]; then
+          echo "::error::Empty release notes extracted for ${v}"
           exit 1
         fi
         echo "version=$v" >> "$GITHUB_OUTPUT"
-
-    - name: Extract changelog section from PR body
-      id: notes
-      env:
-        PR_BODY: ${{ github.event.pull_request.body }}
-      run: |
-        # PR body has a `### Changelog` section. Extract from that
-        # heading up to the next `### `. Fall back to the full body
-        # if the marker isn't found.
-        notes=$(printf '%s' "$PR_BODY" \
-          | awk '/^### Changelog$/{flag=1;next}/^### /{flag=0}flag')
-        if [ -z "$notes" ]; then
-          notes="$PR_BODY"
-        fi
         {
           echo 'NOTES<<NOTES_EOF'
           echo "$notes"
@@ -106,7 +114,7 @@ jobs:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         VERSION: ${{ steps.ver.outputs.version }}
         MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha }}
-        NOTES: ${{ steps.notes.outputs.NOTES }}
+        NOTES: ${{ steps.ver.outputs.NOTES }}
       # ``gh release create --target <SHA>`` routes through the
       # Releases API, which creates AND signs the tag at the target
       # commit. Plain ``git tag -a`` + ``git push`` from the runner
