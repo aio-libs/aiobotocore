@@ -38,40 +38,115 @@ git rev-parse --verify "$TO" >/dev/null \
 
 If ``$FROM == $TO`` or the range contains no commits, abort: nothing to release.
 
-## Step 2: Enumerate merged PRs in the window
+## Step 2: Enumerate merged PRs, their commits, and changed files
+
+For each PR in the release window, gather every signal that influences
+the bump rule. PR title alone is not enough; a single PR can contribute
+several signals (title prefix, body footer, labels, files changed,
+dependency-spec deltas), and the strongest signal wins.
 
 ```bash
 from_iso=$(git log -1 --format=%cI "$FROM")
 gh pr list --state merged --base main \
   --search "merged:>$from_iso" \
-  --json number,title,body,labels,mergedAt,url,mergeCommit,closingIssuesReferences \
+  --json number,title,body,labels,mergedAt,url,mergeCommit,closingIssuesReferences,files \
   --limit 200 > /tmp/release-prs.json
 ```
 
 Filter to PRs whose ``mergeCommit.oid`` is reachable from ``$TO`` (use
-``git merge-base --is-ancestor <oid> $TO``). This avoids pulling in PRs
-merged after the cutoff or onto sibling branches.
+``git merge-base --is-ancestor <oid> $TO``). This avoids pulling in
+PRs merged after the cutoff or onto sibling branches.
 
-## Step 3: Categorize each PR
+For each remaining PR, also capture:
 
-For each PR, classify into exactly one bucket using this priority order
+- **Merge commit message** -- ``git log --no-walk --format='%B' <oid>``.
+  Squash-merged PRs put the PR title + body into this message, so it's
+  where ``BREAKING CHANGE:`` footers surface when the PR title doesn't
+  carry them. Merge-commit-merged PRs have a trivial ``Merge pull
+  request #N`` message; scan the PR body directly in that case.
+- **Changed files** -- the ``files`` field above; you need it for both
+  doc/contrib bucketing and for detecting dependency-spec bumps.
+- **pyproject.toml diff if touched** -- ``gh api repos/$REPO/pulls/$N/files``
+  (or ``git show <mergeCommit> -- pyproject.toml``) to get the actual
+  before/after text of the ``botocore`` (and ``boto3`` / ``aiohttp``)
+  dependency lines. See Step 3, "Dependency-bound transitions".
+
+**Direct commits.** Also walk ``git log --no-merges $FROM..$TO`` for
+commits not associated with a PR. Branch protection should make this a
+null set (the project requires PR + merge queue), but if a commit
+appears, it's still a release-window change and gets categorized by its
+own subject prefix.
+
+## Step 3: Categorize each PR / standalone commit
+
+For each item, classify into exactly one bucket. Priority order
 (first match wins):
 
-1. ``BREAKING:`` prefix in title, or label ``breaking`` → **breaking**
-2. ``feat:`` prefix, or label ``enhancement``/``feature`` → **feature**
-3. ``fix:`` prefix, or label ``bug`` → **bugfix**
-4. ``docs:`` prefix, or only files under ``docs/`` and ``*.md``/``*.rst``
+1. ``BREAKING:`` prefix in title, or ``BREAKING CHANGE:`` footer in
+   PR body or merge commit message, or label ``breaking`` → **breaking**
+2. **Dependency-bound major bump** in ``pyproject.toml`` (see below) → **breaking**
+3. ``feat:`` prefix, or label ``enhancement``/``feature`` → **feature**
+4. **Dependency-bound minor bump** in ``pyproject.toml`` (see below) → **feature**
+5. ``fix:`` prefix, or label ``bug`` → **bugfix**
+6. ``docs:`` prefix, or only files under ``docs/`` and ``*.md``/``*.rst``
    touched → **doc**
-5. ``ci:``/``chore:``/``test:`` prefix, or only files under ``.github/``,
+7. ``ci:``/``chore:``/``test:`` prefix, or only files under ``.github/``,
    ``tests/``, ``Makefile``, ``pyproject.toml`` (without source changes)
    touched → **contrib**
-6. Anything else with a user-visible effect → **misc**
+8. Anything else with a user-visible effect → **misc**
 
-**Skip noise.** Drop PRs whose title indicates pure dependency bumps from
-``dependabot[bot]`` or the botocore-sync bot AND whose body has no
-unique narrative (those entries cluster — represent them as one
-combined line, see Step 5). Also skip the eventual release PR itself
-(title ``Release v...``).
+### Dependency-bound transitions (rules 2 + 4)
+
+aiobotocore re-exports much of botocore, so a major bump of the
+``botocore`` lower bound implies API breakage for users and forces
+a MAJOR bump on aiobotocore. A minor bump implies new user-visible
+features and forces MINOR. This applies to ``aiohttp`` similarly --
+it's a public-API dependency.
+
+For each PR that touches ``pyproject.toml``, parse the before/after
+text of the ``botocore`` and ``aiohttp`` dependency lines (``boto3``
+follows ``botocore``; treat as a duplicate signal, not an additional
+one). Compare the **lower bound** (the version after ``>=``) before
+and after:
+
+- ``botocore >= 1.42.79`` → ``botocore >= 1.43.0``: minor advance
+  (1.42 → 1.43) → **feature** bucket, signal
+  ``dep-bound minor: botocore 1.42 → 1.43``.
+- ``botocore >= 1.42.79`` → ``botocore >= 2.0.0``: major advance
+  → **breaking** bucket.
+- ``botocore >= 1.42.79`` → ``botocore >= 1.42.90``: patch only
+  (same major.minor) → no forced bump from this signal; the PR
+  goes to whichever bucket its title prefix lands in.
+- Upper-bound-only changes (``< 1.42.85`` → ``< 1.42.92`` with
+  lower unchanged) → no forced bump.
+
+If multiple PRs in the window touch ``pyproject.toml``, the **net
+transition** across the whole window matters, not any single PR's.
+Compute the lower bound at ``$FROM`` and at ``$TO``; the strongest
+transition (major > minor > none) is the forcing signal.
+
+### Signal trace
+
+For each item, **also record the specific signal that placed it in
+its bucket** -- you'll cite this in the PR body's bump-reasoning
+section. Examples:
+
+- ``#1539: feature (title prefix 'feat:')``
+- ``#1602: breaking (BREAKING CHANGE: footer in PR body)``
+- ``#1610: feature (dep-bound minor: botocore 1.42 → 1.43)``
+- ``#1587: bugfix (title prefix 'fix:')``
+- ``#1591: doc (only docs/ + .readthedocs.yml touched)``
+- ``#1589: contrib (title prefix 'ci:')``
+
+**Skip noise.** Drop PRs whose title indicates pure dependency
+patches from ``dependabot[bot]`` or the botocore-sync bot AND whose
+body has no unique narrative (those entries cluster — represent
+them as one combined line, see Step 5). The dependency-bound check
+above still applies to the *aggregate* of these PRs even if the
+individual entries are collapsed. Also skip the eventual release PR
+itself (title ``Release v...``). Track the count of skipped PRs
+separately so the body can mention them ("4 dependabot bumps
+collapsed").
 
 ## Step 4: Compute the next version
 
@@ -104,6 +179,13 @@ Compute the *target* bump from PRs in the window (any → first match wins):
 - Any **breaking** entry → ``BREAKING``
 - Any **feature** entry → ``MINOR``
 - Else → ``PATCH``
+
+Reminder: a dep-bound major / minor transition (Step 3 rules 2 + 4)
+already lands the PR(s) in the **breaking** / **feature** bucket
+respectively, so this rule picks up dep-bound forcing automatically
+without a separate clause. When that's what fired, the PR-body
+"Forcing signal(s)" line should cite the dep-bound transition
+explicitly so reviewers see the trail.
 
 Then resolve the new version:
 
@@ -196,35 +278,110 @@ Otherwise:
    ```
 
 3. Open the PR. **Title MUST start with ``Release v``** (the auto-tag
-   workflow keys off this prefix). Use ``Release vX.Y.Z``. Body
-   (intentionally minimal — the changelog itself lives in
-   ``CHANGES.rst``, which is the only source of truth and is what
-   the auto-release workflow reads for the GitHub Release notes):
+   workflow keys off this prefix). Use ``Release vX.Y.Z``. The body
+   does NOT duplicate the verbatim changelog (that lives in
+   ``CHANGES.rst``, which the auto-release workflow extracts for the
+   GitHub Release notes). Instead the body shows the *reasoning* --
+   why this version, which PRs caused which bump signal, scope of the
+   release at a glance.
+
+   Template (fill in the placeholders from the data captured in
+   Steps 2-4):
 
    ```markdown
    ## Release vX.Y.Z
 
-   The changelog for this release is in the `CHANGES.rst` diff below
-   (see the "Files changed" tab). Edit those bullets directly if any
-   need rewording — they're auto-synthesized from merged PRs in the
-   release window and may need a human pass.
+   The verbatim changelog is in the **`CHANGES.rst` diff** in this
+   PR's "Files changed" tab. The auto-release workflow reads that
+   file for the GitHub Release notes, so any edits to bullets should
+   happen there directly.
 
    ### Bump reasoning
 
-   - Current version: X.Y.(Z-1)
-   - Bumping <patch|minor|major> because: <reason>
-   - Window: <FROM>..<TO> (<N> PRs)
+   - **Current version:** Y.Y.Y (last released on PyPI)
+   - **New version:** X.Y.Z
+   - **Bump level:** *patch | minor | major*
+   - **Forcing signal(s):** *the strongest signal(s) that landed this
+     bump level. Cite the specific PR(s) and what triggered the
+     classification, e.g.*
+     - `#1602: BREAKING CHANGE: footer in body` -> bump MAJOR
+     - `#1610: dep-bound minor (botocore 1.42 -> 1.43)` -> bump MINOR
+   - **Window:** ``<FROM_REF>..<TO_REF>`` (`<short_FROM_SHA>` ...
+     `<short_TO_SHA>`)
+
+   ### Categorization breakdown (N PRs included)
+
+   *Group every PR/commit by the bucket it landed in. Use this exact
+   shape so reviewers can scan -- one section per non-empty bucket,
+   in priority order. Each entry: PR/issue ref, one-line title or
+   summary, and the signal that placed it in this bucket.*
+
+   **Breaking changes (M)**
+
+   - #NNNN -- `<summary>` -- *signal*
+
+   **Features (M)**
+
+   - #NNNN -- `<summary>` -- *signal*
+
+   **Bug fixes (M)**
+
+   - #NNNN -- `<summary>` -- *signal*
+
+   **Documentation (M)**
+
+   - #NNNN -- `<summary>` -- *signal*
+
+   **Contributor-facing (M)**
+
+   - #NNNN -- `<summary>` -- *signal*
+
+   **Misc (M)**
+
+   - #NNNN -- `<summary>` -- *signal*
+
+   *(Omit empty buckets entirely. If dependabot / botocore-sync bumps
+   were collapsed, add a final note: "K dependabot/sync bumps
+   collapsed into the dep-bound signal above" and DO NOT list them
+   individually.)*
+
+   ### Dependency-bound check
+
+   *State the net transition of the relevant dependency lower bounds
+   across the window, even if the bump rule didn't end up forced by
+   them. This is the trail that confirms aiobotocore is keeping pace
+   with botocore correctly.*
+
+   - `botocore`: ``>= X.Y.Z`` -> ``>= X'.Y'.Z'`` (*patch* | *minor* | *major* advance)
+   - `aiohttp`: same shape
+   - *(skip lines for unchanged dependencies)*
 
    ### What happens on merge
 
-   Merging triggers `.github/workflows/auto-release-on-merge.yml`,
-   which extracts this release's entry from `CHANGES.rst`, creates
-   the signed `X.Y.Z` git tag at the merge commit, drafts a GitHub
-   Release with the extracted notes, builds the dist, and publishes
-   to PyPI via the shared `reusable-publish.yml` workflow.
+   Merging triggers ``.github/workflows/auto-release-on-merge.yml``,
+   which:
+
+   1. Validates ``CHANGES.rst`` matches ``aiobotocore/__init__.py``
+      via ``scripts/changelog.py validate --expected-top-version X.Y.Z``.
+   2. Creates the signed ``X.Y.Z`` git tag at the merge commit
+      (Releases API path; tag is signed by GitHub's web-flow key).
+   3. Drafts a GitHub Release with notes extracted from this version's
+      ``CHANGES.rst`` entry via ``scripts/changelog.py extract``.
+   4. Builds the wheel + sdist via ``reusable-build.yml``.
+   5. Publishes to PyPI via OIDC trusted publishing using
+      ``reusable-publish.yml``.
+
+   The Release is drafted (not published); a maintainer reviews the
+   notes in the GitHub UI and clicks Publish.
 
    🤖 Generated with [Claude Code](https://claude.com/claude-code)
    ```
+
+   The bump-reasoning + categorization sections are the most
+   important parts of the body -- they're what a reviewer scans to
+   decide if the agent's classification is correct. Be explicit
+   about *which signal* placed each PR in each bucket, not just the
+   bucket itself.
 
 ## Honesty
 

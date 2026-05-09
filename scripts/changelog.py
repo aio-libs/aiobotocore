@@ -31,18 +31,20 @@ from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
 
-# Header line shape: ``X.Y.Z (YYYY-MM-DD)``. Date may also be ``TBD``
-# during pre-release work. ``X.Y.Z.devN`` is also accepted.
+# Header line shape: ``X.Y.Z (YYYY-MM-DD)``. ``X.Y.Z.devN`` is also
+# accepted. Earlier versions of this format permitted a ``TBD`` date
+# placeholder, dropped now that ``draft-release`` always writes the
+# date when assembling the entry.
 _VERSION_HEADER_RE = re.compile(
     r"^(?P<version>\d+\.\d+\.\d+(?:\.dev\d+)?) "
-    r"\((?P<date>\d{4}-\d{2}-\d{2}|TBD)\)\s*$"
+    r"\((?P<date>\d{4}-\d{2}-\d{2})\)\s*$"
 )
 
 
 @dataclass
 class Entry:
     version: str
-    date: str  # ``YYYY-MM-DD`` or ``TBD``
+    date: str  # ``YYYY-MM-DD``
     body: str  # bullets, leading/trailing blank lines stripped
 
 
@@ -143,8 +145,8 @@ def validate(
       (this is how the workflow + ``test_version.py`` cross-check
       ``__init__.py`` against ``CHANGES.rst``).
     * **Top entry vs the previous entry** -- version is strictly
-      greater, and date is non-increasing (or ``TBD``). This is the
-      check that matters for *new* releases and matches the existing
+      greater, and date is non-increasing. This is the check that
+      matters for *new* releases and matches the existing
       ``test_version.py`` scope.
 
     Opt-in (``full_history=True``): same checks across all consecutive
@@ -176,8 +178,6 @@ def validate(
             raise ValueError(
                 f"version order broken: {prev.version} should be > {cur.version}"
             )
-        if prev.date == "TBD" or cur.date == "TBD":
-            continue
         if date.fromisoformat(prev.date) < date.fromisoformat(cur.date):
             raise ValueError(
                 f"date order broken: {prev.version} ({prev.date}) "
