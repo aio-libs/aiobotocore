@@ -129,6 +129,7 @@ jobs:
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         VERSION: ${{ steps.ver.outputs.version }}
+        MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha }}
       # Trigger ``ci-cd.yml`` via ``workflow_dispatch`` so the actual
       # PyPI publish runs from there. PyPI's Trusted Publisher matches
       # against the OIDC token's ``workflow_ref``, which for a
@@ -137,8 +138,15 @@ jobs:
       # are the only event types that fire from ``GITHUB_TOKEN``-driven
       # calls (the loop-prevention rule blocks everything else), so
       # this is the supported escape hatch.
+      #
+      # ``--ref`` MUST be the merge commit SHA, not the version tag.
+      # ``gh release create --draft`` does NOT create the tag at the
+      # target commit -- the tag is only created when the Release is
+      # published (un-drafted). Dispatching with ``--ref $VERSION``
+      # 422s with "No ref found for: $VERSION". The merge SHA is
+      # already on ``main`` and exact (no race if main moves later).
       run: |
         gh workflow run ci-cd.yml \
           --repo "$GITHUB_REPOSITORY" \
-          --ref "$VERSION" \
+          --ref "$MERGE_SHA" \
           -f tag="$VERSION"
