@@ -1,19 +1,18 @@
 ---
 version: 2
 
+# Build docs the same way locally and on Read the Docs:
+#   * locally:    `make docs`           (uses `uv run` via Makefile)
+#   * RTD:        the commands below    (also uses `uv run`)
+# Both pull sphinx from the ``docs`` dependency-group in pyproject.toml,
+# so the version is pinned in one place. (#1166)
 build:
   os: ubuntu-24.04
   tools:
     python: "3.13"
-
-sphinx:
-  configuration: docs/conf.py
-
-python:
-  install:
-  - path: .
-  - requirements: docs/requirements.txt
-
-formats:
-- htmlzip
-- epub
+  commands:
+  - pip install uv
+  - uv sync --group docs
+  - uv run --group docs sphinx-build -W -b html docs $READTHEDOCS_OUTPUT/html
+  - uv run --group docs sphinx-build -b htmlzip docs $READTHEDOCS_OUTPUT/htmlzip
+  - uv run --group docs sphinx-build -b epub docs $READTHEDOCS_OUTPUT/epub

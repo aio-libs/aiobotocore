@@ -39,8 +39,8 @@ clean:
 	rm -rf cover
 	rm -rf dist
 
-doc:
-	make -C docs html
+doc docs:
+	uv run --group docs sphinx-build -W -b html docs docs/_build/html
 	@echo "open file://`pwd`/docs/_build/html/index.html"
 
-.PHONY: all pre-commit test vtest cov clean doc
+.PHONY: all pre-commit test vtest cov clean doc docs
