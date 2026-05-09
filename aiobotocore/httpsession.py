@@ -147,28 +147,36 @@ class AIOHTTPSession:
             del headers['Transfer-Encoding']
         return chunked or None
 
-    def _create_connector(self, proxy_url):
-        ssl_context = None
-        if bool(self._verify):
-            if proxy_url:
-                ssl_context = self._setup_proxy_ssl_context(proxy_url)
-                # TODO: add support for
-                #    proxies_settings.get('proxy_use_forwarding_for_https')
-            else:
-                ssl_context = self._get_ssl_context()
+    def _build_ssl_context(self, proxy_url):
+        # Synchronous SSL context construction. May block on file I/O
+        # (load_verify_locations / load_cert_chain / load_default_certs).
+        # The caller runs this off the event loop. (#1469)
+        if not bool(self._verify):
+            return None
+        if proxy_url:
+            ssl_context = self._setup_proxy_ssl_context(proxy_url)
+            # TODO: add support for
+            #    proxies_settings.get('proxy_use_forwarding_for_https')
+        else:
+            ssl_context = self._get_ssl_context()
 
-            if ssl_context:
-                if self._cert_file:
-                    ssl_context.load_cert_chain(
-                        self._cert_file,
-                        self._key_file,
-                    )
+        if ssl_context:
+            if self._cert_file:
+                ssl_context.load_cert_chain(
+                    self._cert_file,
+                    self._key_file,
+                )
 
-                # inline self._setup_ssl_cert
-                ca_certs = get_cert_path(self._verify)
-                if ca_certs:
-                    ssl_context.load_verify_locations(ca_certs, None, None)
+            # inline self._setup_ssl_cert
+            ca_certs = get_cert_path(self._verify)
+            if ca_certs:
+                ssl_context.load_verify_locations(ca_certs, None, None)
 
+        return ssl_context
+
+    def _create_connector(self, ssl_context):
+        # aiohttp.TCPConnector binds the running loop in __init__, so this
+        # must run on the event loop — keep it cheap (no I/O).
         return aiohttp.TCPConnector(
             limit=self._max_pool_connections,
             ssl=ssl_context or False,
@@ -177,7 +185,10 @@ class AIOHTTPSession:
 
     async def _get_session(self, proxy_url):
         if not (session := self._sessions.get(proxy_url)):
-            connector = self._create_connector(proxy_url)
+            ssl_context = await asyncio.to_thread(
+                self._build_ssl_context, proxy_url
+            )
+            connector = self._create_connector(ssl_context)
             self._sessions[proxy_url] = (
                 session
             ) = await self._exit_stack.enter_async_context(
