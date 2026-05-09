@@ -1,7 +1,7 @@
 Changes
 -------
 
-3.7.0 (2026-05-01)
+3.8.0 (2026-05-08)
 ^^^^^^^^^^^^^^^^^^
 * define explicit ``StreamingBody`` API and add ``read(amt)`` support for the
   httpx backend. ``StreamingBody`` and ``HttpxStreamingBody`` are now
@@ -13,6 +13,16 @@ Changes
 * ``HttpxStreamingChecksumBody.readinto`` no longer calls ``content.read`` on
   an httpx ``Response`` (which would fail); it now delegates to the shared
   ``_ChecksumMixin`` implementation.
+
+3.7.0 (2026-05-08)
+^^^^^^^^^^^^^^^^^^
+* add ``AioSession.warm_up_loader_caches()`` and ``warm_up_loader_caches`` option in ``AioConfig`` to pre-populate
+  botocore loader caches off the event loop, avoiding blocking file I/O on first client/waiter/paginator use
+  (closes #1199)
+
+3.6.1 (2026-05-01)
+^^^^^^^^^^^^^^^^^^
+* fix race condition in ``AioAssumeRoleProvider._visited_profiles`` causing false ``InfiniteLoopConfigError`` under concurrent async usage
 
 3.6.0 (2026-04-30)
 ^^^^^^^^^^^^^^^^^^
