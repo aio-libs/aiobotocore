@@ -199,11 +199,8 @@ class AioHttpxStreamingBody(AioStreamingBody):
         if amt is None:
             chunks = [self._buffer]
             self._buffer = b''
-            try:
-                async for chunk in self._stream_iter:
-                    chunks.append(chunk)
-            except StopAsyncIteration:
-                pass
+            async for chunk in self._stream_iter:
+                chunks.append(chunk)
             self._stream_exhausted = True
             result = b''.join(chunks)
         elif amt == 0:
