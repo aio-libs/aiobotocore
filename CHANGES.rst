@@ -6,10 +6,11 @@ Changes
 * add ``AioSession.warm_up_loader_caches()`` and ``warm_up_loader_caches`` option in ``AioConfig`` to pre-populate
   botocore loader caches off the event loop, avoiding blocking file I/O on first client/waiter/paginator use
   (closes #1199)
-
-3.6.1 (2026-05-01)
-^^^^^^^^^^^^^^^^^^
 * fix race condition in ``AioAssumeRoleProvider._visited_profiles`` causing false ``InfiniteLoopConfigError`` under concurrent async usage
+* fall back to synchronous ``subprocess.run`` (via ``asyncio.to_thread``) for
+  ``credential_process`` when the running event loop does not implement
+  subprocess transports — notably ``asyncio.SelectorEventLoop`` on Windows
+  (closes #1415)
 
 3.6.0 (2026-04-30)
 ^^^^^^^^^^^^^^^^^^
