@@ -127,6 +127,21 @@ def test_warm_up_loader_caches(
 
 
 @pytest.mark.parametrize(
+    "service_name",
+    # services without a ``waiters-2``, ``paginators-1``, or ``examples-1``
+    # data file exercise the ``UnknownServiceError`` suppression in
+    # ``warm_up_loader_caches``. ``iot`` lacks ``waiters-2``;
+    # ``accessanalyzer`` lacks ``waiters-2`` and ``examples-1``.
+    ["iot", "accessanalyzer"],
+)
+def test_warm_up_loader_caches_optional_models(
+    session: AioSession, service_name: str
+):
+    # uses the real loader; must not raise for services missing optional models
+    session.warm_up_loader_caches(service_name)
+
+
+@pytest.mark.parametrize(
     "warm_up_loader_caches",
     [False, True],
 )
