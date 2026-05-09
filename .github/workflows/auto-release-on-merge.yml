@@ -6,33 +6,31 @@ run-name: >-
 
 permissions: {}
 
-# When a `Release vX.Y.Z` PR is merged, three jobs run sequentially:
+# When a `Release vX.Y.Z` PR is merged, this workflow:
 #
-# 1. ``tag-and-release`` -- creates the signed annotated tag at the
-#    merge commit and a draft GitHub Release whose body is extracted
-#    from the new entry in ``CHANGES.rst`` (single source of truth,
-#    written by the ``draft-release`` skill and validated by
-#    ``tests/test_version.py``). Uses ``gh release create --target ...``
-#    which routes through the Releases API; tags created that way are
-#    signed by GitHub's web-flow key (in contrast to ``git tag -a``
-#    from the runner, which is unsigned, and the REST ``git/tags``
-#    endpoint, which doesn't sign either).
-# 2. ``build`` -- calls ``reusable-build.yml`` against the merged
-#    commit to produce the wheel + sdist artifact.
-# 3. ``publish`` -- calls ``reusable-publish.yml`` to download the
-#    artifact and publish to PyPI via OIDC trusted publishing.
+# 1. ``tag-and-release`` job -- creates the signed annotated tag at
+#    the merge commit and a draft GitHub Release whose body is
+#    extracted from the new entry in ``CHANGES.rst`` (single source
+#    of truth, written by the ``draft-release`` skill and validated
+#    by ``tests/test_version.py``). Uses ``gh release create
+#    --target ...`` which routes through the Releases API; tags
+#    created that way are signed by GitHub's web-flow key.
+# 2. The same job, last step -- dispatches ``ci-cd.yml`` via
+#    ``gh workflow run ... -f tag=$VERSION``. That run does the
+#    actual PyPI publish.
 #
-# Both ``ci-cd.yml`` (on tag push) and this workflow (on release-PR
-# merge) call the same ``reusable-publish.yml``, so the PyPI publish
-# logic lives in exactly one place. Calling the reusable directly
-# from this workflow side-steps GitHub's rule that tag-push events
-# triggered by ``GITHUB_TOKEN`` don't fire other workflows -- we don't
-# rely on that event to start ``pypi-publish`` because we run it
-# inline.
+# **Why dispatch instead of inline publish?** PyPI's Trusted
+# Publisher for this project is configured against ``ci-cd.yml``,
+# and PyPI does not currently support reusable workflows for
+# Trusted Publishing (#1595's first publish failed with exactly
+# that mismatch). Triggering ``ci-cd.yml`` via ``workflow_dispatch``
+# (one of the few event types that fires from ``GITHUB_TOKEN``-
+# driven calls, alongside ``repository_dispatch``) makes
+# ``ci-cd.yml`` the OIDC entry point -- ``workflow_ref`` matches
+# PyPI's config, no reusable-workflow warning, publish succeeds.
 #
-# The Release is drafted (``draft: true``) so a maintainer reviews and
-# clicks Publish in the GitHub UI. Flip to ``draft: false`` once the
-# flow is trusted.
+# The Release is drafted (``draft: true``) so a maintainer reviews
+# and clicks Publish in the GitHub UI after PyPI confirms upload.
 on:
   pull_request:
     types: [closed]
@@ -128,15 +126,20 @@ jobs:
           --notes "$NOTES" \
           --draft
 
-  build:
-    needs: [tag-and-release]
-    uses: ./.github/workflows/reusable-build.yml
-
-  publish:
-    needs: [tag-and-release, build]
-    permissions:
-      # IMPORTANT: this permission is mandatory for trusted publishing
-      id-token: write
-    uses: ./.github/workflows/reusable-publish.yml
-    with:
-      version: ${{ needs.tag-and-release.outputs.version }}
+    - name: Dispatch ci-cd.yml to publish to PyPI
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        VERSION: ${{ steps.ver.outputs.version }}
+      # Trigger ``ci-cd.yml`` via ``workflow_dispatch`` so the actual
+      # PyPI publish runs from there. PyPI's Trusted Publisher matches
+      # against the OIDC token's ``workflow_ref``, which for a
+      # workflow_dispatch run is ``ci-cd.yml`` -- the workflow PyPI
+      # already trusts. ``workflow_dispatch`` and ``repository_dispatch``
+      # are the only event types that fire from ``GITHUB_TOKEN``-driven
+      # calls (the loop-prevention rule blocks everything else), so
+      # this is the supported escape hatch.
+      run: |
+        gh workflow run ci-cd.yml \
+          --repo "$GITHUB_REPOSITORY" \
+          --ref "$VERSION" \
+          -f tag="$VERSION"
