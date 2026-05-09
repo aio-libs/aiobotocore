@@ -479,7 +479,7 @@ jobs:
         display_report: true
         show_full_output: true
         # Register the repo-local plugin so skills (check-async-need,
-        # bump-version, open-pr, port-tests, etc.) are discoverable by
+        # update-botocore-bounds, open-pr, port-tests, etc.) are discoverable by
         # the Skill tool. See claude.yml for the companion comment on
         # why --plugin-dir is also needed — without both, Skill-tool
         # invocations return "Unknown skill: aiobotocore-bot:*" and the

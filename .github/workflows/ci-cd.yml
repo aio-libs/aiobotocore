@@ -109,30 +109,12 @@ jobs:
         jobs: ${{ toJSON(needs) }}
 
   pypi-publish:
-    name: Publish Python 🐍 distribution 📦 to PyPI
     if: github.ref_type == 'tag'  # only publish on tag pushes
     needs:
     - check
-    runs-on: ubuntu-24.04
-    environment:
-      name: pypi
-      url: https://pypi.org/project/aiobotocore/${{ github.ref_name }}
     permissions:
       # IMPORTANT: this permission is mandatory for trusted publishing
       id-token: write
-    timeout-minutes: 5
-
-    steps:
-    - name: Download distribution 📦
-      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
-      with:
-        name: python-package-distributions
-        path: dist/
-    - name: Check if distribution 📦 names match git tag
-      run: |
-        test -f "dist/aiobotocore-${REF_NAME}.tar.gz"
-        test -f "dist/aiobotocore-${REF_NAME}-py3-none-any.whl"
-      env:
-        REF_NAME: ${{ github.ref_name }}
-    - name: Publish distribution 📦 to PyPI
-      uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b  # v1.14.0
+    uses: ./.github/workflows/reusable-publish.yml
+    with:
+      version: ${{ github.ref_name }}

@@ -239,9 +239,9 @@ port. A falsely green port creates technical debt that's worse than not porting 
 
 ## Consumption
 
-**Sync bot** (`botocore-sync-prompt.md` Step 5, port path): after `bump-version` lands the
-version changes, invoke `/aiobotocore-bot:port-tests --from=$FROM --to=$TO`. Include the
-resulting report in the port PR's "What changed in aiobotocore" section.
+**Sync bot** (`botocore-sync-prompt.md` Step 5, port path): after `update-botocore-bounds`
+lands the dependency-spec change, invoke `/aiobotocore-bot:port-tests --from=$FROM --to=$TO`.
+Include the resulting report in the port PR's "What changed in aiobotocore" section.
 
 **Humans**: run `/aiobotocore-bot:port-tests --backfill --paths=test_foo.py,test_bar.py` to
 narrow a coverage gap on specific files. The `--dry-run` flag is recommended first.

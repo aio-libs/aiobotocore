@@ -60,9 +60,10 @@ user-visible effect. The bump rule keys off these:
 - any `feat:` or `enhancement`/`feature` label → MINOR
 - otherwise → PATCH
 
-The `bump-version` skill (used only by the automated `botocore-sync`
-workflow today) is the legacy direct-edit path; it will be migrated to
-the draft-release flow in a follow-up.
+The `update-botocore-bounds` skill (the only thing the automated
+`botocore-sync` workflow runs today, formerly named `bump-version`)
+only updates `pyproject.toml` bounds and `uv.lock` — `__init__.py`
+and `CHANGES.rst` are off-limits to per-PR automation.
 
 # Overriding botocore code
 

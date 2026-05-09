@@ -6,22 +6,39 @@ run-name: >-
 
 permissions: {}
 
-# When a PR titled `Release vX.Y.Z` is merged, create the matching git
-# tag and a draft GitHub Release whose body is the PR's changelog
-# section. The tag push triggers the existing `pypi-publish` job in
-# ci-cd.yml, which uploads the artifact to PyPI.
+# When a `Release vX.Y.Z` PR is merged, three jobs run sequentially:
 #
-# The Release is created as **draft** so the maintainer can review and
-# manually publish in the GitHub UI. Switch to `draft: false` here once
-# the flow has been exercised a few times and trust is established.
+# 1. ``tag-and-release`` -- creates the signed annotated tag at the
+#    merge commit and a draft GitHub Release whose body is the PR's
+#    `### Changelog` section. Uses ``gh release create --target ...``
+#    which routes through the Releases API; tags created that way are
+#    signed by GitHub's web-flow key (in contrast to ``git tag -a``
+#    from the runner, which is unsigned, and the REST ``git/tags``
+#    endpoint, which doesn't sign either).
+# 2. ``build`` -- calls ``reusable-build.yml`` against the merged
+#    commit to produce the wheel + sdist artifact.
+# 3. ``publish`` -- calls ``reusable-publish.yml`` to download the
+#    artifact and publish to PyPI via OIDC trusted publishing.
+#
+# Both ``ci-cd.yml`` (on tag push) and this workflow (on release-PR
+# merge) call the same ``reusable-publish.yml``, so the PyPI publish
+# logic lives in exactly one place. Calling the reusable directly
+# from this workflow side-steps GitHub's rule that tag-push events
+# triggered by ``GITHUB_TOKEN`` don't fire other workflows -- we don't
+# rely on that event to start ``pypi-publish`` because we run it
+# inline.
+#
+# The Release is drafted (``draft: true``) so a maintainer reviews and
+# clicks Publish in the GitHub UI. Flip to ``draft: false`` once the
+# flow is trusted.
 on:
   pull_request:
     types: [closed]
     branches: [main]
 
-# Serialize so two ``Release v...`` PRs merged back-to-back don't race
-# on ``git push origin <tag>`` and ``gh release create``. Extremely
-# unlikely in practice but cheap insurance.
+# Serialize: two ``Release v...`` merges back-to-back must not race on
+# tag creation or Release creation. Extremely unlikely in practice but
+# cheap insurance.
 concurrency:
   group: auto-release-on-merge
 
@@ -34,6 +51,8 @@ jobs:
     timeout-minutes: 5
     permissions:
       contents: write
+    outputs:
+      version: ${{ steps.ver.outputs.version }}
     steps:
     - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
       with:
@@ -44,6 +63,8 @@ jobs:
 
     - name: Extract version from __init__.py
       id: ver
+      env:
+        PR_TITLE: ${{ github.event.pull_request.title }}
       run: |
         v=$(grep -oP "__version__\s*=\s*['\"]\\K[0-9]+\.[0-9]+\.[0-9]+" \
           aiobotocore/__init__.py)
@@ -60,18 +81,15 @@ jobs:
           exit 1
         fi
         echo "version=$v" >> "$GITHUB_OUTPUT"
-      env:
-        PR_TITLE: ${{ github.event.pull_request.title }}
 
     - name: Extract changelog section from PR body
       id: notes
       env:
         PR_BODY: ${{ github.event.pull_request.body }}
       run: |
-        # The release PR body has a `### Changelog` section followed by
-        # other sections. Extract just the changelog up to the next
-        # heading. Falls back to the full body if the markers aren't
-        # found.
+        # PR body has a `### Changelog` section. Extract from that
+        # heading up to the next `### `. Fall back to the full body
+        # if the marker isn't found.
         notes=$(printf '%s' "$PR_BODY" \
           | awk '/^### Changelog$/{flag=1;next}/^### /{flag=0}flag')
         if [ -z "$notes" ]; then
@@ -83,32 +101,34 @@ jobs:
           echo 'NOTES_EOF'
         } >> "$GITHUB_OUTPUT"
 
-    # Create the GitHub Release AND the underlying annotated tag in one
-    # step via the Releases API. Two reasons to use this action over a
-    # raw ``git tag -a`` + ``git push`` + ``gh release create`` sequence:
-    #
-    # 1. **Tag is signed.** Tags created by GitHub's Releases API are
-    #    signed by the web-flow key, the same way commits made via the
-    #    REST ``git/commits`` endpoint are. ``git tag -a`` from the
-    #    runner produces an unsigned tag (no signing key on the runner)
-    #    and the REST ``git/tags`` endpoint explicitly does NOT sign
-    #    (GitHub Community discussions #69847, #27016).
-    # 2. **One step, one API call** — drops the working-tree checkout,
-    #    git config, manual ``gh release create``, and the
-    #    ``persist-credentials: true`` requirement.
-    #
-    # Known caveat: tag-push events triggered by ``GITHUB_TOKEN`` do NOT
-    # fire other workflows (GitHub's loop-prevention rule), so this will
-    # NOT trigger ``ci-cd.yml``'s ``pypi-publish`` job. Maintainer
-    # re-pushes the tag locally to trigger publish, OR we provision a
-    # GitHub App and pass its installation token via ``token:`` here in
-    # a follow-up. Tracked in the post-merge cleanup issue.
     - name: Create signed tag + GitHub Release (draft)
-      # yamllint disable-line rule:line-length
-      uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65  # v2.6.2
-      with:
-        tag_name: ${{ steps.ver.outputs.version }}
-        target_commitish: ${{ github.event.pull_request.merge_commit_sha }}
-        name: ${{ steps.ver.outputs.version }}
-        body: ${{ steps.notes.outputs.NOTES }}
-        draft: true
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        VERSION: ${{ steps.ver.outputs.version }}
+        MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha }}
+        NOTES: ${{ steps.notes.outputs.NOTES }}
+      # ``gh release create --target <SHA>`` routes through the
+      # Releases API, which creates AND signs the tag at the target
+      # commit. Plain ``git tag -a`` + ``git push`` from the runner
+      # cannot sign (no key on the runner), and the REST ``git/tags``
+      # endpoint doesn't sign either (GitHub Community #69847, #27016).
+      run: |
+        gh release create "$VERSION" \
+          --repo "$GITHUB_REPOSITORY" \
+          --target "$MERGE_SHA" \
+          --title "$VERSION" \
+          --notes "$NOTES" \
+          --draft
+
+  build:
+    needs: [tag-and-release]
+    uses: ./.github/workflows/reusable-build.yml
+
+  publish:
+    needs: [tag-and-release, build]
+    permissions:
+      # IMPORTANT: this permission is mandatory for trusted publishing
+      id-token: write
+    uses: ./.github/workflows/reusable-publish.yml
+    with:
+      version: ${{ needs.tag-and-release.outputs.version }}

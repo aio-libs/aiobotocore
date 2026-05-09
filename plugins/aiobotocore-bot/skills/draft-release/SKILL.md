@@ -77,13 +77,14 @@ combined line, see Step 5). Also skip the eventual release PR itself
 
 ### Step 4a: Detect whether the current version is unreleased
 
-A previous draft-release run (or a botocore-sync via the legacy
-``bump-version`` skill) may have already bumped ``__version__`` past
-the latest PyPI release. In that case **the new release inherits
-the existing unreleased version, not a fresh bump on top of it** —
-otherwise we end up with ``3.7.0`` (unreleased) → ``3.7.1`` (this
-draft) → both shipping together as ``3.7.1`` and the ``3.7.0`` header
-becomes a phantom (#1588 review feedback from @jakob-keller).
+A previous draft-release run may have already bumped ``__version__``
+past the latest PyPI release (e.g. an earlier release PR was
+abandoned, or a maintainer bumped manually). In that case **the new
+release inherits the existing unreleased version, not a fresh bump on
+top of it** — otherwise we end up with ``3.7.0`` (unreleased) →
+``3.7.1`` (this draft) → both shipping together as ``3.7.1`` and the
+``3.7.0`` header becomes a phantom (#1588 review feedback from
+@jakob-keller).
 
 ```bash
 current=$(grep -oP "__version__\s*=\s*['\"]\\K[0-9]+\\.[0-9]+\\.[0-9]+" \
