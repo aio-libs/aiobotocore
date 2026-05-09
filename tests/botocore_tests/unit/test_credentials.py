@@ -1670,6 +1670,47 @@ def process_provider():
     return _f
 
 
+async def test_processprovider_falls_back_to_sync_when_subprocess_unsupported(
+    process_provider, mocker
+):
+    # Regression for #1415: ``asyncio.SelectorEventLoop`` on Windows raises
+    # ``NotImplementedError`` from ``loop.subprocess_exec``. Verify the
+    # provider catches this and runs the credential process synchronously
+    # in a worker thread instead of bubbling the error to the caller.
+    config = {'profiles': {'default': {'credential_process': 'my-process'}}}
+    stdout = json.dumps(
+        {
+            'Version': 1,
+            'AccessKeyId': 'foo',
+            'SecretAccessKey': 'bar',
+            'SessionToken': 'baz',
+            'Expiration': '2999-01-01T00:00:00Z',
+        }
+    ).encode('utf-8')
+
+    async def popen_raises_not_implemented(*args, **kwargs):
+        # Mimic SelectorEventLoop on Windows.
+        raise NotImplementedError
+
+    completed = mocker.Mock(stdout=stdout, stderr=b'', returncode=0)
+    sync_run = mocker.patch(
+        'aiobotocore.credentials.subprocess.run', return_value=completed
+    )
+
+    _, provider = process_provider(loaded_config=config)
+    provider._popen = popen_raises_not_implemented
+
+    creds = await provider.load()
+    assert creds is not None
+    frozen = await creds.get_frozen_credentials()
+    assert frozen.access_key == 'foo'
+    assert frozen.secret_key == 'bar'
+    assert frozen.token == 'baz'
+    sync_run.assert_called_once_with(
+        ['my-process'], capture_output=True, check=False
+    )
+
+
 async def test_processprovider_can_retrieve_account_id(process_provider):
     config = {'profiles': {'default': {'credential_process': 'my-process'}}}
     invoked_process = mock.AsyncMock()
