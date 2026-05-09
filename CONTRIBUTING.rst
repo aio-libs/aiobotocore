@@ -76,6 +76,26 @@ works is by working backwards from ``AioEndpoint._request``.  Because of this ti
 integration aiobotocore is typically version locked to a particular release of
 botocore.
 
+**Guiding principle: minimize divergence from botocore.**
+Unmatched behavioral changes to overridden code should be avoided — they make
+future upstream syncs harder and can hide subtle behavioral differences.
+Legitimate **async gaps** (e.g. ``asyncio.Lock`` replacing ``threading.Lock``,
+``async with``, ``resolve_awaitable()``, ``Aio*`` class use) are expected — those
+are the whole reason aiobotocore exists. Cosmetic additions (docstrings,
+comments, type hints) or behavioral changes not present in the matching botocore
+are **drift** and will be flagged in review.
+
+If you see a genuine improvement that would benefit sync users too, please PR
+it `upstream to botocore <https://github.com/boto/botocore>`_ first — then sync
+the change into aiobotocore. See
+`docs/override-patterns.md <docs/override-patterns.md>`_ for the full principle
+and a list of legitimate async-gap patterns.
+
+**Keep botocore sync PRs tightly scoped.** A sync PR should update the botocore
+pin and port any required overrides — nothing else. Bundling unrelated bug
+fixes or refactors into a sync PR makes the reviewer's job harder and makes
+the bot's classifier noisier. If you have unrelated fixes, open a separate PR.
+
 How to Upgrade Botocore
 -----------------------
 aiobotocore's file names, and ordering of functions in files try to match the botocore files they override.
@@ -84,16 +104,16 @@ botocore calls eventually called.
 
 The best way I've seen to upgrade botocore support is by performing the following:
 
-1. Download sources of the release of botocore you're trying to upgrade to, and the version of botocore that aiobotocore is currently locked to (see :file:`pyproject.toml`) and do a folder based file comparison of the botocore folders (tools like DiffMerge are nice).
+1. Download sources of the release of botocore you're trying to upgrade to, and the version of botocore that aiobotocore is currently locked to (see `pyproject.toml`_) and do a folder based file comparison of the botocore folders (tools like DiffMerge are nice).
 2. Manually apply the relevant changes to their aiobotocore equivalent(s). Note that sometimes new functions are added which will need to be overridden (like ``__enter__`` -> ``__aenter__``)
-3. Update the "project.optional-dependencies" in :file:`pyproject.toml` to the versions which match the botocore version you are targeting.
+3. Update the "project.optional-dependencies" in `pyproject.toml`_ to the versions which match the botocore version you are targeting.
 4. Now do a directory diff between aiobotocore and your target version botocore directory to ensure the changes were propagated.
 
 See next section describing types of changes we must validate and support.
 
 Hashes of Botocore Code (important)
 -----------------------------------
-Because of the way aiobotocore is implemented (see Background section), it is very tightly coupled with botocore.  The validity of these couplings are enforced in :file:`test_patches.py`.  We also depend on some private properties in aiohttp, and because of this have entries in :file:`test_patches.py` for this too.
+Because of the way aiobotocore is implemented (see Background section), it is very tightly coupled with botocore.  The validity of these couplings are enforced in `test_patches.py`_.  We also depend on some private properties in aiohttp, and because of this have entries in `test_patches.py`_ for this too.
 
 These patches are important to catch cases where botocore functionality was added/removed and needs to be reflected in our overridden methods.  Changes include:
 
@@ -101,14 +121,14 @@ These patches are important to catch cases where botocore functionality was adde
 * classes/methods being moved to new files
 * bodies of overridden methods updated
 
-To ensure we catch and reflect this changes in aiobotocore, the :file:`test_patches.py` file has the hashes of the parts of botocore we need to manually validate changes in.
+To ensure we catch and reflect this changes in aiobotocore, the `test_patches.py`_ file has the hashes of the parts of botocore we need to manually validate changes in.
 
-:file:`test_patches.py` file needs to be updated in two scenarios:
+`test_patches.py`_ file needs to be updated in two scenarios:
 
-1. You're bumping the supported botocore/aiohttp version. In this case a failure in :file:`test_patches.py` means you need to validate the section of code in aiohttp/botocore that no longer matches the hash in test_patches.py to see if any changes need to be reflected in aiobotocore which overloads, on depends on the code which triggered the hash mismatch.  This could there are new parameters we weren't expecting, parameters that are no longer passed to said overridden function(s), or an overridden function which calls a modified botocore method.  If this is a whole class collision the checks will be more extensive.
+1. You're bumping the supported botocore/aiohttp version. In this case a failure in `test_patches.py`_ means you need to validate the section of code in aiohttp/botocore that no longer matches the hash in test_patches.py to see if any changes need to be reflected in aiobotocore which overloads, on depends on the code which triggered the hash mismatch.  This could there are new parameters we weren't expecting, parameters that are no longer passed to said overridden function(s), or an overridden function which calls a modified botocore method.  If this is a whole class collision the checks will be more extensive.
 2. You're implementing missing aiobotocore functionality, in which case you need to add entries for all the methods in botocore/aiohttp which you are overriding or depending on private functionality.  For special cases, like when private attributes are used, you may have to hash the whole class so you can catch any case where the private property is used/updated to ensure it matches our expectations.
 
-After you've validated the changes, you can update the hash in :file:`test_patches.py`.
+After you've validated the changes, you can update the hash in `test_patches.py`_.
 
 One would think we could just write enough unittests to catch all cases, however, this is impossible for two reasons:
 
@@ -118,8 +138,29 @@ One would think we could just write enough unittests to catch all cases, however
 Until we can perform ALL unittests from new releases of botocore, we are stuck with the patches.
 
 
+AI Automation
+-------------
+This repository uses two Claude-driven GitHub Actions workflows to
+automate PR review and botocore upgrades:
+
+* ``.github/workflows/claude.yml`` — reviews every non-draft PR on
+  open/push, responds to ``@claude`` mentions from project members,
+  and implements ``@claude``-tagged issues.
+* ``.github/workflows/botocore-sync.yml`` — runs every three days,
+  detects new botocore releases, and opens a PR (or a feedback issue
+  for complex bumps).
+
+Full details — triggers, prompts, slash commands, guardrails, cost
+tracking, and how to extend the system — are documented in
+`docs/ai-workflows.md <https://github.com/aio-libs/aiobotocore/blob/main/docs/ai-workflows.md>`_.
+Contributors who just want to use the bot (for example, ``@claude`` a
+question on their PR) can jump to the "Using the bot" section there.
+
 The Future
 ----------
 The long term goal is that botocore will implement async functionality directly.
 See botocore issue: https://github.com/boto/botocore/issues/458  for details,
 tracked in aiobotocore here: https://github.com/aio-libs/aiobotocore/issues/36
+
+.. _pyproject.toml: https://github.com/aio-libs/aiobotocore/blob/main/pyproject.toml
+.. _test_patches.py: https://github.com/aio-libs/aiobotocore/blob/main/tests/test_patches.py

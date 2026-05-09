@@ -170,13 +170,13 @@ def test_protocol_parsers():
         (
             ClientArgsCreator.get_client_args,
             {
-                '1df6dcb298a8ab0c4ad7e30aad554ed356959779',
+                'bdd5566c7b9bd87294acbb899939ea3cf107625f',
             },
         ),
         (
             ClientArgsCreator._build_endpoint_resolver,
             {
-                'a7c95642c404de359b7823078e7d9527f73cbf1f',
+                '94f08149f6635f174bd427e61b196afcff01e0c4',
             },
         ),
         # client.py
@@ -245,7 +245,7 @@ def test_protocol_parsers():
         (
             BaseClient._make_api_call.__wrapped__,
             {
-                '44a1fbef21dc588a7976510c3540c5a51350aa11',
+                '4123e3407236339b55a9d8ca06d8979b06bfd2dc',
             },
         ),
         (

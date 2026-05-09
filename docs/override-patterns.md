@@ -1,5 +1,38 @@
 # aiobotocore Override Patterns
 
+## Guiding principle: minimize divergence from botocore
+
+aiobotocore exists to mirror botocore as closely as possible, with `async`
+sprinkled on top. Every line of divergence makes future upstream syncs
+harder and can hide subtle behavioral differences.
+
+**Rule:** unmatched behavioral changes to overridden code should be avoided.
+Legitimate **async gaps** (e.g. `threading.Lock` → `asyncio.Lock` because
+async needs it, adding `await` to an I/O call, replacing a sync context
+manager with an async one, using `resolve_awaitable()` for handlers that
+may be either sync or async) are the whole reason aiobotocore exists —
+those are expected and welcome.
+
+Everything else that widens the diff from botocore without an async
+justification is **drift**. This includes:
+
+- Docstring, comment, or type-hint additions not present in botocore
+- "Cleanups" (PEP8 import reordering, variable renames, refactors) not
+  present upstream
+- Bug fixes applied locally without a corresponding upstream fix
+- Replacing one stdlib call with a differently-behaving equivalent
+  (e.g. `inspect.isawaitable(x)` and `hasattr(x, "__await__")` are
+  *not* equivalent for all awaitable types)
+
+If you see a genuine improvement that would benefit sync users too, the
+right path is a PR upstream to [botocore](https://github.com/boto/botocore)
+first — then sync the change into aiobotocore.
+
+The bot's PR reviewer runs `/aiobotocore-bot:check-override-drift` on every
+PR touching `aiobotocore/*.py` files with a botocore mirror, and flags
+unmatched changes. If you need to diverge intentionally, explain the
+async-specific reason in the PR description so reviewers can evaluate it.
+
 ## Architecture
 
 aiobotocore never monkey-patches botocore. It subclasses botocore
@@ -113,6 +146,7 @@ emitter. Its `_emit()` method awaits each handler response via
 ## Pattern 7: AioConfig
 
 `AioConfig(botocore.client.Config)` (config.py:42) adds:
+
 - `connector_args`: aiohttp connector tuning (ssl, keepalive, etc.)
 - `http_session_cls`: pluggable HTTP backend class
 

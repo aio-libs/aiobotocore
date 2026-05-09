@@ -1,0 +1,256 @@
+---
+name: Plugin evals
+
+run-name: >-
+  Evals:
+  ${{ inputs.eval || 'both' }}
+  (runs=${{ inputs.runs || '3' }}, limit=${{ inputs.limit || '8' }})
+
+permissions: {}
+
+# Only one evals run active per branch. A new workflow_dispatch on the same
+# ref cancels the prior in-flight run — otherwise a quick re-trigger would
+# double-spend Anthropic tokens for stale input. Scheduled re-triggers on
+# different refs (if ever added) stay independent via the ref in the group.
+concurrency:
+  group: evals-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  # Manual, admin-only: workflow_dispatch requires repo write permission,
+  # and the `claude` environment gates access to ANTHROPIC_API_KEY — which
+  # narrows the trigger set to the aiobotocore-admins team plus other
+  # users with explicit write access.
+  #
+  # No scheduled run: scenarios.yaml is a fixed committed set and the
+  # classifier prompts only change via PR. A scheduled baseline adds no
+  # signal beyond what running on demand after a relevant edit provides.
+  # Revisit if we start varying the model ID or tracking drift over time.
+  workflow_dispatch:
+    inputs:
+      eval:
+        description: Which eval to run
+        required: false
+        default: both
+        type: choice
+        options:
+        - both
+        - check-async-need
+        - check-override-drift
+      runs:
+        description: Runs per case (majority vote tolerates non-determinism)
+        required: false
+        default: '3'
+        type: string
+      limit:
+        description: Max check-async-need scenarios (drift eval always runs full set)
+        required: false
+        default: '8'
+        type: string
+      cases:
+        description: Comma-separated PR numbers to evaluate (empty = use limit)
+        required: false
+        default: ''
+        type: string
+      debug_misclassifications:
+        description: On miss, ask the model which rule misled it (captured in JSON)
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  check-async-need:
+    if: inputs.eval == 'check-async-need' || inputs.eval == 'both'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: claude
+    permissions:
+      contents: read
+    # Inputs land in env vars rather than being interpolated into `run:`
+    # scripts — avoids shell-injection surface if inputs are ever changed
+    # from typed choice/numeric strings to free text.
+    env:
+      EVAL_RUNS: ${{ inputs.runs || '3' }}
+      EVAL_LIMIT: ${{ inputs.limit || '8' }}
+      EVAL_CASES: ${{ inputs.cases || '' }}
+      EVAL_DEBUG_MISCLASSIFICATIONS: ${{ inputs.debug_misclassifications && '1' || '' }}
+    steps:
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      with:
+        fetch-depth: 1
+        persist-credentials: false
+
+    - name: Cache botocore repo
+      # Only the check-async-need job uses the local botocore clone — it
+      # needs to diff two specific botocore versions. The check-override-
+      # drift job reads the PR diff via the gh API instead, so no clone
+      # step in that job. Shares the cache key with botocore-sync.yml so
+      # whichever workflow runs first warms /tmp/botocore for the other.
+      # Static key (no hashFiles invalidation) — fresh tags are always
+      # fetched below.
+      # yamllint disable-line rule:line-length
+      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae  # v5.0.5
+      with:
+        path: /tmp/botocore
+        key: botocore-repo
+
+    - name: Clone or update botocore
+      # Mirrors botocore-sync.yml's step exactly. Bare clone is smaller
+      # (~100MB vs ~200MB) and scenarios.yaml references tags back to
+      # 1.35.x, far past what a shallow clone would cover. On cache hit
+      # the fetch is ~2s; on cache miss the initial clone is ~10-15s.
+      run: |
+        if [ -f /tmp/botocore/HEAD ]; then
+          git -C /tmp/botocore fetch --tags --prune
+        else
+          git clone --bare \
+            https://github.com/boto/botocore.git \
+            /tmp/botocore
+        fi
+
+    - name: Set up uv + Python
+      # yamllint disable-line rule:line-length
+      uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b  # v8.1.0
+      with:
+        version: '0.11.7'
+        python-version: '3.12'
+        enable-cache: auto
+
+    # .venv caching: setup-uv caches uv's download cache (wheels), but
+    # `uv sync` still walks the lockfile and re-links the venv every
+    # run (~5-15s). Caching .venv directly short-circuits that on
+    # lockfile-unchanged runs. Invalidates on uv.lock or pyproject.toml
+    # changes.
+    - name: Cache .venv
+      # yamllint disable-line rule:line-length
+      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae  # v5.0.5
+      with:
+        path: .venv
+        # yamllint disable-line rule:line-length
+        key: venv-${{ runner.os }}-py3.12-${{ hashFiles('uv.lock', 'pyproject.toml') }}
+
+    - name: Install dependencies
+      # --frozen is a guardrail: fail (not silently resolve) if uv.lock
+      # is somehow out of sync with pyproject.toml. On a warm .venv
+      # cache uv sync is near-instant; on a miss it re-links from the
+      # uv download cache.
+      run: uv sync --frozen
+
+    - name: Run check_async_need eval
+      env:
+        ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        BOTOCORE_CLONE: /tmp/botocore
+      run: |
+        case_args=()
+        if [ -n "$EVAL_CASES" ]; then
+          IFS=',' read -ra arr <<< "$EVAL_CASES"
+          for n in "${arr[@]}"; do case_args+=(--case "${n// /}"); done
+        fi
+        debug_arg=()
+        if [ -n "$EVAL_DEBUG_MISCLASSIFICATIONS" ]; then
+          debug_arg=(--debug-misclassifications)
+        fi
+        uv run python plugins/aiobotocore-bot/evals/check_async_need.py \
+          --runs "$EVAL_RUNS" \
+          --limit "$EVAL_LIMIT" \
+          "${case_args[@]}" \
+          "${debug_arg[@]}" \
+          --json-out /tmp/async-need-results.json \
+          | tee /tmp/async-need-stdout.txt
+
+    - name: Job summary
+      if: always()
+      run: |
+        {
+          echo "# check-async-need eval"
+          echo
+          echo "runs=$EVAL_RUNS limit=$EVAL_LIMIT"
+          echo
+          echo '```'
+          tail -n 40 /tmp/async-need-stdout.txt || true
+          echo '```'
+        } >> "$GITHUB_STEP_SUMMARY"
+
+    - name: Upload full results
+      if: always()
+      # yamllint disable-line rule:line-length
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+      with:
+        name: async-need-results
+        path: /tmp/async-need-results.json
+        retention-days: 30
+
+  check-override-drift:
+    if: inputs.eval == 'check-override-drift' || inputs.eval == 'both'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: claude
+    permissions:
+      contents: read
+    env:
+      EVAL_RUNS: ${{ inputs.runs || '3' }}
+    steps:
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      with:
+        fetch-depth: 1
+        persist-credentials: false
+
+    - name: Set up uv + Python
+      # yamllint disable-line rule:line-length
+      uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b  # v8.1.0
+      with:
+        version: '0.11.7'
+        python-version: '3.12'
+        enable-cache: auto
+
+    # .venv caching: setup-uv caches uv's download cache (wheels), but
+    # `uv sync` still walks the lockfile and re-links the venv every
+    # run (~5-15s). Caching .venv directly short-circuits that on
+    # lockfile-unchanged runs. Invalidates on uv.lock or pyproject.toml
+    # changes.
+    - name: Cache .venv
+      # yamllint disable-line rule:line-length
+      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae  # v5.0.5
+      with:
+        path: .venv
+        # yamllint disable-line rule:line-length
+        key: venv-${{ runner.os }}-py3.12-${{ hashFiles('uv.lock', 'pyproject.toml') }}
+
+    - name: Install dependencies
+      # --frozen is a guardrail: fail (not silently resolve) if uv.lock
+      # is somehow out of sync with pyproject.toml. On a warm .venv
+      # cache uv sync is near-instant; on a miss it re-links from the
+      # uv download cache.
+      run: uv sync --frozen
+
+    - name: Run check_override_drift eval
+      env:
+        ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        uv run python plugins/aiobotocore-bot/evals/check_override_drift.py \
+          --runs "$EVAL_RUNS" \
+          --json-out /tmp/drift-results.json \
+          | tee /tmp/drift-stdout.txt
+
+    - name: Job summary
+      if: always()
+      run: |
+        {
+          echo "# check-override-drift eval"
+          echo
+          echo "runs=$EVAL_RUNS"
+          echo
+          echo '```'
+          tail -n 40 /tmp/drift-stdout.txt || true
+          echo '```'
+        } >> "$GITHUB_STEP_SUMMARY"
+
+    - name: Upload full results
+      if: always()
+      # yamllint disable-line rule:line-length
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+      with:
+        name: drift-results
+        path: /tmp/drift-results.json
+        retention-days: 30

@@ -1,8 +1,8 @@
 import base64
 import hashlib
 from collections import defaultdict
+from collections.abc import Callable
 from inspect import iscoroutine
-from typing import Callable
 
 import aioitertools
 import botocore.retries.adaptive

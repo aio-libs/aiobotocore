@@ -775,6 +775,10 @@ class AioBotoProvider(BotoProvider):
 
 class AioAssumeRoleProvider(AssumeRoleProvider):
     async def load(self):
+        # Reset visited profiles on each load() call to avoid false positives
+        # when multiple async tasks concurrently call load() on the same provider
+        # instance and one task's _visited_profiles state leaks into another.
+        self._visited_profiles = [self._profile_name]
         self._loaded_config = self._load_config()
         profiles = self._loaded_config.get('profiles', {})
         profile = profiles.get(self._profile_name, {})

@@ -1,0 +1,11 @@
+{
+  "name": "aiobotocore-bot",
+  "description": "Slash commands used by aiobotocore's Claude Code GitHub Actions workflows. See docs/ai-workflows.md.",
+  "version": "1.0.0",
+  "author": {
+    "name": "aio-libs"
+  },
+  "homepage": "https://github.com/aio-libs/aiobotocore/blob/main/docs/ai-workflows.md",
+  "repository": "https://github.com/aio-libs/aiobotocore",
+  "license": "Apache-2.0"
+}

@@ -1,9 +1,24 @@
 Changes
 -------
 
-3.5.0 (2026-04-07)
+3.7.0 (2026-05-08)
 ^^^^^^^^^^^^^^^^^^
-* support `warm_up_loader_caches` in `AioConfig`
+* add ``AioSession.warm_up_loader_caches()`` and ``warm_up_loader_caches`` option in ``AioConfig`` to pre-populate
+  botocore loader caches off the event loop, avoiding blocking file I/O on first client/waiter/paginator use
+  (closes #1199)
+
+3.6.1 (2026-05-01)
+^^^^^^^^^^^^^^^^^^
+* fix race condition in ``AioAssumeRoleProvider._visited_profiles`` causing false ``InfiniteLoopConfigError`` under concurrent async usage
+
+3.6.0 (2026-04-30)
+^^^^^^^^^^^^^^^^^^
+* relax botocore dependency specification to support ``"botocore >= 1.42.90, < 1.43.1"``
+* drop support for Python 3.9 (EOL)
+
+3.5.0 (2026-04-19)
+^^^^^^^^^^^^^^^^^^
+* bump botocore dependency specification to support ``"botocore >= 1.42.90, < 1.42.92"``
 
 3.4.0 (2026-04-07)
 ^^^^^^^^^^^^^^^^^^

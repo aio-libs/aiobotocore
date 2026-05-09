@@ -10,6 +10,9 @@ run-name: >-
     || github.event_name == 'issues'
       && format('Issue #{0}',
          github.event.issue.number)
+    || github.event_name == 'pull_request_target'
+      && format('Notify fork PR #{0}',
+         github.event.pull_request.number)
     || format('PR #{0} comment',
        github.event.issue.number
        || github.event.pull_request.number)
@@ -17,10 +20,36 @@ run-name: >-
 
 permissions: {}
 
+# Cancel in-flight review runs when a new push lands on the same PR — two
+# quick commits should produce one review on the final HEAD, not two on
+# intermediate states. Scoped to `pull_request` events only; @claude
+# comments and reviews are independent user interactions and queue rather
+# than cancel.
+#
+# Cleanup on cancellation: the claude-code-action adds a 👀 reaction at job
+# start and swaps it to 👍 at the end. A cancelled run leaves the 👀
+# orphaned — but `/aiobotocore-bot:complete-run` deletes all `eyes`
+# reactions from claude[bot] (the jq filter is user-login-scoped), so the
+# superseding run's cleanup sweeps any stale reactions from prior
+# cancellations. Reaction state is self-healing across runs.
+concurrency:
+  # yamllint disable-line rule:line-length
+  group: claude-${{ github.event_name }}-${{ github.event.pull_request.number || github.event.issue.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 on:
+  # Don't "fix" the workflow-validation 401 on PRs that modify claude.yml
+  # by switching this to pull_request_target. It tempts because it'd run
+  # the workflow against main's file (passing the validator) — but the
+  # Claude Code GitHub App's OIDC exchange endpoint refuses tokens whose
+  # event_name claim is `pull_request_target`, so the action 401s at
+  # startup on EVERY run with `App token exchange failed: 401 Unauthorized
+  # - Invalid OIDC token`. Worse than the validator failure it works
+  # around. See #1583 for the post-mortem.
   pull_request:
     types:
     - opened
+    - synchronize
   issue_comment:
     types:
     - created
@@ -34,13 +63,32 @@ on:
     types:
     - opened
     - assigned
+  # Used ONLY by the notify-fork-pr job below — the claude job's `if:`
+  # has no pull_request_target clause, so it stays skipped on this event.
+  # Restricted to `opened` so we comment once per fork PR, not on every push.
+  pull_request_target:
+    types:
+    - opened
 
 jobs:
   claude:
     # Only trusted authors can trigger @claude interactions.
-    # Auto-review on pull_request events is unrestricted.
+    # Auto-review on pull_request events is unrestricted — except on:
+    #   - drafts (should not burn CI time)
+    #   - dependabot PRs (claude-code-action's allowed_bots gate hard-fails
+    #     on dependabot[bot]; nothing useful to review on dep bumps anyway)
+    #   - fork PRs (GitHub downgrades id-token: write to read-only on fork
+    #     pull_request events, so the action can't mint an OIDC token and
+    #     the run errors out; maintainers can still trigger review on a
+    #     fork PR via @claude in an issue_comment, which runs in the base
+    #     repo's context with full permissions)
+    # Explicit @claude mentions on a draft still fire via
+    # issue_comment / review_comment / review and are allowed.
     if: >-
-      (github.event_name == 'pull_request') ||
+      (github.event_name == 'pull_request' &&
+       github.event.pull_request.draft != true &&
+       github.event.pull_request.user.login != 'dependabot[bot]' &&
+       github.event.pull_request.head.repo.fork != true) ||
       (github.event_name == 'issue_comment' &&
        contains(github.event.comment.body, '@claude') &&
        contains(fromJSON('["MEMBER","OWNER","COLLABORATOR"]'),
@@ -53,6 +101,11 @@ jobs:
        contains(github.event.review.body, '@claude') &&
        contains(fromJSON('["MEMBER","OWNER","COLLABORATOR"]'),
        github.event.review.author_association)) ||
+      (github.event_name == 'pull_request_review' &&
+       github.event.review.state == 'changes_requested' &&
+       github.event.pull_request.user.type == 'Bot' &&
+       contains(fromJSON('["MEMBER","OWNER","COLLABORATOR"]'),
+       github.event.review.author_association)) ||
       (github.event_name == 'issues' &&
        (contains(github.event.issue.body, '@claude') ||
        contains(github.event.issue.title, '@claude')) &&
@@ -60,7 +113,10 @@ jobs:
        github.event.issue.author_association))
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    continue-on-error: true
+    # Do not swallow failures silently. If the action itself can't run
+    # (e.g. bun install rate-limited, auth broken), we want the job to
+    # fail visibly rather than appear green while Claude never executed.
+    continue-on-error: false
     environment: claude
     permissions:
       contents: write
@@ -74,15 +130,72 @@ jobs:
         fetch-depth: 1
         persist-credentials: false
 
+    - name: Set up git credentials
+      run: gh auth setup-git
+      env:
+        GH_TOKEN: ${{ github.token }}
+
     - name: Set up uv + Python
       # yamllint disable-line rule:line-length
-      uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78  # v7.6.0
+      uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b  # v8.1.0
       with:
+        # Pin uv so setup-uv does not query the GitHub API to resolve
+        # a matching release from pyproject.toml's required-version
+        # range. Each API call counts against the repo's installation
+        # rate limit; with this workflow + botocore-sync + matrix CI
+        # runs it is easy to exhaust and break zizmor. See ci-cd.yml.
+        version: '0.11.7'
         python-version: '3.12'
         enable-cache: auto
 
+    # Cache .venv — setup-uv covers the download cache (wheels) but
+    # `uv sync` still walks the lockfile and re-links the venv. Keyed
+    # on uv.lock + pyproject.toml so any dep change invalidates.
+    - name: Cache .venv
+      # yamllint disable-line rule:line-length
+      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae  # v5.0.5
+      with:
+        path: .venv
+        # yamllint disable-line rule:line-length
+        key: venv-${{ runner.os }}-py3.12-${{ hashFiles('uv.lock', 'pyproject.toml') }}
+
     - name: Install dependencies
-      run: uv sync
+      run: uv sync --frozen
+
+    # Pre-install bun and hand its path to claude-code-action so the
+    # action's bundled setup-bun step (which would otherwise resolve a
+    # `1.3.6` pin via the GitHub tags API and get 403 rate-limited on
+    # the shared installation token) is skipped entirely. The action
+    # has a `path_to_bun_executable` input specifically for this
+    # case: when set, its `Setup Bun` step is bypassed.
+    #
+    # We use `bun-download-url` on our own setup-bun call to point
+    # straight at the releases-download CDN — also to avoid the API.
+    - name: Install bun
+      # yamllint disable-line rule:line-length
+      uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6  # v2.2.0
+      with:
+        # yamllint disable-line rule:line-length
+        bun-download-url: "https://github.com/oven-sh/bun/releases/latest/download/bun-linux-x64.zip"
+
+    # Must run BEFORE the "Read prompt" step: its outputs feed into
+    # IS_FORK which is substituted into the prompt. On issue_comment
+    # events `github.event.pull_request` does not exist (that payload
+    # field is only on pull_request* events), so without this step
+    # IS_FORK would fall through to the 'false' default even on fork
+    # PR `@claude` mentions — the downstream commit hook would still
+    # enforce correctly, but the agent's in-prompt IS_FORK would lie.
+    - name: Resolve PR metadata
+      id: pr_meta
+      if: github.event.issue.pull_request != null
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        meta=$(gh pr view ${{ github.event.issue.number }} \
+          --json headRefName,isCrossRepository \
+          --jq '{branch: .headRefName, fork: .isCrossRepository}')
+        echo "branch=$(echo "$meta" | jq -r .branch)" >> "$GITHUB_OUTPUT"
+        echo "is_fork=$(echo "$meta" | jq -r .fork)" >> "$GITHUB_OUTPUT"
 
     - name: Read prompt
       id: prompt
@@ -90,33 +203,77 @@ jobs:
         REPO: ${{ github.repository }}
         NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
         EVENT_NAME: ${{ github.event_name }}
+        # yamllint disable-line rule:line-length
+        IS_PR: ${{ github.event_name != 'issues' && (github.event_name != 'issue_comment' || github.event.issue.pull_request != null) }}
+        # yamllint disable-line rule:line-length
+        IS_FORK: ${{ github.event.pull_request.head.repo.fork || steps.pr_meta.outputs.is_fork || 'false' }}
+        COMMENT_ID: ${{ github.event.comment.id || '' }}
       run: |
-        # Substitute env vars into prompt
-        prompt=$(envsubst < .github/claude-review-prompt.md)
+        # Substitute ONLY the documented template placeholders. Without
+        # this allowlist, envsubst expands every $VAR in the file —
+        # including shell variables used inside bash examples (like
+        # $PARENT_ID) and GraphQL query variables ($owner, $name, $pr),
+        # which would silently become empty strings.
+        # yamllint disable-line rule:line-length
+        prompt=$(envsubst '$REPO $NUMBER $EVENT_NAME $IS_PR $IS_FORK $COMMENT_ID' < .github/claude-review-prompt.md)
         {
           echo 'PROMPT<<PROMPT_EOF'
           echo "$prompt"
           echo 'PROMPT_EOF'
         } >> "$GITHUB_OUTPUT"
 
-    - uses: anthropics/claude-code-action@df37d2f0760a4b5683a6e617c9325bc1a36443f6
+    # yamllint disable-line rule:line-length
+    - uses: anthropics/claude-code-action@e58dfa55559035499a4982426bb73605e8b5ad8e  # v1.0.105
       id: claude
+      env:
+        CLAUDE_BRANCH: ${{ steps.pr_meta.outputs.branch || '' }}
+        IS_FORK: ${{ steps.pr_meta.outputs.is_fork || 'false' }}
       with:
         anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
         use_commit_signing: true
         display_report: true
         show_full_output: true
         allowed_bots: "claude[bot]"
+        # Collapse re-review reports into one evolving PR comment
+        # instead of posting a new summary on every synchronize push.
+        use_sticky_comment: true
+        # Show tracking comments during long-running runs so reviewers
+        # see progress instead of a silent ~30s–30min gap.
+        track_progress: true
+        # Skip the action's bundled setup-bun step — we installed bun
+        # ourselves above via the rate-limit-safe download URL.
+        path_to_bun_executable: /home/runner/.bun/bin/bun
+        # Register the repo-local plugin so /aiobotocore-bot:review-pr
+        # and /aiobotocore-bot:analyze-pr-feedback are available. Uses
+        # a local path (relative to the repo checkout) so PR branches
+        # test their own plugin edits — see
+        # https://github.com/anthropics/claude-code-action/pull/761.
+        plugin_marketplaces: ./.
+        plugins: aiobotocore-bot@aiobotocore
         prompt: ${{ steps.prompt.outputs.PROMPT }}
+        # --plugin-dir is the SDK-level plugin-load path. `plugin_marketplaces` +
+        # `plugins` above run `claude plugin install`, which writes to user
+        # scope, but the SDK spawns claude with its own flags and doesn't
+        # auto-discover user-scope plugins reliably — the Skill tool returns
+        # "Unknown skill: aiobotocore-bot:*" without this flag. Tracked upstream
+        # at anthropics/claude-code-action#1145.
         claude_args: |
           --dangerously-skip-permissions
+          --plugin-dir plugins/aiobotocore-bot
+          --model opus
         # yamllint disable rule:line-length
         settings: |
           {
             "hooks": {
               "PreToolUse": [{
                 "matcher": "Bash",
-                "command": "if echo \"$TOOL_INPUT\" | grep -qE '\\bgit commit\\b'; then echo 'BLOCKED: Use mcp__github_file_ops__commit_files instead of git commit. This ensures commits are signed.' >&2; exit 2; fi"
+                "command": "if echo \"$TOOL_INPUT\" | grep -qE '\\bgit commit\\b'; then echo 'BLOCKED: Use mcp__github_file_ops__commit_files instead of git commit. git commit produces unsigned commits which block PR merges.' >&2; exit 2; fi"
+              }, {
+                "matcher": "Bash",
+                "command": "if echo \"$TOOL_INPUT\" | grep -qE '\\bgit push\\b.*(\\bmain\\b|\\bmaster\\b|:main\\b|:master\\b)'; then echo 'BLOCKED: Never push directly to main/master.' >&2; exit 2; fi"
+              }, {
+                "matcher": "mcp__github_file_ops__commit_files",
+                "command": "if [ \"$IS_FORK\" = 'true' ]; then echo 'BLOCKED: This PR is from a fork. Never push commits to fork branches — leave review comments only.' >&2; exit 2; fi"
               }]
             }
           }
@@ -129,3 +286,28 @@ jobs:
         EXEC_FILE: >-
           ${{ steps.claude.outputs.execution_file }}
       run: python3 .github/usage-summary.py
+
+  # Posts a one-time explanatory comment on fork PRs, since the claude job
+  # above skips them (GitHub downgrades id-token: write to read-only on fork
+  # pull_request events, breaking OIDC). Runs on pull_request_target so it
+  # has the base repo's GITHUB_TOKEN with pull-requests: write — safe because
+  # we never check out the fork SHA or execute any fork-supplied content;
+  # the comment body is hardcoded and we only read the PR number from the
+  # event payload.
+  notify-fork-pr:
+    if: >-
+      github.event_name == 'pull_request_target' &&
+      github.event.pull_request.head.repo.fork == true
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      pull-requests: write
+    steps:
+    - name: Comment on fork PR
+      env:
+        GH_TOKEN: ${{ github.token }}
+        PR: ${{ github.event.pull_request.number }}
+        REPO: ${{ github.repository }}
+        # yamllint disable-line rule:line-length
+        BODY: "Thanks for the contribution! Automated Claude review is disabled on fork PRs because GitHub Actions restricts the OIDC token on them. A maintainer can trigger a review by commenting `@claude please review` once they have had a chance to look at the PR."
+      run: gh pr comment "$PR" --repo "$REPO" --body "$BODY"
