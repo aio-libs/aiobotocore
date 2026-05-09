@@ -1,6 +1,5 @@
 import asyncio
 import contextlib
-from typing import Optional
 
 from botocore import UNSIGNED, translate
 from botocore import __version__ as botocore_version
@@ -132,8 +131,8 @@ class AioSession(_SyncSession):
 
     def warm_up_loader_caches(
         self,
-        service_name: Optional[str] = None,
-        api_version: Optional[str] = None,
+        service_name: str | None = None,
+        api_version: str | None = None,
     ):
         loader = self.get_component('data_loader')
 
