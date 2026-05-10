@@ -144,7 +144,7 @@ jobs:
         # range. Each API call counts against the repo's installation
         # rate limit; with this workflow + botocore-sync + matrix CI
         # runs it is easy to exhaust and break zizmor. See ci-cd.yml.
-        version: '0.11.7'
+        version: '0.11.12'
         python-version: '3.12'
         enable-cache: auto
 
