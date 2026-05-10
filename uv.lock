@@ -40,7 +40,6 @@ dev = [
     { name = "anyio" },
     { name = "dill" },
     { name = "docker" },
-    { name = "docutils" },
     { name = "moto", extra = ["awslambda", "batch", "cloudformation", "dynamodb", "s3", "server"] },
     { name = "packaging" },
     { name = "pre-commit" },
@@ -76,7 +75,6 @@ dev = [
     { name = "anyio", specifier = ">=4.11.0" },
     { name = "dill", specifier = ">=0.3.3,<0.5" },
     { name = "docker", specifier = ">=7.1,<8" },
-    { name = "docutils", specifier = ">=0.19,<0.23" },
     { name = "moto", extras = ["server", "s3", "sqs", "awslambda", "dynamodb", "cloudformation", "sns", "batch", "ec2", "rds"], specifier = ">=5.1.8,<6" },
     { name = "packaging", specifier = ">=24.1,<27" },
     { name = "pre-commit", specifier = ">=3.5.0,<5" },
@@ -811,15 +809,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/e0/4d/f332313098c1de1b2d2ff91cf2674415cc7cddab2ca1b01ae29774bd5fdf/docstring_parser-0.18.0.tar.gz", hash = "sha256:292510982205c12b1248696f44959db3cdd1740237a968ea1e2e7a900eeb2015", size = 29341, upload-time = "2026-04-14T04:09:19.867Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/a7/5f/ed01f9a3cdffbd5a008556fc7b2a08ddb1cc6ace7effa7340604b1d16699/docstring_parser-0.18.0-py3-none-any.whl", hash = "sha256:b3fcbed555c47d8479be0796ef7e19c2670d428d72e96da63f3a40122860374b", size = 22484, upload-time = "2026-04-14T04:09:18.638Z" },
-]
-
-[[package]]
-name = "docutils"
-version = "0.22.4"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/ae/b6/03bb70946330e88ffec97aefd3ea75ba575cb2e762061e0e62a213befee8/docutils-0.22.4.tar.gz", hash = "sha256:4db53b1fde9abecbb74d91230d32ab626d94f6badfc575d6db9194a49df29968", size = 2291750, upload-time = "2025-12-18T19:00:26.443Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/02/10/5da547df7a391dcde17f59520a231527b8571e6f46fc8efb02ccb370ab12/docutils-0.22.4-py3-none-any.whl", hash = "sha256:d0013f540772d1420576855455d050a2180186c91c15779301ac2ccb3eeb68de", size = 633196, upload-time = "2025-12-18T19:00:18.077Z" },
 ]
 
 [[package]]
