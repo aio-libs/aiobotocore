@@ -25,7 +25,7 @@ jobs:
         # Pin uv so setup-uv skips the GitHub release-list API lookup
         # that otherwise resolves pyproject.toml's required-version
         # range. See claude.yml for the full reasoning.
-        version: '0.11.7'
+        version: '0.11.12'
         enable-cache: | # zizmor: ignore[cache-poisoning] cache is disabled when publishing to prevent poisoning
           ${{ github.ref_type == 'tag' && 'false' || 'auto' }}
     - name: Build distribution 📦
