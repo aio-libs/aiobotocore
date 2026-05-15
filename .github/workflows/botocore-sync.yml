@@ -275,7 +275,7 @@ jobs:
         } >> "$GITHUB_OUTPUT"
 
     # yamllint disable-line rule:line-length
-    - uses: anthropics/claude-code-action@fefa07e9c665b7320f08c3b525980457f22f58aa  # v1.0.111
+    - uses: anthropics/claude-code-action@034cbdb008291e7eeeac420d315fc3b45fca3781  # v1.0.117
       id: claude
       with:
         anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -490,7 +490,7 @@ jobs:
         } >> "$GITHUB_OUTPUT"
 
     # yamllint disable-line rule:line-length
-    - uses: anthropics/claude-code-action@fefa07e9c665b7320f08c3b525980457f22f58aa  # v1.0.111
+    - uses: anthropics/claude-code-action@034cbdb008291e7eeeac420d315fc3b45fca3781  # v1.0.117
       id: claude
       env:
         CLAUDE_BRANCH: claude/botocore-sync
