@@ -144,7 +144,7 @@ jobs:
         # range. Each API call counts against the repo's installation
         # rate limit; with this workflow + botocore-sync + matrix CI
         # runs it is easy to exhaust and break zizmor. See ci-cd.yml.
-        version: '0.11.7'
+        version: '0.11.12'
         python-version: '3.12'
         enable-cache: auto
 
@@ -158,6 +158,18 @@ jobs:
         path: .venv
         # yamllint disable-line rule:line-length
         key: venv-${{ runner.os }}-py3.12-${{ hashFiles('uv.lock', 'pyproject.toml') }}
+
+    # Cache pre-commit's per-hook environments. Without this the
+    # agent's pre-commit run re-clones every hook repo (ruff,
+    # yamllint, rumdl, sphinx-lint, check-jsonschema, ...) and
+    # rebuilds their venvs every workflow run.
+    - name: Cache pre-commit hook envs
+      # yamllint disable-line rule:line-length
+      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae  # v5.0.5
+      with:
+        path: ~/.cache/pre-commit
+        key: pre-commit-${{ runner.os }}-${{ hashFiles('.pre-commit-config.yaml') }}
+        restore-keys: pre-commit-${{ runner.os }}-
 
     - name: Install dependencies
       run: uv sync --frozen
@@ -223,7 +235,7 @@ jobs:
         } >> "$GITHUB_OUTPUT"
 
     # yamllint disable-line rule:line-length
-    - uses: anthropics/claude-code-action@fefa07e9c665b7320f08c3b525980457f22f58aa  # v1.0.111
+    - uses: anthropics/claude-code-action@034cbdb008291e7eeeac420d315fc3b45fca3781  # v1.0.117
       id: claude
       env:
         CLAUDE_BRANCH: ${{ steps.pr_meta.outputs.branch || '' }}
@@ -257,10 +269,18 @@ jobs:
         # auto-discover user-scope plugins reliably — the Skill tool returns
         # "Unknown skill: aiobotocore-bot:*" without this flag. Tracked upstream
         # at anthropics/claude-code-action#1145.
+        # Sonnet for default PR-review and @claude responses. Code review
+        # is well within Sonnet's range -- diff-walk + project-rules check
+        # against CLAUDE.md is largely mechanical, the same shape as the
+        # botocore-sync classifier that already runs on Sonnet at ~$0.10
+        # per run vs ~$1+ for Opus. PR-review traffic is high (every push
+        # to every open PR triggers a run) so the cost gap compounds.
+        # Escalate to Opus selectively if a specific @claude task needs
+        # it -- a follow-up could route based on prompt content / labels.
         claude_args: |
           --dangerously-skip-permissions
           --plugin-dir plugins/aiobotocore-bot
-          --model opus
+          --model sonnet
         # yamllint disable rule:line-length
         settings: |
           {

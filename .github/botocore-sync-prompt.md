@@ -29,6 +29,39 @@ existing aiobotocore mirror (those are out of scope per `port-tests` skill rules
 If `$CLASSIFIER_VERDICT` is empty (rare — only when the classify job failed entirely),
 re-run the classifier yourself in Step 3 as a fallback.
 
+## Pre-set-up environment
+
+The workflow has already prepared everything you need — do NOT re-clone, re-install, or
+re-discover these:
+
+- **aiobotocore checkout** at `$PWD` with full git history (`fetch-depth: 0`), so
+  `git diff origin/main` and `git log` work without further fetches.
+- **botocore bare clone** at `/tmp/botocore` (all tags + branches). Use it for source
+  diffs between versions without cloning your own copy:
+
+  ```text
+  git -C /tmp/botocore diff $LAST_SUPPORTED..$LATEST_BOTOCORE -- botocore/
+  git -C /tmp/botocore show $LATEST_BOTOCORE:botocore/path/file.py
+  ```
+
+- **Python venv at `.venv/`** with botocore **$LATEST_BOTOCORE** already installed.
+  The workflow ran:
+
+  ```text
+  uv sync --frozen
+  uv pip install "botocore==$LATEST_BOTOCORE"
+  ```
+
+  Prefer `uv run --no-sync` for Python invocations so the lockfile walk is skipped.
+  The installed botocore source is at:
+
+  ```text
+  .venv/lib/python3.12/site-packages/botocore/
+  ```
+
+  Do NOT run `uv sync` or `uv pip install botocore==…` again unless a step explicitly
+  needs a different version.
+
 ## Configuration
 
 - ENABLE_BUMP: $ENABLE_BUMP (if false, bumps create a feedback issue instead of attempting code changes)
@@ -180,9 +213,11 @@ gh api repos/REPO/pulls/PR_NUM/reviews \
 
 *Open + dirty-and-active:* proceed to Step 3 to determine update type, then:
 
-- If **no-port**: safe to apply in-place on the dirty branch. Only update `pyproject.toml` upper bound,
-  `aiobotocore/__init__.py` version, `CHANGES.rst`, and `uv.lock` via `/aiobotocore-bot:bump-version
-  --mode=no-port --target=$LATEST_BOTOCORE`. Do NOT reset the branch. Update PR title and description.
+- If **no-port**: safe to apply in-place on the dirty branch. Only update `pyproject.toml` upper bound
+  and `uv.lock` via `/aiobotocore-bot:update-botocore-bounds --mode=no-port --target=$LATEST_BOTOCORE`.
+  (`aiobotocore/__init__.py` and `CHANGES.rst` are no longer touched per PR — the next
+  `/aiobotocore-bot:draft-release` run picks up the bound change at release time.) Do NOT reset the
+  branch. Update PR title and description.
 - If **port-required**: do NOT modify the branch. Post a comment on the PR (replacing any previous botocore-sync-bot
   comment) stating: "Botocore $LATEST_BOTOCORE is available but requires code changes. Upgrade is blocked on this
   PR. [botocore diff link]". To replace, search for comments containing "botocore-sync-bot" and delete before
@@ -238,10 +273,11 @@ minor-bump port would be insufficient. A human decides the approach.
 
 ### Run hash tests as a sanity check
 
+The venv already has botocore $LATEST_BOTOCORE installed (see "Pre-set-up environment"
+above) — run the tests directly:
+
 ```text
-uv sync --all-extras
-uv pip install "botocore==$LATEST_BOTOCORE"
-uv run pytest tests/test_patches.py -x -v 2>&1
+uv run --no-sync pytest tests/test_patches.py -x -v 2>&1
 ```
 
 Hashes are a SIGNAL that helps confirm the classifier's decision — they catch changes to code we already patch.
@@ -256,12 +292,14 @@ what changes are needed. Do not attempt code changes.
 
 ## Step 4: No-port path
 
-Run `/aiobotocore-bot:bump-version --mode=no-port --target=$LATEST_BOTOCORE`. The skill:
+Run `/aiobotocore-bot:update-botocore-bounds --mode=no-port --target=$LATEST_BOTOCORE`. The skill:
 
 - Updates the `pyproject.toml` upper bound (lower bound unchanged)
-- Bumps `aiobotocore/__init__.py` PATCH version
-- Inserts a `CHANGES.rst` entry with the correct `^` underline length
-- Runs `uv lock` to update `uv.lock`
+- Runs `uv lock --upgrade-package boto3 --upgrade-package botocore`
+
+It does NOT touch `aiobotocore/__init__.py` or `CHANGES.rst` — those are owned by
+`/aiobotocore-bot:draft-release` at release time, which synthesizes the changelog from
+merged PRs and computes the right version bump.
 
 If new botocore functions we depend on appear in the diff, also add their hashes to `tests/test_patches.py`.
 
@@ -309,8 +347,10 @@ feedback instead of guessing.
    `aiobotocore/` and the target version of `botocore/` to confirm the changes were
    propagated everywhere they should be — it's easy to miss a secondary caller. This
    is `CONTRIBUTING.rst` §"How to Upgrade Botocore" step 4.
-4. Run `/aiobotocore-bot:bump-version --mode=port --target=$LATEST_BOTOCORE`. The skill updates both
-   `pyproject.toml` bounds, bumps MINOR version, writes the `CHANGES.rst` entry, and runs `uv lock`.
+4. Run `/aiobotocore-bot:update-botocore-bounds --mode=port --target=$LATEST_BOTOCORE`. The skill
+   updates both `pyproject.toml` bounds and runs `uv lock`. It does NOT touch
+   `aiobotocore/__init__.py` or `CHANGES.rst` — `draft-release` handles those at release time and
+   will choose a MINOR (or higher) bump because this is a port-required sync.
 5. Run `/aiobotocore-bot:port-tests --from=$LAST_SUPPORTED --to=$LATEST_BOTOCORE`. The skill identifies
    new/changed tests in the botocore diff for files that have an aiobotocore mirror, applies the
    sync→async conversion rules, validates each ported file with `pytest -x`, and commits on pass.

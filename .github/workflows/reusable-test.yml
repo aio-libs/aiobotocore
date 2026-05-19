@@ -54,9 +54,33 @@ jobs:
         # Pin uv so setup-uv skips the GitHub release-list API lookup
         # that otherwise resolves pyproject.toml's required-version
         # range. See claude.yml for the full reasoning.
-        version: '0.11.7'
+        version: '0.11.12'
         python-version: ${{ inputs.python-version }}
         enable-cache: ${{ inputs.enable-cache }}
+    # ``setup-uv`` above caches uv's wheel-download cache; this caches
+    # the rendered ``.venv`` so ``uv sync`` skips the venv re-link on a
+    # hot path. Keyed on lockfile + pyproject so any dep change
+    # invalidates; awscrt is part of the key because that path syncs an
+    # extra group.
+    - name: Cache .venv
+      # yamllint disable-line rule:line-length
+      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae  # v5.0.5
+      with:
+        path: .venv
+        # yamllint disable-line rule:line-length
+        key: venv-${{ runner.os }}-py${{ inputs.python-version }}-${{ inputs.with-awscrt && 'awscrt-' || '' }}${{ hashFiles('uv.lock', 'pyproject.toml') }}
+    # Cache pre-commit's per-hook environments. Without this, every
+    # matrix job re-clones every hook repo (ruff, yamllint, rumdl,
+    # sphinx-lint, check-jsonschema, ...) and rebuilds their venvs.
+    # Restore-keys lets a partial hit salvage most of the cache when
+    # a single hook bumps.
+    - name: Cache pre-commit hook envs
+      # yamllint disable-line rule:line-length
+      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae  # v5.0.5
+      with:
+        path: ~/.cache/pre-commit
+        key: pre-commit-${{ runner.os }}-${{ hashFiles('.pre-commit-config.yaml') }}
+        restore-keys: pre-commit-${{ runner.os }}-
     - name: Install awscrt
       if: ${{ inputs.with-awscrt }}
       run: |

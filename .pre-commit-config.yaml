@@ -22,7 +22,7 @@ repos:
   - id: ruff-format
 - repo: https://github.com/astral-sh/uv-pre-commit
   # yamllint disable-line rule:line-length
-  rev: 0397b68f6f88c024f1d2b355a9818779f6336d16  # 0.11.3
+  rev: c58479ef13b52c53ef39c6481614eba04d78b46f  # 0.11.12
   hooks:
   - id: uv-lock
 - repo: https://github.com/adrienverge/yamllint
@@ -36,6 +36,11 @@ repos:
   rev: e25bab4ecdcb2d86aaf956ad89f9ccda55e226ab  # v0.1.74
   hooks:
   - id: rumdl
+- repo: https://github.com/sphinx-contrib/sphinx-lint
+  # yamllint disable-line rule:line-length
+  rev: c883505f64b59c3c5c9375191e4ad9f98e727ccd  # v1.0.2
+  hooks:
+  - id: sphinx-lint
 - repo: https://github.com/python-jsonschema/check-jsonschema
   # yamllint disable-line rule:line-length
   rev: ba8f7ac0e0c0d25bae15b628b634316e7d201db5  # 0.36.1

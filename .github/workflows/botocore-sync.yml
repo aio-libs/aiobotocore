@@ -193,7 +193,7 @@ jobs:
       # yamllint disable-line rule:line-length
       uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b  # v8.1.0
       with:
-        version: '0.11.7'
+        version: '0.11.12'
         python-version: '3.12'
         enable-cache: auto
 
@@ -204,6 +204,17 @@ jobs:
         path: .venv
         # yamllint disable-line rule:line-length
         key: venv-${{ runner.os }}-py3.12-${{ hashFiles('uv.lock', 'pyproject.toml') }}
+
+    # Cache pre-commit's per-hook environments. Without this every
+    # workflow run re-clones every hook repo (ruff, yamllint, rumdl,
+    # sphinx-lint, check-jsonschema, ...) and rebuilds their venvs.
+    - name: Cache pre-commit hook envs
+      # yamllint disable-line rule:line-length
+      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae  # v5.0.5
+      with:
+        path: ~/.cache/pre-commit
+        key: pre-commit-${{ runner.os }}-${{ hashFiles('.pre-commit-config.yaml') }}
+        restore-keys: pre-commit-${{ runner.os }}-
 
     - name: Install dependencies
       run: uv sync --frozen
@@ -264,7 +275,7 @@ jobs:
         } >> "$GITHUB_OUTPUT"
 
     # yamllint disable-line rule:line-length
-    - uses: anthropics/claude-code-action@fefa07e9c665b7320f08c3b525980457f22f58aa  # v1.0.111
+    - uses: anthropics/claude-code-action@034cbdb008291e7eeeac420d315fc3b45fca3781  # v1.0.117
       id: claude
       with:
         anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -391,7 +402,7 @@ jobs:
       uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b  # v8.1.0
       with:
         # Pin uv — see claude.yml comment. Same rate-limit concern.
-        version: '0.11.7'
+        version: '0.11.12'
         python-version: '3.12'
         enable-cache: auto
 
@@ -407,8 +418,27 @@ jobs:
         # yamllint disable-line rule:line-length
         key: venv-${{ runner.os }}-py3.12-${{ hashFiles('uv.lock', 'pyproject.toml') }}
 
+    # Cache pre-commit's per-hook environments (same rationale as the
+    # classify job above).
+    - name: Cache pre-commit hook envs
+      # yamllint disable-line rule:line-length
+      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae  # v5.0.5
+      with:
+        path: ~/.cache/pre-commit
+        key: pre-commit-${{ runner.os }}-${{ hashFiles('.pre-commit-config.yaml') }}
+        restore-keys: pre-commit-${{ runner.os }}-
+
     - name: Install dependencies
       run: uv sync --frozen
+
+    # Pre-install the target botocore version so the agent can immediately
+    # inspect the new source (for hash refresh + diff context) without a
+    # discovery + install round-trip. `uv pip install` is idempotent and
+    # fast when the version is already cached.
+    - name: Install target botocore
+      env:
+        LATEST_BOTOCORE: ${{ needs.detect.outputs.latest_botocore }}
+      run: uv pip install "botocore==$LATEST_BOTOCORE"
 
     - name: Cache botocore repo
       uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae  # v5.0.5
@@ -469,7 +499,7 @@ jobs:
         } >> "$GITHUB_OUTPUT"
 
     # yamllint disable-line rule:line-length
-    - uses: anthropics/claude-code-action@fefa07e9c665b7320f08c3b525980457f22f58aa  # v1.0.111
+    - uses: anthropics/claude-code-action@034cbdb008291e7eeeac420d315fc3b45fca3781  # v1.0.117
       id: claude
       env:
         CLAUDE_BRANCH: claude/botocore-sync
@@ -479,7 +509,7 @@ jobs:
         display_report: true
         show_full_output: true
         # Register the repo-local plugin so skills (check-async-need,
-        # bump-version, open-pr, port-tests, etc.) are discoverable by
+        # update-botocore-bounds, open-pr, port-tests, etc.) are discoverable by
         # the Skill tool. See claude.yml for the companion comment on
         # why --plugin-dir is also needed — without both, Skill-tool
         # invocations return "Unknown skill: aiobotocore-bot:*" and the
@@ -496,7 +526,7 @@ jobs:
         # Opus, matching the prior single-job behavior.
         claude_args: |
           --dangerously-skip-permissions
-          --max-turns 100
+          --max-turns 150
           --model ${{ needs.classify.outputs.verdict == 'no-port' && 'sonnet' || 'opus' }}
           --plugin-dir plugins/aiobotocore-bot
         # yamllint disable rule:line-length

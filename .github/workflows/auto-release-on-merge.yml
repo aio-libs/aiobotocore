@@ -1,0 +1,171 @@
+---
+name: Auto-release on merge
+
+run-name: >-
+  Release: ${{ github.event.pull_request.title }}
+
+permissions: {}
+
+# When a `Release vX.Y.Z` PR is merged, this workflow:
+#
+# 1. ``tag-and-release`` job -- creates the signed annotated tag at
+#    the merge commit and a non-draft GitHub Release whose body is
+#    extracted from the new entry in ``CHANGES.rst`` (single source
+#    of truth, written by the ``draft-release`` skill and validated
+#    by ``tests/test_version.py``). Uses ``gh release create
+#    --target ...`` which routes through the Releases API; tags
+#    created that way are signed by GitHub's web-flow key and the
+#    tag ref is created immediately (draft Releases would defer tag
+#    creation until publish, which would break the dispatch step
+#    below -- see #1600 for the trail).
+# 2. The same job, last step -- dispatches ``ci-cd.yml`` via
+#    ``gh workflow run ... --ref $VERSION -f tag=$VERSION``. The
+#    dispatched run does the actual PyPI publish.
+#
+# **Why dispatch instead of inline publish?** PyPI's Trusted
+# Publisher for this project is configured against ``ci-cd.yml``,
+# and PyPI does not currently support reusable workflows for
+# Trusted Publishing (#1595's first publish failed with exactly
+# that mismatch). Triggering ``ci-cd.yml`` via ``workflow_dispatch``
+# (one of the few event types that fires from ``GITHUB_TOKEN``-
+# driven calls, alongside ``repository_dispatch``) makes
+# ``ci-cd.yml`` the OIDC entry point -- ``workflow_ref`` matches
+# PyPI's config, no reusable-workflow warning, publish succeeds.
+#
+# **Could the tag-push trigger ci-cd.yml directly?** No. Tags
+# created here are created under ``GITHUB_TOKEN`` context, and
+# GitHub's loop-prevention rule blocks ``GITHUB_TOKEN``-driven
+# events from triggering other workflows. ``workflow_dispatch`` is
+# the explicit escape hatch -- it's the only event type that fires
+# from ``GITHUB_TOKEN``. (A future PR could replace the dispatch
+# with a PAT/App-token-driven tag push, which WOULD fire the
+# tag-push trigger and skip the dispatch entirely; that's a
+# heavier infra commitment for a marginal cleanup.)
+#
+# **Why no ``--draft``?** A maintainer-controlled draft → publish
+# step would let us gate visibility on PyPI confirmation, but
+# draft Releases don't create the tag ref, which prevents the
+# dispatch from finding ``--ref $VERSION``. The trade-off accepted
+# here: the GitHub Release becomes visible the moment this job
+# completes, and PyPI catches up ~5-10 min later when the
+# dispatched ci-cd.yml run finishes. If a watcher hits the release
+# page during that window, ``pip install`` returns nothing for
+# seconds-to-minutes. Acceptable.
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+# Serialize: two ``Release v...`` merges back-to-back must not race on
+# tag creation or Release creation. Extremely unlikely in practice but
+# cheap insurance.
+concurrency:
+  group: auto-release-on-merge
+
+jobs:
+  tag-and-release:
+    if: >-
+      github.event.pull_request.merged &&
+      startsWith(github.event.pull_request.title, 'Release v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write  # gh release create
+      actions: write   # gh workflow run ci-cd.yml
+    steps:
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+      with:
+        ref: ${{ github.event.pull_request.merge_commit_sha }}
+        # Need __init__.py for the version sanity check, CHANGES.rst
+        # for the release notes, and scripts/changelog.py for the
+        # parser/extractor (shared with tests/test_version.py).
+        sparse-checkout: |
+          aiobotocore/__init__.py
+          CHANGES.rst
+          scripts/changelog.py
+        sparse-checkout-cone-mode: false
+        persist-credentials: false
+
+    - name: Extract version + release notes from CHANGES.rst
+      id: ver
+      env:
+        PR_TITLE: ${{ github.event.pull_request.title }}
+      # CHANGES.rst is the single source of truth -- written by the
+      # ``draft-release`` skill, validated by ``tests/test_version.py``
+      # (which uses the same ``scripts/changelog.py`` parser called
+      # below). Three checks here:
+      #   1. ``__init__.py`` version is parseable.
+      #   2. PR title's ``Release vX.Y.Z`` matches that version.
+      #   3. CHANGES.rst's top entry matches that version (via
+      #      ``scripts/changelog.py validate --expected-top-version``).
+      # Then ``scripts/changelog.py extract`` pulls the bullets for
+      # this release; those become the GitHub Release notes verbatim.
+      run: |
+        v=$(grep -oP "__version__\s*=\s*['\"]\\K[0-9]+\.[0-9]+\.[0-9]+" \
+          aiobotocore/__init__.py)
+        if [ -z "$v" ]; then
+          echo "::error::Could not parse version from aiobotocore/__init__.py"
+          exit 1
+        fi
+        title_v=$(echo "$PR_TITLE" \
+          | grep -oP 'Release v\K[0-9]+\.[0-9]+\.[0-9]+')
+        if [ "$title_v" != "$v" ]; then
+          echo "::error::PR title version ($title_v) doesn't match __init__.py ($v)"
+          exit 1
+        fi
+        python3 scripts/changelog.py validate --expected-top-version "$v"
+        notes=$(python3 scripts/changelog.py extract --version "$v")
+        if [ -z "$notes" ]; then
+          echo "::error::Empty release notes extracted for ${v}"
+          exit 1
+        fi
+        echo "version=$v" >> "$GITHUB_OUTPUT"
+        {
+          echo 'NOTES<<NOTES_EOF'
+          echo "$notes"
+          echo 'NOTES_EOF'
+        } >> "$GITHUB_OUTPUT"
+
+    - name: Create signed tag + GitHub Release
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        VERSION: ${{ steps.ver.outputs.version }}
+        MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha }}
+        NOTES: ${{ steps.ver.outputs.NOTES }}
+      # ``gh release create --target <SHA>`` (without ``--draft``)
+      # routes through the Releases API, which creates AND signs
+      # the tag at the target commit immediately. The tag ref is
+      # then available as ``refs/tags/$VERSION`` for the dispatch
+      # step below. Plain ``git tag -a`` + ``git push`` from the
+      # runner cannot sign (no key on the runner), and the REST
+      # ``git/tags`` endpoint doesn't sign either (GitHub
+      # Community #69847, #27016).
+      run: |
+        gh release create "$VERSION" \
+          --repo "$GITHUB_REPOSITORY" \
+          --target "$MERGE_SHA" \
+          --title "$VERSION" \
+          --notes "$NOTES"
+
+    - name: Dispatch ci-cd.yml to publish to PyPI
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        VERSION: ${{ steps.ver.outputs.version }}
+      # Trigger ``ci-cd.yml`` via ``workflow_dispatch`` so the actual
+      # PyPI publish runs from there. PyPI's Trusted Publisher matches
+      # against the OIDC token's ``workflow_ref``, which for a
+      # workflow_dispatch run is ``ci-cd.yml`` -- the workflow PyPI
+      # already trusts. ``workflow_dispatch`` and ``repository_dispatch``
+      # are the only event types that fire from ``GITHUB_TOKEN``-driven
+      # calls (the loop-prevention rule blocks everything else), so
+      # this is the supported escape hatch.
+      #
+      # ``--ref $VERSION`` works because the previous step's
+      # non-draft ``gh release create`` created the tag ref
+      # immediately. The dispatched run runs against the tagged
+      # commit -- exact, race-free.
+      run: |
+        gh workflow run ci-cd.yml \
+          --repo "$GITHUB_REPOSITORY" \
+          --ref "$VERSION" \
+          -f tag="$VERSION"
