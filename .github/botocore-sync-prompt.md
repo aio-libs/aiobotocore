@@ -29,6 +29,39 @@ existing aiobotocore mirror (those are out of scope per `port-tests` skill rules
 If `$CLASSIFIER_VERDICT` is empty (rare — only when the classify job failed entirely),
 re-run the classifier yourself in Step 3 as a fallback.
 
+## Pre-set-up environment
+
+The workflow has already prepared everything you need — do NOT re-clone, re-install, or
+re-discover these:
+
+- **aiobotocore checkout** at `$PWD` with full git history (`fetch-depth: 0`), so
+  `git diff origin/main` and `git log` work without further fetches.
+- **botocore bare clone** at `/tmp/botocore` (all tags + branches). Use it for source
+  diffs between versions without cloning your own copy:
+
+  ```text
+  git -C /tmp/botocore diff $LAST_SUPPORTED..$LATEST_BOTOCORE -- botocore/
+  git -C /tmp/botocore show $LATEST_BOTOCORE:botocore/path/file.py
+  ```
+
+- **Python venv at `.venv/`** with botocore **$LATEST_BOTOCORE** already installed.
+  The workflow ran:
+
+  ```text
+  uv sync --frozen
+  uv pip install "botocore==$LATEST_BOTOCORE"
+  ```
+
+  Prefer `uv run --no-sync` for Python invocations so the lockfile walk is skipped.
+  The installed botocore source is at:
+
+  ```text
+  .venv/lib/python3.12/site-packages/botocore/
+  ```
+
+  Do NOT run `uv sync` or `uv pip install botocore==…` again unless a step explicitly
+  needs a different version.
+
 ## Configuration
 
 - ENABLE_BUMP: $ENABLE_BUMP (if false, bumps create a feedback issue instead of attempting code changes)
@@ -240,10 +273,11 @@ minor-bump port would be insufficient. A human decides the approach.
 
 ### Run hash tests as a sanity check
 
+The venv already has botocore $LATEST_BOTOCORE installed (see "Pre-set-up environment"
+above) — run the tests directly:
+
 ```text
-uv sync --all-extras
-uv pip install "botocore==$LATEST_BOTOCORE"
-uv run pytest tests/test_patches.py -x -v 2>&1
+uv run --no-sync pytest tests/test_patches.py -x -v 2>&1
 ```
 
 Hashes are a SIGNAL that helps confirm the classifier's decision — they catch changes to code we already patch.

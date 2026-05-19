@@ -431,6 +431,15 @@ jobs:
     - name: Install dependencies
       run: uv sync --frozen
 
+    # Pre-install the target botocore version so the agent can immediately
+    # inspect the new source (for hash refresh + diff context) without a
+    # discovery + install round-trip. `uv pip install` is idempotent and
+    # fast when the version is already cached.
+    - name: Install target botocore
+      env:
+        LATEST_BOTOCORE: ${{ needs.detect.outputs.latest_botocore }}
+      run: uv pip install "botocore==$LATEST_BOTOCORE"
+
     - name: Cache botocore repo
       uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae  # v5.0.5
       with:
@@ -517,7 +526,7 @@ jobs:
         # Opus, matching the prior single-job behavior.
         claude_args: |
           --dangerously-skip-permissions
-          --max-turns 100
+          --max-turns 150
           --model ${{ needs.classify.outputs.verdict == 'no-port' && 'sonnet' || 'opus' }}
           --plugin-dir plugins/aiobotocore-bot
         # yamllint disable rule:line-length
