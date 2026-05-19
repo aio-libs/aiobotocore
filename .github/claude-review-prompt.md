@@ -36,6 +36,35 @@ See `CLAUDE.md` §"AI workflow conventions" for signed-commit rules, pre-commit 
 naming (`claude/` prefix), versioning/changelog rules, and the `tests/test_patches.py` hash
 requirement. This prompt does not restate them.
 
+## Progress checklist (sticky comment)
+
+`claude.yml` enables `use_sticky_comment: true`. The sticky comment body is whatever you last
+set via `mcp__github_comment__update_claude_comment` — claude-code-action does not tick boxes
+on its own. If you write a checklist on turn 1 and never call the tool again, the run ends
+with stale boxes even after `stop_reason: end_turn` fires, which looks like a failed run to
+reviewers.
+
+Required cadence for every event:
+
+1. **Seed:** early in the run, call the tool once with a short checklist of the phases for
+   this event (for `pull_request`: gather context → run `review-pr` → check author / address
+   feedback → run `complete-run`; for other events, the equivalent phases from their
+   dispatch section).
+2. **Tick as you go:** re-call the tool after each phase completes to flip `[ ]` → `[x]`.
+   Update per item, not batched at the end.
+3. **Finalize before exit:** after `complete-run` returns, do one final update. Every box
+   ticked or marked skipped with a one-line reason; change the heading from "Review in
+   progress" to "Review complete" (or "Run complete" for non-review events); append
+   `**Outcome:** <one line>` summarizing what actually happened (e.g. "no findings ≥ 80",
+   "posted N inline comments", "pushed fix in <sha>").
+4. **Early-exit paths:** if the run bails (gate said no-op, fork PR with nothing to do,
+   errored before any phase ran), the final body is a single `**Status:** <reason>` —
+   never leave a stale "in progress" body.
+
+The auto-appended `**Claude finished … in Xs**` header on `end_turn` does NOT finalize the
+body for you. A stale "in progress" body under a "finished" header is the worst possible
+visible state.
+
 ## Dispatch by EVENT
 
 Pick exactly ONE section below based on $EVENT_NAME. Do not run actions from other sections.
@@ -216,12 +245,15 @@ Invocations by event:
 - `pull_request` (review path): `/aiobotocore-bot:complete-run --event=pull_request --number=$NUMBER --skip-reply`
   — `review-pr` already posted its own review comment; we only need the reaction swap.
 
-When `--skip-reply` is set, your assistant-message output IS the user-visible reply (it lands in the sticky
-comment), so write it as the actual response to the reviewer — not as an internal status update.
+For `--skip-reply` paths the sticky comment IS the user-visible reply, so its final body (set per
+"Progress checklist (sticky comment)" above) must read as the actual response to the reviewer —
+not as an internal status update. Say what you changed (with commit SHAs or file paths), what you
+decided NOT to do (and why), and any follow-up asks for the reviewer. The sticky body is set
+exclusively by your `mcp__github_comment__update_claude_comment` calls; the action does NOT
+auto-paste your final assistant message into it.
 
-The reply body (whether posted by `complete-run` or surfaced via the sticky comment) should say what you
-changed (with commit SHAs or file paths), what you decided NOT to do (and why), and any follow-up asks for
-the reviewer.
+For `--summary` paths, `complete-run` posts a separate top-level reply with the summary text; the
+sticky body remains the progress checklist with a finalized `**Outcome:**` line.
 
 ## Environment
 
