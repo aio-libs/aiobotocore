@@ -148,11 +148,7 @@ class AIOHTTPSession:
         return chunked or None
 
     def _build_ssl_context(self, proxy_url):
-        # Synchronous SSL context construction. May block on file I/O
-        # (load_verify_locations / load_cert_chain / load_default_certs).
-        # The caller runs this off the event loop. (#1469)
-        if not bool(self._verify):
-            return None
+        # Synchronous; only called via asyncio.to_thread when verify is truthy. (#1469)
         if proxy_url:
             ssl_context = self._setup_proxy_ssl_context(proxy_url)
             # TODO: add support for
@@ -174,9 +170,14 @@ class AIOHTTPSession:
 
         return ssl_context
 
-    def _create_connector(self, ssl_context):
-        # aiohttp.TCPConnector binds the running loop in __init__, so this
-        # must run on the event loop — keep it cheap (no I/O).
+    async def _create_connector(self, proxy_url):
+        # TCPConnector binds the running loop, so build it here.
+        # Dispatch blocking SSL file I/O to a thread only when verify is truthy. (#1469)
+        ssl_context = (
+            await asyncio.to_thread(self._build_ssl_context, proxy_url)
+            if bool(self._verify)
+            else None
+        )
         return aiohttp.TCPConnector(
             limit=self._max_pool_connections,
             ssl=ssl_context or False,
@@ -185,10 +186,7 @@ class AIOHTTPSession:
 
     async def _get_session(self, proxy_url):
         if not (session := self._sessions.get(proxy_url)):
-            ssl_context = await asyncio.to_thread(
-                self._build_ssl_context, proxy_url
-            )
-            connector = self._create_connector(ssl_context)
+            connector = await self._create_connector(proxy_url)
             self._sessions[proxy_url] = (
                 session
             ) = await self._exit_stack.enter_async_context(
