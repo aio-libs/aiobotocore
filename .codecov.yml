@@ -10,6 +10,15 @@ coverage:
 
   status:
     project: false
+    patch:
+      default:
+        target: auto
+    # Require 100% coverage on tests directory to catch dead code
+    # and shadowed test functions early.
+    tests:
+      paths:
+        - tests/
+      target: 100%
 
 flags:
   library:
