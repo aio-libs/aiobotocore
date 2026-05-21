@@ -147,37 +147,28 @@ class AIOHTTPSession:
             del headers['Transfer-Encoding']
         return chunked or None
 
-    def _build_ssl_context(self, proxy_url):
-        # Synchronous; only called via asyncio.to_thread when verify is truthy. (#1469)
-        if proxy_url:
-            ssl_context = self._setup_proxy_ssl_context(proxy_url)
-            # TODO: add support for
-            #    proxies_settings.get('proxy_use_forwarding_for_https')
-        else:
-            ssl_context = self._get_ssl_context()
-
-        if ssl_context:
-            if self._cert_file:
-                ssl_context.load_cert_chain(
-                    self._cert_file,
-                    self._key_file,
-                )
-
-            # inline self._setup_ssl_cert
-            ca_certs = get_cert_path(self._verify)
-            if ca_certs:
-                ssl_context.load_verify_locations(ca_certs, None, None)
-
-        return ssl_context
-
     async def _create_connector(self, proxy_url):
         # TCPConnector binds the running loop, so build it here.
         # Dispatch blocking SSL file I/O to a thread only when verify is truthy. (#1469)
-        ssl_context = (
-            await asyncio.to_thread(self._build_ssl_context, proxy_url)
-            if bool(self._verify)
-            else None
-        )
+        ssl_context = None
+        if bool(self._verify):
+
+            def _build_ssl_context():
+                if proxy_url:
+                    ctx = self._setup_proxy_ssl_context(proxy_url)
+                    # TODO: add support for
+                    #    proxies_settings.get('proxy_use_forwarding_for_https')
+                else:
+                    ctx = self._get_ssl_context()
+                if ctx:
+                    if self._cert_file:
+                        ctx.load_cert_chain(self._cert_file, self._key_file)
+                    ca_certs = get_cert_path(self._verify)
+                    if ca_certs:
+                        ctx.load_verify_locations(ca_certs, None, None)
+                return ctx
+
+            ssl_context = await asyncio.to_thread(_build_ssl_context)
         return aiohttp.TCPConnector(
             limit=self._max_pool_connections,
             ssl=ssl_context or False,
