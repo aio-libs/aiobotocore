@@ -17,7 +17,7 @@ coverage:
     # and shadowed test functions early.
     tests:
       paths:
-        - tests/
+      - tests/
       target: 100%
 
 flags:
