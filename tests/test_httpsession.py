@@ -23,8 +23,8 @@ async def test_cannot_create_client_sessions_outside_context(session):
 
 
 async def test_ssl_context_built_off_loop_on_first_request(mocker):
-    # Regression for #1469: the blocking SSL/file-I/O closure inside
-    # _create_connector must run via asyncio.to_thread, not on the loop.
+    # Regression for #1469: AIOHTTPSession._build_ssl_context (which calls
+    # blocking SSL/file APIs) must run via asyncio.to_thread, not on the loop.
     to_thread = mocker.patch(
         'aiobotocore.httpsession.asyncio.to_thread',
         wraps=__import__('asyncio').to_thread,
