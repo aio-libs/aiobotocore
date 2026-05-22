@@ -130,7 +130,7 @@ jobs:
         } >> "$GITHUB_OUTPUT"
 
     # yamllint disable-line rule:line-length
-    - uses: anthropics/claude-code-action@034cbdb008291e7eeeac420d315fc3b45fca3781  # v1.0.117
+    - uses: anthropics/claude-code-action@51ea8ea73a139f2a74ff649e3092c25a904aed7e  # v1.0.123
       id: claude
       with:
         anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
