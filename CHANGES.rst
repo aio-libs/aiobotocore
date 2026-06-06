@@ -1,6 +1,32 @@
 Changes
 -------
 
+3.7.1 (2026-06-06)
+^^^^^^^^^^^^^^^^^^
+* fix SSL context creation to run off the event loop, preventing blocking I/O
+  on first use (closes #1469) (#1587)
+* relax botocore dependency specification to support
+  ``"botocore >= 1.42.90, < 1.43.3"`` (#1605)
+* unify local and Read the Docs documentation builds via uv
+  (closes #1166) (#1591)
+* require sticky-comment checklist finalization step in AI code review
+  workflow (#1608)
+* cache pre-commit hook environments across all CI workflows (#1598)
+* add sphinx-lint pre-commit hook to catch RST errors in CI
+  (closes #1560) (#1590)
+* pre-install target botocore version and raise max turns to 150 in the
+  botocore-sync workflow (#1607)
+* clean up dev dependencies and upgrade pytest to 9.x; add docs extras
+  group (#1602)
+* fix release workflow to dispatch ``ci-cd.yml`` against the merge commit
+  SHA rather than the tag (#1600)
+* fix release publication to trigger via ``ci-cd.yml`` ``workflow_dispatch``
+  (#1599)
+* bump dev and CI dependencies (aiohttp 3.13.5→3.14.0, wrapt 2.1.2→2.2.1,
+  idna 3.13→3.15, pytest-rerunfailures 16.1→16.3, anthropic 0.97.0→0.100.0,
+  claude-code-action 1.0.111→1.0.117, codecov-action 6.0.0→6.0.1)
+  (#1619, #1618, #1623, #1622, #1612, #1609, #1604, #1603, #1616)
+
 3.7.0 (2026-05-09)
 ^^^^^^^^^^^^^^^^^^
 * replace per-PR ``CHANGES.rst`` / ``__init__.py`` ceremony with an AI-drafted
