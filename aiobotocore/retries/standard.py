@@ -1,5 +1,9 @@
+import asyncio
+
 from botocore.retries.standard import (
+    _SERVICE_MAX_ATTEMPTS,
     DEFAULT_MAX_ATTEMPTS,
+    NEW_RETRIES_ENABLED,
     ExponentialBackoff,
     MaxAttemptsChecker,
     ModeledRetryableChecker,
@@ -10,6 +14,7 @@ from botocore.retries.standard import (
     RetryQuotaChecker,
     StandardRetryConditions,
     ThrottledRetryableChecker,
+    ThrottlingErrorDetector,
     TransientRetryableChecker,
     logger,
     quota,
@@ -20,26 +25,53 @@ from .._helpers import async_any, resolve_awaitable
 from .special import AioRetryDDBChecksumError
 
 
-def register_retry_handler(client, max_attempts=DEFAULT_MAX_ATTEMPTS):
-    retry_quota = RetryQuotaChecker(quota.RetryQuota())
-
+def register_retry_handler(client, max_attempts=None):
     service_id = client.meta.service_model.service_id
     service_event_name = service_id.hyphenize()
+    retry_event_adapter = RetryEventAdapter()
+
+    if NEW_RETRIES_ENABLED:
+        if (
+            max_attempts is None
+            and service_event_name in _SERVICE_MAX_ATTEMPTS
+        ):
+            max_attempts = _SERVICE_MAX_ATTEMPTS[service_event_name]
+        elif max_attempts is None:
+            max_attempts = DEFAULT_MAX_ATTEMPTS
+        throttling_detector = ThrottlingErrorDetector(retry_event_adapter)
+        retry_quota = RetryQuotaChecker(
+            quota.RetryQuota(), throttling_detector
+        )
+        handler = AioRetryHandler(
+            retry_policy=AioRetryPolicy(
+                retry_checker=AioStandardRetryConditions(
+                    max_attempts=max_attempts
+                ),
+                retry_backoff=ExponentialBackoff(
+                    service_name=service_event_name,
+                    throttling_detector=throttling_detector,
+                ),
+            ),
+            retry_event_adapter=retry_event_adapter,
+            retry_quota=retry_quota,
+            service_name=service_event_name,
+        )
+    else:
+        retry_quota = RetryQuotaChecker(quota.RetryQuota())
+        handler = AioRetryHandler(
+            retry_policy=AioRetryPolicy(
+                retry_checker=AioStandardRetryConditions(
+                    max_attempts=max_attempts or DEFAULT_MAX_ATTEMPTS
+                ),
+                retry_backoff=ExponentialBackoff(),
+            ),
+            retry_event_adapter=retry_event_adapter,
+            retry_quota=retry_quota,
+        )
+
     client.meta.events.register(
         f'after-call.{service_event_name}', retry_quota.release_retry_quota
     )
-
-    handler = AioRetryHandler(
-        retry_policy=AioRetryPolicy(
-            retry_checker=AioStandardRetryConditions(
-                max_attempts=max_attempts
-            ),
-            retry_backoff=ExponentialBackoff(),
-        ),
-        retry_event_adapter=RetryEventAdapter(),
-        retry_quota=retry_quota,
-    )
-
     unique_id = f'retry-config-{service_event_name}'
     client.meta.events.register(
         f'needs-retry.{service_event_name}',
@@ -64,6 +96,23 @@ class AioRetryHandler(RetryHandler):
                     retry_delay,
                 )
             else:
+                if NEW_RETRIES_ENABLED:
+                    if self._is_long_polling_operation(context):
+                        polling_delay = self._retry_policy.compute_retry_delay(
+                            context
+                        )
+                        await asyncio.sleep(polling_delay)
+                        logger.debug(
+                            "Retry needed but retry quota reached, "
+                            "not retrying request."
+                        )
+                        self._retry_event_adapter.adapt_retry_response_from_context(
+                            context
+                        )
+                        # Return False (non-None) to prevent any later needs-retry
+                        # handler from returning a delay that would cause
+                        # _needs_retry in endpoint.py to sleep again.
+                        return False
                 logger.debug(
                     "Retry needed but retry quota reached, "
                     "not retrying request."

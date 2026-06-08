@@ -738,6 +738,7 @@ def test_protocol_parsers():
             Endpoint._needs_retry,
             {
                 'f718e2ff874763a677648fe6f87cc65e4cec2792',
+                'ae59155b57c0a743fd00b537449d4b6ad2ee997c',
             },
         ),
         (
@@ -1478,12 +1479,14 @@ def test_protocol_parsers():
             {
                 'da0ae35712211bc38938e93c4af8b7aeb999084e',
                 '09035248202bfd94c7ae7c532e515ec6fe2fab4b',
+                '9467973723adb514c620981f46e3faba8ecd59dc',
             },
         ),
         (
             standard.RetryHandler.needs_retry,
             {
                 '89a4148d7f4af9d2795d1d0189293528aa668b59',
+                '63f0764a2a5a6f07da6b34f0bee827df0f12766a',
             },
         ),
         (
