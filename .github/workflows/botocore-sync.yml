@@ -437,16 +437,26 @@ jobs:
     # suite, whose `mototest` target uses `-vv --log-cli-level=DEBUG` and
     # dumps tens of thousands of lines per run — billed as input tokens
     # every time. The prompt instructs the agent to wrap test commands in
-    # `rtk test`. Download the static musl binary straight from the releases
-    # CDN (no GitHub API → no rate-limit hit, same rationale as bun below).
-    # We deliberately do NOT run `rtk init` — the agent invokes `rtk`
-    # explicitly per command, never via a global shell hook.
+    # `rtk test`. We deliberately do NOT run `rtk init` — the agent invokes
+    # `rtk` explicitly per command, never via a global shell hook.
+    #
+    # rtk is a Rust CLI (Homebrew / GitHub releases), not a PyPI package, so
+    # it can't be a uv/pyproject dev dependency. Pin the version + verify the
+    # sha256 of the static musl binary for a reproducible install, fetched
+    # straight from the releases CDN (no GitHub API → no rate-limit hit, same
+    # rationale as bun below). To bump: change RTK_VERSION and update
+    # RTK_SHA256 from the release's checksums.txt.
     - name: Install rtk (token-compacting command wrapper)
+      env:
+        RTK_VERSION: v0.42.3
+        RTK_SHA256: 5df764a633709cb85d248258d085d24ec95faa8bca0e6835a93cd57cadc4eb9e
       run: |
         mkdir -p "$HOME/.local/bin"
         # yamllint disable-line rule:line-length
-        curl -fsSL https://github.com/rtk-ai/rtk/releases/latest/download/rtk-x86_64-unknown-linux-musl.tar.gz \
-          | tar -xz -C "$HOME/.local/bin" rtk
+        url="https://github.com/rtk-ai/rtk/releases/download/${RTK_VERSION}/rtk-x86_64-unknown-linux-musl.tar.gz"
+        curl -fsSL "$url" -o /tmp/rtk.tar.gz
+        echo "${RTK_SHA256}  /tmp/rtk.tar.gz" | sha256sum -c -
+        tar -xzf /tmp/rtk.tar.gz -C "$HOME/.local/bin" rtk
         echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
     # Pre-install the target botocore version so the agent can immediately
