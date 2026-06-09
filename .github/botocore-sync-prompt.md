@@ -62,6 +62,30 @@ re-discover these:
   Do NOT run `uv sync` or `uv pip install botocore==…` again unless a step explicitly
   needs a different version.
 
+## Test efficiency (IMPORTANT — this run is on Opus; output is billed as context)
+
+Verbose test output is the single largest token cost of this job. `make mototest` runs with
+`-vv --log-cli-level=DEBUG`, so one full run emits tens of thousands of lines — and every line
+re-enters your context. Follow these rules:
+
+- **Wrap every test/validation command in `rtk test`** (pre-installed on `PATH`). It runs the
+  command and shows only failures, collapsing a passing run to a one-line summary (~99% fewer
+  lines). Examples:
+
+  ```text
+  rtk test uv run --no-sync pytest tests/test_patches.py -x -v
+  rtk test uv run --no-sync pytest tests/botocore_tests/path/test_foo.py -x
+  rtk test make mototest
+  ```
+
+  On failure rtk still surfaces the failing tests and tracebacks — that's all you need to act.
+- **Iterate on targeted tests, not the whole suite.** While fixing a port, run only the files
+  you changed (`$AFFECTED_AIOBOTOCORE_FILES` and their mirrors) plus `tests/test_patches.py`.
+- **Run the full `make mototest` at most once**, as a final gate before finalizing — not
+  repeatedly. The PR you open runs the full suite across the whole Python × backend matrix in
+  CI; that, not a local loop, is the comprehensive check. You only need enough local signal to
+  be confident the commit is sound.
+
 ## Configuration
 
 - ENABLE_BUMP: $ENABLE_BUMP (if false, bumps create a feedback issue instead of attempting code changes)
@@ -274,10 +298,10 @@ minor-bump port would be insufficient. A human decides the approach.
 ### Run hash tests as a sanity check
 
 The venv already has botocore $LATEST_BOTOCORE installed (see "Pre-set-up environment"
-above) — run the tests directly:
+above) — run the tests directly (via `rtk test`, see "Test efficiency" above):
 
 ```text
-uv run --no-sync pytest tests/test_patches.py -x -v 2>&1
+rtk test uv run --no-sync pytest tests/test_patches.py -x -v
 ```
 
 Hashes are a SIGNAL that helps confirm the classifier's decision — they catch changes to code we already patch.
@@ -379,7 +403,10 @@ If you complete all tasks, go to Step 6. If you run out of turns or time, go to 
 
 ## Step 6: Validate
 
-Run `uv run pytest tests/test_patches.py -x -v`. Fix remaining failures. Repeat until passing.
+Run `rtk test uv run --no-sync pytest tests/test_patches.py -x -v`. Fix remaining failures.
+Repeat until passing. Per "Test efficiency" above: run targeted tests while iterating, and run
+the full `rtk test make mototest` at most once as the final gate — the PR's CI matrix is the
+comprehensive check, not a local re-run loop.
 
 **For port PRs only** — run `/aiobotocore-bot:pyright-delta`. It creates an isolated worktree at
 `origin/main`, runs pyright there for the baseline, removes the worktree, then runs pyright with your

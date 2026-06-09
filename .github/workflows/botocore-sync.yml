@@ -431,6 +431,35 @@ jobs:
     - name: Install dependencies
       run: uv sync --frozen
 
+    # rtk compacts verbose command output (collapsing a passing pytest run
+    # to a one-line summary, ~99% fewer lines) before it reaches the agent's
+    # context. The sync job runs on Opus and validates with the full test
+    # suite, whose `mototest` target uses `-vv --log-cli-level=DEBUG` and
+    # dumps tens of thousands of lines per run — billed as input tokens
+    # every time. The prompt instructs the agent to wrap test commands in
+    # `rtk test`. We deliberately do NOT run `rtk init` — the agent invokes
+    # `rtk` explicitly per command, never via a global shell hook.
+    #
+    # rtk is a Rust CLI (Homebrew / GitHub releases), not a PyPI package, so
+    # it can't be a uv/pyproject dev dependency. Pin the version + verify the
+    # sha256 of the static musl binary for a reproducible install, fetched
+    # straight from the releases CDN (no GitHub API → no rate-limit hit, same
+    # rationale as bun below). To bump: change RTK_VERSION and update
+    # RTK_SHA256 from the release's checksums.txt.
+    - name: Install rtk (token-compacting command wrapper)
+      env:
+        RTK_VERSION: v0.42.3
+        RTK_SHA256: 5df764a633709cb85d248258d085d24ec95faa8bca0e6835a93cd57cadc4eb9e
+      run: |
+        # yamllint disable-line rule:line-length
+        url="https://github.com/rtk-ai/rtk/releases/download/${RTK_VERSION}/rtk-x86_64-unknown-linux-musl.tar.gz"
+        curl -fsSL "$url" -o /tmp/rtk.tar.gz
+        echo "${RTK_SHA256}  /tmp/rtk.tar.gz" | sha256sum -c -
+        # Install to /usr/local/bin (already on PATH) instead of writing
+        # $GITHUB_PATH — avoids zizmor's github-env code-execution finding.
+        sudo tar -xzf /tmp/rtk.tar.gz -C /usr/local/bin rtk
+        rtk --version
+
     # Pre-install the target botocore version so the agent can immediately
     # inspect the new source (for hash refresh + diff context) without a
     # discovery + install round-trip. `uv pip install` is idempotent and
