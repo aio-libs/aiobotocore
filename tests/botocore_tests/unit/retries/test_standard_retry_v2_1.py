@@ -12,8 +12,8 @@ overrides read their own imported copy).
 """
 
 import unittest
+import unittest.mock as mock
 from collections import Counter
-from unittest import mock
 
 import pytest
 from botocore import configprovider
