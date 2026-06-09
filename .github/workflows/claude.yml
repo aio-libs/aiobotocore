@@ -174,6 +174,31 @@ jobs:
     - name: Install dependencies
       run: uv sync --frozen
 
+    # rtk compacts verbose command output (a passing pytest run collapses to
+    # a one-line summary) so test output stays out of the agent's context on
+    # @claude / implement paths that run the suite. The prompt instructs the
+    # agent to wrap test commands in `rtk test`. We deliberately do NOT run
+    # `rtk init` — the agent invokes `rtk` explicitly per command.
+    #
+    # rtk is a Rust CLI (Homebrew / GitHub releases), not a PyPI package, so
+    # it can't be a uv/pyproject dev dependency. Pin the version + verify the
+    # sha256 of the static musl binary, fetched from the releases CDN (no
+    # GitHub API → no rate-limit hit, same rationale as bun below). To bump:
+    # change RTK_VERSION and update RTK_SHA256 from the release checksums.txt.
+    # Keep this in sync with the identical step in botocore-sync.yml.
+    - name: Install rtk (token-compacting command wrapper)
+      env:
+        RTK_VERSION: v0.42.3
+        RTK_SHA256: 5df764a633709cb85d248258d085d24ec95faa8bca0e6835a93cd57cadc4eb9e
+      run: |
+        mkdir -p "$HOME/.local/bin"
+        # yamllint disable-line rule:line-length
+        url="https://github.com/rtk-ai/rtk/releases/download/${RTK_VERSION}/rtk-x86_64-unknown-linux-musl.tar.gz"
+        curl -fsSL "$url" -o /tmp/rtk.tar.gz
+        echo "${RTK_SHA256}  /tmp/rtk.tar.gz" | sha256sum -c -
+        tar -xzf /tmp/rtk.tar.gz -C "$HOME/.local/bin" rtk
+        echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
     # Pre-install bun and hand its path to claude-code-action so the
     # action's bundled setup-bun step (which would otherwise resolve a
     # `1.3.6` pin via the GitHub tags API and get 403 rate-limited on
