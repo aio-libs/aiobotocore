@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 
 import aiohttp
 import aiohttp.client_exceptions
@@ -15,13 +16,18 @@ class AioReadTimeoutError(ReadTimeoutError, asyncio.TimeoutError):
     pass
 
 
-class AioStreamingBody(botocore.response.StreamingBody):
-    """Async wrapper for an HTTP response body (aiohttp backend).
+class AioStreamingBodyBase(
+    botocore.response.StreamingBody, contextlib.AbstractAsyncContextManager
+):
+    """Shared async base for aiobotocore response bodies.
 
-    Subclasses botocore.response.StreamingBody, overriding I/O methods as
-    async and blocking the inherited sync API surface. ``AioHttpxStreamingBody``
-    extends this class with buffered httpx I/O while inheriting the shared
-    iteration/validation logic.
+    Subclasses ``botocore.response.StreamingBody`` to provide the
+    backend-agnostic async API (iteration, line splitting, content-length
+    validation, async context manager) and to block the inherited sync API
+    surface. Concrete subclasses implement the backend-specific I/O
+    (``read``, ``readinto``, ``readable``, ``close``):
+    :class:`AioStreamingBody` for aiohttp and :class:`AioHttpxStreamingBody`
+    for httpx.
 
     Access the underlying raw response object via the ``raw_stream`` property.
     """
@@ -38,6 +44,75 @@ class AioStreamingBody(botocore.response.StreamingBody):
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         await self.aclose()
+
+    async def readlines(self):
+        return [line async for line in self.iter_lines()]
+
+    def __aiter__(self):
+        """Return an async iterator to yield 1k chunks from the raw stream."""
+        return self.iter_chunks(self._DEFAULT_CHUNK_SIZE)
+
+    async def __anext__(self):
+        """Return the next 1k chunk from the raw stream."""
+        current_chunk = await self.read(self._DEFAULT_CHUNK_SIZE)
+        if current_chunk:
+            return current_chunk
+        raise StopAsyncIteration
+
+    anext = __anext__
+
+    async def iter_lines(self, chunk_size=_DEFAULT_CHUNK_SIZE, keepends=False):
+        """Return an async iterator to yield lines from the raw stream."""
+        pending = b''
+        async for chunk in self.iter_chunks(chunk_size):
+            lines = (pending + chunk).splitlines(True)
+            for line in lines[:-1]:
+                yield line.splitlines(keepends)[0]
+            pending = lines[-1]
+        if pending:
+            yield pending.splitlines(keepends)[0]
+
+    async def iter_chunks(self, chunk_size=_DEFAULT_CHUNK_SIZE):
+        """Return an async iterator to yield chunks of chunk_size bytes
+        from the raw stream.
+        """
+        while True:
+            current_chunk = await self.read(chunk_size)
+            if current_chunk == b"":
+                break
+            yield current_chunk
+
+    def tell(self):
+        return self._amount_read
+
+    # Block sync methods inherited from botocore.StreamingBody / IOBase
+    # that would otherwise call urllib3-shaped APIs on an async stream.
+    def __iter__(self):
+        raise TypeError(
+            f"{type(self).__name__} is async; use 'async for' or __aiter__"
+        )
+
+    def __next__(self):
+        raise TypeError(f"{type(self).__name__} is async; use __anext__")
+
+    next = __next__
+
+    def __enter__(self):
+        raise TypeError(f"{type(self).__name__} is async; use 'async with'")
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        raise TypeError(f"{type(self).__name__} is async; use 'async with'")
+
+    def set_socket_timeout(self, timeout):
+        raise NotImplementedError(
+            "set_socket_timeout is not supported for async streaming bodies; "
+            "configure timeouts on the aiobotocore Config or HTTP session "
+            "instead."
+        )
+
+
+class AioStreamingBody(AioStreamingBodyBase):
+    """Async response body for the aiohttp backend."""
 
     def readable(self):
         return not self._raw_stream.content.at_eof()
@@ -83,46 +158,6 @@ class AioStreamingBody(botocore.response.StreamingBody):
             self._verify_content_length()
         return amount_read
 
-    async def readlines(self):
-        return [line async for line in self.iter_lines()]
-
-    def __aiter__(self):
-        """Return an async iterator to yield 1k chunks from the raw stream."""
-        return self.iter_chunks(self._DEFAULT_CHUNK_SIZE)
-
-    async def __anext__(self):
-        """Return the next 1k chunk from the raw stream."""
-        current_chunk = await self.read(self._DEFAULT_CHUNK_SIZE)
-        if current_chunk:
-            return current_chunk
-        raise StopAsyncIteration
-
-    anext = __anext__
-
-    async def iter_lines(self, chunk_size=_DEFAULT_CHUNK_SIZE, keepends=False):
-        """Return an async iterator to yield lines from the raw stream."""
-        pending = b''
-        async for chunk in self.iter_chunks(chunk_size):
-            lines = (pending + chunk).splitlines(True)
-            for line in lines[:-1]:
-                yield line.splitlines(keepends)[0]
-            pending = lines[-1]
-        if pending:
-            yield pending.splitlines(keepends)[0]
-
-    async def iter_chunks(self, chunk_size=_DEFAULT_CHUNK_SIZE):
-        """Return an async iterator to yield chunks of chunk_size bytes
-        from the raw stream.
-        """
-        while True:
-            current_chunk = await self.read(chunk_size)
-            if current_chunk == b"":
-                break
-            yield current_chunk
-
-    def tell(self):
-        return self._amount_read
-
     def close(self):
         """Close the underlying response stream synchronously."""
         self._raw_stream.close()
@@ -131,40 +166,16 @@ class AioStreamingBody(botocore.response.StreamingBody):
         """Close the underlying response stream asynchronously."""
         self.close()
 
-    # Block sync methods inherited from botocore.StreamingBody / IOBase
-    # that would otherwise call urllib3-shaped APIs on an async stream.
-    def __iter__(self):
-        raise TypeError(
-            f"{type(self).__name__} is async; use 'async for' or __aiter__"
-        )
 
-    def __next__(self):
-        raise TypeError(f"{type(self).__name__} is async; use __anext__")
-
-    next = __next__
-
-    def __enter__(self):
-        raise TypeError(f"{type(self).__name__} is async; use 'async with'")
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        raise TypeError(f"{type(self).__name__} is async; use 'async with'")
-
-    def set_socket_timeout(self, timeout):
-        raise NotImplementedError(
-            "set_socket_timeout is urllib3-specific; configure timeouts on "
-            "the aiobotocore Config or HTTP session instead."
-        )
-
-
-class AioHttpxStreamingBody(AioStreamingBody):
-    """Async wrapper for an HTTP response body (httpx backend).
+class AioHttpxStreamingBody(AioStreamingBodyBase):
+    """Async response body for the httpx backend.
 
     httpx.Response does not support ``read(amt)`` natively — it yields
     chunks via ``aiter_bytes()``. This class implements an internal buffer
     so ``read(amt)``, ``readinto()``, ``iter_chunks(size)`` and
-    ``iter_lines()`` all work with arbitrary sizes. Everything non-I/O
-    (iteration, line splitting, tell, content-length validation) is
-    inherited from ``AioStreamingBody``.
+    ``iter_lines()`` all work with arbitrary sizes. The backend-agnostic
+    API (iteration, line splitting, tell, content-length validation) is
+    inherited from ``AioStreamingBodyBase``.
     """
 
     def __init__(self, raw_stream, content_length=None):
@@ -244,6 +255,9 @@ class AioHttpxStreamingBody(AioStreamingBody):
 
 # Backwards-compatibility aliases. External code imports these names from
 # aiobotocore.response; keeping them here avoids a breaking rename.
+# ``StreamingBody`` stays bound to the aiohttp concrete class so that
+# ``isinstance(body, StreamingBody)`` continues to distinguish the aiohttp
+# backend (sync ``close()``) from the httpx backend (async ``aclose()``).
 StreamingBody = AioStreamingBody
 HttpxStreamingBody = AioHttpxStreamingBody
 
