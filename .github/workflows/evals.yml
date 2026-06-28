@@ -75,7 +75,7 @@ jobs:
       EVAL_CASES: ${{ inputs.cases || '' }}
       EVAL_DEBUG_MISCLASSIFICATIONS: ${{ inputs.debug_misclassifications && '1' || '' }}
     steps:
-    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
       with:
         fetch-depth: 1
         persist-credentials: false
@@ -110,7 +110,7 @@ jobs:
 
     - name: Set up uv + Python
       # yamllint disable-line rule:line-length
-      uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b  # v8.1.0
+      uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39  # v8.2.0
       with:
         version: '0.11.12'
         python-version: '3.12'
@@ -190,14 +190,14 @@ jobs:
     env:
       EVAL_RUNS: ${{ inputs.runs || '3' }}
     steps:
-    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
       with:
         fetch-depth: 1
         persist-credentials: false
 
     - name: Set up uv + Python
       # yamllint disable-line rule:line-length
-      uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b  # v8.1.0
+      uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39  # v8.2.0
       with:
         version: '0.11.12'
         python-version: '3.12'

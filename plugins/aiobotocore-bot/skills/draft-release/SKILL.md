@@ -287,8 +287,27 @@ include the deviation in the PR body so the maintainer can confirm.
 
 Use the existing repo style (``^^^^`` underline, single bulleted list per
 release). Generate **one bullet per PR** in this order: breaking, then
-feature, then bugfix, then doc, then contrib, then misc. Within each
-bucket, preserve merge order.
+feature, then bugfix, then doc, then misc. Within each bucket, preserve
+merge order.
+
+**Omit the ``contrib`` bucket from ``CHANGES.rst`` entirely.** The shipped
+changelog is user-facing only — ``ci:``/``chore:``/``test:`` PRs (anything
+that landed solely in the ``contrib`` bucket and no user-facing bucket) are
+internal churn a ``pip install`` user can't act on. They still appear in the
+release-PR body breakdown (Step 7's **Contributor-facing** section) and in
+git history, so the trail is preserved; they just don't earn a changelog
+bullet. A PR that carried both a user-facing signal and a contrib signal
+(e.g. a ``feat:`` that also touched ``.github/``) still gets its bullet via
+the user-facing bucket — only contrib-*only* PRs drop out.
+
+**Empty-changelog guard.** If excluding ``contrib`` leaves the release with
+*no* bullets at all (the whole window was ``ci:``/``chore:``/``test:`` —
+the contrib-only PATCH case from Step 4b), don't write an empty entry.
+Emit a single summary bullet — ``* internal maintenance release (CI/test/
+chore only — see the release PR for the per-PR breakdown) (#NNNN, #PPPP)``
+citing the window's PRs — so the ``^^^^`` underline always has a body
+beneath it and ``scripts/changelog.py extract`` produces non-empty release
+notes.
 
 Each bullet:
 
@@ -484,9 +503,12 @@ Otherwise:
   the window. If a PR's content can't be summarized confidently,
   reference it as ``* miscellaneous improvements (#NNNN)`` rather than
   fabricating detail.
-- **Never silently skip a non-trivial PR.** Dependabot/sync-bot bumps
-  can collapse; everything else gets a bullet even if it's just
-  ``* internal cleanup (#NNNN)``.
+- **Never silently skip a non-trivial user-facing PR.** Dependabot/sync-bot
+  bumps can collapse; every other PR with a user-facing signal gets a
+  bullet. Contrib-only PRs (``ci:``/``chore:``/``test:``) are the one
+  deliberate omission from ``CHANGES.rst`` (see Step 5) — they're not
+  "skipped" but routed to the PR-body breakdown, so the audit trail stays
+  intact without polluting the user changelog.
 - **Verify the underline length.** ``[ "${#HEADER}" -eq "${#UNDERLINE}" ]``
   before writing — abort with a clear error if mismatched.
 - **Don't merge.** This skill opens the PR. The maintainer reviews,

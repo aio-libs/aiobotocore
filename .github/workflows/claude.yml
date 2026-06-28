@@ -125,7 +125,7 @@ jobs:
       id-token: write
       actions: read
     steps:
-    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
       with:
         fetch-depth: 1
         persist-credentials: false
@@ -137,7 +137,7 @@ jobs:
 
     - name: Set up uv + Python
       # yamllint disable-line rule:line-length
-      uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b  # v8.1.0
+      uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39  # v8.2.0
       with:
         # Pin uv so setup-uv does not query the GitHub API to resolve
         # a matching release from pyproject.toml's required-version
@@ -173,6 +173,32 @@ jobs:
 
     - name: Install dependencies
       run: uv sync --frozen
+
+    # rtk compacts verbose command output (a passing pytest run collapses to
+    # a one-line summary) so test output stays out of the agent's context on
+    # @claude / implement paths that run the suite. The prompt instructs the
+    # agent to wrap test commands in `rtk test`. We deliberately do NOT run
+    # `rtk init` — the agent invokes `rtk` explicitly per command.
+    #
+    # rtk is a Rust CLI (Homebrew / GitHub releases), not a PyPI package, so
+    # it can't be a uv/pyproject dev dependency. Pin the version + verify the
+    # sha256 of the static musl binary, fetched from the releases CDN (no
+    # GitHub API → no rate-limit hit, same rationale as bun below). To bump:
+    # change RTK_VERSION and update RTK_SHA256 from the release checksums.txt.
+    # Keep this in sync with the identical step in botocore-sync.yml.
+    - name: Install rtk (token-compacting command wrapper)
+      env:
+        RTK_VERSION: v0.42.3
+        RTK_SHA256: 5df764a633709cb85d248258d085d24ec95faa8bca0e6835a93cd57cadc4eb9e
+      run: |
+        # yamllint disable-line rule:line-length
+        url="https://github.com/rtk-ai/rtk/releases/download/${RTK_VERSION}/rtk-x86_64-unknown-linux-musl.tar.gz"
+        curl -fsSL "$url" -o /tmp/rtk.tar.gz
+        echo "${RTK_SHA256}  /tmp/rtk.tar.gz" | sha256sum -c -
+        # Install to /usr/local/bin (already on PATH) instead of writing
+        # $GITHUB_PATH — avoids zizmor's github-env code-execution finding.
+        sudo tar -xzf /tmp/rtk.tar.gz -C /usr/local/bin rtk
+        rtk --version
 
     # Pre-install bun and hand its path to claude-code-action so the
     # action's bundled setup-bun step (which would otherwise resolve a
@@ -235,7 +261,7 @@ jobs:
         } >> "$GITHUB_OUTPUT"
 
     # yamllint disable-line rule:line-length
-    - uses: anthropics/claude-code-action@fefa07e9c665b7320f08c3b525980457f22f58aa  # v1.0.111
+    - uses: anthropics/claude-code-action@51705da45eecce209d4700538bf8377d5b5fc695  # v1.0.152
       id: claude
       env:
         CLAUDE_BRANCH: ${{ steps.pr_meta.outputs.branch || '' }}

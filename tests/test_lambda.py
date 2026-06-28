@@ -61,21 +61,25 @@ async def test_run_lambda(
         Publish=True,
         Code={'ZipFile': aws_lambda_zip},
     )
-    assert lambda_response['FunctionName'] == function_name
+    try:
+        assert lambda_response['FunctionName'] == function_name
 
-    invoke_response = await lambda_client.invoke(
-        FunctionName=function_name,
-        InvocationType="RequestResponse",
-        LogType='Tail',
-        Payload=json.dumps({"hello": "world"}),
-    )
+        invoke_response = await lambda_client.invoke(
+            FunctionName=function_name,
+            InvocationType="RequestResponse",
+            LogType='Tail',
+            Payload=json.dumps({"hello": "world"}),
+        )
 
-    async with invoke_response['Payload'] as stream:
-        data = await stream.read()
+        async with invoke_response['Payload'] as stream:
+            data = await stream.read()
 
-    log_result = base64.b64decode(invoke_response["LogResult"])
+        log_result = base64.b64decode(invoke_response["LogResult"])
 
-    assert json.loads(data) == {'statusCode': 200, "body": {"hello": "world"}}
-    assert b"{'hello': 'world'}" in log_result
-
-    await lambda_client.delete_function(FunctionName=function_name)
+        assert json.loads(data) == {
+            'statusCode': 200,
+            "body": {"hello": "world"},
+        }
+        assert b"{'hello': 'world'}" in log_result
+    finally:
+        await lambda_client.delete_function(FunctionName=function_name)
