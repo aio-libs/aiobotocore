@@ -9,7 +9,16 @@ coverage:
   range: "95..100"
 
   status:
-    project: false
+    project:
+      default:
+        target: auto
+      tests:
+        paths:
+        - tests/
+        target: 100%
+    patch:
+      default:
+        target: auto
 
 flags:
   library:
