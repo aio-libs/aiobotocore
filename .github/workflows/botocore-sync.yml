@@ -199,7 +199,7 @@ jobs:
 
     - name: Cache .venv
       # yamllint disable-line rule:line-length
-      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae  # v5.0.5
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
       with:
         path: .venv
         # yamllint disable-line rule:line-length
@@ -210,7 +210,7 @@ jobs:
     # sphinx-lint, check-jsonschema, ...) and rebuilds their venvs.
     - name: Cache pre-commit hook envs
       # yamllint disable-line rule:line-length
-      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae  # v5.0.5
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
       with:
         path: ~/.cache/pre-commit
         key: pre-commit-${{ runner.os }}-${{ hashFiles('.pre-commit-config.yaml') }}
@@ -220,7 +220,7 @@ jobs:
       run: uv sync --frozen
 
     - name: Cache botocore repo
-      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae  # v5.0.5
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
       with:
         path: /tmp/botocore
         key: botocore-repo
@@ -412,7 +412,7 @@ jobs:
     # invalidates.
     - name: Cache .venv
       # yamllint disable-line rule:line-length
-      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae  # v5.0.5
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
       with:
         path: .venv
         # yamllint disable-line rule:line-length
@@ -422,7 +422,7 @@ jobs:
     # classify job above).
     - name: Cache pre-commit hook envs
       # yamllint disable-line rule:line-length
-      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae  # v5.0.5
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
       with:
         path: ~/.cache/pre-commit
         key: pre-commit-${{ runner.os }}-${{ hashFiles('.pre-commit-config.yaml') }}
@@ -470,7 +470,7 @@ jobs:
       run: uv pip install "botocore==$LATEST_BOTOCORE"
 
     - name: Cache botocore repo
-      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae  # v5.0.5
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
       with:
         path: /tmp/botocore
         key: botocore-repo
