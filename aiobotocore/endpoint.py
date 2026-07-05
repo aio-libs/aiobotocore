@@ -106,8 +106,7 @@ class AioEndpoint(Endpoint):
                 request=request,
                 operation_name=operation_model.name,
             )
-        prepared_request = self.prepare_request(request)
-        return prepared_request
+        return self.prepare_request(request)
 
     async def _send_request(self, request_dict, operation_model):
         attempts = 1
@@ -147,8 +146,7 @@ class AioEndpoint(Endpoint):
             )
         if exception is not None:
             raise exception
-        else:
-            return success_response
+        return success_response
 
     async def _get_response(self, request, operation_model, context):
         # This will return a tuple of (success_response, exception)
@@ -289,15 +287,14 @@ class AioEndpoint(Endpoint):
         handler_response = first_non_none_response(responses)
         if handler_response is None or handler_response is False:
             return False
-        else:
-            # Request needs to be retried, and we need to sleep
-            # for the specified number of times.
-            logger.debug(
-                "Response received to retry, sleeping for %s seconds",
-                handler_response,
-            )
-            await asyncio.sleep(handler_response)
-            return True
+        # Request needs to be retried, and we need to sleep
+        # for the specified number of times.
+        logger.debug(
+            "Response received to retry, sleeping for %s seconds",
+            handler_response,
+        )
+        await asyncio.sleep(handler_response)
+        return True
 
     async def _send(self, request):
         return await self.http_session.send(request)

@@ -124,9 +124,9 @@ class AioIMDSFetcher(IMDSFetcher):
                     response = await session.send(request.prepare())
                     if response.status_code == 200:
                         return await response.text
-                    elif response.status_code in (404, 403, 405):
+                    if response.status_code in (404, 403, 405):
                         return None
-                    elif response.status_code in (400,):
+                    if response.status_code in (400,):
                         raise BadIMDSRequestError(request)
                 except ReadTimeoutError:
                     return None
@@ -147,8 +147,7 @@ class AioIMDSFetcher(IMDSFetcher):
                         == 'Domain name not found'
                     ):  # threaded vs async resolver
                         raise InvalidIMDSEndpointError(endpoint=url, error=e)
-                    else:
-                        raise
+                    raise
 
         return None
 
@@ -234,14 +233,12 @@ class AioInstanceMetadataFetcher(AioIMDSFetcher, InstanceMetadataFetcher):
                 }
                 self._evaluate_expiration(credentials)
                 return credentials
-            else:
-                if 'Code' in credentials and 'Message' in credentials:
-                    logger.debug(
-                        'Error response received when retrieving'
-                        'credentials: %s.',
-                        credentials,
-                    )
-                return {}
+            if 'Code' in credentials and 'Message' in credentials:
+                logger.debug(
+                    'Error response received when retrievingcredentials: %s.',
+                    credentials,
+                )
+            return {}
         except self._RETRIES_EXCEEDED_ERROR_CLS:
             logger.debug(
                 "Max number of attempts exceeded (%s) when "
@@ -293,13 +290,11 @@ class AioInstanceMetadataFetcher(AioIMDSFetcher, InstanceMetadataFetcher):
 class AioIMDSRegionProvider(IMDSRegionProvider):
     async def provide(self):
         """Provide the region value from IMDS."""
-        instance_region = await self._get_instance_metadata_region()
-        return instance_region
+        return await self._get_instance_metadata_region()
 
     async def _get_instance_metadata_region(self):
         fetcher = self._get_fetcher()
-        region = await fetcher.retrieve_region()
-        return region
+        return await fetcher.retrieve_region()
 
     def _create_fetcher(self):
         metadata_timeout = self._session.get_config_variable(
@@ -319,14 +314,13 @@ class AioIMDSRegionProvider(IMDSRegionProvider):
                 'ec2_metadata_v1_disabled'
             ),
         }
-        fetcher = AioInstanceMetadataRegionFetcher(
+        return AioInstanceMetadataRegionFetcher(
             timeout=metadata_timeout,
             num_attempts=metadata_num_attempts,
             env=self._environ,
             user_agent=self._session.user_agent(),
             config=imds_config,
         )
-        return fetcher
 
 
 class AioInstanceMetadataRegionFetcher(
@@ -334,8 +328,7 @@ class AioInstanceMetadataRegionFetcher(
 ):
     async def retrieve_region(self):
         try:
-            region = await self._get_region()
-            return region
+            return await self._get_region()
         except self._RETRIES_EXCEEDED_ERROR_CLS:
             logger.debug(
                 "Max number of attempts exceeded (%s) when "
@@ -352,22 +345,20 @@ class AioInstanceMetadataRegionFetcher(
             token=token,
         )
         availability_zone = await response.text
-        region = availability_zone[:-1]
-        return region
+        return availability_zone[:-1]
 
 
 class AioIdentityCache(IdentityCache):
     async def get_credentials(self, **kwargs):
         callback = self.build_refresh_callback(**kwargs)
         metadata = await callback()
-        credential_entry = self._credential_cls.create_from_metadata(
+        return self._credential_cls.create_from_metadata(
             metadata=metadata,
             refresh_using=callback,
             method=self.METHOD,
             advisory_timeout=45,
             mandatory_timeout=10,
         )
-        return credential_entry
 
 
 class AioS3ExpressIdentityCache(AioIdentityCache, S3ExpressIdentityCache):
@@ -425,7 +416,7 @@ class AioS3RegionRedirectorv2(S3RegionRedirectorv2):
         if response is None:
             # This could be none if there was a ConnectionError or other
             # transport error.
-            return
+            return None
 
         redirect_ctx = request_dict.get('context', {}).get('s3_redirect', {})
         if ArnParser.is_arn(redirect_ctx.get('bucket')):
@@ -433,13 +424,13 @@ class AioS3RegionRedirectorv2(S3RegionRedirectorv2):
                 'S3 request was previously for an Accesspoint ARN, not '
                 'redirecting.'
             )
-            return
+            return None
 
         if redirect_ctx.get('redirected'):
             logger.debug(
                 'S3 request was previously redirected, not redirecting.'
             )
-            return
+            return None
 
         error = response[1].get('Error', {})
         error_code = error.get('Code')
@@ -479,7 +470,7 @@ class AioS3RegionRedirectorv2(S3RegionRedirectorv2):
                 is_opt_in_region_redirect,
             ]
         ):
-            return
+            return None
 
         bucket = request_dict['context']['s3_redirect']['bucket']
         client_region = request_dict['context'].get('client_region')
@@ -493,7 +484,7 @@ class AioS3RegionRedirectorv2(S3RegionRedirectorv2):
                 client_region,
                 bucket,
             )
-            return
+            return None
 
         logger.debug(
             "S3 client configured for region %s but the bucket %s "
@@ -571,19 +562,19 @@ class AioS3RegionRedirector(S3RegionRedirector):
         if response is None:
             # This could be none if there was a ConnectionError or other
             # transport error.
-            return
+            return None
 
         if self._is_s3_accesspoint(request_dict.get('context', {})):
             logger.debug(
                 'S3 request was previously to an accesspoint, not redirecting.'
             )
-            return
+            return None
 
         if request_dict.get('context', {}).get('s3_redirected'):
             logger.debug(
                 'S3 request was previously redirected, not redirecting.'
             )
-            return
+            return None
 
         error = response[1].get('Error', {})
         error_code = error.get('Code')
@@ -618,7 +609,7 @@ class AioS3RegionRedirector(S3RegionRedirector):
                 is_redirect_status,
             ]
         ):
-            return
+            return None
 
         bucket = request_dict['context']['signing']['bucket']
         client_region = request_dict['context'].get('client_region')
@@ -632,7 +623,7 @@ class AioS3RegionRedirector(S3RegionRedirector):
                 client_region,
                 bucket,
             )
-            return
+            return None
 
         logger.debug(
             "S3 client configured for region %s but the bucket %s is in region"
@@ -680,8 +671,7 @@ class AioS3RegionRedirector(S3RegionRedirector):
         except ClientError as e:
             headers = e.response['ResponseMetadata']['HTTPHeaders']
 
-        region = headers.get('x-amz-bucket-region', None)
-        return region
+        return headers.get('x-amz-bucket-region', None)
 
 
 class AioContainerMetadataFetcher(ContainerMetadataFetcher):

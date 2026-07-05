@@ -98,8 +98,7 @@ class StreamingBody(wrapt.ObjectProxy):
 
     async def readlines(self):
         # assuming this is not an iterator
-        lines = [line async for line in self.iter_lines()]
-        return lines
+        return [line async for line in self.iter_lines()]
 
     def __aiter__(self):
         """Return an iterator to yield 1k chunks from the raw stream."""

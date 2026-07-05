@@ -48,7 +48,7 @@ class AioDeferredRefreshableToken(DeferredRefreshableToken):
         # If we don't need to refresh just return
         refresh_type = self._should_refresh()
         if not refresh_type:
-            return None
+            return
 
         # Block for refresh if we're in the mandatory refresh window
         block_for_refresh = refresh_type == "mandatory"
@@ -61,7 +61,7 @@ class AioDeferredRefreshableToken(DeferredRefreshableToken):
         # Another task may have already refreshed, double check refresh
         refresh_type = self._should_refresh()
         if not refresh_type:
-            return None
+            return
 
         try:
             now = self._time_fetcher()

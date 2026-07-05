@@ -128,8 +128,7 @@ class AioClientCreator(ClientCreator):
             base_classes=bases,
         )
         class_name = get_service_module_name(service_model)
-        cls = type(str(class_name), tuple(bases), class_attributes)
-        return cls
+        return type(str(class_name), tuple(bases), class_attributes)
 
     def _register_retries(self, client):
         # botocore retry handlers may block. We add our own implementation here.
@@ -434,8 +433,7 @@ class AioBaseClient(BaseClient):
             ) or error_info.get("Code")
             error_class = self.exceptions.from_code(error_code)
             raise error_class(parsed_response, operation_name)
-        else:
-            return parsed_response
+        return parsed_response
 
     async def _make_request(
         self, operation_model, request_dict, request_context
@@ -578,49 +576,43 @@ class AioBaseClient(BaseClient):
         """
         if not self.can_paginate(operation_name):
             raise OperationNotPageableError(operation_name=operation_name)
-        else:
-            actual_operation_name = self._PY_TO_OP_NAME[operation_name]
+        actual_operation_name = self._PY_TO_OP_NAME[operation_name]
 
-            # Create a new paginate method that will serve as a proxy to
-            # the underlying Paginator.paginate method. This is needed to
-            # attach a docstring to the method.
-            def paginate(self, **kwargs):
-                return AioPaginator.paginate(self, **kwargs)
+        # Create a new paginate method that will serve as a proxy to
+        # the underlying Paginator.paginate method. This is needed to
+        # attach a docstring to the method.
+        def paginate(self, **kwargs):
+            return AioPaginator.paginate(self, **kwargs)
 
-            paginator_config = self._cache['page_config'][
-                actual_operation_name
-            ]
-            # Add the docstring for the paginate method.
-            paginate.__doc__ = PaginatorDocstring(
-                paginator_name=actual_operation_name,
-                event_emitter=self.meta.events,
-                service_model=self.meta.service_model,
-                paginator_config=paginator_config,
-                include_signature=False,
-            )
+        paginator_config = self._cache['page_config'][actual_operation_name]
+        # Add the docstring for the paginate method.
+        paginate.__doc__ = PaginatorDocstring(
+            paginator_name=actual_operation_name,
+            event_emitter=self.meta.events,
+            service_model=self.meta.service_model,
+            paginator_config=paginator_config,
+            include_signature=False,
+        )
 
-            # Rename the paginator class based on the type of paginator.
-            service_module_name = get_service_module_name(
-                self.meta.service_model
-            )
-            paginator_class_name = (
-                f"{service_module_name}.Paginator.{actual_operation_name}"
-            )
+        # Rename the paginator class based on the type of paginator.
+        service_module_name = get_service_module_name(self.meta.service_model)
+        paginator_class_name = (
+            f"{service_module_name}.Paginator.{actual_operation_name}"
+        )
 
-            # Create the new paginator class
-            documented_paginator_cls = type(
-                paginator_class_name, (AioPaginator,), {'paginate': paginate}
-            )
+        # Create the new paginator class
+        documented_paginator_cls = type(
+            paginator_class_name, (AioPaginator,), {'paginate': paginate}
+        )
 
-            operation_model = self._service_model.operation_model(
-                actual_operation_name
-            )
-            paginator = documented_paginator_cls(
-                getattr(self, operation_name),
-                paginator_config,
-                operation_model,
-            )
-            return paginator
+        operation_model = self._service_model.operation_model(
+            actual_operation_name
+        )
+        return documented_paginator_cls(
+            getattr(self, operation_name),
+            paginator_config,
+            operation_model,
+        )
 
     # NOTE: this method does not differ from botocore, however it's important to keep
     #   as the "waiter" value points to our own asyncio waiter module

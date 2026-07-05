@@ -172,12 +172,10 @@ class BaseHTTPStubber:
             response = self.responses.pop(0)
             if isinstance(response, Exception):
                 raise response
-            else:
-                return response
-        elif self._strict:
+            return response
+        if self._strict:
             raise HTTPStubberException('Insufficient responses')
-        else:
-            return None
+        return None
 
 
 class ClientHTTPStubber(BaseHTTPStubber):
@@ -200,6 +198,7 @@ def patch_load_service_model(
             return service_model_json
         if type_name == 'endpoint-rule-set-1':
             return ruleset_json
+        return None
 
     loader = session.get_component('data_loader')
     monkeypatch.setattr(loader, 'load_service_model', mock_load_service_model)

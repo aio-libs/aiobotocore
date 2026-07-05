@@ -75,8 +75,7 @@ class AioHierarchicalEmitter(HierarchicalEmitter):
         responses = await self._emit(event_name, kwargs, stop_on_response=True)
         if responses:
             return responses[-1]
-        else:
-            return None, None
+        return None, None
 
     def _verify_and_register(
         self,

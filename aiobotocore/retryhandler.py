@@ -51,13 +51,12 @@ def create_checker_from_retry_config(config, operation_name=None):
     if len(checkers) == 1:
         # Don't need to use a MultiChecker
         return AioMaxAttemptsDecorator(checkers[0], max_attempts=max_attempts)
-    else:
-        multi_checker = AioMultiChecker(checkers)
-        return AioMaxAttemptsDecorator(
-            multi_checker,
-            max_attempts=max_attempts,
-            retryable_exceptions=tuple(retryable_exceptions),
-        )
+    multi_checker = AioMultiChecker(checkers)
+    return AioMaxAttemptsDecorator(
+        multi_checker,
+        max_attempts=max_attempts,
+        retryable_exceptions=tuple(retryable_exceptions),
+    )
 
 
 def _create_single_checker(config):
@@ -65,8 +64,9 @@ def _create_single_checker(config):
         return _create_single_response_checker(
             config['applies_when']['response']
         )
-    elif 'socket_errors' in config['applies_when']:
+    if 'socket_errors' in config['applies_when']:
         return ExceptionRaiser()
+    return None
 
 
 def _create_single_response_checker(response):
@@ -109,6 +109,7 @@ class AioRetryHandler(RetryHandler):
             logger.debug("Retry needed, action of: %s", result)
             return result
         logger.debug("No retry needed.")
+        return None
 
     def __call__(self, *args, **kwargs):
         return self._call(*args, **kwargs)  # return awaitable
@@ -138,10 +139,8 @@ class AioMaxAttemptsDecorator(MaxAttemptsDecorator):
                     attempt_number,
                 )
                 return False
-            else:
-                return should_retry
-        else:
-            return False
+            return should_retry
+        return False
 
     def __call__(self, *args, **kwargs):
         return self._call(*args, **kwargs)
@@ -185,12 +184,11 @@ class AioCRC32Checker(CRC32Checker):
     async def _call(self, attempt_number, response, caught_exception):
         if response is not None:
             return await self._check_response(attempt_number, response)
-        elif caught_exception is not None:
+        if caught_exception is not None:
             return self._check_caught_exception(
                 attempt_number, caught_exception
             )
-        else:
-            raise ValueError("Both response and caught_exception are None.")
+        raise ValueError("Both response and caught_exception are None.")
 
     def __call__(self, *args, **kwargs):
         return self._call(*args, **kwargs)

@@ -9,19 +9,19 @@ from aiobotocore.waiter import WaiterError
 @pytest.fixture
 def dynamodb_table_def():
     table_name = str(uuid.uuid4())
-    return dict(
-        TableName=table_name,
-        AttributeDefinitions=[
+    return {
+        'TableName': table_name,
+        'AttributeDefinitions': [
             {'AttributeName': 'testKey', 'AttributeType': 'N'},
         ],
-        KeySchema=[
+        'KeySchema': [
             {'AttributeName': 'testKey', 'KeyType': 'HASH'},
         ],
-        ProvisionedThroughput={
+        'ProvisionedThroughput': {
             'ReadCapacityUnits': 1,
             'WriteCapacityUnits': 1,
         },
-    )
+    }
 
 
 @pytest.mark.parametrize('signature_version', ['v4'])
@@ -106,7 +106,7 @@ async def test_waiter_table_exists_failure(dynamodb_client):
         WaiterError, match='Waiter TableExists failed: Max attempts exceeded'
     ):
         await waiter.wait(
-            TableName='unknown', WaiterConfig=dict(Delay=1, MaxAttempts=1)
+            TableName='unknown', WaiterConfig={'Delay': 1, 'MaxAttempts': 1}
         )
 
 
@@ -125,7 +125,7 @@ async def test_waiter_table_exists(dynamodb_client, dynamodb_table_def):
 
         waiter = dynamodb_client.get_waiter('table_exists')
         await waiter.wait(
-            TableName=table_name, WaiterConfig=dict(Delay=1, MaxAttempts=5)
+            TableName=table_name, WaiterConfig={'Delay': 1, 'MaxAttempts': 5}
         )
 
         assert done_event.is_set()

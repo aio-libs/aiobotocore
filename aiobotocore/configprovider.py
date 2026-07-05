@@ -32,6 +32,5 @@ class AioSmartDefaultsConfigStoreFactory(SmartDefaultsConfigStoreFactory):
         if current_region:
             if region_name == current_region:
                 return 'in-region'
-            else:
-                return 'cross-region'
+            return 'cross-region'
         return 'standard'

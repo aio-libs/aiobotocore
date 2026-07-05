@@ -1206,7 +1206,7 @@ def _create_assume_role_response(credentials, expiration=None):
     if expiration is None:
         expiration = _some_future_time()
 
-    response = {
+    return {
         'Credentials': {
             'AccessKeyId': credentials.access_key,
             'SecretAccessKey': credentials.secret_key,
@@ -1218,8 +1218,6 @@ def _create_assume_role_response(credentials, expiration=None):
             'Arn': 'arn:aws:iam::1234567890:user/myuser',
         },
     }
-
-    return response
 
 
 def _create_random_credentials():
@@ -1855,7 +1853,7 @@ def refreshable_creds():
         )
         mock_time = mock.Mock()
         mock_time.return_value = mock_time_return_value
-        creds = credentials.AioRefreshableCredentials(
+        return credentials.AioRefreshableCredentials(
             'ORIGINAL-ACCESS',
             'ORIGINAL-SECRET',
             'ORIGINAL-TOKEN',
@@ -1864,7 +1862,6 @@ def refreshable_creds():
             'iam-role',
             time_fetcher=mock_time,
         )
-        return creds
 
     return _f
 
@@ -1891,10 +1888,9 @@ def deferrable_creds():
         mock_time.return_value = mock_time_return_value or datetime.now(
             tzlocal()
         )
-        creds = credentials.AioDeferredRefreshableCredentials(
+        return credentials.AioDeferredRefreshableCredentials(
             refresher, 'iam-role', time_fetcher=mock_time
         )
-        return creds
 
     return _f
 
@@ -2196,8 +2192,7 @@ def _load_login_test_cases():
         'login-provider-test-cases.json',
     )
     with open(test_dir) as f:
-        data = json.load(f)
-    return data
+        return json.load(f)
 
 
 class TestAioLoginProvider:

@@ -30,7 +30,7 @@ async def test_can_make_request(s3_client):
     result = await s3_client.list_buckets()
     # Can't really assume anything about whether or not they have buckets,
     # but we can assume something about the structure of the response.
-    actual_keys = sorted(list(result.keys()))
+    actual_keys = sorted(result.keys())
     assert actual_keys == ['Buckets', 'Owner', 'ResponseMetadata']
 
 
@@ -40,7 +40,7 @@ async def test_can_make_request_no_verify(s3_client):
     result = await s3_client.list_buckets()
     # Can't really assume anything about whether or not they have buckets,
     # but we can assume something about the structure of the response.
-    actual_keys = sorted(list(result.keys()))
+    actual_keys = sorted(result.keys())
     assert actual_keys == ['Buckets', 'Owner', 'ResponseMetadata']
 
 
@@ -55,7 +55,7 @@ async def test_fail_proxy_request(
 @pytest.mark.localonly
 async def test_succeed_proxy_request(aa_succeed_proxy_config, s3_client):
     result = await s3_client.list_buckets()
-    actual_keys = sorted(list(result.keys()))
+    actual_keys = sorted(result.keys())
     assert actual_keys == ['Buckets', 'Owner', 'ResponseMetadata']
 
 
@@ -115,7 +115,7 @@ async def test_can_paginate_with_page_size(
 
     responses = await fetch_all(pages)
     assert len(responses) == 5, responses
-    data = [r for r in responses]
+    data = list(responses)
     key_names = [el['Contents'][0]['Key'] for el in data]
     assert key_names == ['key0', 'key1', 'key2', 'key3', 'key4']
 
@@ -146,7 +146,7 @@ async def test_can_paginate_iterator(s3_client, bucket_name, create_object):
         assert not iscoroutine(page)
         responses.append(page)
     assert len(responses) == 5, responses
-    data = [r for r in responses]
+    data = list(responses)
     key_names = [el['Contents'][0]['Key'] for el in data]
     assert key_names == ['key0', 'key1', 'key2', 'key3', 'key4']
 
@@ -170,8 +170,6 @@ async def test_result_key_iters(s3_client, bucket_name, create_object):
     iterators = [itr.__aiter__() for itr in iterators]
 
     async for vals in aioitertools.zip_longest(*iterators):
-        pass
-
         for k, val in zip(key_names, vals):
             response.setdefault(k.expression, [])
             response[k.expression].append(val)
@@ -209,30 +207,30 @@ async def test_can_get_and_put_object(
 
 @pytest.mark.patch_attributes(
     [
-        dict(
-            target="aiobotocore.retries.adaptive.AsyncClientRateLimiter.on_sending_request",
-            side_effect=aiobotocore.retries.adaptive.AsyncClientRateLimiter.on_sending_request,
-            autospec=True,
-        ),
-        dict(
-            target="aiobotocore.retries.adaptive.AsyncClientRateLimiter.on_receiving_response",
-            side_effect=aiobotocore.retries.adaptive.AsyncClientRateLimiter.on_receiving_response,
-            autospec=True,
-        ),
-        dict(
-            target="botocore.retries.adaptive.ClientRateLimiter.on_sending_request",
-            side_effect=botocore.retries.adaptive.ClientRateLimiter.on_sending_request,
-            autospec=True,
-        ),
-        dict(
-            target="botocore.retries.adaptive.ClientRateLimiter.on_receiving_response",
-            side_effect=botocore.retries.adaptive.ClientRateLimiter.on_receiving_response,
-            autospec=True,
-        ),
+        {
+            'target': "aiobotocore.retries.adaptive.AsyncClientRateLimiter.on_sending_request",
+            'side_effect': aiobotocore.retries.adaptive.AsyncClientRateLimiter.on_sending_request,
+            'autospec': True,
+        },
+        {
+            'target': "aiobotocore.retries.adaptive.AsyncClientRateLimiter.on_receiving_response",
+            'side_effect': aiobotocore.retries.adaptive.AsyncClientRateLimiter.on_receiving_response,
+            'autospec': True,
+        },
+        {
+            'target': "botocore.retries.adaptive.ClientRateLimiter.on_sending_request",
+            'side_effect': botocore.retries.adaptive.ClientRateLimiter.on_sending_request,
+            'autospec': True,
+        },
+        {
+            'target': "botocore.retries.adaptive.ClientRateLimiter.on_receiving_response",
+            'side_effect': botocore.retries.adaptive.ClientRateLimiter.on_receiving_response,
+            'autospec': True,
+        },
     ]
 )
 @pytest.mark.config_kwargs(
-    dict(retries={"max_attempts": 5, "mode": "adaptive"})
+    {'retries': {"max_attempts": 5, "mode": "adaptive"}}
 )
 async def test_adaptive_retry(
     s3_client, config, create_object, bucket_name, patch_attributes

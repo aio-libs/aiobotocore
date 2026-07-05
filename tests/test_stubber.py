@@ -19,11 +19,11 @@ async def test_add_response():
     ):
         stubber = AioStubber(s3_client)
         operation_name = 'put_object'
-        service_response = dict(
-            ETag="6805f2cfc46c0f04559748bb039d69ae",
-            VersionId="psM2sYY4.o1501dSx8wMvnkOzSBB.V4a",
-        )
-        expected_params = dict()
+        service_response = {
+            'ETag': "6805f2cfc46c0f04559748bb039d69ae",
+            'VersionId': "psM2sYY4.o1501dSx8wMvnkOzSBB.V4a",
+        }
+        expected_params = {}
         stubber.add_response(operation_name, service_response, expected_params)
 
         assert len(stubber._queue) == 1

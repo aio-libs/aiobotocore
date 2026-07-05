@@ -82,22 +82,21 @@ class AsyncTokenBucket:
         if amount <= self._current_capacity:
             self._current_capacity -= amount
             return True
-        else:
-            if not block:
-                raise CapacityNotAvailableError()
-            # Not enough capacity.
+        if not block:
+            raise CapacityNotAvailableError()
+        # Not enough capacity.
+        sleep_amount = self._sleep_amount(amount)
+        while sleep_amount > 0:
+            try:
+                await asyncio.wait_for(
+                    self._new_fill_rate_condition.wait(), sleep_amount
+                )
+            except asyncio.TimeoutError:
+                pass
+            self._refill()
             sleep_amount = self._sleep_amount(amount)
-            while sleep_amount > 0:
-                try:
-                    await asyncio.wait_for(
-                        self._new_fill_rate_condition.wait(), sleep_amount
-                    )
-                except asyncio.TimeoutError:
-                    pass
-                self._refill()
-                sleep_amount = self._sleep_amount(amount)
-            self._current_capacity -= amount
-            return True
+        self._current_capacity -= amount
+        return True
 
     def _sleep_amount(self, amount):
         return (amount - self._current_capacity) / self._fill_rate

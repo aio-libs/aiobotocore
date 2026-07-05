@@ -126,8 +126,7 @@ def aa_succeed_proxy_config(monkeypatch):  # pragma: no cover
 
 @pytest.fixture
 def session() -> aiobotocore.session.AioSession:
-    session = aiobotocore.session.AioSession()
-    return session
+    return aiobotocore.session.AioSession()
 
 
 @pytest.fixture
@@ -164,7 +163,7 @@ def current_http_backend(request) -> Literal['httpx', 'aiohttp']:
         if http_session_cls is HttpxSession:
             return 'httpx'
         # since aiohttp is default we don't test explicitly setting it
-        elif http_session_cls is AIOHTTPSession:  # pragma: no cover
+        if http_session_cls is AIOHTTPSession:  # pragma: no cover
             return 'aiohttp'
     return 'aiohttp'
 
@@ -419,7 +418,7 @@ async def recursive_delete(s3_client, bucket_name):
             n.get('Contents', []),
             n.get('CommonPrefixes', []),
         ):
-            kwargs = dict(Bucket=bucket_name, Key=obj['Key'])
+            kwargs = {'Bucket': bucket_name, 'Key': obj['Key']}
             if 'VersionId' in obj:
                 kwargs['VersionId'] = obj['VersionId']
             resp = await s3_client.delete_object(**kwargs)

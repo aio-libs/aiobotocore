@@ -33,8 +33,7 @@ class AioEventStream(EventStream):
         )
         if response_dict['status_code'] == 200:
             return parsed_response
-        else:
-            raise EventStreamError(parsed_response, self._operation_name)
+        raise EventStreamError(parsed_response, self._operation_name)
 
     async def get_initial_response(self):
         try:

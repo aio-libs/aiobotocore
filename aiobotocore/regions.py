@@ -39,8 +39,7 @@ class AioEndpointRulesetResolver(EndpointRulesetResolver):
             )
             if botocore_exception is None:
                 raise
-            else:
-                raise botocore_exception from ex
+            raise botocore_exception from ex
         LOG.debug('Endpoint provider result: %s', provider_result.url)
 
         # The endpoint provider does not support non-secure transport.
@@ -56,13 +55,11 @@ class AioEndpointRulesetResolver(EndpointRulesetResolver):
         # Multi-valued headers are not supported in botocore. Replace the list
         # of values returned for each header with just its first entry,
         # dropping any additionally entries.
-        provider_result = provider_result._replace(
+        return provider_result._replace(
             headers={
                 key: val[0] for key, val in provider_result.headers.items()
             }
         )
-
-        return provider_result
 
     async def _get_provider_params(
         self, operation_model, call_args, request_context

@@ -44,9 +44,8 @@ class AioResponseParser(ResponseParser):
             if self._is_generic_error_response(response):
                 parsed = self._do_generic_error_parse(response)
             elif self._is_modeled_error_shape(shape):
-                parsed = self._do_modeled_error_parse(response, shape)
+                return self._do_modeled_error_parse(response, shape)
                 # We don't want to decorate the modeled fields with metadata
-                return parsed
             else:
                 parsed = self._do_error_parse(response, shape)
         else:

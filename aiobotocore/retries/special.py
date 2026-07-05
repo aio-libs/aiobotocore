@@ -20,3 +20,4 @@ class AioRetryDDBChecksumError(RetryDDBChecksumError):
                 actual_crc32,
             )
             return True
+        return None

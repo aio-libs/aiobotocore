@@ -13,7 +13,7 @@ async def test_monitor_response_received(session: AioSession, s3_client):
     result = await s3_client.list_buckets()
     # Can't really assume anything about whether or not they have buckets,
     # but we can assume something about the structure of the response.
-    actual_keys = sorted(list(result.keys()))
+    actual_keys = sorted(result.keys())
     assert actual_keys == ['Buckets', 'Owner', 'ResponseMetadata']
 
     assert handler_kwargs['response_dict']['status_code'] == 200

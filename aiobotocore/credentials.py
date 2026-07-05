@@ -167,8 +167,7 @@ def create_credential_resolver(session, cache=None, region_name=None):
             ' because profile name was explicitly set.'
         )
 
-    resolver = AioCredentialResolver(providers=providers)
-    return resolver
+    return AioCredentialResolver(providers=providers)
 
 
 class AioProfileProviderBuilder(ProfileProviderBuilder):
@@ -466,15 +465,13 @@ class AioCachedCredentialFetcher(CachedCredentialFetcher):
 
         creds = response['Credentials']
         expiration = _serialize_if_needed(creds['Expiration'], iso=True)
-        credentials = {
+        return {
             'access_key': creds['AccessKeyId'],
             'secret_key': creds['SecretAccessKey'],
             'token': creds['SessionToken'],
             'expiry_time': expiration,
             'account_id': creds.get('AccountId'),
         }
-
-        return credentials
 
 
 class AioBaseAssumeRoleCredentialFetcher(
@@ -566,7 +563,7 @@ class AioProcessProvider(ProcessProvider):
     async def load(self):
         credential_process = self._credential_process
         if credential_process is None:
-            return
+            return None
 
         register_feature_id('CREDENTIALS_PROFILE_PROCESS')
         creds_dict = await self._retrieve_credentials_using(credential_process)
@@ -646,12 +643,11 @@ class AioInstanceMetadataProvider(InstanceMetadataProvider):
             'Found credentials from IAM Role: %s', metadata['role_name']
         )
 
-        creds = AioRefreshableCredentials.create_from_metadata(
+        return AioRefreshableCredentials.create_from_metadata(
             metadata,
             method=self.METHOD,
             refresh_using=fetcher.retrieve_iam_role_credentials,
         )
-        return creds
 
 
 class AioEnvProvider(EnvProvider):
@@ -684,8 +680,7 @@ class AioEnvProvider(EnvProvider):
                 method=self.METHOD,
                 account_id=credentials['account_id'],
             )
-        else:
-            return None
+        return None
 
 
 class AioOriginalEC2Provider(OriginalEC2Provider):
@@ -705,6 +700,7 @@ class AioOriginalEC2Provider(OriginalEC2Provider):
                 )
         else:
             return None
+        return None
 
 
 class AioSharedCredentialProvider(SharedCredentialProvider):
@@ -733,6 +729,7 @@ class AioSharedCredentialProvider(SharedCredentialProvider):
                     method=self.METHOD,
                     account_id=account_id,
                 )
+        return None
 
 
 class AioConfigProvider(ConfigProvider):
@@ -763,6 +760,7 @@ class AioConfigProvider(ConfigProvider):
                 )
         else:
             return None
+        return None
 
 
 class AioBotoProvider(BotoProvider):
@@ -790,6 +788,7 @@ class AioBotoProvider(BotoProvider):
                     return AioCredentials(
                         access_key, secret_key, method=self.METHOD
                     )
+        return None
 
 
 class AioAssumeRoleProvider(AssumeRoleProvider):
@@ -803,6 +802,7 @@ class AioAssumeRoleProvider(AssumeRoleProvider):
         profile = profiles.get(self._profile_name, {})
         if self._has_assume_role_config_vars(profile):
             return await self._load_creds_via_assume_role(self._profile_name)
+        return None
 
     async def _load_creds_via_assume_role(self, profile_name):
         role_config = self._get_role_config(profile_name)
@@ -877,7 +877,7 @@ class AioAssumeRoleProvider(AssumeRoleProvider):
             # to handle the basic static credential case as we would before the
             # profile provider builder parameter was added.
             return self._resolve_static_credentials_from_profile(profile)
-        elif self._has_static_credentials(
+        if self._has_static_credentials(
             profile
         ) or not self._has_assume_role_config_vars(profile):
             profile_providers = self._profile_provider_builder.providers(
@@ -1040,6 +1040,7 @@ class AioContainerProvider(ContainerProvider):
     async def load(self):
         if self.ENV_VAR in self._environ or self.ENV_VAR_FULL in self._environ:
             return await self._retrieve_or_fail()
+        return None
 
     async def _retrieve_or_fail(self):
         if self._provided_relative_uri():
@@ -1143,7 +1144,7 @@ class AioSSOCredentialFetcher(
                 raise UnauthorizedSSOTokenError()
             credentials = response['roleCredentials']
 
-            credentials = {
+            return {
                 'ProviderType': 'sso',
                 'Credentials': {
                     'AccessKeyId': credentials['accessKeyId'],
@@ -1155,7 +1156,6 @@ class AioSSOCredentialFetcher(
                     'AccountId': self._account_id,
                 },
             }
-            return credentials
 
 
 class AioSSOProvider(SSOProvider):
@@ -1240,7 +1240,7 @@ class AioLoginCredentialFetcher(LoginCredentialFetcher):
                 error_type = e.response.get('error', '')
                 if error_type in ('TOKEN_EXPIRED', 'USER_CREDENTIALS_CHANGED'):
                     raise LoginRefreshRequired() from e
-                elif error_type == 'INSUFFICIENT_PERMISSIONS':
+                if error_type == 'INSUFFICIENT_PERMISSIONS':
                     raise LoginInsufficientPermissions() from e
                 raise LoginError() from e
 

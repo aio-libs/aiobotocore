@@ -22,8 +22,7 @@ class AioAWSResponse(AWSResponse):
         encoding = botocore.utils.get_encoding_from_headers(self.headers)
         if encoding:
             return (await self.content).decode(encoding)
-        else:
-            return (await self.content).decode('utf-8')
+        return (await self.content).decode('utf-8')
 
     @property
     def text(self):

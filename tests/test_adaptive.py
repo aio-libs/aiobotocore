@@ -15,8 +15,6 @@ from aiobotocore.retries import adaptive, bucket
 class _SleepMethodCalled(Exception):
     """Raised to explicitly fail a test for calling the blocking `sleep` method."""
 
-    pass
-
 
 class FakeClock(bucket.Clock):
     def __init__(self, timestamp_sequences):
@@ -45,14 +43,13 @@ class TestAsyncClientRateLimiter:
         )
 
     def create_client_limiter(self):
-        rate_limiter = adaptive.AsyncClientRateLimiter(
+        return adaptive.AsyncClientRateLimiter(
             rate_adjustor=self.rate_adjustor,
             rate_clocker=self.rate_clocker,
             token_bucket=self.token_bucket,
             throttling_detector=self.throttling_detector,
             clock=self.clock,
         )
-        return rate_limiter
 
     async def test_bucket_bucket_acquisition_only_if_enabled(self):
         rate_limiter = self.create_client_limiter()

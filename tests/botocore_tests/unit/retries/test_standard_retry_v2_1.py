@@ -121,14 +121,13 @@ class TestRetryQuotaChecker(unittest.TestCase):
         http_response = AWSResponse(
             status_code=status_code, raw=None, headers={}, url='https://foo/'
         )
-        context = standard.RetryContext(
+        return standard.RetryContext(
             attempt_number=1,
             request_context=self.request_context,
             caught_exception=caught_exception,
             http_response=http_response,
             parsed_response=parsed_response,
         )
-        return context
 
     def test_can_acquire_quota_for_throttling_error(self):
         self.assertTrue(

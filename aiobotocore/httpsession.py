@@ -85,9 +85,9 @@ class AIOHTTPSession:
         self._timeout = timeout
         self._connector_args = connector_args
         if self._connector_args is None:
-            self._connector_args = dict(
-                keepalive_timeout=DEFAULT_KEEPALIVE_TIMEOUT
-            )
+            self._connector_args = {
+                'keepalive_timeout': DEFAULT_KEEPALIVE_TIMEOUT
+            }
 
         self._max_pool_connections = max_pool_connections
         self._socket_options = socket_options
@@ -280,8 +280,7 @@ class AIOHTTPSession:
         except ServerTimeoutError as e:
             if str(e).lower().startswith('connect'):
                 raise ConnectTimeoutError(endpoint_url=request.url, error=e)
-            else:
-                raise ReadTimeoutError(endpoint_url=request.url, error=e)
+            raise ReadTimeoutError(endpoint_url=request.url, error=e)
         except (
             ClientConnectorError,
             ClientConnectionError,

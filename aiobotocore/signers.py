@@ -86,8 +86,7 @@ class AioRequestSigner(RequestSigner):
                     raise UnsupportedSignatureVersionError(
                         signature_version=signature_version
                     )
-                else:
-                    raise e
+                raise e
 
             auth.add_auth(request)
 
@@ -154,8 +153,7 @@ class AioRequestSigner(RequestSigner):
                 frozen_token = await self._auth_token.get_frozen_token()
             else:
                 frozen_token = self._auth_token
-            auth = cls(frozen_token)
-            return auth
+            return cls(frozen_token)
 
         credentials = request_credentials or self._credentials
         if getattr(cls, "REQUIRES_IDENTITY_CACHE", None) is True:
@@ -173,8 +171,7 @@ class AioRequestSigner(RequestSigner):
                 raise botocore.exceptions.NoRegionError()
             kwargs['region_name'] = region_name
             kwargs['service_name'] = signing_name
-        auth = cls(**kwargs)
-        return auth
+        return cls(**kwargs)
 
     # Alias get_auth for backwards compatibility.
     get_auth = get_auth_instance

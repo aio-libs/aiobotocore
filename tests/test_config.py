@@ -15,47 +15,47 @@ from tests.mock_server import AIOServer
 async def test_connector_args(current_http_backend: str):
     with pytest.raises(ParamValidationError):
         # wrong type
-        connector_args: dict[str, object] = dict(use_dns_cache=1)
+        connector_args: dict[str, object] = {"use_dns_cache": 1}
         AioConfig(connector_args)
 
     with pytest.raises(ParamValidationError):
         # wrong type
-        connector_args = dict(ttl_dns_cache="1")
+        connector_args = {"ttl_dns_cache": "1"}
         AioConfig(connector_args)
 
     with pytest.raises(ParamValidationError):
         # wrong type
-        connector_args = dict(keepalive_timeout="1")
+        connector_args = {"keepalive_timeout": "1"}
         AioConfig(connector_args)
 
     with pytest.raises(ParamValidationError):
         # wrong type
-        connector_args = dict(force_close="1")
+        connector_args = {"force_close": "1"}
         AioConfig(connector_args)
 
     with pytest.raises(ParamValidationError):
         # wrong type
-        connector_args = dict(keepalive_timeout="1")
+        connector_args = {"keepalive_timeout": "1"}
         AioConfig(connector_args)
 
     with pytest.raises(ParamValidationError):
         # wrong type
-        connector_args = dict(ssl_context="1")
+        connector_args = {"ssl_context": "1"}
         AioConfig(connector_args)
 
     with pytest.raises(ParamValidationError):
         # invalid DNS resolver
-        connector_args = dict(resolver="1")
+        connector_args = {"resolver": "1"}
         AioConfig(connector_args)
 
     with pytest.raises(ParamValidationError):
         # invalid socket factory
-        connector_args = dict(socket_factory="1")
+        connector_args = {"socket_factory": "1"}
         AioConfig(connector_args)
 
     with pytest.raises(ParamValidationError):
         # invalid key
-        connector_args = dict(foo="1")
+        connector_args = {"foo": "1"}
         AioConfig(connector_args)
 
     with pytest.raises(

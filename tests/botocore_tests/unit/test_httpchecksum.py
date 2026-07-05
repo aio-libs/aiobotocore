@@ -94,7 +94,7 @@ class TestHttpChecksumHandlers:
         return http_response, response_dict
 
     def _build_request(self, body):
-        request = {
+        return {
             "headers": {},
             "body": body,
             "context": {
@@ -104,7 +104,6 @@ class TestHttpChecksumHandlers:
             },
             "url": "https://example.com",
         }
-        return request
 
     def test_apply_request_checksum_handles_no_checksum_context(self):
         request = self._build_request(b"")

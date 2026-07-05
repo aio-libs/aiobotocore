@@ -273,8 +273,7 @@ async def _fixup_parsed_result(parsed):
     # types are represented as strings: "Infinity", "-Infinity", and "NaN".
     # However, we parse these values as actual floats types, so we need to convert
     # them back to their string representation.
-    parsed = _convert_special_floats_to_string(parsed)
-    return parsed
+    return _convert_special_floats_to_string(parsed)
 
 
 def _convert_bytes_to_str(parsed):
@@ -283,15 +282,14 @@ def _convert_bytes_to_str(parsed):
         for key, value in parsed.items():
             new_dict[key] = _convert_bytes_to_str(value)
         return new_dict
-    elif isinstance(parsed, bytes):
+    if isinstance(parsed, bytes):
         return parsed.decode('utf-8')
-    elif isinstance(parsed, list):
+    if isinstance(parsed, list):
         new_list = []
         for item in parsed:
             new_list.append(_convert_bytes_to_str(item))
         return new_list
-    else:
-        return parsed
+    return parsed
 
 
 def _convert_special_floats_to_string(parsed):

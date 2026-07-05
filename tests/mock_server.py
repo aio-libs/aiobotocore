@@ -90,7 +90,7 @@ class AIOServer(multiprocessing.Process):
 
     async def _wait_until_up(self):
         async with aiohttp.ClientSession() as session:
-            for i in range(0, 30):
+            for i in range(30):
                 if self.exitcode is not None:
                     pytest.fail('unable to start/connect to aiohttp server')
                     return

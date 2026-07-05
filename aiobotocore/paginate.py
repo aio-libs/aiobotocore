@@ -21,7 +21,7 @@ class AioPageIterator(PageIterator):
     async def __anext__(self):
         current_kwargs = self._op_kwargs
         previous_next_token = None
-        next_token = {key: None for key in self._input_token}
+        next_token = dict.fromkeys(self._input_token)
         if self._starting_token is not None:
             # If the starting token exists, populate the next_token with the
             # values inside it. This ensures that we have the service's
