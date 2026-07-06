@@ -15,35 +15,35 @@ repos:
   - id: end-of-file-fixer
   - id: trailing-whitespace
 - repo: https://github.com/astral-sh/ruff-pre-commit
-  rev: d1b833175a5d08a925900115526febd8fe71c98e  # frozen: v0.15.11
+  rev: c59bba8fb259db0fec2bbb77ad8ba51ea7341b56  # frozen: v0.15.20
   hooks:
   - id: ruff-check
     args: [--fix]
   - id: ruff-format
 - repo: https://github.com/astral-sh/uv-pre-commit
   # yamllint disable-line rule:line-length
-  rev: c58479ef13b52c53ef39c6481614eba04d78b46f  # 0.11.12
+  rev: 0.11.26  # 0.11.12
   hooks:
   - id: uv-lock
 - repo: https://github.com/adrienverge/yamllint
   # yamllint disable-line rule:line-length
-  rev: 79a6b2b1392eaf49cdd32ac4f14be1a809bbd8f7  # v1.37.1
+  rev: v1.38.0  # v1.37.1
   hooks:
   - id: yamllint
     args: [--strict]
 - repo: https://github.com/rvben/rumdl-pre-commit
   # yamllint disable-line rule:line-length
-  rev: e25bab4ecdcb2d86aaf956ad89f9ccda55e226ab  # v0.1.74
+  rev: v0.2.28  # v0.1.74
   hooks:
   - id: rumdl
 - repo: https://github.com/sphinx-contrib/sphinx-lint
   # yamllint disable-line rule:line-length
-  rev: c883505f64b59c3c5c9375191e4ad9f98e727ccd  # v1.0.2
+  rev: v1.0.2  # v1.0.2
   hooks:
   - id: sphinx-lint
 - repo: https://github.com/python-jsonschema/check-jsonschema
   # yamllint disable-line rule:line-length
-  rev: ba8f7ac0e0c0d25bae15b628b634316e7d201db5  # 0.36.1
+  rev: 0.37.4  # 0.36.1
   hooks:
   - id: check-dependabot
   - id: check-github-workflows
