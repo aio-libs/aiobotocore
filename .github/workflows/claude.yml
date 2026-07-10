@@ -261,7 +261,7 @@ jobs:
         } >> "$GITHUB_OUTPUT"
 
     # yamllint disable-line rule:line-length
-    - uses: anthropics/claude-code-action@51705da45eecce209d4700538bf8377d5b5fc695  # v1.0.152
+    - uses: anthropics/claude-code-action@558b1d6cab4085c7753fe402c10bef0fbb92ac7a  # v1.0.165
       id: claude
       env:
         CLAUDE_BRANCH: ${{ steps.pr_meta.outputs.branch || '' }}
