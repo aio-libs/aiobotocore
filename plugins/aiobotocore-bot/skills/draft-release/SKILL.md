@@ -358,7 +358,7 @@ Otherwise:
 
 1. Don't create a branch. ``mcp__github_file_ops__commit_files`` commits to
    the branch the workflow pins via ``CLAUDE_BRANCH``
-   (``claude/release-<run-id>``) and creates it off ``main`` on first
+   (``claude/release-<run-id>-<attempt>``) and creates it off ``main`` on first
    commit. The branch has no per-call override — passing ``branch`` or
    ``ref`` to the tool is silently ignored — so never hand-roll a ref.
    ``auto-release-on-merge.yml`` keys off the PR title (``Release v...``),

@@ -89,8 +89,10 @@ not apply to humans editing the repo directly.
   the merge queue / pull request"). So: **set `CLAUDE_BRANCH: claude/<name>` in the step's `env:`**
   (see `draft-release.yml`). Don't pre-create the ref — the tool creates the branch off
   `BASE_BRANCH` on first commit. Conversely it *reuses* the branch if it already exists, so
-  prefer a run-scoped name (`claude/release-${{ github.run_id }}`) over one a failed run could
-  have left behind with commits on it.
+  prefer a name scoped per *attempt* —
+  `claude/release-${{ github.run_id }}-${{ github.run_attempt }}` — over one a failed attempt
+  could have left behind with commits on it. `run_id` alone is not enough: it stays the same
+  across re-runs, so a retry would land on the failed attempt's branch.
   Do **not** fall back to `git push` — workflow checkouts use `persist-credentials: false`, so it
   fails with "could not read Username", and a runner-side `git commit` is unsigned (no key on the
   runner), which blocks the merge.

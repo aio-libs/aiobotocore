@@ -136,9 +136,12 @@ jobs:
         # The file-ops MCP server commits to a branch fixed at server
         # startup from CLAUDE_BRANCH; there is no per-call branch arg. In
         # agent mode this defaults to GITHUB_REF_NAME (``main``), whose
-        # branch protection rejects the commit. Run-scoped so a failed
-        # run's leftover branch is never committed on top of.
-        CLAUDE_BRANCH: claude/release-${{ github.run_id }}
+        # branch protection rejects the commit. Scoped per *attempt* so a
+        # failed attempt's leftover branch is never committed on top of —
+        # file-ops reuses an existing ref, and run_id alone is stable
+        # across re-runs.
+        # yamllint disable-line rule:line-length
+        CLAUDE_BRANCH: claude/release-${{ github.run_id }}-${{ github.run_attempt }}
       with:
         anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
         use_commit_signing: true
@@ -175,7 +178,8 @@ jobs:
       if: ${{ !inputs.dry_run }}
       env:
         GH_TOKEN: ${{ github.token }}
-        BRANCH: claude/release-${{ github.run_id }}
+        # yamllint disable-line rule:line-length
+        BRANCH: claude/release-${{ github.run_id }}-${{ github.run_attempt }}
       run: |
         url=$(gh pr list --head "$BRANCH" --base main --state open \
           --json url --jq '.[0].url // empty')
