@@ -172,8 +172,24 @@ jobs:
           }
         # yamllint enable rule:line-length
 
-    # The agent can abort mid-run (e.g. a blocked commit path) and still
-    # exit 0, leaving a green run that drafted nothing. Assert the PR.
+    # The action exits 0 even when it self-skips without running the
+    # agent (e.g. workflow validation on a PR that edits this file), so
+    # a dry run reports success having done nothing. No execution file
+    # means no agent. Covers dry runs, which never open a PR to check.
+    - name: Verify the agent ran
+      env:
+        EXECUTION_FILE: ${{ steps.claude.outputs.execution_file }}
+      run: |
+        if [ -z "$EXECUTION_FILE" ]; then
+          echo "::error::The agent never ran — the action produced no" \
+            "execution file. Check the step above for a skip reason."
+          exit 1
+        fi
+
+    # Independent of what the agent claims: confirm the PR is really
+    # there. The agent can abort in prose and still finish its turn
+    # cleanly (subtype=success, is_error=false), so its own report is
+    # not a reliable signal — the PR existing is.
     - name: Verify the release PR was opened
       if: ${{ !inputs.dry_run }}
       env:
