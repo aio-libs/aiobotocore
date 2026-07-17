@@ -67,17 +67,22 @@ from dateutil.tz import tzutc
 
 from aiobotocore._helpers import resolve_awaitable
 from aiobotocore.config import AioConfig
+from aiobotocore.httpxsession import HttpxSession
 from aiobotocore.tokens import AioSSOTokenProvider
 from aiobotocore.utils import (
     AioContainerMetadataFetcher,
     AioInstanceMetadataFetcher,
+    AnyioContainerMetadataFetcher,
+    AnyioInstanceMetadataFetcher,
     create_nested_client,
 )
 
 logger = logging.getLogger(__name__)
 
 
-def create_credential_resolver(session, cache=None, region_name=None):
+def create_credential_resolver(
+    session, cache=None, region_name=None, http_session_cls=None
+):
     """Create a default credential resolver.
     This creates a pre-configured credential resolver
     that includes the default lookup chain for
@@ -105,9 +110,19 @@ def create_credential_resolver(session, cache=None, region_name=None):
         cache = {}
 
     env_provider = AioEnvProvider()
-    container_provider = AioContainerProvider()
+
+    # aiohttp is asyncio-only; the httpx backend also runs on trio.
+    if http_session_cls is not None and issubclass(
+        http_session_cls, HttpxSession
+    ):
+        container_provider = AnyioContainerProvider()
+        iam_role_fetcher_cls = AnyioInstanceMetadataFetcher
+    else:
+        container_provider = AioContainerProvider()
+        iam_role_fetcher_cls = AioInstanceMetadataFetcher
+
     instance_metadata_provider = AioInstanceMetadataProvider(
-        iam_role_fetcher=AioInstanceMetadataFetcher(
+        iam_role_fetcher=iam_role_fetcher_cls(
             timeout=metadata_timeout,
             num_attempts=num_attempts,
             user_agent=session.user_agent(),
@@ -1030,12 +1045,14 @@ class AioCanonicalNameCredentialSourcer(CanonicalNameCredentialSourcer):
 
 
 class AioContainerProvider(ContainerProvider):
+    _fetcher_cls = AioContainerMetadataFetcher
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         # This will always run if no fetcher arg is provided
         if isinstance(self._fetcher, ContainerMetadataFetcher):
-            self._fetcher = AioContainerMetadataFetcher()
+            self._fetcher = self._fetcher_cls()
 
     async def load(self):
         if self.ENV_VAR in self._environ or self.ENV_VAR_FULL in self._environ:
@@ -1082,6 +1099,13 @@ class AioContainerProvider(ContainerProvider):
             }
 
         return fetch_creds
+
+
+class AnyioContainerProvider(AioContainerProvider):
+    """Container credential provider for the httpx backend, which also runs
+    on trio."""
+
+    _fetcher_cls = AnyioContainerMetadataFetcher
 
 
 class AioCredentialResolver(CredentialResolver):

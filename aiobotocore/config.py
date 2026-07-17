@@ -77,7 +77,7 @@ class AioConfig(botocore.client.Config):
         for k, v in connector_args.items():
             # verify_ssl is handled by verify parameter to create_client
             if k == 'use_dns_cache':
-                if http_session_cls is HttpxSession:
+                if issubclass(http_session_cls, HttpxSession):
                     raise ParamValidationError(
                         report='Httpx does not support dns caching. https://github.com/encode/httpx/discussions/2211'
                     )
@@ -96,7 +96,7 @@ class AioConfig(botocore.client.Config):
                         report=f'{k} value must be a float/int or None'
                     )
             elif k == 'force_close':
-                if http_session_cls is HttpxSession:
+                if issubclass(http_session_cls, HttpxSession):
                     raise ParamValidationError(
                         report=f'Httpx backend does not currently support {k}.'
                     )
@@ -111,7 +111,7 @@ class AioConfig(botocore.client.Config):
                         report=f'{k} must be an SSLContext instance'
                     )
             elif k == "resolver":
-                if http_session_cls is HttpxSession:
+                if issubclass(http_session_cls, HttpxSession):
                     raise ParamValidationError(
                         report=f'Httpx backend does not support {k}.'
                     )
@@ -120,7 +120,7 @@ class AioConfig(botocore.client.Config):
                         report=f'{k} must be an instance of a AbstractResolver'
                     )
             elif k == "socket_factory":
-                if http_session_cls is HttpxSession:
+                if issubclass(http_session_cls, HttpxSession):
                     raise ParamValidationError(
                         report=f'Httpx backend does not support {k}.'
                     )

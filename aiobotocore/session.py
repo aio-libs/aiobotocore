@@ -25,7 +25,7 @@ from .httpsession import AIOHTTPSession
 from .httpxsession import HttpxSession
 from .parsers import AioResponseParserFactory
 from .tokens import create_token_resolver
-from .utils import AioIMDSRegionProvider
+from .utils import AioIMDSRegionProvider, AnyioIMDSRegionProvider
 
 
 class ClientCreatorContext:
@@ -70,9 +70,17 @@ class AioSession(_SyncSession):
     def _create_token_resolver(self):
         return create_token_resolver(self)
 
+    # The http session class of the most recently created client, used to
+    # pick the backend for IMDS lookups. Like botocore's
+    # _last_client_region_used, this is only read when the credential
+    # resolver is created, which happens once per session.
+    _last_client_http_session_cls = AIOHTTPSession
+
     def _create_credential_resolver(self):
         return create_credential_resolver(
-            self, region_name=self._last_client_region_used
+            self,
+            region_name=self._last_client_region_used,
+            http_session_cls=self._last_client_http_session_cls,
         )
 
     def _register_smart_defaults_factory(self):
@@ -80,7 +88,11 @@ class AioSession(_SyncSession):
             default_config_resolver = self._get_internal_component(
                 'default_config_resolver'
             )
-            imds_region_provider = AioIMDSRegionProvider(session=self)
+            # aiohttp is asyncio-only; the httpx backend also runs on trio.
+            if issubclass(self._last_client_http_session_cls, HttpxSession):
+                imds_region_provider = AnyioIMDSRegionProvider(session=self)
+            else:
+                imds_region_provider = AioIMDSRegionProvider(session=self)
             return AioSmartDefaultsConfigStoreFactory(
                 default_config_resolver, imds_region_provider
             )
@@ -203,6 +215,9 @@ class AioSession(_SyncSession):
             config = default_client_config
 
         region_name = self._resolve_region_name(region_name, config)
+        self._last_client_http_session_cls = getattr(
+            config, 'http_session_cls', AIOHTTPSession
+        )
 
         # Figure out the verify value base on the various
         # configuration options.

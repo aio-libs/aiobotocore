@@ -80,6 +80,15 @@ async def test_connector_args(current_http_backend: str):
     ):
         AioConfig({'socket_factory': True}, http_session_cls=HttpxSession)
 
+    # A subclass is still the httpx backend, so it gets the same validation.
+    class MyHttpxSession(HttpxSession): ...
+
+    with pytest.raises(
+        ParamValidationError,
+        match='Httpx does not support dns caching',
+    ):
+        AioConfig({'use_dns_cache': True}, http_session_cls=MyHttpxSession)
+
     # Test valid configs:
     AioConfig({"ttl_dns_cache": None})
     AioConfig({"ttl_dns_cache": 1})
