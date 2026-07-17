@@ -165,9 +165,9 @@ jobs:
         PYEOF
 
   # Classify the diff with Sonnet before deciding which model to use for the
-  # actual sync. The classifier is mechanical (diff-walking + registry lookups)
-  # — Sonnet handles it for ~$0.10 per run versus ~$1+ if we ran the same step
-  # inside the Opus sync. Outputs `verdict` so `sync` below can pick the model:
+  # actual sync. The classifier is mechanical (diff-walking + registry lookups),
+  # so Sonnet handles it without spending Opus rates inside the sync job.
+  # Outputs `verdict` so `sync` below can pick the model:
   # no-port → Sonnet (cheap), anything else → Opus (full reasoning).
   classify:
     needs: detect
@@ -549,7 +549,7 @@ jobs:
         plugins: aiobotocore-bot@aiobotocore
         prompt: ${{ steps.prompt.outputs.PROMPT }}
         # Model is conditional on the classify job's verdict:
-        # - no-port → Sonnet (mechanical bump+PR; ~5× cheaper output)
+        # - no-port → Sonnet (mechanical bump+PR; cheaper output)
         # - everything else → Opus (real porting work, ambiguity, escalation)
         # When `verdict` is empty (classify failed/skipped) the fallback is
         # Opus, matching the prior single-job behavior.
