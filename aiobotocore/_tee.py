@@ -38,6 +38,14 @@ def tee(itr: AsyncIterable[T], n: int = 2) -> tuple[AsyncIterator[T], ...]:
                         value = await iterator.__anext__()
                     except StopAsyncIteration:
                         outcome.append(None)
+                    except anyio.get_cancelled_exc_class():
+                        # Cancelling this consumer tears down the source,
+                        # which is shared. Make the others fail loudly
+                        # rather than silently yield a truncated stream.
+                        outcome.append(
+                            RuntimeError('tee source was cancelled')
+                        )
+                        raise
                     except Exception as e:
                         outcome.append(e)
                     else:
