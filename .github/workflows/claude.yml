@@ -295,14 +295,12 @@ jobs:
         # auto-discover user-scope plugins reliably — the Skill tool returns
         # "Unknown skill: aiobotocore-bot:*" without this flag. Tracked upstream
         # at anthropics/claude-code-action#1145.
-        # Sonnet for default PR-review and @claude responses. Code review
-        # is well within Sonnet's range -- diff-walk + project-rules check
-        # against CLAUDE.md is largely mechanical, the same shape as the
-        # botocore-sync classifier that already runs on Sonnet at ~$0.10
-        # per run vs ~$1+ for Opus. PR-review traffic is high (every push
-        # to every open PR triggers a run) so the cost gap compounds.
-        # Escalate to Opus selectively if a specific @claude task needs
-        # it -- a follow-up could route based on prompt content / labels.
+        # Sonnet for default PR-review and @claude responses: diff-walk +
+        # project-rules check against CLAUDE.md is largely mechanical, and
+        # PR-review traffic is the highest-volume Claude job here (every push
+        # to every open PR triggers a run), so the per-run gap compounds.
+        # TODO: the gap is now ~1.67x on output, not the ~10x this split was
+        # sized against -- revisit the routing: aio-libs/aiobotocore#1660
         claude_args: |
           --dangerously-skip-permissions
           --plugin-dir plugins/aiobotocore-bot

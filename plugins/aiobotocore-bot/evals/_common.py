@@ -22,31 +22,25 @@ import anthropic
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 AIOBOTOCORE_DIR = REPO_ROOT / "aiobotocore"
-# Opus 4.7 at default effort. The recent Opus 4.5+ pricing drop
-# (to $5/$25 per M input/output, down from $15/$75) narrowed the gap
-# to Sonnet+thinking to ~25%, so the accuracy advantage makes Opus the
-# better cost/quality point. Baseline Opus eval was 8/8 without
-# thinking; Sonnet+thinking was 7/8. Default across eval, sync, and
-# reviewer workflows. Switch back to Sonnet if Opus ever underperforms
-# on the regression suite.
-DEFAULT_MODEL = "claude-opus-4-7"
+# Opus at default effort: 8/8 on the regression suite vs 7/8 Sonnet+thinking.
+DEFAULT_MODEL = "claude-opus-4-8"
 
 UPPER_RE = re.compile(r'"botocore\s*>=\s*[\d.]+\s*,\s*<\s*([\d.]+)"')
 LOWER_RE = re.compile(r'"botocore\s*>=\s*([\d.]+)\s*,')
 
 # Per-million-token pricing (USD) for models we actually run the evals
 # against. From https://platform.claude.com/docs/en/about-claude/pricing
-# as of 2026-04-19. Update when Anthropic publishes new rates.
+# as of 2026-07-16. Update when Anthropic publishes new rates.
 # `cache_write_5m` is the short-duration write price; `cache_read` is
 # any cache-hit read. Thinking tokens bill as `output`.
 MODEL_PRICING: dict[str, dict[str, float]] = {
-    "claude-opus-4-7": {
+    "claude-opus-4-8": {
         "input": 5.0,
         "output": 25.0,
         "cache_write_5m": 6.25,
         "cache_read": 0.50,
     },
-    "claude-sonnet-4-6": {
+    "claude-sonnet-5": {
         "input": 3.0,
         "output": 15.0,
         "cache_write_5m": 3.75,
