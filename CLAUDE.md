@@ -81,17 +81,26 @@ not apply to humans editing the repo directly.
   produces unsigned commits that block PR merges.
 - **Branches:** always use the `claude/` prefix for branches created by the bot. Never push to
   `main` — it is protected.
-- **Creating a new branch from a workflow:** the MCP commit tool needs the target branch to
-  *already exist on the remote* before it will write to it; without an explicit `branch:` arg it
-  defaults to the repo's default branch (`main`) and immediately gets blocked by branch protection
-  ("Changes must be made through the merge queue / pull request"). The correct sequence is:
-  1. Create the remote ref via the GitHub API:
-     `gh api repos/$REPO/git/refs -f ref=refs/heads/claude/<name> -f sha=<base_sha>`
-     (where `<base_sha>` is the SHA you want the branch to start from, typically `origin/main`).
-  2. Call `mcp__github_file_ops__commit_files` with `branch: claude/<name>` explicitly set.
-  Do **not** try `git push` — workflow checkouts use `persist-credentials: false`, so plain
-  `git push` fails with "could not read Username". The MCP tool is the only path that
-  authenticates correctly and produces signed commits.
+- **Committing to a branch from a workflow:** `mcp__github_file_ops__commit_files` takes only
+  `files` and `message`. It has **no branch argument** — passing `branch:` or `ref:` is silently
+  ignored. The target comes from the `CLAUDE_BRANCH` env var on the action step, read once when
+  the MCP server starts. Unset, it falls back to `GITHUB_REF_NAME`, so a `workflow_dispatch` run
+  on `main` commits to `main` and is rejected by branch protection ("Changes must be made through
+  the merge queue / pull request"). So: **set `CLAUDE_BRANCH: claude/<name>` in the step's `env:`**
+  (see `draft-release.yml`). Don't pre-create the ref — the tool creates the branch off
+  `BASE_BRANCH` on first commit. Conversely it *reuses* the branch if it already exists, so
+  prefer a run-scoped name (`claude/release-${{ github.run_id }}`) over one a failed run could
+  have left behind with commits on it.
+  Do **not** fall back to `git push` — workflow checkouts use `persist-credentials: false`, so it
+  fails with "could not read Username", and a runner-side `git commit` is unsigned (no key on the
+  runner), which blocks the merge.
+- **What actually signs a bot commit:** GitHub signs any commit created through its API with the
+  workflow token's identity. `commit_files` is a thin wrapper over `POST /git/blobs`,
+  `POST /git/trees`, `POST /git/commits`, `PATCH /git/refs/heads/<branch>` — there is no signing
+  key or GPG step in it. So the MCP tool is the *convenient* path, not a magic one: the same four
+  `gh api` calls produce an identically verified commit (that fallback drafted v3.7.1 — commit
+  `cc8814f6`, `verified: true`). Prefer the MCP tool; if it's ever blocked, the `gh api` git-data
+  route is a legitimate escape hatch. Only `git push` is off-limits.
 - **Pre-commit setup:** before committing, run `uv run pre-commit install` once, then
   `uv run pre-commit run --all --show-diff-on-failure` before pushing. If pre-commit modifies
   files, stage them and commit again (as a new commit — do not amend).
