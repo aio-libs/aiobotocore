@@ -32,9 +32,8 @@ from aiobotocore._endpoint_helpers import _text
 from ._constants import DEFAULT_KEEPALIVE_TIMEOUT
 
 try:
-    # anyio is a hard dependency of httpx, so it is importable whenever
-    # httpx is. config.py imports this module unconditionally, so neither
-    # may be imported at module top level.
+    # anyio is a hard dependency of httpx, so it is importable whenever httpx is.
+    # config.py imports this module unconditionally, so these imports must stay optional.
     import anyio.to_thread
     import httpx
 except ImportError:
