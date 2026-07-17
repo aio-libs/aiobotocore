@@ -4,8 +4,9 @@ import logging
 import pytest
 from _pytest.logging import LogCaptureFixture
 
-from aiobotocore import __version__, httpsession
+from aiobotocore import __version__, httpsession, utils
 from aiobotocore.config import AioConfig
+from aiobotocore.httpxsession import HttpxSession
 from aiobotocore.session import AioSession
 
 
@@ -259,3 +260,30 @@ async def test_non_blocking_create_client(
     # no file I/O
     file_loader.exists.assert_not_called()
     file_loader.load_file.assert_not_called()
+
+
+def _imds_session_cls(session: AioSession):
+    resolver = session._components.get_component('credential_provider')
+    fetcher = resolver.get_provider('iam-role')._role_fetcher
+    return type(fetcher._session)
+
+
+async def test_imds_backend_follows_the_latest_client(session: AioSession):
+    # The credential resolver bakes in the backend and is cached for the life
+    # of the session, so a client switching backend must drop it. Otherwise an
+    # httpx client's IMDS lookups run on aiohttp, which cannot run on trio.
+    # Explicit credentials keep this away from the network.
+    creds = {'aws_secret_access_key': 'xxx', 'aws_access_key_id': 'xxx'}
+
+    async with session.create_client('s3', region_name='us-east-1', **creds):
+        pass
+    assert _imds_session_cls(session) is utils._RefCountedSession
+
+    async with session.create_client(
+        's3',
+        region_name='us-east-1',
+        config=AioConfig(http_session_cls=HttpxSession),
+        **creds,
+    ):
+        pass
+    assert _imds_session_cls(session) is utils._RefCountedHttpxSession

@@ -12,7 +12,7 @@ from botocore.exceptions import ParamValidationError
 from ._constants import DEFAULT_KEEPALIVE_TIMEOUT
 from .endpoint import DEFAULT_HTTP_SESSION_CLS
 from .httpsession import AIOHTTPSession
-from .httpxsession import HttpxSession
+from .httpxsession import HttpxSession, is_httpx_session_cls
 
 if sys.version_info >= (3, 11):
     from typing import NotRequired
@@ -77,7 +77,7 @@ class AioConfig(botocore.client.Config):
         for k, v in connector_args.items():
             # verify_ssl is handled by verify parameter to create_client
             if k == 'use_dns_cache':
-                if issubclass(http_session_cls, HttpxSession):
+                if is_httpx_session_cls(http_session_cls):
                     raise ParamValidationError(
                         report='Httpx does not support dns caching. https://github.com/encode/httpx/discussions/2211'
                     )
@@ -96,7 +96,7 @@ class AioConfig(botocore.client.Config):
                         report=f'{k} value must be a float/int or None'
                     )
             elif k == 'force_close':
-                if issubclass(http_session_cls, HttpxSession):
+                if is_httpx_session_cls(http_session_cls):
                     raise ParamValidationError(
                         report=f'Httpx backend does not currently support {k}.'
                     )
@@ -111,7 +111,7 @@ class AioConfig(botocore.client.Config):
                         report=f'{k} must be an SSLContext instance'
                     )
             elif k == "resolver":
-                if issubclass(http_session_cls, HttpxSession):
+                if is_httpx_session_cls(http_session_cls):
                     raise ParamValidationError(
                         report=f'Httpx backend does not support {k}.'
                     )
@@ -120,7 +120,7 @@ class AioConfig(botocore.client.Config):
                         report=f'{k} must be an instance of a AbstractResolver'
                     )
             elif k == "socket_factory":
-                if issubclass(http_session_cls, HttpxSession):
+                if is_httpx_session_cls(http_session_cls):
                     raise ParamValidationError(
                         report=f'Httpx backend does not support {k}.'
                     )

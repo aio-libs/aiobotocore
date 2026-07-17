@@ -80,6 +80,10 @@ async def test_connector_args(current_http_backend: str):
     ):
         AioConfig({'socket_factory': True}, http_session_cls=HttpxSession)
 
+    # Not a class at all: validation must not raise TypeError out of
+    # issubclass; the bad value surfaces when the session is constructed.
+    AioConfig({'use_dns_cache': True}, http_session_cls=HttpxSession())
+
     # A subclass is still the httpx backend, so it gets the same validation.
     class MyHttpxSession(HttpxSession): ...
 

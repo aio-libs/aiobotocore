@@ -67,7 +67,7 @@ from dateutil.tz import tzutc
 
 from aiobotocore._helpers import resolve_awaitable
 from aiobotocore.config import AioConfig
-from aiobotocore.httpxsession import HttpxSession
+from aiobotocore.httpxsession import is_httpx_session_cls
 from aiobotocore.tokens import AioSSOTokenProvider
 from aiobotocore.utils import (
     AioContainerMetadataFetcher,
@@ -111,10 +111,7 @@ def create_credential_resolver(
 
     env_provider = AioEnvProvider()
 
-    # aiohttp is asyncio-only; the httpx backend also runs on trio.
-    if http_session_cls is not None and issubclass(
-        http_session_cls, HttpxSession
-    ):
+    if is_httpx_session_cls(http_session_cls):
         container_provider = AnyioContainerProvider()
         iam_role_fetcher_cls = AnyioInstanceMetadataFetcher
     else:
@@ -1050,8 +1047,12 @@ class AioContainerProvider(ContainerProvider):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        # This will always run if no fetcher arg is provided
-        if isinstance(self._fetcher, ContainerMetadataFetcher):
+        # This will always run if no fetcher arg is provided. A caller's own
+        # async fetcher is left alone; only botocore's blocking default is
+        # swapped out.
+        if isinstance(
+            self._fetcher, ContainerMetadataFetcher
+        ) and not isinstance(self._fetcher, AioContainerMetadataFetcher):
             self._fetcher = self._fetcher_cls()
 
     async def load(self):

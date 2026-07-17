@@ -280,3 +280,15 @@ class HttpxSession:
             message = 'Exception received when sending httpx HTTP request'
             logger.debug(message, exc_info=True)
             raise HTTPClientError(error=e)
+
+
+def is_httpx_session_cls(http_session_cls) -> bool:
+    """Whether ``http_session_cls`` selects the httpx backend.
+
+    aiohttp is asyncio-only; the httpx backend also runs on trio. Not a bare
+    ``issubclass``: this reaches us straight from user config, and need not
+    be a class at all.
+    """
+    return isinstance(http_session_cls, type) and issubclass(
+        http_session_cls, HttpxSession
+    )

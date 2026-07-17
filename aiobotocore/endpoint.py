@@ -16,7 +16,7 @@ from botocore.hooks import first_non_none_response
 
 from aiobotocore.httpchecksum import handle_checksum_body
 from aiobotocore.httpsession import AIOHTTPSession
-from aiobotocore.httpxsession import HttpxSession
+from aiobotocore.httpxsession import is_httpx_session_cls
 from aiobotocore.parsers import AioResponseParserFactory
 from aiobotocore.response import AioHttpxStreamingBody, AioStreamingBody
 
@@ -358,8 +358,7 @@ class AioEndpointCreator(EndpointCreator):
             connector_args=connector_args,
         )
 
-        # aiohttp is asyncio-only; the httpx backend also runs on trio.
-        if issubclass(http_session_cls, HttpxSession):
+        if is_httpx_session_cls(http_session_cls):
             endpoint_cls = AnyioEndpoint
         else:
             endpoint_cls = AioEndpoint
