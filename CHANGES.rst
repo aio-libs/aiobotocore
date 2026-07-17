@@ -1,6 +1,27 @@
 Changes
 -------
 
+3.8.0 (2026-07-17)
+^^^^^^^^^^^^^^^^^^
+* bump botocore dependency specification to support
+  ``"botocore >= 1.43.3, < 1.43.47"`` (#1605, #1606, #1635, #1651, #1655)
+* port botocore 1.43.24's long-polling no-retry signal
+  (``handler_response is False``) through the async retry path so retries
+  don't block the event loop with a synchronous sleep during backoff (#1606)
+* fix ``AIOHTTPSession``/``HttpxSession`` blocking the event loop on the
+  first request per proxy: SSL context creation (certificate loading via
+  ``load_verify_locations``/``load_cert_chain``) now runs in a thread via
+  ``asyncio.to_thread`` instead of directly on the loop (closes #1469)
+  (#1587)
+* restructure ``StreamingBody`` to subclass ``botocore.response.StreamingBody``
+  (dropping the ``wrapt.ObjectProxy`` wrapper) and add full ``httpx`` API
+  parity — ``read(amt)``, ``readinto()``, ``readlines()``, async iteration,
+  ``iter_lines()``/``iter_chunks()``, ``tell()``, ``close()`` — where
+  ``read(amt)`` previously raised ``ValueError``; note that
+  ``AioStreamingBody.__aenter__`` now returns ``self`` instead of the raw
+  aiohttp ``ClientResponse`` (use ``.raw_stream`` for the underlying
+  response) (closes #1365) (#1539)
+
 3.7.0 (2026-05-09)
 ^^^^^^^^^^^^^^^^^^
 * replace per-PR ``CHANGES.rst`` / ``__init__.py`` ceremony with an AI-drafted
