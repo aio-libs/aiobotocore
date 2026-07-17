@@ -231,6 +231,21 @@ async def test_streaming_body_readlines():
     assert lines == [b'line1', b'line2', b'line3']
 
 
+async def test_streaming_body_aclose():
+    body = AsyncBytesIO(b'12345')
+    stream = response.StreamingBody(body, content_length=5)
+    assert body.closed is False
+    await stream.aclose()
+    assert body.closed is True
+
+
+async def test_streaming_body_async_context_manager():
+    body = AsyncBytesIO(b'12345')
+    async with response.StreamingBody(body, content_length=5) as stream:
+        assert await stream.read() == b'12345'
+    assert body.closed is True
+
+
 # -- HttpxStreamingBody tests --
 
 
@@ -409,3 +424,44 @@ async def test_httpx_small_chunks_buffering():
     assert await stream.read(5) == b'01234'
     assert await stream.read(5) == b'56789'
     assert await stream.read(5) == b''
+
+
+# -- shared AioStreamingBodyBase behavior (both backends) --
+
+_BODY_FACTORIES = [
+    lambda: response.StreamingBody(AsyncBytesIO(b'12345'), content_length=5),
+    lambda: HttpxStreamingBody(MockHttpxResponse(b'12345'), content_length=5),
+]
+
+
+@pytest.mark.parametrize(
+    'make_body', _BODY_FACTORIES, ids=['aiohttp', 'httpx']
+)
+async def test_sync_iteration_is_blocked(make_body):
+    stream = make_body()
+    with pytest.raises(TypeError, match='is async'):
+        iter(stream)
+    with pytest.raises(TypeError, match='is async'):
+        next(stream)
+
+
+@pytest.mark.parametrize(
+    'make_body', _BODY_FACTORIES, ids=['aiohttp', 'httpx']
+)
+async def test_sync_context_manager_is_blocked(make_body):
+    stream = make_body()
+    with pytest.raises(TypeError, match='is async'):
+        with stream:
+            pass
+    # __enter__ raises before __exit__ can run, so check it directly too
+    with pytest.raises(TypeError, match='is async'):
+        stream.__exit__(None, None, None)
+
+
+@pytest.mark.parametrize(
+    'make_body', _BODY_FACTORIES, ids=['aiohttp', 'httpx']
+)
+async def test_set_socket_timeout_not_implemented(make_body):
+    stream = make_body()
+    with pytest.raises(NotImplementedError, match='not supported for async'):
+        stream.set_socket_timeout(1)
