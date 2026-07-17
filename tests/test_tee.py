@@ -14,6 +14,11 @@ async def _collect(iterator, out):
         out.append(value)
 
 
+def test_tee_rejects_non_positive_n():
+    with pytest.raises(ValueError, match='n must be >= 1'):
+        tee(_arange(3), 0)
+
+
 async def test_tee_fans_out_to_every_consumer():
     a, b, c = tee(_arange(3), 3)
 
