@@ -4,8 +4,6 @@ from collections import deque
 from collections.abc import AsyncIterable, AsyncIterator
 from typing import Any, TypeVar
 
-import anyio
-
 T = TypeVar('T')
 
 
@@ -17,7 +15,11 @@ def tee(itr: AsyncIterable[T], n: int = 2) -> tuple[AsyncIterator[T], ...]:
     instead, taking the lock only to pull from the source, so it runs on any
     anyio backend.
     """
-    assert n > 0
+    if n <= 0:
+        raise ValueError('n must be >= 1')
+
+    import anyio
+
     iterator = itr.__aiter__()
     buffers = [deque() for _ in range(n)]
     lock = anyio.Lock()
