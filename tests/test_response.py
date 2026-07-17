@@ -1,4 +1,5 @@
 import asyncio
+import gzip
 import io
 from unittest.mock import MagicMock
 
@@ -7,6 +8,11 @@ from botocore.exceptions import IncompleteReadError
 
 from aiobotocore import response
 from aiobotocore.response import AioReadTimeoutError, HttpxStreamingBody
+
+try:
+    import httpx
+except ImportError:
+    httpx = None
 
 
 # https://github.com/boto/botocore/blob/develop/tests/unit/test_response.py
@@ -257,7 +263,7 @@ class MockHttpxResponse:
         self._chunk_size = chunk_size
         self._closed = False
 
-    async def aiter_bytes(self):
+    async def aiter_raw(self):
         offset = 0
         while offset < len(self._data):
             yield self._data[offset : offset + self._chunk_size]
@@ -424,6 +430,46 @@ async def test_httpx_small_chunks_buffering():
     assert await stream.read(5) == b'01234'
     assert await stream.read(5) == b'56789'
     assert await stream.read(5) == b''
+
+
+async def test_httpx_read_negative_reads_all():
+    body = MockHttpxResponse(b'abcdef', chunk_size=2)
+    stream = HttpxStreamingBody(body, content_length=6)
+    assert await stream.read(-1) == b'abcdef'
+    assert stream.tell() == 6
+
+
+async def test_streaming_body_read_negative_reads_all():
+    body = AsyncBytesIO(b'abcdef')
+    stream = response.StreamingBody(body, content_length=6)
+    assert await stream.read(-1) == b'abcdef'
+    assert stream.tell() == 6
+
+
+@pytest.mark.skipif(httpx is None, reason='httpx is not installed')
+async def test_httpx_content_encoded_body_validates_wire_bytes():
+    """Content-Length describes wire bytes, so a gzip body must not be
+    decoded before it is counted."""
+    payload = b'hello world! ' * 100
+    wire = gzip.compress(payload)
+
+    async def handler(request):
+        # stream=, not content=: content= marks the stream consumed up front
+        return httpx.Response(
+            200,
+            headers={
+                'Content-Encoding': 'gzip',
+                'Content-Length': str(len(wire)),
+            },
+            stream=httpx.ByteStream(wire),
+        )
+
+    transport = httpx.MockTransport(handler)
+    async with httpx.AsyncClient(transport=transport) as client:
+        request = client.build_request('GET', 'http://example.com/obj')
+        raw = await client.send(request, stream=True)
+        stream = HttpxStreamingBody(raw, raw.headers.get('content-length'))
+        assert await stream.read() == wire
 
 
 # -- shared AioStreamingBodyBase behavior (both backends) --

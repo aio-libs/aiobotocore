@@ -186,7 +186,8 @@ class AioHttpxStreamingBody(AioStreamingBodyBase):
 
     def _ensure_stream(self):
         if self._stream_iter is None:
-            self._stream_iter = self._raw_stream.aiter_bytes().__aiter__()
+            # aiter_bytes decodes; counts must match wire Content-Length/checksums
+            self._stream_iter = self._raw_stream.aiter_raw().__aiter__()
 
     async def _fill_buffer(self, min_bytes):
         """Fill internal buffer until it has at least min_bytes or the
@@ -207,7 +208,8 @@ class AioHttpxStreamingBody(AioStreamingBodyBase):
         """
         self._ensure_stream()
 
-        if amt is None:
+        # a negative amt means read-all to file-like callers, as it does to aiohttp
+        if amt is None or amt < 0:
             chunks = [self._buffer]
             self._buffer = b''
             async for chunk in self._stream_iter:
