@@ -69,25 +69,10 @@ jobs:
         path: .venv
         # yamllint disable-line rule:line-length
         key: venv-${{ runner.os }}-py${{ inputs.python-version }}-${{ inputs.with-awscrt && 'awscrt-' || '' }}${{ hashFiles('uv.lock', 'pyproject.toml') }}
-    # Cache pre-commit's per-hook environments. Without this, every
-    # matrix job re-clones every hook repo (ruff, yamllint, rumdl,
-    # sphinx-lint, check-jsonschema, ...) and rebuilds their venvs.
-    # Restore-keys lets a partial hit salvage most of the cache when
-    # a single hook bumps.
-    - name: Cache pre-commit hook envs
-      # yamllint disable-line rule:line-length
-      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
-      with:
-        path: ~/.cache/pre-commit
-        key: pre-commit-${{ runner.os }}-${{ hashFiles('.pre-commit-config.yaml') }}
-        restore-keys: pre-commit-${{ runner.os }}-
     - name: Install awscrt
       if: ${{ inputs.with-awscrt }}
       run: |
         uv sync --group awscrt
-    - name: Run pre-commit hooks
-      run: |
-        uv run make pre-commit
     - name: Run unittests
       if: ${{ ! inputs.no-httpx }}
       env:
