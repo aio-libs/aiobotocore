@@ -1,73 +1,36 @@
-import re
-from datetime import datetime
 from pathlib import Path
 
-import docutils.frontend
-import docutils.nodes
-import docutils.parsers.rst
-import docutils.utils
 from packaging import version
 
 import aiobotocore
+from scripts.changelog import parse, validate
 
 _root_path = Path(__file__).absolute().parent.parent
 
 
-# date can be YYYY-MM-DD or "TBD"
-_rst_ver_date_str_re = re.compile(
-    r'(?P<version>\d+\.\d+\.\d+(\.dev\d+)?) \((?P<date>\d{4}-\d{2}-\d{2}|TBD)\)'
-)
-
-
-# from: https://stackoverflow.com/a/75996218
-def _parse_rst(text: str) -> docutils.nodes.document:
-    parser = docutils.parsers.rst.Parser()
-    settings = docutils.frontend.get_default_settings(
-        docutils.parsers.rst.Parser
-    )
-    document = docutils.utils.new_document('<rst-doc>', settings=settings)
-    parser.parse(text, document)
-    return document
-
-
 def test_release_versions():
-    # ensures versions in CHANGES.rst + __init__.py match
+    # Cross-checks the top entry of CHANGES.rst against
+    # aiobotocore/__init__.py and the entry below it. The CHANGES.rst
+    # parser + format invariants live in scripts/changelog.py so the
+    # auto-release workflow can use the same logic without installing
+    # the project's dev deps.
     init_version = version.parse(aiobotocore.__version__)
-
-    # the init version should be in canonical from
+    # init version should be in canonical form
     assert str(init_version) == aiobotocore.__version__
 
-    changes_path = _root_path / 'CHANGES.rst'
-    changes_doc = _parse_rst(changes_path.read_text())
+    changes_text = (_root_path / 'CHANGES.rst').read_text(encoding='utf-8')
 
-    rst_ver_str = changes_doc[0][1][0][0]  # ex: 0.11.1 (2020-01-03)
-    rst_prev_ver_str = changes_doc[0][2][0][0]
+    # Format invariants: top entry version matches __init__.py, top
+    # entry's version > previous entry's version, dates are non-
+    # increasing (or TBD).
+    validate(changes_text, expected_top_version=aiobotocore.__version__)
 
-    rst_ver_groups = _rst_ver_date_str_re.match(rst_ver_str)
-    rst_prev_ver_groups = _rst_ver_date_str_re.match(rst_prev_ver_str)
-
-    rst_ver = version.parse(rst_ver_groups['version'])
-    rst_prev_ver = version.parse(rst_prev_ver_groups['version'])
-
-    # first the init version should match the rst version
-    assert init_version == rst_ver
-
-    # the current version must be greater than the previous version
-    assert rst_ver > rst_prev_ver
-
-    rst_date = rst_ver_groups['date']
-    rst_prev_date = rst_prev_ver_groups['date']
-
-    if rst_date == 'TBD':
-        # TODO: we can now lock if we're a prerelease version
-        pass
-        # assert (
-        #     rst_ver.is_prerelease
-        # ), 'Version must be prerelease if final release date not set'
-    else:
-        rst_date = datetime.strptime(rst_date, '%Y-%m-%d').date()
-        rst_prev_date = datetime.strptime(rst_prev_date, '%Y-%m-%d').date()
-
-        assert rst_date >= rst_prev_date, (
-            'Current release must be after last release'
-        )
+    # Stronger version-ordering check using packaging's PEP 440 parser
+    # (catches edge cases like 1.2.3rc1 vs 1.2.3 that the simple tuple
+    # comparison in scripts/changelog.py treats differently).
+    entries = parse(changes_text)
+    assert len(entries) >= 2, 'CHANGES.rst should have at least two entries'
+    top, prev = entries[0], entries[1]
+    assert version.parse(top.version) > version.parse(prev.version), (
+        f'top entry {top.version} should be > previous {prev.version}'
+    )

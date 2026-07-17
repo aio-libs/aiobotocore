@@ -1,15 +1,23 @@
 Changes
 -------
 
-3.7.0 (2026-05-08)
+3.7.0 (2026-05-09)
 ^^^^^^^^^^^^^^^^^^
-* add ``AioSession.warm_up_loader_caches()`` and ``warm_up_loader_caches`` option in ``AioConfig`` to pre-populate
-  botocore loader caches off the event loop, avoiding blocking file I/O on first client/waiter/paginator use
-  (closes #1199)
-
-3.6.1 (2026-05-01)
-^^^^^^^^^^^^^^^^^^
-* fix race condition in ``AioAssumeRoleProvider._visited_profiles`` causing false ``InfiniteLoopConfigError`` under concurrent async usage
+* replace per-PR ``CHANGES.rst`` / ``__init__.py`` ceremony with an AI-drafted
+  release flow: contributors no longer touch version or changelog files; a
+  workflow-triggered agent synthesizes merged PRs into a release PR at release
+  time (closes #1167) (#1592)
+* add ``AioSession.warm_up_loader_caches()`` and ``warm_up_loader_caches``
+  option in ``AioConfig`` to pre-populate botocore loader caches off the event
+  loop, avoiding blocking file I/O on first client/waiter/paginator use
+  (closes #1199) (#1462)
+* fix race condition in ``AioAssumeRoleProvider._visited_profiles`` causing
+  false ``InfiniteLoopConfigError`` under concurrent async usage
+  (closes #1455) (#1537)
+* fall back to synchronous ``subprocess.run`` (via ``asyncio.to_thread``) for
+  ``credential_process`` when the running event loop does not implement
+  subprocess transports — notably ``asyncio.SelectorEventLoop`` on Windows
+  (closes #1415) (#1588)
 
 3.6.0 (2026-04-30)
 ^^^^^^^^^^^^^^^^^^

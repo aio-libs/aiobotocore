@@ -8,7 +8,17 @@
 
 ### Checklist for All Submissions
 
-* [ ] I have added change info to [CHANGES.rst](https://github.com/aio-libs/aiobotocore/blob/main/CHANGES.rst)
+<!--
+Don't bump `aiobotocore/__init__.py` or edit `CHANGES.rst` in this PR.
+The release PR (drafted by `.github/workflows/draft-release.yml`) handles
+both based on your PR's title and body — see the AI Automation section
+of CONTRIBUTING.rst.
+
+For best changelog output: write a Conventional-Commits-style PR title
+(`fix:`, `feat:`, `docs:`, `BREAKING:`, `ci:`, `chore:`) and a
+one-paragraph body summarizing the user-visible effect.
+-->
+
 * [ ] If this is resolving an issue (needed so future developers can
   determine if change is still necessary and under what conditions)
   (can be provided via link to issue with these details):

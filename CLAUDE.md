@@ -43,12 +43,29 @@ uv run pytest -sv tests/test_patches.py  # hash validation
 
 # Versioning
 
-When making code changes (bug fixes, features, enhancements), always:
+**Don't bump `aiobotocore/__init__.py` and don't edit `CHANGES.rst` in feature PRs.**
+Both are owned by the AI-drafted release flow:
 
-1. Bump the version in `aiobotocore/__init__.py` (patch for fixes, minor for features)
-2. Add an entry at the top of `CHANGES.rst` with the new version, date, and description.
-   The `^` underline under the header line must match the header length exactly — miscounts
-   break Sphinx rendering.
+- `.github/workflows/draft-release.yml` (manual trigger) summarizes merged PRs
+  since the last tag, computes the next version, writes the changelog entry,
+  and opens a `Release vX.Y.Z` PR.
+- `.github/workflows/auto-release-on-merge.yml` runs when that PR merges:
+  creates the tag, drafts the GitHub Release, and the existing tag-push CI
+  publishes to PyPI.
+
+For your feature PR to land in the changelog cleanly, write a
+Conventional-Commits-style title (`fix:`, `feat:`, `BREAKING:`, `docs:`,
+`ci:`, `chore:`, `test:`) and a one-paragraph body describing the
+user-visible effect. The bump rule keys off these:
+
+- any `BREAKING:` or `breaking` label → MAJOR
+- any `feat:` or `enhancement`/`feature` label → MINOR
+- otherwise → PATCH
+
+The `update-botocore-bounds` skill (the only thing the automated
+`botocore-sync` workflow runs today, formerly named `bump-version`)
+only updates `pyproject.toml` bounds and `uv.lock` — `__init__.py`
+and `CHANGES.rst` are off-limits to per-PR automation.
 
 # Overriding botocore code
 
@@ -66,6 +83,17 @@ not apply to humans editing the repo directly.
   produces unsigned commits that block PR merges.
 - **Branches:** always use the `claude/` prefix for branches created by the bot. Never push to
   `main` — it is protected.
+- **Creating a new branch from a workflow:** the MCP commit tool needs the target branch to
+  *already exist on the remote* before it will write to it; without an explicit `branch:` arg it
+  defaults to the repo's default branch (`main`) and immediately gets blocked by branch protection
+  ("Changes must be made through the merge queue / pull request"). The correct sequence is:
+  1. Create the remote ref via the GitHub API:
+     `gh api repos/$REPO/git/refs -f ref=refs/heads/claude/<name> -f sha=<base_sha>`
+     (where `<base_sha>` is the SHA you want the branch to start from, typically `origin/main`).
+  2. Call `mcp__github_file_ops__commit_files` with `branch: claude/<name>` explicitly set.
+  Do **not** try `git push` — workflow checkouts use `persist-credentials: false`, so plain
+  `git push` fails with "could not read Username". The MCP tool is the only path that
+  authenticates correctly and produces signed commits.
 - **Pre-commit setup:** before committing, run `uv run pre-commit install` once, then
   `uv run pre-commit run --all --show-diff-on-failure` before pushing. If pre-commit modifies
   files, stage them and commit again (as a new commit — do not amend).

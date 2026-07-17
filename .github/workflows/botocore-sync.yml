@@ -56,7 +56,7 @@ jobs:
       needs_update: >-
         ${{ steps.check.outputs.needs_update }}
     steps:
-    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
       with:
         persist-credentials: false
 
@@ -185,31 +185,42 @@ jobs:
       rationale: ${{ steps.parse.outputs.rationale }}
       affected_files: ${{ steps.affected.outputs.files }}
     steps:
-    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
       with:
         persist-credentials: false
 
     - name: Set up uv + Python
       # yamllint disable-line rule:line-length
-      uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b  # v8.1.0
+      uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39  # v8.2.0
       with:
-        version: '0.11.7'
+        version: '0.11.12'
         python-version: '3.12'
         enable-cache: auto
 
     - name: Cache .venv
       # yamllint disable-line rule:line-length
-      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae  # v5.0.5
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
       with:
         path: .venv
         # yamllint disable-line rule:line-length
         key: venv-${{ runner.os }}-py3.12-${{ hashFiles('uv.lock', 'pyproject.toml') }}
 
+    # Cache pre-commit's per-hook environments. Without this every
+    # workflow run re-clones every hook repo (ruff, yamllint, rumdl,
+    # sphinx-lint, check-jsonschema, ...) and rebuilds their venvs.
+    - name: Cache pre-commit hook envs
+      # yamllint disable-line rule:line-length
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+      with:
+        path: ~/.cache/pre-commit
+        key: pre-commit-${{ runner.os }}-${{ hashFiles('.pre-commit-config.yaml') }}
+        restore-keys: pre-commit-${{ runner.os }}-
+
     - name: Install dependencies
       run: uv sync --frozen
 
     - name: Cache botocore repo
-      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae  # v5.0.5
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
       with:
         path: /tmp/botocore
         key: botocore-repo
@@ -264,7 +275,7 @@ jobs:
         } >> "$GITHUB_OUTPUT"
 
     # yamllint disable-line rule:line-length
-    - uses: anthropics/claude-code-action@fefa07e9c665b7320f08c3b525980457f22f58aa  # v1.0.111
+    - uses: anthropics/claude-code-action@536f2c32a39763739000b0e1ac69ca2647d97ce9  # v1.0.170
       id: claude
       with:
         anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -376,7 +387,7 @@ jobs:
       id-token: write
       actions: read
     steps:
-    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
       with:
         fetch-depth: 0
         persist-credentials: false
@@ -388,10 +399,10 @@ jobs:
 
     - name: Set up uv + Python
       # yamllint disable-line rule:line-length
-      uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b  # v8.1.0
+      uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39  # v8.2.0
       with:
         # Pin uv — see claude.yml comment. Same rate-limit concern.
-        version: '0.11.7'
+        version: '0.11.12'
         python-version: '3.12'
         enable-cache: auto
 
@@ -401,17 +412,65 @@ jobs:
     # invalidates.
     - name: Cache .venv
       # yamllint disable-line rule:line-length
-      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae  # v5.0.5
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
       with:
         path: .venv
         # yamllint disable-line rule:line-length
         key: venv-${{ runner.os }}-py3.12-${{ hashFiles('uv.lock', 'pyproject.toml') }}
 
+    # Cache pre-commit's per-hook environments (same rationale as the
+    # classify job above).
+    - name: Cache pre-commit hook envs
+      # yamllint disable-line rule:line-length
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+      with:
+        path: ~/.cache/pre-commit
+        key: pre-commit-${{ runner.os }}-${{ hashFiles('.pre-commit-config.yaml') }}
+        restore-keys: pre-commit-${{ runner.os }}-
+
     - name: Install dependencies
       run: uv sync --frozen
 
+    # rtk compacts verbose command output (collapsing a passing pytest run
+    # to a one-line summary, ~99% fewer lines) before it reaches the agent's
+    # context. The sync job runs on Opus and validates with the full test
+    # suite, whose `mototest` target uses `-vv --log-cli-level=DEBUG` and
+    # dumps tens of thousands of lines per run — billed as input tokens
+    # every time. The prompt instructs the agent to wrap test commands in
+    # `rtk test`. We deliberately do NOT run `rtk init` — the agent invokes
+    # `rtk` explicitly per command, never via a global shell hook.
+    #
+    # rtk is a Rust CLI (Homebrew / GitHub releases), not a PyPI package, so
+    # it can't be a uv/pyproject dev dependency. Pin the version + verify the
+    # sha256 of the static musl binary for a reproducible install, fetched
+    # straight from the releases CDN (no GitHub API → no rate-limit hit, same
+    # rationale as bun below). To bump: change RTK_VERSION and update
+    # RTK_SHA256 from the release's checksums.txt.
+    - name: Install rtk (token-compacting command wrapper)
+      env:
+        RTK_VERSION: v0.42.3
+        RTK_SHA256: 5df764a633709cb85d248258d085d24ec95faa8bca0e6835a93cd57cadc4eb9e
+      run: |
+        # yamllint disable-line rule:line-length
+        url="https://github.com/rtk-ai/rtk/releases/download/${RTK_VERSION}/rtk-x86_64-unknown-linux-musl.tar.gz"
+        curl -fsSL "$url" -o /tmp/rtk.tar.gz
+        echo "${RTK_SHA256}  /tmp/rtk.tar.gz" | sha256sum -c -
+        # Install to /usr/local/bin (already on PATH) instead of writing
+        # $GITHUB_PATH — avoids zizmor's github-env code-execution finding.
+        sudo tar -xzf /tmp/rtk.tar.gz -C /usr/local/bin rtk
+        rtk --version
+
+    # Pre-install the target botocore version so the agent can immediately
+    # inspect the new source (for hash refresh + diff context) without a
+    # discovery + install round-trip. `uv pip install` is idempotent and
+    # fast when the version is already cached.
+    - name: Install target botocore
+      env:
+        LATEST_BOTOCORE: ${{ needs.detect.outputs.latest_botocore }}
+      run: uv pip install "botocore==$LATEST_BOTOCORE"
+
     - name: Cache botocore repo
-      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae  # v5.0.5
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
       with:
         path: /tmp/botocore
         key: botocore-repo
@@ -469,7 +528,7 @@ jobs:
         } >> "$GITHUB_OUTPUT"
 
     # yamllint disable-line rule:line-length
-    - uses: anthropics/claude-code-action@fefa07e9c665b7320f08c3b525980457f22f58aa  # v1.0.111
+    - uses: anthropics/claude-code-action@536f2c32a39763739000b0e1ac69ca2647d97ce9  # v1.0.170
       id: claude
       env:
         CLAUDE_BRANCH: claude/botocore-sync
@@ -479,7 +538,7 @@ jobs:
         display_report: true
         show_full_output: true
         # Register the repo-local plugin so skills (check-async-need,
-        # bump-version, open-pr, port-tests, etc.) are discoverable by
+        # update-botocore-bounds, open-pr, port-tests, etc.) are discoverable by
         # the Skill tool. See claude.yml for the companion comment on
         # why --plugin-dir is also needed — without both, Skill-tool
         # invocations return "Unknown skill: aiobotocore-bot:*" and the
@@ -496,7 +555,7 @@ jobs:
         # Opus, matching the prior single-job behavior.
         claude_args: |
           --dangerously-skip-permissions
-          --max-turns 100
+          --max-turns 150
           --model ${{ needs.classify.outputs.verdict == 'no-port' && 'sonnet' || 'opus' }}
           --plugin-dir plugins/aiobotocore-bot
         # yamllint disable rule:line-length

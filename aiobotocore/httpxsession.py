@@ -111,28 +111,30 @@ class HttpxSession:
         if socket_options is None:
             self._socket_options = []
 
-        # TODO [httpx]: clean up
-        ssl_context: SSLContext | None = None
+        # SSL context construction (load_cert_chain / load_verify_locations /
+        # create_urllib3_context's default cert load) does blocking file I/O.
+        # Defer it to __aenter__ so it runs off the event loop. (#1469)
         self._verify: bool | str | SSLContext = verify
-        if not verify:
-            return
-        if 'ssl_context' in self._connector_args:
+        if verify and 'ssl_context' in self._connector_args:
             self._verify = cast(
                 'SSLContext', self._connector_args['ssl_context']
             )
-            return
 
+    def _build_ssl_context(self) -> SSLContext:
+        # Synchronous SSL context construction. Caller runs off the event loop.
         ssl_context = self._get_ssl_context()
-
-        # inline self._setup_ssl_cert
-        ca_certs = get_cert_path(verify)
+        ca_certs = get_cert_path(self._verify)
         if ca_certs:
             ssl_context.load_verify_locations(ca_certs, None, None)
-        if ssl_context is not None:
-            self._verify = ssl_context
+        return ssl_context
 
     async def __aenter__(self):
         assert not self._session
+
+        # Build the SSL context off the event loop on first entry — only when
+        # verify is truthy and an explicit ssl_context wasn't supplied. (#1469)
+        if self._verify is True or isinstance(self._verify, str):
+            self._verify = await asyncio.to_thread(self._build_ssl_context)
 
         limits = httpx.Limits(
             max_connections=self._max_pool_connections,
