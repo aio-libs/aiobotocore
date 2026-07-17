@@ -132,6 +132,16 @@ jobs:
     # yamllint disable-line rule:line-length
     - uses: anthropics/claude-code-action@536f2c32a39763739000b0e1ac69ca2647d97ce9  # v1.0.170
       id: claude
+      env:
+        # The file-ops MCP server commits to a branch fixed at server
+        # startup from CLAUDE_BRANCH; there is no per-call branch arg. In
+        # agent mode this defaults to GITHUB_REF_NAME (``main``), whose
+        # branch protection rejects the commit. Scoped per *attempt* so a
+        # failed attempt's leftover branch is never committed on top of —
+        # file-ops reuses an existing ref, and run_id alone is stable
+        # across re-runs.
+        # yamllint disable-line rule:line-length
+        CLAUDE_BRANCH: claude/release-${{ github.run_id }}-${{ github.run_attempt }}
       with:
         anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
         use_commit_signing: true
@@ -161,3 +171,22 @@ jobs:
             }
           }
         # yamllint enable rule:line-length
+
+    # The agent can abort mid-run (e.g. a blocked commit path) and still
+    # exit 0, leaving a green run that drafted nothing. Assert the PR.
+    - name: Verify the release PR was opened
+      if: ${{ !inputs.dry_run }}
+      env:
+        GH_TOKEN: ${{ github.token }}
+        # yamllint disable-line rule:line-length
+        BRANCH: claude/release-${{ github.run_id }}-${{ github.run_attempt }}
+      run: |
+        url=$(gh pr list --head "$BRANCH" --base main --state open \
+          --json url --jq '.[0].url // empty')
+        if [ -z "$url" ]; then
+          echo "::error::No release PR was opened from $BRANCH. The agent" \
+            "aborted without drafting a release — check its final message" \
+            "in the step above."
+          exit 1
+        fi
+        echo "Release PR: $url" >> "$GITHUB_STEP_SUMMARY"

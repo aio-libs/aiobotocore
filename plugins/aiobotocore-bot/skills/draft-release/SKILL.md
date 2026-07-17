@@ -356,11 +356,13 @@ reasoning to stdout and exit. Don't commit, don't push, don't open a PR.
 
 Otherwise:
 
-1. Create branch ``claude/release-X.Y.Z`` from ``$TO`` (typically ``origin/main``).
-   The ``claude/`` prefix matches the convention in ``CLAUDE.md`` for
-   bot-created branches; ``auto-release-on-merge.yml`` keys off the PR
-   title (``Release v...``), not the branch name, so the branch name is
-   purely informational.
+1. Don't create a branch. ``mcp__github_file_ops__commit_files`` commits to
+   the branch the workflow pins via ``CLAUDE_BRANCH``
+   (``claude/release-<run-id>-<attempt>``) and creates it off ``main`` on first
+   commit. The branch has no per-call override — passing ``branch`` or
+   ``ref`` to the tool is silently ignored — so never hand-roll a ref.
+   ``auto-release-on-merge.yml`` keys off the PR title (``Release v...``),
+   not the branch name, so the name is purely informational.
 2. Commit the two file changes via ``mcp__github_file_ops__commit_files``
    (signing required) with message:
 
@@ -372,7 +374,16 @@ Otherwise:
    merged PRs in the release window.
    ```
 
-3. Open the PR. **Title MUST start with ``Release v``** (the auto-tag
+3. Open the PR with an explicit ``--head "$CLAUDE_BRANCH"`` — the runner
+   stays checked out on ``main``, so an inferred head resolves to
+   ``main`` and the create fails:
+
+   ```text
+   gh pr create --base main --head "$CLAUDE_BRANCH" \
+     --title "Release vX.Y.Z" --body "<body>"
+   ```
+
+   **Title MUST start with ``Release v``** (the auto-tag
    workflow keys off this prefix). Use ``Release vX.Y.Z``. The body
    does NOT duplicate the verbatim changelog (that lives in
    ``CHANGES.rst``, which the auto-release workflow extracts for the
