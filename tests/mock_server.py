@@ -89,10 +89,24 @@ class AIOServer(multiprocessing.Process):
         await resp.drain()
         return resp
 
+    async def _get_ok(self):
+        """GET /ok over a raw stream, returning the first bytes of the reply.
+
+        Runs on the test's framework, which is trio for the httpx backend, so
+        it cannot use aiohttp or asyncio. httpx would do, but this module is
+        imported unconditionally (see pytest_plugins) and httpx is not always
+        installed, so speak just enough HTTP/1.1 here.
+        """
+        async with await anyio.connect_tcp(host, self._port) as stream:
+            await stream.send(
+                f'GET /ok HTTP/1.1\r\nHost: {host}:{self._port}\r\n'
+                f'Connection: close\r\n\r\n'.encode()
+            )
+            return await stream.receive()
+
     async def _wait_until_up(self):
-        # Runs on the test's framework, which is trio for the httpx backend,
-        # so this cannot use aiohttp or asyncio. The server accepting a
-        # connection means run_app is serving.
+        # A successful connect only means the socket is listening, which
+        # happens before run_app can serve; wait for an actual response.
         for i in range(0, 30):
             if self.exitcode is not None:
                 pytest.fail('unable to start/connect to aiohttp server')
@@ -100,10 +114,11 @@ class AIOServer(multiprocessing.Process):
 
             try:
                 with anyio.fail_after(0.5):
-                    stream = await anyio.connect_tcp(host, self._port)
-                await stream.aclose()
-                return
-            except (OSError, TimeoutError):
+                    reply = await self._get_ok()
+                if reply.startswith(b'HTTP/1.1 200'):
+                    return
+                await anyio.sleep(0.5)
+            except (OSError, TimeoutError, anyio.EndOfStream):
                 await anyio.sleep(0.5)
             except BaseException:
                 pytest.fail('unable to start/connect to aiohttp server')

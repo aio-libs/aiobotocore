@@ -17,8 +17,12 @@ try:
     _HTTPX_READ_TIMEOUTS: tuple[type[BaseException], ...] = (
         httpx.ReadTimeout,
     )
+    # NetworkError covers read/write/connect/close failures; RemoteProtocolError
+    # is a server disconnecting mid-body, which aiohttp reports as a
+    # ClientConnectionError (ServerDisconnectedError).
     _HTTPX_STREAM_ERRORS: tuple[type[BaseException], ...] = (
         httpx.NetworkError,
+        httpx.RemoteProtocolError,
     )
 except ImportError:
     # Never matches, so the aiohttp backend is unaffected.
