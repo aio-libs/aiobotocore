@@ -10,22 +10,31 @@ from botocore.retries import standard, throttling
 # blocking.
 from botocore.retries.adaptive import RateClocker
 
+from ..httpxsession import HttpxSession
 from . import bucket
 
 logger = logging.getLogger(__name__)
 
 
 def register_retry_handler(client):
+    # aiohttp is asyncio-only; the httpx backend also runs on trio.
+    if isinstance(client._endpoint.http_session, HttpxSession):
+        token_bucket_cls = bucket.AnyioTokenBucket
+        rate_limiter_cls = AnyioClientRateLimiter
+    else:
+        token_bucket_cls = bucket.AsyncTokenBucket
+        rate_limiter_cls = AsyncClientRateLimiter
+
     clock = bucket.Clock()
     rate_adjustor = throttling.CubicCalculator(
         starting_max_rate=0, start_time=clock.current_time()
     )
-    token_bucket = bucket.AsyncTokenBucket(max_rate=1, clock=clock)
+    token_bucket = token_bucket_cls(max_rate=1, clock=clock)
     rate_clocker = RateClocker(clock)
     throttling_detector = standard.ThrottlingErrorDetector(
         retry_event_adapter=standard.RetryEventAdapter(),
     )
-    limiter = AsyncClientRateLimiter(
+    limiter = rate_limiter_cls(
         rate_adjustor=rate_adjustor,
         rate_clocker=rate_clocker,
         token_bucket=token_bucket,
@@ -68,7 +77,10 @@ class AsyncClientRateLimiter:
         self._throttling_detector = throttling_detector
         self._clock = clock
         self._enabled = False
-        self._lock = asyncio.Lock()
+        self._lock = self._create_lock()
+
+    def _create_lock(self):
+        return asyncio.Lock()
 
     async def on_sending_request(self, request, **kwargs):
         if self._enabled:
@@ -103,3 +115,14 @@ class AsyncClientRateLimiter:
             await self._token_bucket.set_max_rate(
                 min(new_rate, self._MAX_RATE_ADJUST_SCALE * measured_rate)
             )
+
+
+class AnyioClientRateLimiter(AsyncClientRateLimiter):
+    """Rate limiter for the httpx backend, which also runs on trio."""
+
+    def _create_lock(self):
+        # anyio is a hard dependency of httpx, so it is importable whenever
+        # the httpx backend is in use.
+        import anyio
+
+        return anyio.Lock()

@@ -19,6 +19,7 @@ from botocore.waiter import (
 )
 
 from .context import with_current_context
+from .httpxsession import HttpxSession
 
 
 def create_waiter_with_client(waiter_name, waiter_model, client):
@@ -45,11 +46,17 @@ def create_waiter_with_client(waiter_name, waiter_model, client):
         getattr(client, operation_name)
     )
 
+    # aiohttp is asyncio-only; the httpx backend also runs on trio.
+    if isinstance(client._endpoint.http_session, HttpxSession):
+        waiter_cls = AnyioWaiter
+    else:
+        waiter_cls = AIOWaiter
+
     # Create a new wait method that will serve as a proxy to the underlying
     # Waiter.wait method. This is needed to attach a docstring to the
     # method.
     async def wait(self, **kwargs):
-        return await AIOWaiter.wait(self, **kwargs)
+        return await waiter_cls.wait(self, **kwargs)
 
     wait.__doc__ = WaiterDocstring(
         waiter_name=waiter_name,
@@ -66,7 +73,7 @@ def create_waiter_with_client(waiter_name, waiter_model, client):
 
     # Create the new waiter class
     documented_waiter_cls = type(
-        waiter_class_name, (AIOWaiter,), {'wait': wait}
+        waiter_class_name, (waiter_cls,), {'wait': wait}
     )
 
     # Return an instance of the new waiter class.
@@ -84,6 +91,9 @@ class NormalizedOperationMethod(_NormalizedOperationMethod):
 
 
 class AIOWaiter(Waiter):
+    async def _sleep(self, sleep_amount):
+        await asyncio.sleep(sleep_amount)
+
     @with_current_context(partial(register_feature_id, 'WAITER'))
     async def wait(self, **kwargs):
         acceptors = list(self.config.acceptors)
@@ -143,4 +153,15 @@ class AIOWaiter(Waiter):
                     reason=reason,
                     last_response=response,
                 )
-            await asyncio.sleep(sleep_amount)
+            await self._sleep(sleep_amount)
+
+
+class AnyioWaiter(AIOWaiter):
+    """Waiter for the httpx backend, which also runs on trio."""
+
+    async def _sleep(self, sleep_amount):
+        # anyio is a hard dependency of httpx, so it is importable whenever
+        # the httpx backend is in use.
+        import anyio
+
+        await anyio.sleep(sleep_amount)

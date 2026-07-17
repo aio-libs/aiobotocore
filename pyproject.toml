@@ -75,6 +75,7 @@ dev = [
     "pytest-mock >= 3.14.1, < 4", # Used in test_session.py
     "pytest-rerunfailures >= 16.0.1, < 17", # Used in test_lambda.py
     "time-machine >= 2.15.0, < 4", # Used in test_signers.py
+    "trio >= 0.27, < 1", # anyio_backend parametrization in tests/conftest.py
 ]
 awscrt = [
     "botocore[crt]",

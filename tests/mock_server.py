@@ -5,6 +5,7 @@ import socket
 # Third Party
 import aiohttp
 import aiohttp.web
+import anyio
 import pytest
 from aiohttp.web import StreamResponse
 from moto.server import ThreadedMotoServer
@@ -89,21 +90,24 @@ class AIOServer(multiprocessing.Process):
         return resp
 
     async def _wait_until_up(self):
-        async with aiohttp.ClientSession() as session:
-            for i in range(0, 30):
-                if self.exitcode is not None:
-                    pytest.fail('unable to start/connect to aiohttp server')
-                    return
+        # Runs on the test's framework, which is trio for the httpx backend,
+        # so this cannot use aiohttp or asyncio. The server accepting a
+        # connection means run_app is serving.
+        for i in range(0, 30):
+            if self.exitcode is not None:
+                pytest.fail('unable to start/connect to aiohttp server')
+                return
 
-                try:
-                    # we need to bypass the proxies due to monkey patches
-                    await session.get(self.endpoint_url + '/ok', timeout=0.5)
-                    return
-                except (aiohttp.ClientConnectionError, asyncio.TimeoutError):
-                    await asyncio.sleep(0.5)
-                except BaseException:
-                    pytest.fail('unable to start/connect to aiohttp server')
-                    raise
+            try:
+                with anyio.fail_after(0.5):
+                    stream = await anyio.connect_tcp(host, self._port)
+                await stream.aclose()
+                return
+            except (OSError, TimeoutError):
+                await anyio.sleep(0.5)
+            except BaseException:
+                pytest.fail('unable to start/connect to aiohttp server')
+                raise
 
         pytest.fail('unable to start and connect to aiohttp server')
 

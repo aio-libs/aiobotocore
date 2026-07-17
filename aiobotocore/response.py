@@ -11,6 +11,20 @@ from botocore.response import (
 
 from aiobotocore import parsers
 
+try:
+    import httpx
+
+    _HTTPX_READ_TIMEOUTS: tuple[type[BaseException], ...] = (
+        httpx.ReadTimeout,
+    )
+    _HTTPX_STREAM_ERRORS: tuple[type[BaseException], ...] = (
+        httpx.NetworkError,
+    )
+except ImportError:
+    # Never matches, so the aiohttp backend is unaffected.
+    _HTTPX_READ_TIMEOUTS = ()
+    _HTTPX_STREAM_ERRORS = ()
+
 
 class AioReadTimeoutError(ReadTimeoutError, asyncio.TimeoutError):
     pass
@@ -200,6 +214,12 @@ class AioHttpxStreamingBody(AioStreamingBodyBase):
                 self._buffer += chunk
             except StopAsyncIteration:
                 self._stream_exhausted = True
+            except _HTTPX_READ_TIMEOUTS as e:
+                raise AioReadTimeoutError(
+                    endpoint_url=self._raw_stream.url, error=e
+                )
+            except _HTTPX_STREAM_ERRORS as e:
+                raise ResponseStreamingError(error=e)
 
     async def read(self, amt=None):
         """Read at most amt bytes from the stream.
@@ -212,8 +232,15 @@ class AioHttpxStreamingBody(AioStreamingBodyBase):
         if amt is None or amt < 0:
             chunks = [self._buffer]
             self._buffer = b''
-            async for chunk in self._stream_iter:
-                chunks.append(chunk)
+            try:
+                async for chunk in self._stream_iter:
+                    chunks.append(chunk)
+            except _HTTPX_READ_TIMEOUTS as e:
+                raise AioReadTimeoutError(
+                    endpoint_url=self._raw_stream.url, error=e
+                )
+            except _HTTPX_STREAM_ERRORS as e:
+                raise ResponseStreamingError(error=e)
             self._stream_exhausted = True
             result = b''.join(chunks)
         elif amt == 0:

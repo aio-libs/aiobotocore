@@ -8,6 +8,7 @@ import aioitertools
 import botocore.retries.adaptive
 
 try:
+    import anyio
     import httpx
 except ImportError:
     httpx = None
@@ -151,7 +152,32 @@ async def test_can_paginate_iterator(s3_client, bucket_name, create_object):
     assert key_names == ['key0', 'key1', 'key2', 'key3', 'key4']
 
 
-async def test_result_key_iters(s3_client, bucket_name, create_object):
+async def _anyio_zip_longest(*iterators, fillvalue=None):
+    # aioitertools.zip_longest advances the iterators with asyncio.gather,
+    # so it only runs on asyncio. This advances them concurrently on any
+    # anyio backend.
+    exhausted = [False] * len(iterators)
+
+    async def advance(i, iterator, vals):
+        try:
+            vals[i] = await iterator.__anext__()
+        except StopAsyncIteration:
+            exhausted[i] = True
+
+    while True:
+        vals = [fillvalue] * len(iterators)
+        async with anyio.create_task_group() as tg:
+            for i, iterator in enumerate(iterators):
+                if not exhausted[i]:
+                    tg.start_soon(advance, i, iterator, vals)
+        if all(exhausted):
+            return
+        yield tuple(vals)
+
+
+async def test_result_key_iters(
+    s3_client, bucket_name, create_object, current_http_backend
+):
     for i in range(5):
         key_name = f'key/{i}/{i}'
         await create_object(key_name)
@@ -169,7 +195,12 @@ async def test_result_key_iters(s3_client, bucket_name, create_object):
     # adapt to aioitertools ideas
     iterators = [itr.__aiter__() for itr in iterators]
 
-    async for vals in aioitertools.zip_longest(*iterators):
+    if current_http_backend == 'httpx':
+        zip_longest = _anyio_zip_longest
+    else:
+        zip_longest = aioitertools.zip_longest
+
+    async for vals in zip_longest(*iterators):
         pass
 
         for k, val in zip(key_names, vals):

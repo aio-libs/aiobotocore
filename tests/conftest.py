@@ -6,6 +6,7 @@ import re
 import string
 from contextlib import AsyncExitStack, ExitStack
 from itertools import chain
+from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 from unittest.mock import patch
 
@@ -36,9 +37,9 @@ def always_spawn():
     multiprocessing.set_start_method("spawn", force=True)
 
 
-@pytest.fixture
-def anyio_backend():
-    return 'asyncio'
+@pytest.fixture(params=['asyncio', 'trio'])
+def anyio_backend(request):
+    return request.param
 
 
 def random_bucketname():
@@ -177,6 +178,17 @@ def read_kwargs(node: Node) -> dict[str, object]:
         assert isinstance(mark.args[0], dict)
         config_kwargs.update(mark.args[0])
     return config_kwargs
+
+
+@pytest.fixture
+def http_session_cls(request) -> type:
+    """The http session class this test is parametrized with.
+
+    Tests that build their own client (rather than using the ``config``
+    fixture) need this to honor the ``--http-backend`` parametrization —
+    without it they always run aiohttp, which cannot run on trio.
+    """
+    return read_kwargs(request.node).get('http_session_cls', AIOHTTPSession)
 
 
 @pytest.fixture
@@ -681,10 +693,18 @@ def pytest_addoption(parser: pytest.Parser):
     )
 
 
+_BOTOCORE_TESTS_DIR = Path(__file__).parent / 'botocore_tests'
+
+
 def pytest_generate_tests(metafunc):
     """Parametrize all tests to run with both aiohttp and httpx as backend.
     This is not a super clean solution, as some tests will not differ at all with
     different http backends."""
+    # Tests ported from botocore build their own clients and don't exercise
+    # the http backend, so parametrizing them would just run aiohttp twice.
+    if _BOTOCORE_TESTS_DIR in metafunc.definition.path.parents:
+        return
+
     metafunc.parametrize(
         '',
         [
@@ -701,6 +721,14 @@ def pytest_generate_tests(metafunc):
 
 def pytest_collection_modifyitems(config: pytest.Config, items):
     """Mark parametrized tests for skipping in case the corresponding backend is not enabled."""
+    # aiohttp is asyncio-only, so trio is only ever run against httpx.
+    items[:] = [
+        item
+        for item in items
+        if not re.match(r'.*\[.*trio.*\]', item.name)
+        or re.match(r'.*\[.*httpx.*\]', item.name)
+    ]
+
     http_backend = config.getoption("--http-backend")
     if http_backend == 'all':
         return

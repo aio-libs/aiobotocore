@@ -8,6 +8,7 @@ from botocore.useragent import register_feature_id
 from botocore.utils import merge_dicts, set_value_from_jmespath
 
 from .context import with_current_context
+from .httpxsession import HttpxSession
 
 
 class AioPageIterator(PageIterator):
@@ -109,7 +110,15 @@ class AioPageIterator(PageIterator):
                 yield results
 
     def result_key_iters(self):
-        teed_results = aioitertools.tee(self, len(self.result_keys))
+        # aioitertools.tee is asyncio-only; the httpx backend also runs on trio.
+        if isinstance(
+            self._method.__self__._endpoint.http_session, HttpxSession
+        ):
+            from ._tee import tee
+
+            teed_results = tee(self, len(self.result_keys))
+        else:
+            teed_results = aioitertools.tee(self, len(self.result_keys))
         return [
             ResultKeyIterator(i, result_key)
             for i, result_key in zip(teed_results, self.result_keys)

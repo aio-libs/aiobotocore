@@ -16,6 +16,7 @@ from botocore.hooks import first_non_none_response
 
 from aiobotocore.httpchecksum import handle_checksum_body
 from aiobotocore.httpsession import AIOHTTPSession
+from aiobotocore.httpxsession import HttpxSession
 from aiobotocore.parsers import AioResponseParserFactory
 from aiobotocore.response import AioHttpxStreamingBody, AioStreamingBody
 
@@ -298,11 +299,25 @@ class AioEndpoint(Endpoint):
                 "Response received to retry, sleeping for %s seconds",
                 handler_response,
             )
-            await asyncio.sleep(handler_response)
+            await self._sleep(handler_response)
             return True
+
+    async def _sleep(self, sleep_amount):
+        await asyncio.sleep(sleep_amount)
 
     async def _send(self, request):
         return await self.http_session.send(request)
+
+
+class AnyioEndpoint(AioEndpoint):
+    """Endpoint for the httpx backend, which also runs on trio."""
+
+    async def _sleep(self, sleep_amount):
+        # anyio is a hard dependency of httpx, so it is importable whenever
+        # the httpx backend is in use.
+        import anyio
+
+        await anyio.sleep(sleep_amount)
 
 
 class AioEndpointCreator(EndpointCreator):
@@ -343,7 +358,13 @@ class AioEndpointCreator(EndpointCreator):
             connector_args=connector_args,
         )
 
-        return AioEndpoint(
+        # aiohttp is asyncio-only; the httpx backend also runs on trio.
+        if issubclass(http_session_cls, HttpxSession):
+            endpoint_cls = AnyioEndpoint
+        else:
+            endpoint_cls = AioEndpoint
+
+        return endpoint_cls(
             endpoint_url,
             endpoint_prefix=endpoint_prefix,
             event_emitter=self._event_emitter,

@@ -23,13 +23,17 @@ async def test_get_service_data(session):
 
 
 async def test_retry(
-    session: AioSession, caplog: LogCaptureFixture, monkeypatch
+    session: AioSession,
+    caplog: LogCaptureFixture,
+    monkeypatch,
+    http_session_cls,
 ):
     caplog.set_level(logging.DEBUG)
 
     config = AioConfig(
         connect_timeout=1,
         read_timeout=1,
+        http_session_cls=http_session_cls,
         # this goes through a slightly different codepath than regular retries
         retries={
             "mode": "standard",
@@ -149,8 +153,12 @@ async def test_warm_up_loader_caches_config(
     session: AioSession,
     warm_up_loader_caches: bool,
     mocker,
+    http_session_cls,
 ):
-    config = AioConfig(warm_up_loader_caches=warm_up_loader_caches)
+    config = AioConfig(
+        warm_up_loader_caches=warm_up_loader_caches,
+        http_session_cls=http_session_cls,
+    )
     mocker.patch.object(
         session, "warm_up_loader_caches", wraps=session.warm_up_loader_caches
     )
@@ -177,8 +185,12 @@ async def test_non_blocking_create_client(
     session: AioSession,
     warm_up_loader_caches: bool,
     mocker,
+    http_session_cls,
 ):
-    config = AioConfig(warm_up_loader_caches=warm_up_loader_caches)
+    config = AioConfig(
+        warm_up_loader_caches=warm_up_loader_caches,
+        http_session_cls=http_session_cls,
+    )
     loader = session.get_component("data_loader")
     file_loader = mocker.patch.object(
         loader, "file_loader", wraps=loader.file_loader

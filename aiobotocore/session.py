@@ -21,6 +21,8 @@ from .configprovider import AioSmartDefaultsConfigStoreFactory
 from .context import with_current_context
 from .credentials import AioCredentials, create_credential_resolver
 from .hooks import AioHierarchicalEmitter
+from .httpsession import AIOHTTPSession
+from .httpxsession import HttpxSession
 from .parsers import AioResponseParserFactory
 from .tokens import create_token_resolver
 from .utils import AioIMDSRegionProvider
@@ -215,9 +217,20 @@ class AioSession(_SyncSession):
         loader = self.get_component('data_loader')
 
         if getattr(config, 'warm_up_loader_caches', False):
-            await asyncio.to_thread(
-                self.warm_up_loader_caches, service_name, api_version
-            )
+            # aiohttp is asyncio-only; the httpx backend also runs on trio.
+            if issubclass(
+                getattr(config, 'http_session_cls', AIOHTTPSession),
+                HttpxSession,
+            ):
+                import anyio.to_thread
+
+                await anyio.to_thread.run_sync(
+                    self.warm_up_loader_caches, service_name, api_version
+                )
+            else:
+                await asyncio.to_thread(
+                    self.warm_up_loader_caches, service_name, api_version
+                )
 
         event_emitter = self.get_component('event_emitter')
         response_parser_factory = self.get_component('response_parser_factory')

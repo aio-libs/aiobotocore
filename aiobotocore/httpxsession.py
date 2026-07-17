@@ -32,6 +32,10 @@ from aiobotocore._endpoint_helpers import _text
 from ._constants import DEFAULT_KEEPALIVE_TIMEOUT
 
 try:
+    # anyio is a hard dependency of httpx, so it is importable whenever
+    # httpx is. config.py imports this module unconditionally, so neither
+    # may be imported at module top level.
+    import anyio.to_thread
     import httpx
 except ImportError:
     httpx = None
@@ -134,7 +138,9 @@ class HttpxSession:
         # Build the SSL context off the event loop on first entry — only when
         # verify is truthy and an explicit ssl_context wasn't supplied. (#1469)
         if self._verify is True or isinstance(self._verify, str):
-            self._verify = await asyncio.to_thread(self._build_ssl_context)
+            self._verify = await anyio.to_thread.run_sync(
+                self._build_ssl_context
+            )
 
         limits = httpx.Limits(
             max_connections=self._max_pool_connections,
@@ -202,7 +208,7 @@ class HttpxSession:
                 else:
                     for item in stream:
                         yield item
-                        await asyncio.sleep(0)  # Yield control to event loop
+                        await anyio.sleep(0)  # Yield control to event loop
 
             if isinstance(
                 request.body, (AsyncIterable, io.BytesIO)
