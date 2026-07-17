@@ -110,7 +110,6 @@ class AIOServer(multiprocessing.Process):
         for i in range(0, 30):
             if self.exitcode is not None:
                 pytest.fail('unable to start/connect to aiohttp server')
-                return
 
             try:
                 with anyio.fail_after(0.5):
@@ -122,7 +121,6 @@ class AIOServer(multiprocessing.Process):
                 await anyio.sleep(0.5)
             except BaseException:
                 pytest.fail('unable to start/connect to aiohttp server')
-                raise
 
         pytest.fail('unable to start and connect to aiohttp server')
 
