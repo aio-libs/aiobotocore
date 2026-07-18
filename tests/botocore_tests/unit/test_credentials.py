@@ -1131,8 +1131,6 @@ async def test_createcredentialresolver(mock_session, http_session_cls):
 async def test_get_credentials(mock_session, http_session_cls):
     session = mock_session()
 
-    # Thread the http backend through so IMDS resolution uses the anyio
-    # providers on trio; get_credentials() itself always defaults to aiohttp.
     resolver = credentials.create_credential_resolver(
         session,
         async_primitives=infer_async_primitives(http_session_cls),
@@ -1140,6 +1138,26 @@ async def test_get_credentials(mock_session, http_session_cls):
     creds = await resolver.load_credentials()
 
     assert creds is None
+
+
+async def test_get_credentials_uses_session_async_primitives(
+    mock_session, http_session_cls
+):
+    session = mock_session()
+    session._async_primitives = infer_async_primitives(http_session_cls)
+    resolver = mock.Mock()
+    resolver.load_credentials = mock.AsyncMock(return_value=None)
+
+    with mock.patch(
+        'aiobotocore.credentials.create_credential_resolver',
+        return_value=resolver,
+    ) as create_resolver:
+        await credentials.get_credentials(session)
+
+    create_resolver.assert_called_once_with(
+        session, async_primitives=session._async_primitives
+    )
+    resolver.load_credentials.assert_awaited_once_with()
 
 
 class Self:

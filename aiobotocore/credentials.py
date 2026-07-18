@@ -252,7 +252,9 @@ class AnyioProfileProviderBuilder(AioProfileProviderBuilder):
 
 
 async def get_credentials(session):
-    resolver = create_credential_resolver(session)
+    resolver = create_credential_resolver(
+        session, async_primitives=session._async_primitives
+    )
     return await resolver.load_credentials()
 
 
