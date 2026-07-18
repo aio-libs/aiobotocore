@@ -88,6 +88,18 @@ async def test_tee_replays_source_error_to_every_consumer():
     assert excinfo.value is error
 
 
+async def test_tee_stays_stopped_after_exhaustion():
+    (a,) = tee(_arange(1), 1)
+
+    assert await a.__anext__() == 0
+    # First StopAsyncIteration latches _done; a second __anext__ short-circuits
+    # on it rather than touching the already-drained source again.
+    with pytest.raises(StopAsyncIteration):
+        await a.__anext__()
+    with pytest.raises(StopAsyncIteration):
+        await a.__anext__()
+
+
 async def test_tee_cancelled_consumer_fails_the_others_loudly():
     async def slow():
         yield 0
