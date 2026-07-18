@@ -11,6 +11,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
+from aiobotocore._async_primitives import infer_async_primitives
 from aiobotocore.config import AioConfig
 from aiobotocore.credentials import _get_client_creator
 from aiobotocore.utils import create_nested_client
@@ -328,20 +329,32 @@ class TestPluginContextIntegration:
 class TestCredentialProviderIntegration:
     """Test integration with credential providers."""
 
-    def test_credential_resolver_uses_get_client_creator(self, session):
+    def test_credential_resolver_uses_get_client_creator(
+        self, session, http_session_cls
+    ):
         """Test that credential resolver can use _get_client_creator."""
         from aiobotocore.credentials import create_credential_resolver
 
         # This should not raise any import errors
-        resolver = create_credential_resolver(session, region_name='us-east-1')
+        resolver = create_credential_resolver(
+            session,
+            region_name='us-east-1',
+            async_primitives=infer_async_primitives(http_session_cls),
+        )
         assert resolver is not None
 
-    def test_assume_role_provider_uses_client_creator(self, session):
+    def test_assume_role_provider_uses_client_creator(
+        self, session, http_session_cls
+    ):
         """Test that AssumeRoleProvider can be created with client creator."""
         from aiobotocore.credentials import create_credential_resolver
 
         # Create credential resolver which should use _get_client_creator internally
-        resolver = create_credential_resolver(session, region_name='us-east-1')
+        resolver = create_credential_resolver(
+            session,
+            region_name='us-east-1',
+            async_primitives=infer_async_primitives(http_session_cls),
+        )
 
         # Should have providers that can use client creators
         assert len(resolver.providers) > 0

@@ -65,9 +65,9 @@ from botocore.credentials import (
 from botocore.useragent import register_feature_id, register_feature_ids
 from dateutil.tz import tzutc
 
+from aiobotocore._async_primitives import AsyncPrimitives
 from aiobotocore._helpers import resolve_awaitable
 from aiobotocore.config import AioConfig
-from aiobotocore.httpxsession import is_httpx_session_cls
 from aiobotocore.tokens import AioSSOTokenProvider
 from aiobotocore.utils import (
     AioContainerMetadataFetcher,
@@ -81,7 +81,10 @@ logger = logging.getLogger(__name__)
 
 
 def create_credential_resolver(
-    session, cache=None, region_name=None, http_session_cls=None
+    session,
+    async_primitives,
+    cache=None,
+    region_name=None,
 ):
     """Create a default credential resolver.
     This creates a pre-configured credential resolver
@@ -111,7 +114,7 @@ def create_credential_resolver(
 
     env_provider = AioEnvProvider()
 
-    if is_httpx_session_cls(http_session_cls):
+    if async_primitives is AsyncPrimitives.ANYIO:
         container_provider = AnyioContainerProvider()
         iam_role_fetcher_cls = AnyioInstanceMetadataFetcher
         profile_provider_builder_cls = AnyioProfileProviderBuilder

@@ -5,8 +5,11 @@ import pytest
 from _pytest.logging import LogCaptureFixture
 
 from aiobotocore import __version__, httpsession, utils
+from aiobotocore._async_primitives import (
+    AsyncPrimitives,
+    infer_async_primitives,
+)
 from aiobotocore.config import AioConfig
-from aiobotocore.httpxsession import HttpxSession
 from aiobotocore.session import AioSession
 
 
@@ -268,22 +271,30 @@ def _imds_session_cls(session: AioSession):
     return type(fetcher._session)
 
 
-async def test_imds_backend_follows_the_latest_client(session: AioSession):
+def test_imds_backend_follows_the_latest_client():
     # The credential resolver bakes in the backend and is cached for the life
     # of the session, so a client switching backend must drop it. Otherwise an
     # httpx client's IMDS lookups run on aiohttp, which cannot run on trio.
     # Explicit credentials keep this away from the network.
-    creds = {'aws_secret_access_key': 'xxx', 'aws_access_key_id': 'xxx'}
-
-    async with session.create_client('s3', region_name='us-east-1', **creds):
-        pass
+    session = AioSession(async_primitives=AsyncPrimitives.ASYNCIO)
     assert _imds_session_cls(session) is utils._RefCountedSession
 
-    async with session.create_client(
-        's3',
-        region_name='us-east-1',
-        config=AioConfig(http_session_cls=HttpxSession),
-        **creds,
-    ):
-        pass
+    session = AioSession(async_primitives=AsyncPrimitives.ANYIO)
     assert _imds_session_cls(session) is utils._RefCountedHttpxSession
+
+
+def test_session_constructor_accepts_async_primitives_enum():
+    session = AioSession(async_primitives=AsyncPrimitives.ANYIO)
+
+    resolver = session._create_credential_resolver()
+
+    fetcher = resolver.get_provider('iam-role')._role_fetcher
+    assert type(fetcher._session) is utils._RefCountedHttpxSession
+
+
+def test_session_fixture_uses_primitives_for_http_backend(
+    session: AioSession, http_session_cls
+):
+    assert session._async_primitives is infer_async_primitives(
+        http_session_cls
+    )

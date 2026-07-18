@@ -16,13 +16,12 @@ from botocore.session import Session as _SyncSession
 from botocore.useragent import register_feature_id
 
 from . import __version__, retryhandler
+from ._async_primitives import AsyncPrimitives
 from .client import AioBaseClient, AioClientCreator
 from .configprovider import AioSmartDefaultsConfigStoreFactory
 from .context import with_current_context
 from .credentials import AioCredentials, create_credential_resolver
 from .hooks import AioHierarchicalEmitter
-from .httpsession import AIOHTTPSession
-from .httpxsession import is_httpx_session_cls
 from .parsers import AioResponseParserFactory
 from .tokens import create_token_resolver
 from .utils import AioIMDSRegionProvider, AnyioIMDSRegionProvider
@@ -49,6 +48,7 @@ class AioSession(_SyncSession):
         event_hooks=None,
         include_builtin_handlers=True,
         profile=None,
+        async_primitives: AsyncPrimitives = AsyncPrimitives.ASYNCIO,
     ):
         if event_hooks is None:
             event_hooks = AioHierarchicalEmitter()
@@ -56,6 +56,7 @@ class AioSession(_SyncSession):
         super().__init__(
             session_vars, event_hooks, include_builtin_handlers, profile
         )
+        self._async_primitives = async_primitives
 
         self._set_user_agent_for_session()
 
@@ -70,20 +71,18 @@ class AioSession(_SyncSession):
     def _create_token_resolver(self):
         return create_token_resolver(self)
 
-    # The http session class of the most recently created client, used to
-    # pick the backend for IMDS lookups. The credential resolver and the
-    # smart defaults factory both read it when they are built and are then
-    # cached for the life of the session, so _create_client drops them when
-    # a client switches backend. A session whose credentials are resolved
+    # The session's current async primitives choice, used to pick the
+    # backend for IMDS lookups. The credential resolver and the smart
+    # defaults factory both read it when they are built and are then cached
+    # for the life of the session, so _create_client drops them when a
+    # client switches backend. A session whose credentials are resolved
     # before any client exists (a bare get_credentials()) still gets the
     # default below, and so cannot reach IMDS on trio.
-    _last_client_http_session_cls = AIOHTTPSession
-
     def _create_credential_resolver(self):
         return create_credential_resolver(
             self,
             region_name=self._last_client_region_used,
-            http_session_cls=self._last_client_http_session_cls,
+            async_primitives=self._async_primitives,
         )
 
     def _register_smart_defaults_factory(self):
@@ -91,7 +90,7 @@ class AioSession(_SyncSession):
             default_config_resolver = self._get_internal_component(
                 'default_config_resolver'
             )
-            if is_httpx_session_cls(self._last_client_http_session_cls):
+            if self._async_primitives is AsyncPrimitives.ANYIO:
                 imds_region_provider = AnyioIMDSRegionProvider(session=self)
             else:
                 imds_region_provider = AioIMDSRegionProvider(session=self)
@@ -218,16 +217,6 @@ class AioSession(_SyncSession):
 
         region_name = self._resolve_region_name(region_name, config)
 
-        http_session_cls = getattr(config, 'http_session_cls', AIOHTTPSession)
-        if http_session_cls is not self._last_client_http_session_cls:
-            self._last_client_http_session_cls = http_session_cls
-            # Both bake the backend in when built, and are cached, so drop
-            # them rather than let this client's IMDS lookups run on the
-            # previous client's backend. Credentials already resolved live
-            # on self._credentials and are kept.
-            self._register_credential_provider()
-            self._register_smart_defaults_factory()
-
         # Figure out the verify value base on the various
         # configuration options.
         if verify is None:
@@ -241,9 +230,7 @@ class AioSession(_SyncSession):
         loader = self.get_component('data_loader')
 
         if getattr(config, 'warm_up_loader_caches', False):
-            if is_httpx_session_cls(
-                getattr(config, 'http_session_cls', AIOHTTPSession)
-            ):
+            if self._async_primitives is AsyncPrimitives.ANYIO:
                 import anyio.to_thread
 
                 await anyio.to_thread.run_sync(

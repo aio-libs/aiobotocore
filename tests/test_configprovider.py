@@ -1,7 +1,6 @@
 import pytest
 
 from aiobotocore.config import AioConfig
-from aiobotocore.session import AioSession
 
 
 @pytest.mark.parametrize(
@@ -9,11 +8,9 @@ from aiobotocore.session import AioSession
     [('legacy', 'legacy'), ('standard', 'standard'), ('auto', 'standard')],
 )
 async def test_defaults_mode(
-    monkeypatch, defaults_mode, retry_mode, http_session_cls
+    monkeypatch, defaults_mode, retry_mode, http_session_cls, session
 ):
     monkeypatch.setenv('AWS_DEFAULTS_MODE', defaults_mode)
-
-    session = AioSession()
 
     assert session.get_config_variable('defaults_mode') == defaults_mode
 

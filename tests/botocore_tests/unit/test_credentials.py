@@ -41,6 +41,7 @@ from botocore.utils import (
 from dateutil.tz import tzlocal, tzutc
 
 from aiobotocore import credentials
+from aiobotocore._async_primitives import infer_async_primitives
 from aiobotocore.config import AioConfig
 from aiobotocore.credentials import (
     AioAssumeRoleProvider,
@@ -1117,10 +1118,13 @@ def mock_session():
     return _f
 
 
-async def test_createcredentialresolver(mock_session):
+async def test_createcredentialresolver(mock_session, http_session_cls):
     session = mock_session()
 
-    resolver = credentials.create_credential_resolver(session)
+    resolver = credentials.create_credential_resolver(
+        session,
+        async_primitives=infer_async_primitives(http_session_cls),
+    )
     assert isinstance(resolver, credentials.AioCredentialResolver)
 
 
@@ -1130,7 +1134,8 @@ async def test_get_credentials(mock_session, http_session_cls):
     # Thread the http backend through so IMDS resolution uses the anyio
     # providers on trio; get_credentials() itself always defaults to aiohttp.
     resolver = credentials.create_credential_resolver(
-        session, http_session_cls=http_session_cls
+        session,
+        async_primitives=infer_async_primitives(http_session_cls),
     )
     creds = await resolver.load_credentials()
 
@@ -1154,8 +1159,8 @@ class _AsyncCtx:
 
 # From class TestSSOCredentialFetcher:
 @pytest.fixture
-async def ssl_credential_fetcher_setup(http_session_cls):
-    async with AioSession().create_client(
+async def ssl_credential_fetcher_setup(session, http_session_cls):
+    async with session.create_client(
         'sso',
         region_name='us-east-1',
         config=AioConfig(http_session_cls=http_session_cls),
@@ -1163,7 +1168,7 @@ async def ssl_credential_fetcher_setup(http_session_cls):
         self = Self()
         self.sso = sso
         self.stubber = Stubber(self.sso)
-        self.mock_session = mock.Mock(spec=http_session_cls)
+        self.mock_session = mock.Mock(spec=AioSession)
         self.mock_session.create_client.return_value = _AsyncCtx(sso)
 
         self.cache = {}
@@ -1361,7 +1366,7 @@ def assume_role_setup(base_assume_role_test_setup, http_session_cls):
     self.metadata_provider = self.mock_provider(AioInstanceMetadataProvider)
     self.env_provider = self.mock_provider(AioEnvProvider)
     self.container_provider = self.mock_provider(AioContainerProvider)
-    self.mock_client_creator = mock.Mock(spec=http_session_cls.create_client)
+    self.mock_client_creator = mock.Mock(spec=AioSession.create_client)
     self.actual_client_region = None
 
     current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -1505,20 +1510,20 @@ async def test_sso_cred_fetcher_feature_ids_registered_during_get_credentials(
 
 # from TestSSOProvider
 @pytest.fixture
-async def sso_provider_setup(http_session_cls):
+async def sso_provider_setup(session, http_session_cls):
     self = Self()
     with mock.patch(
         'aiobotocore.credentials.AioLoginProvider.load',
         return_value=None,
     ):
-        async with AioSession().create_client(
+        async with session.create_client(
             'sso',
             region_name='us-east-1',
             config=AioConfig(http_session_cls=http_session_cls),
         ) as sso:
             self.sso = sso
             self.stubber = Stubber(self.sso)
-            self.mock_session = mock.Mock(spec=http_session_cls)
+            self.mock_session = mock.Mock(spec=AioSession)
             self.mock_session.create_client.return_value = _AsyncCtx(sso)
 
             self.sso_region = 'us-east-1'
@@ -2200,15 +2205,12 @@ async def test_processprovider_bad_config(process_provider):
     assert creds is None
 
 
-async def test_session_credentials(http_session_cls):
+async def test_session_credentials(session):
     with mock.patch(
         'aiobotocore.credentials.AioCredentialResolver.load_credentials'
     ) as mock_obj:
         mock_obj.return_value = 'somecreds'
 
-        session = AioSession().create_client(
-            config=AioConfig(http_session_cls=http_session_cls)
-        )
         creds = await session.get_credentials()
         assert creds == 'somecreds'
 

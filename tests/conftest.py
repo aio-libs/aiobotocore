@@ -21,6 +21,7 @@ except ImportError:
     httpx = None
 
 import aiobotocore.session
+from aiobotocore._async_primitives import infer_async_primitives
 from aiobotocore.config import AioConfig
 from aiobotocore.httpsession import AIOHTTPSession
 from aiobotocore.httpxsession import HttpxSession
@@ -132,8 +133,10 @@ def aa_succeed_proxy_config(monkeypatch):  # pragma: no cover
 
 
 @pytest.fixture
-def session() -> aiobotocore.session.AioSession:
-    session = aiobotocore.session.AioSession()
+def session(http_session_cls) -> aiobotocore.session.AioSession:
+    session = aiobotocore.session.AioSession(
+        async_primitives=infer_async_primitives(http_session_cls)
+    )
     return session
 
 
