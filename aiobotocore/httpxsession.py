@@ -330,7 +330,15 @@ class HttpxSession:
             # See test_basic_s3.test_non_normalized_key_paths
             # This way of using it is currently ~undocumented, but recommended in
             # https://github.com/encode/httpx/discussions/1805#discussioncomment-8975989
-            extensions = {"target": bytes(url, encoding='utf-8')}
+            #
+            # Skip it when proxying: httpcore reuses the request's extensions for
+            # the proxy CONNECT request, and its "target" handling would replace
+            # the CONNECT authority (host:port) with this full URL, producing an
+            # invalid `CONNECT https://host/path` line. httpx/httpcore already
+            # build the correct target for both forward and tunnelled proxies.
+            extensions = (
+                {} if proxy_url else {"target": bytes(url, encoding='utf-8')}
+            )
 
             session = self._get_session(url)
 

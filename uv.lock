@@ -47,7 +47,9 @@ dev = [
     { name = "pytest-mock" },
     { name = "pytest-rerunfailures" },
     { name = "time-machine" },
+    { name = "tiny-proxy" },
     { name = "trio" },
+    { name = "trustme" },
 ]
 docs = [
     { name = "sphinx", version = "8.1.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
@@ -88,7 +90,9 @@ dev = [
     { name = "pytest-mock", specifier = ">=3.14.1,<4" },
     { name = "pytest-rerunfailures", specifier = ">=16.0.1,<17" },
     { name = "time-machine", specifier = ">=2.15.0,<4" },
+    { name = "tiny-proxy", specifier = ">=0.3.0" },
     { name = "trio", specifier = ">=0.27,<1" },
+    { name = "trustme", specifier = ">=1.2.1" },
 ]
 docs = [{ name = "sphinx", specifier = ">=8,<10" }]
 
@@ -2937,6 +2941,18 @@ wheels = [
 ]
 
 [[package]]
+name = "tiny-proxy"
+version = "0.3.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "anyio" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/70/1c/ff8c8c8bf1de2211f9a16c359b8e31bf8fdff65721a9731cdb1a99847d27/tiny_proxy-0.3.0.tar.gz", hash = "sha256:e664e8969f8766dde1650c5cfa0070d87b487fc6c928561ea32e45ddcc1dc2b5", size = 16739, upload-time = "2026-06-05T12:14:20.732Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/39/ba/c638232fdca1bdfcc1446a08807181d5ab4e8cf17f6d0cca192214add77a/tiny_proxy-0.3.0-py3-none-any.whl", hash = "sha256:f0b991e8184d37b12a28e8e2a994fb67d76523159cf7b4b4435d76c51b8d6d88", size = 15754, upload-time = "2026-06-05T12:14:19.403Z" },
+]
+
+[[package]]
 name = "tomli"
 version = "2.4.1"
 source = { registry = "https://pypi.org/simple" }
@@ -3006,6 +3022,19 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/52/b6/c744031c6f89b18b3f5f4f7338603ab381d740a7f45938c4607b2302481f/trio-0.33.0.tar.gz", hash = "sha256:a29b92b73f09d4b48ed249acd91073281a7f1063f09caba5dc70465b5c7aa970", size = 605109, upload-time = "2026-02-14T18:40:55.386Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/1c/93/dab25dc87ac48da0fe0f6419e07d0bfd98799bed4e05e7b9e0f85a1a4b4b/trio-0.33.0-py3-none-any.whl", hash = "sha256:3bd5d87f781d9b0192d592aef28691f8951d6c2e41b7e1da4c25cde6c180ae9b", size = 510294, upload-time = "2026-02-14T18:40:53.313Z" },
+]
+
+[[package]]
+name = "trustme"
+version = "1.2.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "cryptography" },
+    { name = "idna" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/4b/c5/931476f4cf1cd9e736f32651005078061a50dc164a2569fb874e00eb2786/trustme-1.2.1.tar.gz", hash = "sha256:6528ba2bbc7f2db41f33825c8dd13e3e3eb9d334ba0f909713c8c3139f4ae47f", size = 26844, upload-time = "2025-01-02T01:55:32.632Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/b5/f3/c34dbabf6da5eda56fe923226769d40e11806952cd7f46655dd06e10f018/trustme-1.2.1-py3-none-any.whl", hash = "sha256:d768e5fc57c86dfc5ec9365102e9b092541cd6954b35d8c1eea01a84f35a762a", size = 16530, upload-time = "2025-01-02T01:55:30.181Z" },
 ]
 
 [[package]]
