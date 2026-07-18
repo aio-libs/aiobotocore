@@ -28,7 +28,7 @@ async def test_create_waiter_with_client(
 
 
 async def test_sqs(cloudformation_client, current_http_backend: str):
-    stack_name = 'my-stack-{current_http_backend}'
+    stack_name = f'my-stack-{current_http_backend}'
     cloudformation_template = """{
       "AWSTemplateFormatVersion": "2010-09-09",
       "Resources": {

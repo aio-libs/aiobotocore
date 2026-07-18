@@ -19,6 +19,7 @@ from botocore.utils import BadIMDSRequestError, MetadataRetrievalError
 
 from aiobotocore import utils
 from aiobotocore.awsrequest import AioAWSResponse
+from aiobotocore.httpxsession import is_httpx_session_cls
 from aiobotocore.regions import AioEndpointRulesetResolver
 from aiobotocore.utils import (
     AioInstanceMetadataFetcher,
@@ -1061,9 +1062,9 @@ class TestInstanceMetadataFetcher:
 
 
 @pytest.fixture
-def container_fetcher_cls(current_http_backend):
+def container_fetcher_cls(http_session_cls):
     # aiohttp sleeps via asyncio, httpx (which also runs on trio) via anyio.
-    if current_http_backend == 'httpx':
+    if is_httpx_session_cls(http_session_cls):
         return utils.AnyioContainerMetadataFetcher
     return utils.AioContainerMetadataFetcher
 

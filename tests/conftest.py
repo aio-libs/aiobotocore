@@ -25,6 +25,12 @@ from aiobotocore.config import AioConfig
 from aiobotocore.httpsession import AIOHTTPSession
 from aiobotocore.httpxsession import HttpxSession
 
+# The default http backend for tests that aren't parametrized by it (notably
+# the botocore-ported ones). httpx runs on both asyncio and trio, so prefer it
+# when installed; without httpx only aiohttp (asyncio-only) is available, and
+# the trio collection filter then drops those tests' trio variants.
+DEFAULT_HTTP_SESSION_CLS = AIOHTTPSession if httpx is None else HttpxSession
+
 if TYPE_CHECKING:
     from _pytest.nodes import Node
 
@@ -185,10 +191,15 @@ def http_session_cls(request) -> type:
     """The http session class this test is parametrized with.
 
     Tests that build their own client (rather than using the ``config``
-    fixture) need this to honor the ``--http-backend`` parametrization —
-    without it they always run aiohttp, which cannot run on trio.
+    fixture) need this to honor the ``--http-backend`` parametrization.
+    Defaults to httpx when installed: it runs on both asyncio and trio,
+    whereas aiohttp is asyncio-only, so an unmarked test (e.g. a
+    botocore-ported one that isn't parametrized by http backend) must not
+    pin itself to aiohttp on trio.
     """
-    return read_kwargs(request.node).get('http_session_cls', AIOHTTPSession)
+    return read_kwargs(request.node).get(
+        'http_session_cls', DEFAULT_HTTP_SESSION_CLS
+    )
 
 
 @pytest.fixture
@@ -708,7 +719,12 @@ def pytest_generate_tests(metafunc):
     metafunc.parametrize(
         '',
         [
-            pytest.param(id='aiohttp'),
+            pytest.param(
+                id='aiohttp',
+                marks=pytest.mark.config_kwargs(
+                    {'http_session_cls': AIOHTTPSession}
+                ),
+            ),
             pytest.param(
                 id='httpx',
                 marks=pytest.mark.config_kwargs(
@@ -721,13 +737,25 @@ def pytest_generate_tests(metafunc):
 
 def pytest_collection_modifyitems(config: pytest.Config, items):
     """Mark parametrized tests for skipping in case the corresponding backend is not enabled."""
-    # aiohttp is asyncio-only, so it is never collected against trio.
+    # aiohttp is asyncio-only, so trio must never run on the aiohttp backend.
+    # Read the anyio backend from the item's params and the http backend from
+    # the config_kwargs mark rather than the item name: botocore-ported tests
+    # aren't parametrized by http backend and so default to aiohttp without
+    # ``aiohttp`` appearing in their name.
+    def item_params(item):
+        return getattr(item, 'callspec', None) and item.callspec.params or {}
+
     items[:] = [
         item
         for item in items
         if not (
-            re.match(r'.*\[.*trio.*\]', item.name)
-            and re.match(r'.*\[.*aiohttp.*\]', item.name)
+            item_params(item).get('anyio_backend') == 'trio'
+            and not issubclass(
+                read_kwargs(item).get(
+                    'http_session_cls', DEFAULT_HTTP_SESSION_CLS
+                ),
+                HttpxSession,
+            )
         )
     ]
 

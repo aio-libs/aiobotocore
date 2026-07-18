@@ -114,9 +114,11 @@ def create_credential_resolver(
     if is_httpx_session_cls(http_session_cls):
         container_provider = AnyioContainerProvider()
         iam_role_fetcher_cls = AnyioInstanceMetadataFetcher
+        profile_provider_builder_cls = AnyioProfileProviderBuilder
     else:
         container_provider = AioContainerProvider()
         iam_role_fetcher_cls = AioInstanceMetadataFetcher
+        profile_provider_builder_cls = AioProfileProviderBuilder
 
     instance_metadata_provider = AioInstanceMetadataProvider(
         iam_role_fetcher=iam_role_fetcher_cls(
@@ -127,7 +129,7 @@ def create_credential_resolver(
         )
     )
 
-    profile_provider_builder = AioProfileProviderBuilder(
+    profile_provider_builder = profile_provider_builder_cls(
         session, cache=cache, region_name=region_name
     )
     assume_role_provider = AioAssumeRoleProvider(
@@ -235,6 +237,14 @@ class AioProfileProviderBuilder(ProfileProviderBuilder):
             client_creator=self._session.create_client,
             profile_name=profile_name,
             token_cache=self._login_token_cache,
+        )
+
+
+class AnyioProfileProviderBuilder(AioProfileProviderBuilder):
+    def _create_process_provider(self, profile_name):
+        return AnyioProcessProvider(
+            profile_name=profile_name,
+            load_config=lambda: self._session.full_config,
         )
 
 
@@ -615,7 +625,7 @@ class AioProcessProvider(ProcessProvider):
             # support the Proactor loop (e.g. ``psycopg``). Fall back
             # to running the credential process synchronously in a
             # worker thread so the loop stays unblocked. (#1415)
-            stdout, stderr, returncode = await asyncio.to_thread(
+            stdout, stderr, returncode = await self._run_in_thread(
                 _run_credential_process_sync, process_list
             )
         if returncode != 0:
@@ -645,6 +655,47 @@ class AioProcessProvider(ProcessProvider):
                 provider=self.METHOD,
                 error_msg=f"Missing required key in response: {e}",
             )
+
+    async def _run_in_thread(self, func, *args):
+        return await asyncio.to_thread(func, *args)
+
+
+class _AnyioSubprocess:
+    """Adapts an anyio ``CompletedProcess`` to the ``asyncio`` subprocess
+    interface (awaitable ``communicate()`` plus ``returncode``) that
+    ``AioProcessProvider._retrieve_credentials_using`` expects."""
+
+    def __init__(self, completed):
+        self._completed = completed
+
+    @property
+    def returncode(self):
+        return self._completed.returncode
+
+    async def communicate(self):
+        return self._completed.stdout, self._completed.stderr
+
+
+async def _anyio_create_subprocess_exec(program, *args, stdout=None, stderr=None):
+    # anyio is a hard dependency of httpx, so it is importable whenever the
+    # httpx (trio-capable) backend is in use. Unlike asyncio subprocesses, it
+    # works on trio, whose event loop has no asyncio subprocess transport.
+    import anyio
+
+    completed = await anyio.run_process(
+        [program, *args], stdout=stdout, stderr=stderr, check=False
+    )
+    return _AnyioSubprocess(completed)
+
+
+class AnyioProcessProvider(AioProcessProvider):
+    def __init__(self, *args, popen=_anyio_create_subprocess_exec, **kwargs):
+        super().__init__(*args, popen=popen, **kwargs)
+
+    async def _run_in_thread(self, func, *args):
+        import anyio.to_thread
+
+        return await anyio.to_thread.run_sync(func, *args)
 
 
 class AioInstanceMetadataProvider(InstanceMetadataProvider):
