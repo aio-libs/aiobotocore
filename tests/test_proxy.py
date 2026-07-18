@@ -45,7 +45,7 @@ async def _handle_target(stream) -> None:
             b"Content-Type: application/json\r\n"
             b"\r\n%b" % (len(RESPONSE_BODY), RESPONSE_BODY)
         )
-    except (anyio.EndOfStream, anyio.BrokenResourceError):
+    except (anyio.EndOfStream, anyio.BrokenResourceError):  # pragma: no cover
         pass
     finally:
         await stream.aclose()
@@ -112,6 +112,31 @@ def proxy_client_cert(ca, tmp_path):
     return str(cert_path), str(key_path)
 
 
+@pytest.fixture
+def proxy_client_cert_combined(ca, tmp_path):
+    leaf = ca.issue_cert("client@example.com")
+    pem_path = tmp_path / "client-combined.pem"
+    pem_path.write_bytes(
+        b"".join(b.bytes() for b in leaf.cert_chain_pems)
+        + leaf.private_key_pem.bytes()
+    )
+    return str(pem_path)
+
+
+@pytest.fixture(params=["string", "tuple"])
+def client_cert(request, ca, tmp_path):
+    leaf = ca.issue_cert("client@example.com")
+    cert_path = tmp_path / "client.pem"
+    key_path = tmp_path / "client.key"
+    cert_path.write_bytes(b"".join(b.bytes() for b in leaf.cert_chain_pems))
+    key_path.write_bytes(leaf.private_key_pem.bytes())
+    if request.param == "string":
+        pem_path = tmp_path / "client-combined.pem"
+        pem_path.write_bytes(cert_path.read_bytes() + key_path.read_bytes())
+        return str(pem_path)
+    return str(cert_path), str(key_path)
+
+
 def _prepared_request(port: int) -> AWSRequest:
     request = AWSRequest(
         method="GET",
@@ -167,6 +192,54 @@ async def test_https_request_through_https_proxy(
                 "proxy_client_cert": proxy_client_cert,
             },
             verify=ca_bundle,
+        ) as session:
+            response = await session.send(_prepared_request(target_port))
+            assert response.status_code == 200
+            assert json.loads(await response.content) == {"ok": True}
+
+        tg.cancel_scope.cancel()
+
+
+async def test_https_request_through_https_proxy_with_combined_proxy_client_cert(
+    http_session_cls,
+    current_http_backend,
+    ca,
+    ca_bundle,
+    proxy_client_cert_combined,
+):
+    if current_http_backend == "aiohttp" and sys.version_info < (3, 11):
+        pytest.skip("aiohttp TLS-in-TLS requires Python 3.11+")
+
+    async with anyio.create_task_group() as tg:
+        proxy_port = await tg.start(_serve_https_proxy, ca)
+        target_port = await tg.start(_serve_https_target, ca)
+
+        async with http_session_cls(
+            proxies={"https": f"https://{PROXY_HOST}:{proxy_port}"},
+            proxies_config={
+                "proxy_ca_bundle": ca_bundle,
+                "proxy_client_cert": proxy_client_cert_combined,
+            },
+            verify=ca_bundle,
+        ) as session:
+            response = await session.send(_prepared_request(target_port))
+            assert response.status_code == 200
+            assert json.loads(await response.content) == {"ok": True}
+
+        tg.cancel_scope.cancel()
+
+
+async def test_https_request_through_http_proxy_with_client_cert(
+    http_session_cls, ca, ca_bundle, client_cert
+):
+    async with anyio.create_task_group() as tg:
+        proxy_port = await tg.start(_serve_http_proxy)
+        target_port = await tg.start(_serve_https_target, ca)
+
+        async with http_session_cls(
+            proxies={"https": f"http://127.0.0.1:{proxy_port}"},
+            verify=ca_bundle,
+            client_cert=client_cert,
         ) as session:
             response = await session.send(_prepared_request(target_port))
             assert response.status_code == 200

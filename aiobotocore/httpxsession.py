@@ -211,15 +211,6 @@ class HttpxSession:
             keepalive_expiry=self._connector_args['keepalive_timeout'],
         )
 
-        # TODO [httpx]: I put logic here to minimize diff / accidental downstream
-        # consequences - but can probably put this logic in __init__
-        if self._cert_file and self._key_file is None:
-            self._cert = self._cert_file
-        elif self._cert_file:
-            self._cert = (self._cert_file, self._key_file)
-        else:
-            self._cert = None
-
         # The AsyncClient is built lazily on the first send: httpx bakes proxy
         # headers into the client, and BOTO_EXPERIMENTAL__ADD_PROXY_HOST_HEADER
         # needs the request host, which we only learn then. A given session
@@ -242,7 +233,6 @@ class HttpxSession:
             )
             mounts[f'{scheme}://'] = httpx.AsyncHTTPTransport(
                 verify=self._verify,
-                cert=self._cert,
                 limits=self._limits,
                 proxy=proxy,
             )
@@ -250,7 +240,6 @@ class HttpxSession:
         return httpx.AsyncClient(
             timeout=self._timeout,
             limits=self._limits,
-            cert=self._cert,
             mounts=mounts,
         )
 
