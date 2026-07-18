@@ -699,9 +699,14 @@ def pytest_addoption(parser: pytest.Parser):
 
 
 def pytest_generate_tests(metafunc):
-    """Parametrize all tests to run with both aiohttp and httpx as backend.
-    This is not a super clean solution, as some tests will not differ at all with
-    different http backends."""
+    """Parametrize backend-dependent tests to run with both aiohttp and httpx.
+
+    Only tests that actually select an http backend need both variants — either
+    directly via the ``http_session_cls`` fixture or transitively through a
+    fixture that requests it (e.g. ``session``, and thus ``s3_client``). Tests
+    that don't touch the backend would otherwise just run twice identically."""
+    if 'http_session_cls' not in metafunc.fixturenames:
+        return
     metafunc.parametrize(
         '',
         [
