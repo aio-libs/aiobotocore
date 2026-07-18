@@ -847,7 +847,7 @@ class TestInstanceMetadataFetcher:
         ).retrieve_iam_role_credentials()
 
         assert self._send.call_count == 3
-        for call in self._send.calls:
+        for call in self._send.call_args_list:
             assert call[0][0].headers['User-Agent']
 
     async def test_non_200_response_for_role_name_is_retried(self):
