@@ -80,10 +80,6 @@ async def test_connector_args(current_http_backend: str):
     ):
         AioConfig({'socket_factory': True}, http_session_cls=HttpxSession)
 
-    # Not a class at all: validation must not raise TypeError out of
-    # issubclass; the bad value surfaces when the session is constructed.
-    AioConfig({'use_dns_cache': True}, http_session_cls=HttpxSession())
-
     # A subclass is still the httpx backend, so it gets the same validation.
     class MyHttpxSession(HttpxSession): ...
 
@@ -110,6 +106,14 @@ async def test_connector_args(current_http_backend: str):
 
     assert cfg.read_timeout == 75
     assert aio_cfg.connector_args['keepalive_timeout'] == 75
+
+
+def test_connector_args_httpx_session_instance():
+    # Passing an HttpxSession instance (not a class) must not raise TypeError out
+    # of issubclass; the bad value surfaces when the session is constructed.
+    # Needs a real HttpxSession instance, so it requires httpx installed.
+    pytest.importorskip("httpx")
+    AioConfig({'use_dns_cache': True}, http_session_cls=HttpxSession())
 
 
 async def test_connector_timeout(http_session_cls):

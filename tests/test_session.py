@@ -271,19 +271,19 @@ def _imds_session_cls(session: AioSession):
     return type(fetcher._session)
 
 
-def test_imds_backend_follows_the_latest_client():
-    # The credential resolver bakes in the backend and is cached for the life
-    # of the session, so a client switching backend must drop it. Otherwise an
-    # httpx client's IMDS lookups run on aiohttp, which cannot run on trio.
-    # Explicit credentials keep this away from the network.
+def test_imds_backend_follows_the_provided_primitive_asyncio():
     session = AioSession(async_primitives=AsyncPrimitives.ASYNCIO)
     assert _imds_session_cls(session) is utils._RefCountedSession
 
+
+def test_imds_backend_follows_the_provided_primitive_anyio():
+    pytest.importorskip("httpx")
     session = AioSession(async_primitives=AsyncPrimitives.ANYIO)
     assert _imds_session_cls(session) is utils._RefCountedHttpxSession
 
 
 def test_session_constructor_accepts_async_primitives_enum():
+    pytest.importorskip("httpx")
     session = AioSession(async_primitives=AsyncPrimitives.ANYIO)
 
     resolver = session._create_credential_resolver()

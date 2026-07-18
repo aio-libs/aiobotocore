@@ -85,10 +85,16 @@ async def test_container_provider_keeps_a_caller_supplied_fetcher(
     assert provider._fetcher is fetcher
 
     assert isinstance(
-        credentials.AnyioContainerProvider()._fetcher,
-        utils.AnyioContainerMetadataFetcher,
-    )
-    assert isinstance(
         credentials.AioContainerProvider()._fetcher,
         utils.AioContainerMetadataFetcher,
+    )
+
+
+def test_anyio_container_provider_uses_httpx_fetcher_by_default():
+    # The anyio provider's default fetcher is the httpx-backed
+    # AnyioContainerMetadataFetcher, whose construction requires httpx.
+    pytest.importorskip("httpx")
+    assert isinstance(
+        credentials.AnyioContainerProvider()._fetcher,
+        utils.AnyioContainerMetadataFetcher,
     )
