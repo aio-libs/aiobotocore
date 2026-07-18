@@ -46,7 +46,7 @@ async def test_can_make_request_no_verify(s3_client):
 
 
 async def test_fail_proxy_request(
-    skip_httpx, aa_fail_proxy_config, s3_client, monkeypatch
+    aa_fail_proxy_config, s3_client, monkeypatch
 ):
     # based on test_can_make_request
     with pytest.raises(httpsession.ProxyConnectionError):

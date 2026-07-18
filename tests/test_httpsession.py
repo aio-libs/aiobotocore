@@ -36,9 +36,9 @@ async def test_ssl_context_built_off_loop_on_first_request(
             wraps=anyio.to_thread.run_sync,
         )
         async with HttpxSession():
-            # The httpx session builds its SSL context on entry.
+            # The httpx session builds its SSL context(s) on entry.
             run_sync.assert_called_once()
-            assert run_sync.call_args.args[0].__name__ == '_build_ssl_context'
+            assert run_sync.call_args.args[0].__name__ == '_build_ssl_contexts'
         return
 
     to_thread = mocker.patch(
