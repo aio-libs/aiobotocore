@@ -94,6 +94,16 @@ jobs:
         COLOR: 'yes'
       run: |
         uv run --extra=httpx make mototest
+    - name: Upload unittest coverage to Codecov
+      if: ${{ ! inputs.no-httpx }}
+      uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f  # v6.0.2
+      with:
+        files: ./coverage.xml
+        # yamllint disable-line rule:line-length
+        flags: unittests,os-${{ inputs.os }},python-${{ inputs.python-version }}${{ inputs.with-awscrt && ',with-awscrt' || '' }}
+        name: codecov-umbrella
+        fail_ci_if_error: true
+        verbose: true
     - name: Run unittests without httpx installed
       if: ${{ inputs.no-httpx }}
       env:
@@ -109,12 +119,41 @@ jobs:
             sys.exit("httpx must NOT be installed for the no-httpx run")
         PY
         uv run make mototest
-    - name: Upload coverage to Codecov
+    - name: Upload no-httpx unittest coverage to Codecov
+      if: ${{ inputs.no-httpx }}
       uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f  # v6.0.2
       with:
         files: ./coverage.xml
         # yamllint disable-line rule:line-length
-        flags: unittests,os-${{ inputs.os }},python-${{ inputs.python-version }}${{ inputs.with-awscrt && ',with-awscrt' || '' }}${{ inputs.no-httpx && ',no-httpx' || '' }}  # optional
-        name: codecov-umbrella  # optional
-        fail_ci_if_error: true  # optional (default = false)
-        verbose: true  # optional (default = false)
+        flags: unittests,os-${{ inputs.os }},python-${{ inputs.python-version }}${{ inputs.with-awscrt && ',with-awscrt' || '' }},no-httpx
+        name: codecov-umbrella
+        fail_ci_if_error: true
+        verbose: true
+    - name: Run eval common tests
+      env:
+        COLOR: 'yes'
+      run: |
+        # Install eval-only deps after the no-httpx unit test path has
+        # completed; the evals group pulls in anthropic, which can bring
+        # in httpx transitively.
+        if ${{ inputs.with-awscrt }}; then
+          uv sync --group awscrt --group evals
+        else
+          uv sync --group evals
+        fi
+        uv run pytest \
+          --cov-append \
+          --cov-report= \
+          --cov=plugins/aiobotocore-bot/evals \
+          --cov=tests \
+          tests/evals/test_common.py
+        uv run coverage xml
+    - name: Upload eval coverage to Codecov
+      uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f  # v6.0.2
+      with:
+        files: ./coverage.xml
+        # yamllint disable-line rule:line-length
+        flags: evals-common,os-${{ inputs.os }},python-${{ inputs.python-version }}${{ inputs.with-awscrt && ',with-awscrt' || '' }}${{ inputs.no-httpx && ',no-httpx' || '' }}
+        name: codecov-umbrella
+        fail_ci_if_error: true
+        verbose: true
