@@ -2256,7 +2256,10 @@ class TestAioLoginProvider:
         os.environ['AWS_LOGIN_CACHE_DIRECTORY'] = cache_dir
 
         try:
-            session = http_session_cls(profile='signin')
+            session = AioSession(
+                profile='signin',
+                async_primitives=infer_async_primitives(http_session_cls),
+            )
             token_cache = JSONFileCache(cache_dir)
 
             def load_config():
