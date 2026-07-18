@@ -65,7 +65,6 @@ botocore-dev = [
     # "colorama>0.3.0", # Windows requirement
 ]
 dev = [
-    "anthropic >= 0.40.0", # Used in plugins/aiobotocore-bot/evals/
     "anyio >= 4.11.0",
     "dill >= 0.3.3, < 0.5", # Used in test_patches.py
     "docker >= 7.1, < 8",
@@ -84,6 +83,12 @@ awscrt = [
 ]
 docs = [
     "sphinx >= 8, < 10",
+]
+# Kept out of default-groups so the default env has no httpx: anthropic pulls in
+# httpx transitively, which would defeat the no-httpx CI job. Only the evals
+# workflow installs this group. See plugins/aiobotocore-bot/evals/.
+evals = [
+    "anthropic >= 0.40.0", # Used in plugins/aiobotocore-bot/evals/
 ]
 
 [tool.uv]

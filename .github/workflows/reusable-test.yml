@@ -100,6 +100,14 @@ jobs:
         COLOR: 'yes'
         HTTP_BACKEND: 'aiohttp'
       run: |
+        # Hard fail if httpx leaked into the default env (e.g. via a transitive
+        # dependency): this job must exercise the httpx-absent import fallback,
+        # so keep httpx out of default-groups. See the `evals` group.
+        uv run python - <<'PY'
+        import importlib.util, sys
+        if importlib.util.find_spec("httpx") is not None:
+            sys.exit("httpx must NOT be installed for the no-httpx run")
+        PY
         uv run make mototest
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f  # v6.0.2
