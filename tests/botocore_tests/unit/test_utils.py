@@ -1060,12 +1060,15 @@ class TestInstanceMetadataFetcher:
         assert result == {}
 
 
-class _NoSleepContainerMetadataFetcher(utils.AioContainerMetadataFetcher):
-    async def _sleep(self, delay):
-        pass
+@pytest.fixture
+def container_fetcher_cls(current_http_backend):
+    # aiohttp sleeps via asyncio, httpx (which also runs on trio) via anyio.
+    if current_http_backend == 'httpx':
+        return utils.AnyioContainerMetadataFetcher
+    return utils.AioContainerMetadataFetcher
 
 
-async def test_containermetadatafetcher_retrieve_url():
+async def test_containermetadatafetcher_retrieve_url(container_fetcher_cls):
     json_body = json.dumps(
         {
             "AccessKeyId": "a",
@@ -1077,7 +1080,7 @@ async def test_containermetadatafetcher_retrieve_url():
 
     http = fake_aiohttp_session((json_body, 200))
 
-    fetcher = _NoSleepContainerMetadataFetcher(http)
+    fetcher = container_fetcher_cls(http)
     resp = await fetcher.retrieve_uri('/foo?id=1')
     assert resp['AccessKeyId'] == 'a'
     assert resp['SecretAccessKey'] == 'b'
@@ -1093,21 +1096,29 @@ async def test_containermetadatafetcher_retrieve_url():
     assert resp['Expiration'] == 'd'
 
 
-async def test_containermetadatafetcher_retrieve_url_bad_status():
+async def test_containermetadatafetcher_retrieve_url_bad_status(
+    container_fetcher_cls,
+):
     json_body = "not json"
 
     http = fake_aiohttp_session((json_body, 500))
 
-    fetcher = _NoSleepContainerMetadataFetcher(http)
+    fetcher = container_fetcher_cls(http)
+    # Drive the retry loop through the real _sleep without the delay: the
+    # aiohttp fetcher sleeps via asyncio, the anyio one via anyio.
+    fetcher.SLEEP_TIME = 0
     with pytest.raises(MetadataRetrievalError):
         await fetcher.retrieve_uri('/foo?id=1')
 
 
-async def test_containermetadatafetcher_retrieve_url_not_json():
+async def test_containermetadatafetcher_retrieve_url_not_json(
+    container_fetcher_cls,
+):
     json_body = "not json"
 
     http = fake_aiohttp_session((json_body, 200))
 
-    fetcher = _NoSleepContainerMetadataFetcher(http)
+    fetcher = container_fetcher_cls(http)
+    fetcher.SLEEP_TIME = 0
     with pytest.raises(MetadataRetrievalError):
         await fetcher.retrieve_uri('/foo?id=1')

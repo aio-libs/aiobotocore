@@ -1,6 +1,7 @@
 from unittest import mock
 
 import anyio
+import pytest
 
 from aiobotocore import credentials, utils
 
@@ -66,10 +67,20 @@ async def test_assumerolecredprovider_concurrent_load_no_race_condition():
     assert all(r is not None for r in results)
 
 
-async def test_container_provider_keeps_a_caller_supplied_fetcher():
+@pytest.fixture
+def container_fetcher_cls(current_http_backend):
+    # aiohttp sleeps via asyncio, httpx (which also runs on trio) via anyio.
+    if current_http_backend == 'httpx':
+        return utils.AnyioContainerMetadataFetcher
+    return utils.AioContainerMetadataFetcher
+
+
+async def test_container_provider_keeps_a_caller_supplied_fetcher(
+    container_fetcher_cls,
+):
     # botocore's blocking default is swapped for an async one, but a fetcher
     # the caller passed in (with its own session or timeout) is left alone.
-    fetcher = utils.AioContainerMetadataFetcher()
+    fetcher = container_fetcher_cls()
     provider = credentials.AnyioContainerProvider(fetcher=fetcher)
     assert provider._fetcher is fetcher
 
