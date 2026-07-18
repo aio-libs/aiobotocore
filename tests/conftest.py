@@ -721,12 +721,14 @@ def pytest_generate_tests(metafunc):
 
 def pytest_collection_modifyitems(config: pytest.Config, items):
     """Mark parametrized tests for skipping in case the corresponding backend is not enabled."""
-    # aiohttp is asyncio-only, so trio is only ever run against httpx.
+    # aiohttp is asyncio-only, so it is never collected against trio.
     items[:] = [
         item
         for item in items
-        if not re.match(r'.*\[.*trio.*\]', item.name)
-        or re.match(r'.*\[.*httpx.*\]', item.name)
+        if not (
+            re.match(r'.*\[.*trio.*\]', item.name)
+            and re.match(r'.*\[.*aiohttp.*\]', item.name)
+        )
     ]
 
     http_backend = config.getoption("--http-backend")
