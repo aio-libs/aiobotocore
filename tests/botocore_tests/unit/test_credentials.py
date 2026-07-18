@@ -52,9 +52,7 @@ from aiobotocore.credentials import (
     AioSSOCredentialFetcher,
     AioSSOProvider,
 )
-from aiobotocore.config import AioConfig
 from aiobotocore.httpxsession import is_httpx_session_cls
-from aiobotocore.session import AioSession
 from tests.botocore_tests import random_chars, requires_crt, skip_if_crt
 from tests.botocore_tests.helpers import StubbedSession
 

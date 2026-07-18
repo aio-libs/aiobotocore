@@ -304,7 +304,9 @@ class TestCreateClient(BaseSessionTest):
             f.flush()
 
             async with session.create_client(
-                'ec2', 'us-west-2', config=_http_backend_config(http_session_cls)
+                'ec2',
+                'us-west-2',
+                config=_http_backend_config(http_session_cls),
             ):
                 call_kwargs = (
                     client_creator.return_value.create_client.call_args[1]

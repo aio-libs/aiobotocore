@@ -737,6 +737,7 @@ def pytest_generate_tests(metafunc):
 
 def pytest_collection_modifyitems(config: pytest.Config, items):
     """Mark parametrized tests for skipping in case the corresponding backend is not enabled."""
+
     # aiohttp is asyncio-only, so trio must never run on the aiohttp backend.
     # Read the anyio backend from the item's params and the http backend from
     # the config_kwargs mark rather than the item name: botocore-ported tests

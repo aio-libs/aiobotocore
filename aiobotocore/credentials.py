@@ -676,7 +676,9 @@ class _AnyioSubprocess:
         return self._completed.stdout, self._completed.stderr
 
 
-async def _anyio_create_subprocess_exec(program, *args, stdout=None, stderr=None):
+async def _anyio_create_subprocess_exec(
+    program, *args, stdout=None, stderr=None
+):
     # anyio is a hard dependency of httpx, so it is importable whenever the
     # httpx (trio-capable) backend is in use. Unlike asyncio subprocesses, it
     # works on trio, whose event loop has no asyncio subprocess transport.
