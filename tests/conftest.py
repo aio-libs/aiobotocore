@@ -6,7 +6,6 @@ import re
 import string
 from contextlib import AsyncExitStack, ExitStack
 from itertools import chain
-from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 from unittest.mock import patch
 
@@ -699,18 +698,10 @@ def pytest_addoption(parser: pytest.Parser):
     )
 
 
-_BOTOCORE_TESTS_DIR = Path(__file__).parent / 'botocore_tests'
-
-
 def pytest_generate_tests(metafunc):
     """Parametrize all tests to run with both aiohttp and httpx as backend.
     This is not a super clean solution, as some tests will not differ at all with
     different http backends."""
-    # Tests ported from botocore build their own clients and don't exercise
-    # the http backend, so parametrizing them would just run aiohttp twice.
-    if _BOTOCORE_TESTS_DIR in metafunc.definition.path.parents:
-        return
-
     metafunc.parametrize(
         '',
         [
