@@ -71,13 +71,6 @@ class AioSession(_SyncSession):
     def _create_token_resolver(self):
         return create_token_resolver(self)
 
-    # The session's current async primitives choice, used to pick the
-    # backend for IMDS lookups. The credential resolver and the smart
-    # defaults factory both read it when they are built and are then cached
-    # for the life of the session, so _create_client drops them when a
-    # client switches backend. A session whose credentials are resolved
-    # before any client exists (a bare get_credentials()) still gets the
-    # default below, and so cannot reach IMDS on trio.
     def _create_credential_resolver(self):
         return create_credential_resolver(
             self,
