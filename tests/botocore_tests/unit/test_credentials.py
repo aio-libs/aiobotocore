@@ -41,6 +41,7 @@ from botocore.utils import (
 from dateutil.tz import tzlocal, tzutc
 
 from aiobotocore import credentials
+from aiobotocore.config import AioConfig
 from aiobotocore.credentials import (
     AioAssumeRoleProvider,
     AioCanonicalNameCredentialSourcer,
@@ -53,6 +54,7 @@ from aiobotocore.credentials import (
     AioSSOProvider,
 )
 from aiobotocore.httpxsession import is_httpx_session_cls
+from aiobotocore.session import AioSession
 from tests.botocore_tests import random_chars, requires_crt, skip_if_crt
 from tests.botocore_tests.helpers import StubbedSession
 
@@ -1075,8 +1077,8 @@ async def test_originalec2provider_file_missing():
 
 # From class TestCreateCredentialResolver
 @pytest.fixture
-def mock_session(http_session_cls):
-    def _f(config_loader: ConfigValueStore | None = None):
+def mock_session():
+    def _f(config_loader: ConfigValueStore | None = None) -> AioSession:
         if not config_loader:
             config_loader = ConfigValueStore()
 
@@ -1097,7 +1099,7 @@ def mock_session(http_session_cls):
         def fake_set_config_variable(self, logical_name, value):
             fake_instance_variables[logical_name] = value
 
-        session = mock.Mock(spec=http_session_cls)
+        session = mock.Mock(spec=AioSession)
         session.get_component = fake_get_component
         session.full_config = {}
         # A real string, not a Mock: it becomes the IMDS request's User-Agent
@@ -1153,9 +1155,10 @@ class _AsyncCtx:
 # From class TestSSOCredentialFetcher:
 @pytest.fixture
 async def ssl_credential_fetcher_setup(http_session_cls):
-    async with http_session_cls().create_client(
+    async with AioSession().create_client(
         'sso',
         region_name='us-east-1',
+        config=AioConfig(http_session_cls=http_session_cls),
     ) as sso:
         self = Self()
         self.sso = sso
@@ -1508,9 +1511,10 @@ async def sso_provider_setup(http_session_cls):
         'aiobotocore.credentials.AioLoginProvider.load',
         return_value=None,
     ):
-        async with http_session_cls().create_client(
+        async with AioSession().create_client(
             'sso',
             region_name='us-east-1',
+            config=AioConfig(http_session_cls=http_session_cls),
         ) as sso:
             self.sso = sso
             self.stubber = Stubber(self.sso)
@@ -2202,7 +2206,9 @@ async def test_session_credentials(http_session_cls):
     ) as mock_obj:
         mock_obj.return_value = 'somecreds'
 
-        session = http_session_cls()
+        session = AioSession().create_client(
+            config=AioConfig(http_session_cls=http_session_cls)
+        )
         creds = await session.get_credentials()
         assert creds == 'somecreds'
 
