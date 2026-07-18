@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import ssl
+import sys
 
 import anyio
 import pytest
@@ -144,11 +145,17 @@ async def test_https_request_through_http_proxy(
 
 
 async def test_https_request_through_https_proxy(
-    http_session_cls, ca, ca_bundle, proxy_client_cert
+    http_session_cls, current_http_backend, ca, ca_bundle, proxy_client_cert
 ):
     # An https:// proxy exercises _setup_proxy_ssl_context: the client must
     # complete a TLS handshake with the proxy (verified against proxy_ca_bundle,
     # and loading proxy_client_cert) before the CONNECT tunnel to the target.
+    if current_http_backend == "aiohttp" and sys.version_info < (3, 11):
+        # An https target through an https proxy is TLS-in-TLS, which stdlib
+        # asyncio (and therefore aiohttp) can't do before Python 3.11. httpx
+        # tunnels through httpcore and is unaffected.
+        pytest.skip("aiohttp TLS-in-TLS requires Python 3.11+")
+
     async with anyio.create_task_group() as tg:
         proxy_port = await tg.start(_serve_https_proxy, ca)
         target_port = await tg.start(_serve_https_target, ca)
