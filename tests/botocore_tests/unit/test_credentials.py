@@ -8,6 +8,7 @@ import asyncio
 import json
 import logging
 import os
+import shlex
 import shutil
 import subprocess
 import sys
@@ -41,7 +42,9 @@ from botocore.utils import (
 from dateutil.tz import tzlocal, tzutc
 
 from aiobotocore import credentials
-from aiobotocore._async_primitives import infer_async_primitives
+from aiobotocore._async_primitives import (
+    infer_async_primitives,
+)
 from aiobotocore.config import AioConfig
 from aiobotocore.credentials import (
     AioAssumeRoleProvider,
@@ -1834,6 +1837,48 @@ async def test_processprovider_can_retrieve_account_id_via_profile_config(
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
     )
+
+
+async def test_session_retrieve_creds_via_real_subprocess(
+    http_session_cls, tmp_path
+):
+    session = AioSession(
+        async_primitives=infer_async_primitives(http_session_cls)
+    )
+    script = tmp_path / 'credential_process.py'
+    script.write_text(
+        "\n".join(
+            [
+                "import json",
+                "print(json.dumps({",
+                "    'Version': 1,",
+                "    'AccessKeyId': 'foo',",
+                "    'SecretAccessKey': 'bar',",
+                "    'SessionToken': 'baz',",
+                "}))",
+            ]
+        )
+    )
+    config_file = tmp_path / 'config'
+    config_file.write_text(
+        "\n".join(
+            [
+                "[default]",
+                f"credential_process = {shlex.join([sys.executable, str(script)])}",
+                "",
+            ]
+        )
+    )
+    session.set_config_variable('config_file', str(config_file))
+    session.set_config_variable('profile', 'default')
+    creds = await session.get_credentials()
+
+    assert isinstance(creds, credentials.AioCredentials)
+    assert creds is not None
+    assert creds.access_key == 'foo'
+    assert creds.secret_key == 'bar'
+    assert creds.token == 'baz'
+    assert creds.method == 'custom-process'
 
 
 @pytest.fixture
