@@ -285,8 +285,10 @@ class TestServiceSpecificRetriesSync(unittest.TestCase):
 
 @mock.patch('botocore.retries.standard.NEW_RETRIES_ENABLED', True)
 @mock.patch('aiobotocore.retries.standard.NEW_RETRIES_ENABLED', True)
-class TestAioRetryHandlerLongPolling(unittest.IsolatedAsyncioTestCase):
+class TestAioRetryHandlerLongPolling:
     """Async port of long-polling tests against AioRetryHandler."""
+
+    pytestmark = pytest.mark.anyio
 
     def _make_retry_context(self, attempt, status_code, error_code=None):
         http_response = AWSResponse(
@@ -383,7 +385,7 @@ class TestAioRetryHandlerLongPolling(unittest.IsolatedAsyncioTestCase):
                 operation=context.operation_model,
             )
 
-        self.assertIsNone(result)
+        assert result is None
         assert sleep_calls == []
 
 
