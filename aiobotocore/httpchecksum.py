@@ -12,12 +12,8 @@ from botocore.httpchecksum import (
 )
 
 from aiobotocore._helpers import resolve_awaitable
+from aiobotocore._httpx import httpx
 from aiobotocore.response import AioHttpxStreamingBody, AioStreamingBody
-
-try:
-    import httpx
-except ImportError:
-    httpx = None
 
 
 class AioAwsChunkedWrapper(AwsChunkedWrapper):

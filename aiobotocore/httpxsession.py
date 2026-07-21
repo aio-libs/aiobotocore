@@ -28,13 +28,9 @@ from multidict import CIMultiDict
 
 import aiobotocore.awsrequest
 from aiobotocore._endpoint_helpers import _text
+from aiobotocore._httpx import httpx
 
 from ._constants import DEFAULT_KEEPALIVE_TIMEOUT
-
-try:
-    import httpx
-except ImportError:
-    httpx = None
 
 if TYPE_CHECKING:
     from ssl import SSLContext

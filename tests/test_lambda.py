@@ -5,11 +5,6 @@ import zipfile
 
 # Third Party
 import botocore.client
-
-try:
-    import httpx
-except ImportError:
-    httpx = None
 import pytest
 
 
