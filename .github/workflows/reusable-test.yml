@@ -20,8 +20,10 @@ on:
       with-awscrt:
         type: boolean
         required: true
-      no-httpx:
-        type: boolean
+      httpx-extra:
+        # Which httpx backend extra to install and test: 'httpx2' (preferred),
+        # 'httpx' (deprecated legacy fallback), or '' (no httpx backend).
+        type: string
         required: true
     secrets:
       codecov-token:
@@ -34,7 +36,7 @@ jobs:
   test:
     name: Test Python ${{ inputs.python-version }} on ${{ inputs.os }}${{
       inputs.with-awscrt && ' with-awscrt' || '' }}${{
-      inputs.no-httpx && ' no-httpx' || '' }}
+      inputs.httpx-extra && format(' {0}', inputs.httpx-extra) || ' no-httpx' }}
 
     runs-on: ${{ inputs.os }}
     continue-on-error: ${{ inputs.continue-on-error }}
@@ -89,24 +91,17 @@ jobs:
       run: |
         uv run make pre-commit
     - name: Run unittests
-      if: ${{ ! inputs.no-httpx }}
       env:
         COLOR: 'yes'
+        HTTP_BACKEND: ${{ inputs.httpx-extra && 'all' || 'aiohttp' }}
       run: |
-        uv run --extra=httpx make mototest
-    - name: Run unittests without httpx installed
-      if: ${{ inputs.no-httpx }}
-      env:
-        COLOR: 'yes'
-        HTTP_BACKEND: 'aiohttp'
-      run: |
-        uv run make mototest
+        uv run ${{ inputs.httpx-extra && format('--extra={0}', inputs.httpx-extra) || '' }} make mototest
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f  # v6.0.2
       with:
         files: ./coverage.xml
         # yamllint disable-line rule:line-length
-        flags: unittests,os-${{ inputs.os }},python-${{ inputs.python-version }}${{ inputs.with-awscrt && ',with-awscrt' || '' }}${{ inputs.no-httpx && ',no-httpx' || '' }}  # optional
+        flags: unittests,os-${{ inputs.os }},python-${{ inputs.python-version }}${{ inputs.with-awscrt && ',with-awscrt' || '' }}${{ inputs.httpx-extra && format(',{0}', inputs.httpx-extra) || ',no-httpx' }}  # optional
         name: codecov-umbrella  # optional
         fail_ci_if_error: true  # optional (default = false)
         verbose: true  # optional (default = false)

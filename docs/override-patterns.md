@@ -84,7 +84,10 @@ HTTP layer:
   (aiobotocore/endpoint.py:68)
 - `AioEndpoint._send()` calls `await self.http_session.send()`
 - `AIOHTTPSession` (aiobotocore/httpsession.py) wraps aiohttp
-- `HttpxSession` (aiobotocore/httpxsession.py) wraps httpx
+- `HttpxSession` (aiobotocore/httpxsession.py) wraps httpx. It prefers httpx2
+  (Pydantic's maintained fork; `aiobotocore[httpx2]`) and falls back to the
+  legacy `httpx` package (`aiobotocore[httpx]`), which is deprecated and warns
+  when used. `aiobotocore/_httpx.py` centralises this resolution.
 - `AioConfig.http_session_cls` selects which HTTP backend to use
 
 The HTTP session is created during `AioEndpointCreator.create_endpoint()`
