@@ -43,13 +43,19 @@ async def test_create_waiter_with_unknown_http_session(
 
 
 async def test_sqs(
-    cloudformation_client, anyio_backend: str, current_http_backend: str
+    cloudformation_client,
+    request,
+    anyio_backend: str,
+    current_http_backend: str,
 ):
     # The http backend alone is shared by the asyncio and trio httpx ids, which
     # xdist can run concurrently against the one moto server, so the async
     # backend has to be part of the name too — for the queue as well as the
-    # stack, since two stacks cannot both create my-queue.
-    unique = f'{anyio_backend}-{current_http_backend}'
+    # stack, since two stacks cannot both create my-queue. The attempt number
+    # keeps a rerun off the stack its failed attempt left behind;
+    # pytest-rerunfailures only sets execution_count when reruns are enabled.
+    attempt = getattr(request.node, 'execution_count', 1)
+    unique = f'{anyio_backend}-{current_http_backend}-{attempt}'
     stack_name = f'my-stack-{unique}'
     cloudformation_template = json.dumps(
         {
