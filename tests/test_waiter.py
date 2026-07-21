@@ -1,3 +1,4 @@
+import json
 from inspect import iscoroutinefunction
 
 import pytest
@@ -41,19 +42,26 @@ async def test_create_waiter_with_unknown_http_session(
         )
 
 
-async def test_sqs(cloudformation_client, current_http_backend: str):
-    stack_name = f'my-stack-{current_http_backend}'
-    cloudformation_template = """{
-      "AWSTemplateFormatVersion": "2010-09-09",
-      "Resources": {
-        "queue1": {
-          "Type": "AWS::SQS::Queue",
-          "Properties": {
-            "QueueName": "my-queue"
-          }
+async def test_sqs(
+    cloudformation_client, anyio_backend: str, current_http_backend: str
+):
+    # The http backend alone is shared by the asyncio and trio httpx ids, which
+    # xdist can run concurrently against the one moto server, so the async
+    # backend has to be part of the name too — for the queue as well as the
+    # stack, since two stacks cannot both create my-queue.
+    unique = f'{anyio_backend}-{current_http_backend}'
+    stack_name = f'my-stack-{unique}'
+    cloudformation_template = json.dumps(
+        {
+            "AWSTemplateFormatVersion": "2010-09-09",
+            "Resources": {
+                "queue1": {
+                    "Type": "AWS::SQS::Queue",
+                    "Properties": {"QueueName": f"my-queue-{unique}"},
+                }
+            },
         }
-      }
-    }"""
+    )
 
     # Create stack
     resp = await cloudformation_client.create_stack(
