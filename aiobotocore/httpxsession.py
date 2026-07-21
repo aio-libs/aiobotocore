@@ -5,6 +5,7 @@ import io
 import os
 import socket
 import ssl
+import warnings
 from collections.abc import AsyncIterable, Iterable
 from concurrent.futures import CancelledError
 from typing import TYPE_CHECKING, Any, cast
@@ -28,16 +29,17 @@ from multidict import CIMultiDict
 
 import aiobotocore.awsrequest
 from aiobotocore._endpoint_helpers import _text
+from aiobotocore._httpx import HTTPX_IS_LEGACY, httpx
 
 from ._constants import DEFAULT_KEEPALIVE_TIMEOUT
 
-try:
-    import httpx
-except ImportError:
-    httpx = None
-
 if TYPE_CHECKING:
     from ssl import SSLContext
+
+# Emit the legacy-httpx deprecation warning at most once per process. aiobotocore
+# builds a fresh HttpxSession per client, and under a warning filter of 'always'
+# an unguarded warning would fire on every instance.
+_LEGACY_HTTPX_WARNED = False
 
 
 class HttpxSession:
@@ -54,7 +56,18 @@ class HttpxSession:
     ):
         if httpx is None:  # pragma: no cover
             raise RuntimeError(
-                "Using HttpxSession requires httpx to be installed"
+                "Using HttpxSession requires httpx2 (or httpx) to be installed"
+            )
+        global _LEGACY_HTTPX_WARNED
+        if HTTPX_IS_LEGACY and not _LEGACY_HTTPX_WARNED:
+            _LEGACY_HTTPX_WARNED = True
+            warnings.warn(
+                "aiobotocore's httpx backend now prefers httpx2, Pydantic's "
+                "maintained fork of httpx. The legacy 'httpx' package is "
+                "deprecated as a backend; install httpx2 (e.g. "
+                "aiobotocore[httpx2]) to migrate.",
+                DeprecationWarning,
+                stacklevel=2,
             )
         if proxies or proxies_config:
             raise NotImplementedError(

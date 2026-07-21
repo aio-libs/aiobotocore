@@ -39,6 +39,12 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Recommended httpx backend: httpx2 is Pydantic's maintained fork of httpx.
+httpx2 = [
+    "httpx2 >= 2.0, < 3.0.0"
+]
+# Deprecated: the httpx backend now prefers httpx2. This extra installs the
+# legacy httpx package, which emits a DeprecationWarning when used as a backend.
 httpx = [
     "httpx >= 0.25.1, < 0.29"
 ]

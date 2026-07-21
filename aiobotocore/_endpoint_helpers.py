@@ -4,10 +4,7 @@ import aiohttp.http_exceptions
 import botocore.retryhandler
 import wrapt
 
-try:
-    import httpx
-except ImportError:
-    httpx = None
+from aiobotocore._httpx import httpx
 
 # Monkey patching: We need to insert the aiohttp exception equivalents
 # The only other way to do this would be to have another config file :(
