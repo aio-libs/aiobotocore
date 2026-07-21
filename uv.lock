@@ -94,7 +94,7 @@ botocore-dev = [
     { name = "pytest-xdist", specifier = "==3.5.0" },
 ]
 dev = [
-    { name = "anyio", specifier = ">=4.11.0" },
+    { name = "anyio", specifier = ">=4.11.0,<5" },
     { name = "dill", specifier = ">=0.3.3,<0.5" },
     { name = "docker", specifier = ">=7.1,<8" },
     { name = "moto", extras = ["server", "s3", "sqs", "awslambda", "dynamodb", "cloudformation", "sns", "batch", "ec2", "rds"], specifier = ">=5.1.8,<6" },
@@ -103,14 +103,14 @@ dev = [
     { name = "pytest-mock", specifier = ">=3.14.1,<4" },
     { name = "pytest-rerunfailures", specifier = ">=16.0.1,<17" },
     { name = "time-machine", specifier = ">=2.15.0,<4" },
-    { name = "tiny-proxy", specifier = ">=0.3.0" },
+    { name = "tiny-proxy", specifier = ">=0.3.0,<0.4" },
     { name = "trio", specifier = ">=0.27,<1" },
-    { name = "trustme", specifier = ">=1.2.1" },
+    { name = "trustme", specifier = ">=1.2.1,<2" },
 ]
 docs = [{ name = "sphinx", specifier = ">=8,<10" }]
 evals = [
     { name = "anthropic", specifier = ">=0.40.0" },
-    { name = "anyio", specifier = ">=4.11.0" },
+    { name = "anyio", specifier = ">=4.11.0,<5" },
     { name = "dill", specifier = ">=0.3.3,<0.5" },
     { name = "docker", specifier = ">=7.1,<8" },
     { name = "moto", extras = ["server", "s3", "sqs", "awslambda", "dynamodb", "cloudformation", "sns", "batch", "ec2", "rds"], specifier = ">=5.1.8,<6" },
@@ -119,9 +119,9 @@ evals = [
     { name = "pytest-mock", specifier = ">=3.14.1,<4" },
     { name = "pytest-rerunfailures", specifier = ">=16.0.1,<17" },
     { name = "time-machine", specifier = ">=2.15.0,<4" },
-    { name = "tiny-proxy", specifier = ">=0.3.0" },
+    { name = "tiny-proxy", specifier = ">=0.3.0,<0.4" },
     { name = "trio", specifier = ">=0.27,<1" },
-    { name = "trustme", specifier = ">=1.2.1" },
+    { name = "trustme", specifier = ">=1.2.1,<2" },
 ]
 
 [[package]]

@@ -32,6 +32,12 @@ class FakeClock(bucket.Clock):
         return self.timestamp_sequences.pop(0)
 
 
+def test_register_retry_handler_unknown_http_session():
+    client = mock.Mock(_endpoint=mock.Mock(http_session=object()))
+    with pytest.raises(TypeError, match='unknown http session type'):
+        adaptive.register_retry_handler(client)
+
+
 class TestAsyncClientRateLimiter:
     @pytest.fixture(autouse=True)
     def _setup(self):

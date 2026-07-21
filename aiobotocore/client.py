@@ -23,6 +23,7 @@ from .context import with_current_context
 from .credentials import AioRefreshableCredentials
 from .discovery import AioEndpointDiscoveryHandler, AioEndpointDiscoveryManager
 from .httpchecksum import apply_request_checksum
+from .httpsession import AIOHTTPSession
 from .httpxsession import HttpxSession
 from .paginate import AioPaginator, AnyioPaginator
 from .retries import adaptive, standard
@@ -586,10 +587,15 @@ class AioBaseClient(BaseClient):
             # the underlying Paginator.paginate method. This is needed to
             # attach a docstring to the method.
             # aiohttp is asyncio-only; the httpx backend also runs on trio.
-            if isinstance(self._endpoint.http_session, HttpxSession):
+            http_session = self._endpoint.http_session
+            if isinstance(http_session, HttpxSession):
                 paginator_cls = AnyioPaginator
-            else:
+            elif isinstance(http_session, AIOHTTPSession):
                 paginator_cls = AioPaginator
+            else:
+                raise TypeError(
+                    f"unknown http session type: {type(http_session)}"
+                )
 
             def paginate(self, **kwargs):
                 return paginator_cls.paginate(self, **kwargs)
