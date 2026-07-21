@@ -50,6 +50,27 @@ if TYPE_CHECKING:
     from ssl import SSLContext
 
 
+def _find_ssl_error(exc: BaseException) -> ssl.SSLError | None:
+    """Find an ``ssl.SSLError`` in ``exc``'s cause/context chain.
+
+    A failed TLS handshake reaches us as
+    ``httpx.ConnectError -> httpcore.ConnectError -> ssl.SSLError``, linked by
+    ``__cause__`` then ``__context__``, so both links are followed rather than
+    assuming a fixed depth.
+    """
+    seen: set[int] = set()
+    unvisited: list[BaseException | None] = [exc]
+    while unvisited:
+        current = unvisited.pop()
+        if current is None or id(current) in seen:
+            continue
+        seen.add(id(current))
+        if isinstance(current, ssl.SSLError):
+            return current
+        unvisited += [current.__cause__, current.__context__]
+    return None
+
+
 class HttpxSession:
     def __init__(
         self,
@@ -130,27 +151,44 @@ class HttpxSession:
                 'SSLContext', self._connector_args['ssl_context']
             )
 
-    def _build_ssl_context(self) -> SSLContext:
-        # Synchronous SSL context construction. Caller runs off the event loop.
+    def _build_verify_context(self) -> SSLContext:
+        # The endpoint's verify settings, without the client certificate.
         ssl_context = self._get_ssl_context()
-        ca_certs = get_cert_path(self._verify)
-        if ca_certs:
-            ssl_context.load_verify_locations(ca_certs, None, None)
+        if self._verify:
+            # urllib3 disables this by default because it verifies the hostname
+            # itself; httpcore leaves it to the context.
+            ssl_context.check_hostname = True
+            ca_certs = get_cert_path(self._verify)
+            if ca_certs:
+                ssl_context.load_verify_locations(ca_certs, None, None)
+        else:
+            ssl_context.check_hostname = False
+            ssl_context.verify_mode = ssl.CERT_NONE
         return ssl_context
 
-    def _setup_proxy_ssl_context(self, proxy_url: str) -> SSLContext | None:
+    def _build_ssl_context(self) -> SSLContext:
+        # Synchronous SSL context construction. Caller runs off the event loop.
+        ssl_context = self._build_verify_context()
+        if self._cert_file:
+            # urllib3 keeps sending the client certificate when cert_reqs is
+            # CERT_NONE, so this is not conditional on verify.
+            ssl_context.load_cert_chain(self._cert_file, self._key_file)
+        return ssl_context
+
+    def _setup_proxy_ssl_context(self, proxy_url: str) -> SSLContext:
         proxies_settings = self._proxy_config.settings
         proxy_ca_bundle = proxies_settings.get('proxy_ca_bundle')
         proxy_cert = proxies_settings.get('proxy_client_cert')
-        if proxy_ca_bundle is None and proxy_cert is None:
-            return None
 
-        context = self._get_ssl_context()
+        # The proxy connection gets the endpoint's verify settings but never
+        # its client certificate: urllib3 passes cert_file=None when wrapping
+        # the proxy socket, so only proxy_client_cert is offered to a proxy.
+        context = self._build_verify_context()
         try:
             url = parse_url(proxy_url)
             # urllib3 disables this by default but we need it for proper
             # proxy tls negotiation when proxy_url is not an IP Address
-            if not _is_ipaddress(url.host):
+            if self._verify and not _is_ipaddress(url.host):
                 context.check_hostname = True
             if proxy_ca_bundle is not None:
                 context.load_verify_locations(cafile=proxy_ca_bundle)
@@ -166,14 +204,19 @@ class HttpxSession:
 
     def _build_ssl_contexts(
         self, proxy_urls: dict[str, str]
-    ) -> tuple[bool | str | SSLContext, dict[str, SSLContext | None]]:
+    ) -> tuple[SSLContext, dict[str, SSLContext]]:
         # Synchronous SSL context construction. Caller runs off the event loop.
-        verify = self._verify
-        if verify is True or isinstance(verify, str):
-            verify = self._build_ssl_context()
+        verify = (
+            self._verify
+            if isinstance(self._verify, ssl.SSLContext)
+            else self._build_ssl_context()
+        )
+        # Only an https proxy does a TLS handshake of its own; httpx rejects
+        # ssl_context on an http proxy.
         proxy_ssl_contexts = {
             proxy_url: self._setup_proxy_ssl_context(proxy_url)
             for proxy_url in set(proxy_urls.values())
+            if urlparse(proxy_url).scheme == 'https'
         }
         return verify, proxy_ssl_contexts
 
@@ -190,21 +233,14 @@ class HttpxSession:
         }
 
         # Build the SSL contexts off the event loop on first entry — blocking
-        # file I/O for the endpoint verify context and any proxy TLS. Skip the
-        # thread only when nothing needs building (verify already resolved to a
-        # context or False, and no proxies are configured). (#1469)
-        self._proxy_ssl_contexts: dict[str, SSLContext | None] = {}
-        if (
-            self._verify is True
-            or isinstance(self._verify, str)
-            or self._proxy_urls
-        ):
-            (
-                self._verify,
-                self._proxy_ssl_contexts,
-            ) = await anyio.to_thread.run_sync(
-                self._build_ssl_contexts, self._proxy_urls
-            )
+        # file I/O for the endpoint verify context and any proxy TLS. (#1469)
+        self._proxy_ssl_contexts: dict[str, SSLContext] = {}
+        (
+            self._verify,
+            self._proxy_ssl_contexts,
+        ) = await anyio.to_thread.run_sync(
+            self._build_ssl_contexts, self._proxy_urls
+        )
 
         self._limits = httpx.Limits(
             max_connections=self._max_pool_connections,
@@ -229,7 +265,7 @@ class HttpxSession:
             proxy = httpx.Proxy(
                 url=proxy_url,
                 headers=headers or None,
-                ssl_context=self._proxy_ssl_contexts[proxy_url],
+                ssl_context=self._proxy_ssl_contexts.get(proxy_url),
             )
             mounts[f'{scheme}://'] = httpx.AsyncHTTPTransport(
                 verify=self._verify,
@@ -237,10 +273,14 @@ class HttpxSession:
                 proxy=proxy,
             )
 
+        # verify carries the endpoint TLS settings, including the client
+        # certificate; the proxy hop above gets a context without it. Requests
+        # matching a mounted proxy transport use that transport instead.
         return httpx.AsyncClient(
             timeout=self._timeout,
             limits=self._limits,
             mounts=mounts,
+            verify=self._verify,
         )
 
     def _get_session(self, request_url: str) -> httpx.AsyncClient:
@@ -266,10 +306,7 @@ class HttpxSession:
             self._session = None
 
     def _get_ssl_context(self) -> SSLContext:
-        ssl_context = create_urllib3_context()
-        if self._cert_file:
-            ssl_context.load_cert_chain(self._cert_file, self._key_file)
-        return ssl_context
+        return create_urllib3_context()
 
     async def close(self) -> None:
         await self.__aexit__(None, None, None)
@@ -361,6 +398,12 @@ class HttpxSession:
             return http_response
 
         except httpx.ConnectError as e:
+            # httpx wraps a failed TLS handshake in a ConnectError; botocore
+            # (and the aiohttp backend) report those as an SSLError.
+            if (ssl_error := _find_ssl_error(e)) is not None:
+                raise botocore.exceptions.SSLError(
+                    endpoint_url=request.url, error=ssl_error
+                )
             # A forward (http) proxy that can't be reached surfaces here rather
             # than as a ProxyError, so attribute it to the proxy when one applies.
             if proxy_url:

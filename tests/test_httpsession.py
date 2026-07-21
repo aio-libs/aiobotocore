@@ -50,7 +50,7 @@ async def test_ssl_context_built_off_loop_on_first_request(
         # First call: SSL build dispatched to a thread.
         to_thread.assert_called_once()
         first_arg = to_thread.call_args.args[0]
-        assert first_arg.__name__ == '_build_ssl_context'
+        assert first_arg.__name__ == '_build_ssl_contexts'
 
         # Second call: cached connector, no additional thread dispatch.
         await http._get_session(proxy_url=None)

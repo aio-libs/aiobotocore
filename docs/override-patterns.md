@@ -90,6 +90,49 @@ HTTP layer:
 The HTTP session is created during `AioEndpointCreator.create_endpoint()`
 and managed as an async context manager by `AioBaseClient`.
 
+### TLS: matching urllib3's behavior without urllib3
+
+Replacing the HTTP layer means replacing urllib3, and urllib3 does not put
+all of its TLS behavior in the `SSLContext`. botocore hands urllib3 a
+context built by its vendored `create_urllib3_context()` and passes the rest
+alongside it, so an `SSLContext` copied from botocore is *not* on its own
+equivalent to what botocore does. aiohttp and httpx have no equivalent
+out-of-band channel — both derive everything from the context — so three
+behaviors have to be folded into it explicitly. All three are covered by
+`tests/test_tls.py` and `tests/test_proxy.py`, run against a real
+`trustme` HTTPS server on both backends.
+
+- **Hostname verification.** `create_urllib3_context()` sets
+  `check_hostname = False` ("We do our own verification"), and urllib3 then
+  calls `_match_hostname()` itself after the handshake. Nothing does that
+  for aiohttp or httpx, so both backends set `check_hostname = True` on the
+  endpoint context when `verify` is truthy.
+- **Client certificate with `verify=False`.** urllib3 receives `cert_file`
+  and `key_file` as pool-manager arguments, independent of `cert_reqs`, so
+  `verify=False` still presents the client certificate. Both backends
+  therefore build a `CERT_NONE` context and load the cert chain into it,
+  rather than skipping the context entirely.
+- **The proxy hop must not get the endpoint's client certificate.**
+  urllib3 passes `cert_file=None, key_file=None` when wrapping the proxy
+  socket ("Features that aren't implemented for proxies yet"), so only
+  `proxy_client_cert` is ever offered to a proxy. Both backends build the
+  proxy context from the endpoint's *verify* settings only —
+  `_build_verify_context()` — never from the one carrying the client cert.
+
+httpx supports this directly: the proxy hop reads `httpx.Proxy.ssl_context`
+and the tunnelled endpoint reads the transport's `verify`. aiohttp has no
+public equivalent — `TCPConnector._update_proxy_auth_header_and_build_proxy_req()`
+hardcodes `ssl=req.ssl`, so both hops resolve to the same context — so
+`aiobotocore.httpsession._ProxySSLTCPConnector` subclasses `TCPConnector`
+and overrides that method to set `proxy_req._ssl` to the proxy context.
+
+That is a deliberate dependency on two aiohttp internals: the method name
+and `ClientRequest._ssl` behind the read-only `ssl` property. If either
+changes, `tests/test_proxy.py::test_endpoint_client_cert_is_not_offered_to_proxy`
+fails — it stands up a proxy that demands a client certificate and asserts
+the endpoint's certificate does not satisfy it. Prefer a public aiohttp API
+here if one ever lands.
+
 ## Pattern 4: Credential async layer
 
 Credential providers/fetchers that do network I/O (IMDS, STS,

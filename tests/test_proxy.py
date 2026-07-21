@@ -74,12 +74,15 @@ async def _serve_http_proxy(*, task_status) -> None:
     await listener.serve(handler.handle)
 
 
-async def _serve_https_proxy(ca, *, task_status) -> None:
+async def _serve_https_proxy(ca, *, client_ca=None, task_status) -> None:
     # A hostname (not an IP) so _setup_proxy_ssl_context enables hostname
     # checking against proxy_ca_bundle.
     proxy_cert = ca.issue_cert(PROXY_HOST)
     ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
     proxy_cert.configure_cert(ssl_context)
+    if client_ca is not None:
+        ssl_context.verify_mode = ssl.CERT_REQUIRED
+        client_ca.configure_trust(ssl_context)
 
     handler = tiny_proxy.HttpProxyHandler()
     listener = await anyio.create_tcp_listener(
@@ -244,6 +247,35 @@ async def test_https_request_through_http_proxy_with_client_cert(
             response = await session.send(_prepared_request(target_port))
             assert response.status_code == 200
             assert json.loads(await response.content) == {"ok": True}
+
+        tg.cancel_scope.cancel()
+
+
+async def test_endpoint_client_cert_is_not_offered_to_proxy(
+    http_session_cls, ca, ca_bundle, client_cert
+):
+    # The endpoint's client certificate is for the endpoint only: urllib3
+    # passes cert_file=None for the proxy handshake, so a proxy demanding a
+    # client certificate must not be satisfied by it.
+    if sys.version_info < (3, 11):
+        pytest.skip("aiohttp TLS-in-TLS requires Python 3.11+")
+
+    async with anyio.create_task_group() as tg:
+        proxy_port = await tg.start(
+            lambda *, task_status: _serve_https_proxy(
+                ca, client_ca=ca, task_status=task_status
+            )
+        )
+        target_port = await tg.start(_serve_https_target, ca)
+
+        async with http_session_cls(
+            proxies={"https": f"https://{PROXY_HOST}:{proxy_port}"},
+            proxies_config={"proxy_ca_bundle": ca_bundle},
+            verify=ca_bundle,
+            client_cert=client_cert,
+        ) as session:
+            with pytest.raises((ProxyConnectionError, HTTPClientError)):
+                await session.send(_prepared_request(target_port))
 
         tg.cancel_scope.cancel()
 

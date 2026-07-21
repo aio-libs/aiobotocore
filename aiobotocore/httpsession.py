@@ -3,6 +3,7 @@ import contextlib
 import io
 import os
 import socket
+import ssl
 from concurrent.futures import CancelledError
 
 import aiohttp  # lgtm [py/import-and-import-from]
@@ -43,6 +44,27 @@ import aiobotocore.awsrequest
 
 from ._constants import DEFAULT_KEEPALIVE_TIMEOUT
 from ._endpoint_helpers import _IOBaseWrapper, _text
+
+
+class _ProxySSLTCPConnector(aiohttp.TCPConnector):
+    """A TCPConnector that uses a separate SSL context for the proxy hop.
+
+    aiohttp builds the proxy request with ``ssl=req.ssl``, so the proxy
+    connection and the tunnelled endpoint connection would otherwise share one
+    context — and the endpoint's client certificate would be offered to the
+    proxy. urllib3 passes ``cert_file=None`` when wrapping the proxy socket, so
+    botocore never does that; this keeps the two apart the same way.
+    """
+
+    def __init__(self, *args, proxy_ssl_context=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._proxy_ssl_context = proxy_ssl_context
+
+    def _update_proxy_auth_header_and_build_proxy_req(self, req):
+        proxy_req = super()._update_proxy_auth_header_and_build_proxy_req(req)
+        if self._proxy_ssl_context is not None:
+            proxy_req._ssl = self._proxy_ssl_context
+        return proxy_req
 
 
 class AIOHTTPSession:
@@ -118,15 +140,16 @@ class AIOHTTPSession:
         proxies_settings = self._proxy_config.settings
         proxy_ca_bundle = proxies_settings.get('proxy_ca_bundle')
         proxy_cert = proxies_settings.get('proxy_client_cert')
-        if proxy_ca_bundle is None and proxy_cert is None:
-            return None
 
-        context = self._get_ssl_context()
+        # The proxy connection gets the endpoint's verify settings but never
+        # its client certificate: urllib3 passes cert_file=None when wrapping
+        # the proxy socket, so only proxy_client_cert is offered to a proxy.
+        context = self._build_verify_context()
         try:
             url = parse_url(proxy_url)
             # urllib3 disables this by default but we need it for proper
             # proxy tls negotiation when proxy_url is not an IP Address
-            if not _is_ipaddress(url.host):
+            if self._verify and not _is_ipaddress(url.host):
                 context.check_hostname = True
             if proxy_ca_bundle is not None:
                 context.load_verify_locations(cafile=proxy_ca_bundle)
@@ -147,40 +170,48 @@ class AIOHTTPSession:
             del headers['Transfer-Encoding']
         return chunked or None
 
-    def _build_ssl_context(self, proxy_url):
-        # Synchronous; only called via asyncio.to_thread when verify is truthy. (#1469)
-        if proxy_url:
-            ssl_context = self._setup_proxy_ssl_context(proxy_url)
-            # TODO: add support for
-            #    proxies_settings.get('proxy_use_forwarding_for_https')
-        else:
-            ssl_context = self._get_ssl_context()
-
-        if ssl_context:
-            if self._cert_file:
-                ssl_context.load_cert_chain(
-                    self._cert_file,
-                    self._key_file,
-                )
-
+    def _build_verify_context(self):
+        # The endpoint's verify settings, without the client certificate.
+        ssl_context = self._get_ssl_context()
+        if self._verify:
+            # urllib3 disables this by default because it verifies the hostname
+            # itself; aiohttp leaves it to the context.
+            ssl_context.check_hostname = True
             # inline self._setup_ssl_cert
             ca_certs = get_cert_path(self._verify)
             if ca_certs:
                 ssl_context.load_verify_locations(ca_certs, None, None)
-
+        else:
+            ssl_context.check_hostname = False
+            ssl_context.verify_mode = ssl.CERT_NONE
         return ssl_context
+
+    def _build_ssl_contexts(self, proxy_url):
+        # Synchronous SSL context construction. Caller runs off the event loop.
+        # (#1469)
+        ssl_context = self._build_verify_context()
+        if self._cert_file:
+            # urllib3 keeps sending the client certificate when cert_reqs is
+            # CERT_NONE, so this is not conditional on verify.
+            ssl_context.load_cert_chain(self._cert_file, self._key_file)
+
+        # TODO: add support for
+        #    proxies_settings.get('proxy_use_forwarding_for_https')
+        proxy_ssl_context = (
+            self._setup_proxy_ssl_context(proxy_url) if proxy_url else None
+        )
+        return ssl_context, proxy_ssl_context
 
     async def _create_connector(self, proxy_url):
         # TCPConnector binds the running loop, so build it here.
-        # Dispatch blocking SSL file I/O to a thread only when verify is truthy. (#1469)
-        ssl_context = (
-            await asyncio.to_thread(self._build_ssl_context, proxy_url)
-            if bool(self._verify)
-            else None
+        # Dispatch blocking SSL file I/O to a thread. (#1469)
+        ssl_context, proxy_ssl_context = await asyncio.to_thread(
+            self._build_ssl_contexts, proxy_url
         )
-        return aiohttp.TCPConnector(
+        return _ProxySSLTCPConnector(
             limit=self._max_pool_connections,
-            ssl=ssl_context or False,
+            ssl=ssl_context,
+            proxy_ssl_context=proxy_ssl_context,
             **self._connector_args,
         )
 
