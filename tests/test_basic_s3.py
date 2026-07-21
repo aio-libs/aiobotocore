@@ -6,15 +6,11 @@ from inspect import iscoroutine
 
 import aioitertools
 import botocore.retries.adaptive
-
-try:
-    import httpx
-except ImportError:
-    httpx = None
 import pytest
 
 import aiobotocore.retries.adaptive
 from aiobotocore import httpsession
+from aiobotocore._httpx import httpx
 from aiobotocore.response import StreamingBody
 
 
