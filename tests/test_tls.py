@@ -40,12 +40,15 @@ async def _handle_target(stream) -> None:
     except (anyio.EndOfStream, anyio.BrokenResourceError):  # pragma: no cover
         pass
     finally:
-        with anyio.CancelScope(shield=True):
-            try:
-                await stream.aclose()
-            except anyio.BrokenResourceError:  # pragma: no cover
-                # The client hung up on us mid-handshake (verification failed).
-                pass
+        try:
+            await stream.aclose()
+        except (
+            anyio.BrokenResourceError,
+            ssl.SSLError,
+        ):  # pragma: no cover
+            # aclose() force-closes the socket and re-raises when the client
+            # hung up without a TLS shutdown handshake.
+            pass
 
 
 async def _serve_https_target(

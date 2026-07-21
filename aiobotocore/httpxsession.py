@@ -281,6 +281,14 @@ class HttpxSession:
             limits=self._limits,
             mounts=mounts,
             verify=self._verify,
+            # botocore resolves environment proxies itself (get_environ_proxies,
+            # which also honours system bypass settings) and passes the result
+            # in, so httpx must not apply its own — aiohttp and urllib3 only
+            # ever see what botocore decided. trust_env also gates httpx's use
+            # of SSL_CERT_FILE/SSL_CERT_DIR, which botocore ignores; that is
+            # moot while verify is always a prebuilt SSLContext, but the
+            # environment must not become a source of trust if that changes.
+            trust_env=False,
         )
 
     def _get_session(self, request_url: str) -> httpx.AsyncClient:

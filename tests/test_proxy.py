@@ -45,10 +45,22 @@ async def _handle_target(stream) -> None:
             b"Content-Type: application/json\r\n"
             b"\r\n%b" % (len(RESPONSE_BODY), RESPONSE_BODY)
         )
-    except (anyio.EndOfStream, anyio.BrokenResourceError):  # pragma: no cover
+    except (
+        anyio.EndOfStream,
+        anyio.BrokenResourceError,
+        ConnectionResetError,
+    ):  # pragma: no cover
         pass
     finally:
-        await stream.aclose()
+        try:
+            await stream.aclose()
+        except (
+            anyio.BrokenResourceError,
+            ssl.SSLError,
+        ):  # pragma: no cover
+            # aclose() force-closes the socket and re-raises when the client
+            # hung up without a TLS shutdown handshake.
+            pass
 
 
 async def _serve_https_target(ca, *, task_status) -> None:
@@ -276,6 +288,29 @@ async def test_endpoint_client_cert_is_not_offered_to_proxy(
         ) as session:
             with pytest.raises((ProxyConnectionError, HTTPClientError)):
                 await session.send(_prepared_request(target_port))
+
+        tg.cancel_scope.cancel()
+
+
+async def test_environment_proxies_are_not_applied_by_the_backend(
+    http_session_cls, ca, ca_bundle, monkeypatch
+):
+    # botocore resolves environment proxies itself — get_environ_proxies(), which
+    # also honours system bypass settings — and passes the result to the session.
+    # A backend that consults the environment on its own would proxy requests
+    # botocore decided to send direct, e.g. an IMDS lookup covered by NO_PROXY.
+    # Nothing is listening on the proxy port, so a request that used it fails.
+    monkeypatch.setenv("HTTP_PROXY", "http://127.0.0.1:1")
+    monkeypatch.setenv("HTTPS_PROXY", "http://127.0.0.1:1")
+    monkeypatch.setenv("ALL_PROXY", "http://127.0.0.1:1")
+
+    async with anyio.create_task_group() as tg:
+        target_port = await tg.start(_serve_https_target, ca)
+
+        async with http_session_cls(verify=ca_bundle) as session:
+            response = await session.send(_prepared_request(target_port))
+            assert response.status_code == 200
+            assert json.loads(await response.content) == {"ok": True}
 
         tg.cancel_scope.cancel()
 
