@@ -4,7 +4,10 @@ import io
 from unittest.mock import MagicMock
 
 import pytest
-from botocore.exceptions import IncompleteReadError
+from botocore.exceptions import (
+    IncompleteReadError,
+    ResponseStreamingError,
+)
 
 from aiobotocore import response
 from aiobotocore.response import AioReadTimeoutError, HttpxStreamingBody
@@ -511,3 +514,62 @@ async def test_set_socket_timeout_not_implemented(make_body):
     stream = make_body()
     with pytest.raises(NotImplementedError, match='not supported for async'):
         stream.set_socket_timeout(1)
+
+
+class FailingHttpxResponse(MockHttpxResponse):
+    """Yields one chunk, then fails the way a broken connection does."""
+
+    url = 'https://example.com/bucket/key'
+
+    def __init__(self, error: Exception):
+        super().__init__(b'chunk')
+        self._error = error
+
+    async def aiter_raw(self):
+        yield self._data
+        raise self._error
+
+
+@pytest.mark.skipif(httpx is None, reason='httpx is not installed')
+@pytest.mark.parametrize(
+    'error, expected',
+    [
+        (lambda: httpx.ReadTimeout('timed out'), AioReadTimeoutError),
+        (
+            lambda: httpx.ReadError('connection lost'),
+            ResponseStreamingError,
+        ),
+        # A server disconnecting mid-body: aiohttp reports this as a
+        # ClientConnectionError, so httpx must not leak its own type either.
+        (
+            lambda: httpx.RemoteProtocolError('peer closed connection'),
+            ResponseStreamingError,
+        ),
+    ],
+)
+async def test_httpx_read_all_translates_stream_errors(error, expected):
+    stream = HttpxStreamingBody(FailingHttpxResponse(error()), None)
+    with pytest.raises(expected):
+        await stream.read()
+
+
+@pytest.mark.skipif(httpx is None, reason='httpx is not installed')
+@pytest.mark.parametrize(
+    'error, expected',
+    [
+        (lambda: httpx.ReadTimeout('timed out'), AioReadTimeoutError),
+        (
+            lambda: httpx.ReadError('connection lost'),
+            ResponseStreamingError,
+        ),
+        (
+            lambda: httpx.RemoteProtocolError('peer closed connection'),
+            ResponseStreamingError,
+        ),
+    ],
+)
+async def test_httpx_read_amt_translates_stream_errors(error, expected):
+    # read(amt) fills the buffer, a different code path to read().
+    stream = HttpxStreamingBody(FailingHttpxResponse(error()), None)
+    with pytest.raises(expected):
+        await stream.read(64)

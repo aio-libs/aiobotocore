@@ -23,7 +23,9 @@ from .context import with_current_context
 from .credentials import AioRefreshableCredentials
 from .discovery import AioEndpointDiscoveryHandler, AioEndpointDiscoveryManager
 from .httpchecksum import apply_request_checksum
-from .paginate import AioPaginator
+from .httpsession import AIOHTTPSession
+from .httpxsession import HttpxSession
+from .paginate import AioPaginator, AnyioPaginator
 from .retries import adaptive, standard
 from .utils import AioS3ExpressIdentityResolver, AioS3RegionRedirectorv2
 
@@ -584,8 +586,19 @@ class AioBaseClient(BaseClient):
             # Create a new paginate method that will serve as a proxy to
             # the underlying Paginator.paginate method. This is needed to
             # attach a docstring to the method.
+            # aiohttp is asyncio-only; the httpx backend also runs on trio.
+            http_session = self._endpoint.http_session
+            if isinstance(http_session, HttpxSession):
+                paginator_cls = AnyioPaginator
+            elif isinstance(http_session, AIOHTTPSession):
+                paginator_cls = AioPaginator
+            else:
+                raise TypeError(
+                    f"unknown http session type: {type(http_session)}"
+                )
+
             def paginate(self, **kwargs):
-                return AioPaginator.paginate(self, **kwargs)
+                return paginator_cls.paginate(self, **kwargs)
 
             paginator_config = self._cache['page_config'][
                 actual_operation_name
@@ -609,7 +622,7 @@ class AioBaseClient(BaseClient):
 
             # Create the new paginator class
             documented_paginator_cls = type(
-                paginator_class_name, (AioPaginator,), {'paginate': paginate}
+                paginator_class_name, (paginator_cls,), {'paginate': paginate}
             )
 
             operation_model = self._service_model.operation_model(

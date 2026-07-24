@@ -8,6 +8,12 @@ async def test_get_paginator_not_supported_by_service(sns_client):
         sns_client.get_paginator(operation_name)
 
 
+async def test_get_paginator_unknown_http_session(sns_client, monkeypatch):
+    monkeypatch.setattr(sns_client._endpoint, 'http_session', object())
+    with pytest.raises(TypeError, match='unknown http session type'):
+        sns_client.get_paginator('list_topics')
+
+
 async def test_get_waiter_not_supported_by_service(sns_client):
     waiter_name = 'sns_does_not_support_waiters'
     with pytest.raises(

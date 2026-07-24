@@ -134,7 +134,9 @@ jobs:
       # is somehow out of sync with pyproject.toml. On a warm .venv
       # cache uv sync is near-instant; on a miss it re-links from the
       # uv download cache.
-      run: uv sync --frozen
+      # --group evals pulls in anthropic (kept out of default-groups so the
+      # no-httpx test job stays httpx-free).
+      run: uv sync --frozen --group evals
 
     - name: Run check_async_need eval
       env:
@@ -221,7 +223,9 @@ jobs:
       # is somehow out of sync with pyproject.toml. On a warm .venv
       # cache uv sync is near-instant; on a miss it re-links from the
       # uv download cache.
-      run: uv sync --frozen
+      # --group evals pulls in anthropic (kept out of default-groups so the
+      # no-httpx test job stays httpx-free).
+      run: uv sync --frozen --group evals
 
     - name: Run check_override_drift eval
       env:

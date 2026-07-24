@@ -20,9 +20,16 @@ except ImportError:
     httpx = None
 
 import aiobotocore.session
+from aiobotocore._async_primitives import infer_async_primitives
 from aiobotocore.config import AioConfig
 from aiobotocore.httpsession import AIOHTTPSession
-from aiobotocore.httpxsession import HttpxSession
+from aiobotocore.httpxsession import HttpxSession, is_httpx_session_cls
+
+# The default http backend for tests that aren't parametrized by it (notably
+# the botocore-ported ones). httpx runs on both asyncio and trio, so prefer it
+# when installed; without httpx only aiohttp (asyncio-only) is available, and
+# the trio collection filter then drops those tests' trio variants.
+DEFAULT_HTTP_SESSION_CLS = AIOHTTPSession if httpx is None else HttpxSession
 
 if TYPE_CHECKING:
     from _pytest.nodes import Node
@@ -36,9 +43,9 @@ def always_spawn():
     multiprocessing.set_start_method("spawn", force=True)
 
 
-@pytest.fixture
-def anyio_backend():
-    return 'asyncio'
+@pytest.fixture(params=['asyncio', 'trio'])
+def anyio_backend(request):
+    return request.param
 
 
 def random_bucketname():
@@ -98,14 +105,6 @@ async def assert_num_uploads_found(
     )
 
 
-# Used by test_fail_proxy_request as it will fail during setup, so needs to
-# be skipped before `skipif` would be able to skip the test.
-@pytest.fixture
-def skip_httpx(current_http_backend: str) -> None:
-    if current_http_backend == 'httpx':
-        pytest.skip('proxy support not implemented for httpx')
-
-
 @pytest.fixture
 def aa_fail_proxy_config(monkeypatch):
     # NOTE: name of this fixture must be alphabetically first to run first
@@ -125,8 +124,10 @@ def aa_succeed_proxy_config(monkeypatch):  # pragma: no cover
 
 
 @pytest.fixture
-def session() -> aiobotocore.session.AioSession:
-    session = aiobotocore.session.AioSession()
+def session(http_session_cls) -> aiobotocore.session.AioSession:
+    session = aiobotocore.session.AioSession(
+        async_primitives=infer_async_primitives(http_session_cls)
+    )
     return session
 
 
@@ -156,17 +157,11 @@ def s3_verify():
 
 
 @pytest.fixture
-def current_http_backend(request) -> Literal['httpx', 'aiohttp']:
-    for mark in request.node.iter_markers("config_kwargs"):
-        assert len(mark.args) == 1
-        assert isinstance(mark.args[0], dict)
-        http_session_cls = mark.args[0].get('http_session_cls')
-        if http_session_cls is HttpxSession:
-            return 'httpx'
-        # since aiohttp is default we don't test explicitly setting it
-        elif http_session_cls is AIOHTTPSession:  # pragma: no cover
-            return 'aiohttp'
-    return 'aiohttp'
+def current_http_backend(http_session_cls) -> Literal['httpx', 'aiohttp']:
+    # Depend on http_session_cls (rather than reading the marker directly) so
+    # tests that only need the backend name still get parametrized over both
+    # backends by pytest_generate_tests.
+    return 'httpx' if is_httpx_session_cls(http_session_cls) else 'aiohttp'
 
 
 def read_kwargs(node: Node) -> dict[str, object]:
@@ -177,6 +172,22 @@ def read_kwargs(node: Node) -> dict[str, object]:
         assert isinstance(mark.args[0], dict)
         config_kwargs.update(mark.args[0])
     return config_kwargs
+
+
+@pytest.fixture
+def http_session_cls(request) -> type:
+    """The http session class this test is parametrized with.
+
+    Tests that build their own client (rather than using the ``config``
+    fixture) need this to honor the ``--http-backend`` parametrization.
+    Defaults to httpx when installed: it runs on both asyncio and trio,
+    whereas aiohttp is asyncio-only, so an unmarked test (e.g. a
+    botocore-ported one that isn't parametrized by http backend) must not
+    pin itself to aiohttp on trio.
+    """
+    return read_kwargs(request.node).get(
+        'http_session_cls', DEFAULT_HTTP_SESSION_CLS
+    )
 
 
 @pytest.fixture
@@ -682,13 +693,23 @@ def pytest_addoption(parser: pytest.Parser):
 
 
 def pytest_generate_tests(metafunc):
-    """Parametrize all tests to run with both aiohttp and httpx as backend.
-    This is not a super clean solution, as some tests will not differ at all with
-    different http backends."""
+    """Parametrize backend-dependent tests to run with both aiohttp and httpx.
+
+    Only tests that actually select an http backend need both variants — either
+    directly via the ``http_session_cls`` fixture or transitively through a
+    fixture that requests it (e.g. ``session``, and thus ``s3_client``). Tests
+    that don't touch the backend would otherwise just run twice identically."""
+    if 'http_session_cls' not in metafunc.fixturenames:
+        return
     metafunc.parametrize(
         '',
         [
-            pytest.param(id='aiohttp'),
+            pytest.param(
+                id='aiohttp',
+                marks=pytest.mark.config_kwargs(
+                    {'http_session_cls': AIOHTTPSession}
+                ),
+            ),
             pytest.param(
                 id='httpx',
                 marks=pytest.mark.config_kwargs(
@@ -701,6 +722,29 @@ def pytest_generate_tests(metafunc):
 
 def pytest_collection_modifyitems(config: pytest.Config, items):
     """Mark parametrized tests for skipping in case the corresponding backend is not enabled."""
+
+    # aiohttp is asyncio-only, so trio must never run on the aiohttp backend.
+    # Read the anyio backend from the item's params and the http backend from
+    # the config_kwargs mark rather than the item name: botocore-ported tests
+    # aren't parametrized by http backend and so default to aiohttp without
+    # ``aiohttp`` appearing in their name.
+    def item_params(item):
+        return getattr(item, 'callspec', None) and item.callspec.params or {}
+
+    items[:] = [
+        item
+        for item in items
+        if not (
+            item_params(item).get('anyio_backend') == 'trio'
+            and not issubclass(
+                read_kwargs(item).get(
+                    'http_session_cls', DEFAULT_HTTP_SESSION_CLS
+                ),
+                HttpxSession,
+            )
+        )
+    ]
+
     http_backend = config.getoption("--http-backend")
     if http_backend == 'all':
         return

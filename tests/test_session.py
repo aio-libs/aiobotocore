@@ -4,7 +4,11 @@ import logging
 import pytest
 from _pytest.logging import LogCaptureFixture
 
-from aiobotocore import __version__, httpsession
+from aiobotocore import __version__, httpsession, utils
+from aiobotocore._async_primitives import (
+    AsyncPrimitives,
+    infer_async_primitives,
+)
 from aiobotocore.config import AioConfig
 from aiobotocore.session import AioSession
 
@@ -23,13 +27,17 @@ async def test_get_service_data(session):
 
 
 async def test_retry(
-    session: AioSession, caplog: LogCaptureFixture, monkeypatch
+    session: AioSession,
+    caplog: LogCaptureFixture,
+    monkeypatch,
+    http_session_cls,
 ):
     caplog.set_level(logging.DEBUG)
 
     config = AioConfig(
         connect_timeout=1,
         read_timeout=1,
+        http_session_cls=http_session_cls,
         # this goes through a slightly different codepath than regular retries
         retries={
             "mode": "standard",
@@ -149,8 +157,12 @@ async def test_warm_up_loader_caches_config(
     session: AioSession,
     warm_up_loader_caches: bool,
     mocker,
+    http_session_cls,
 ):
-    config = AioConfig(warm_up_loader_caches=warm_up_loader_caches)
+    config = AioConfig(
+        warm_up_loader_caches=warm_up_loader_caches,
+        http_session_cls=http_session_cls,
+    )
     mocker.patch.object(
         session, "warm_up_loader_caches", wraps=session.warm_up_loader_caches
     )
@@ -177,8 +189,12 @@ async def test_non_blocking_create_client(
     session: AioSession,
     warm_up_loader_caches: bool,
     mocker,
+    http_session_cls,
 ):
-    config = AioConfig(warm_up_loader_caches=warm_up_loader_caches)
+    config = AioConfig(
+        warm_up_loader_caches=warm_up_loader_caches,
+        http_session_cls=http_session_cls,
+    )
     loader = session.get_component("data_loader")
     file_loader = mocker.patch.object(
         loader, "file_loader", wraps=loader.file_loader
@@ -247,3 +263,38 @@ async def test_non_blocking_create_client(
     # no file I/O
     file_loader.exists.assert_not_called()
     file_loader.load_file.assert_not_called()
+
+
+def _imds_session_cls(session: AioSession):
+    resolver = session._components.get_component('credential_provider')
+    fetcher = resolver.get_provider('iam-role')._role_fetcher
+    return type(fetcher._session)
+
+
+def test_imds_backend_follows_the_provided_primitive_asyncio():
+    session = AioSession(async_primitives=AsyncPrimitives.ASYNCIO)
+    assert _imds_session_cls(session) is utils._RefCountedSession
+
+
+def test_imds_backend_follows_the_provided_primitive_anyio():
+    pytest.importorskip("httpx")
+    session = AioSession(async_primitives=AsyncPrimitives.ANYIO)
+    assert _imds_session_cls(session) is utils._RefCountedHttpxSession
+
+
+def test_session_constructor_accepts_async_primitives_enum():
+    pytest.importorskip("httpx")
+    session = AioSession(async_primitives=AsyncPrimitives.ANYIO)
+
+    resolver = session._create_credential_resolver()
+
+    fetcher = resolver.get_provider('iam-role')._role_fetcher
+    assert type(fetcher._session) is utils._RefCountedHttpxSession
+
+
+def test_session_fixture_uses_primitives_for_http_backend(
+    session: AioSession, http_session_cls
+):
+    assert session._async_primitives is infer_async_primitives(
+        http_session_cls
+    )

@@ -16,6 +16,7 @@ from botocore.session import Session as _SyncSession
 from botocore.useragent import register_feature_id
 
 from . import __version__, retryhandler
+from ._async_primitives import AsyncPrimitives
 from .client import AioBaseClient, AioClientCreator
 from .configprovider import AioSmartDefaultsConfigStoreFactory
 from .context import with_current_context
@@ -23,7 +24,7 @@ from .credentials import AioCredentials, create_credential_resolver
 from .hooks import AioHierarchicalEmitter
 from .parsers import AioResponseParserFactory
 from .tokens import create_token_resolver
-from .utils import AioIMDSRegionProvider
+from .utils import AioIMDSRegionProvider, AnyioIMDSRegionProvider
 
 
 class ClientCreatorContext:
@@ -47,6 +48,7 @@ class AioSession(_SyncSession):
         event_hooks=None,
         include_builtin_handlers=True,
         profile=None,
+        async_primitives: AsyncPrimitives = AsyncPrimitives.ASYNCIO,
     ):
         if event_hooks is None:
             event_hooks = AioHierarchicalEmitter()
@@ -54,6 +56,7 @@ class AioSession(_SyncSession):
         super().__init__(
             session_vars, event_hooks, include_builtin_handlers, profile
         )
+        self._async_primitives = async_primitives
 
         self._set_user_agent_for_session()
 
@@ -70,7 +73,9 @@ class AioSession(_SyncSession):
 
     def _create_credential_resolver(self):
         return create_credential_resolver(
-            self, region_name=self._last_client_region_used
+            self,
+            region_name=self._last_client_region_used,
+            async_primitives=self._async_primitives,
         )
 
     def _register_smart_defaults_factory(self):
@@ -78,7 +83,10 @@ class AioSession(_SyncSession):
             default_config_resolver = self._get_internal_component(
                 'default_config_resolver'
             )
-            imds_region_provider = AioIMDSRegionProvider(session=self)
+            if self._async_primitives is AsyncPrimitives.ANYIO:
+                imds_region_provider = AnyioIMDSRegionProvider(session=self)
+            else:
+                imds_region_provider = AioIMDSRegionProvider(session=self)
             return AioSmartDefaultsConfigStoreFactory(
                 default_config_resolver, imds_region_provider
             )
@@ -215,9 +223,16 @@ class AioSession(_SyncSession):
         loader = self.get_component('data_loader')
 
         if getattr(config, 'warm_up_loader_caches', False):
-            await asyncio.to_thread(
-                self.warm_up_loader_caches, service_name, api_version
-            )
+            if self._async_primitives is AsyncPrimitives.ANYIO:
+                import anyio.to_thread
+
+                await anyio.to_thread.run_sync(
+                    self.warm_up_loader_caches, service_name, api_version
+                )
+            else:
+                await asyncio.to_thread(
+                    self.warm_up_loader_caches, service_name, api_version
+                )
 
         event_emitter = self.get_component('event_emitter')
         response_parser_factory = self.get_component('response_parser_factory')

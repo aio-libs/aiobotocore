@@ -65,8 +65,7 @@ botocore-dev = [
     # "colorama>0.3.0", # Windows requirement
 ]
 dev = [
-    "anthropic >= 0.40.0", # Used in plugins/aiobotocore-bot/evals/
-    "anyio >= 4.11.0",
+    "anyio >= 4.11.0, < 5",
     "dill >= 0.3.3, < 0.5", # Used in test_patches.py
     "docker >= 7.1, < 8",
     "moto[server,s3,sqs,awslambda,dynamodb,cloudformation,sns,batch,ec2,rds] >= 5.1.8, < 6",
@@ -75,12 +74,22 @@ dev = [
     "pytest-mock >= 3.14.1, < 4", # Used in test_session.py
     "pytest-rerunfailures >= 16.0.1, < 17", # Used in test_lambda.py
     "time-machine >= 2.15.0, < 4", # Used in test_signers.py
+    "tiny-proxy >= 0.3.0, < 0.4", # CONNECT proxy for tests/test_proxy.py
+    "trio >= 0.27, < 1", # anyio_backend parametrization in tests/conftest.py
+    "trustme >= 1.2.1, < 2", # TLS certs for tests/test_proxy.py
 ]
 awscrt = [
     "botocore[crt]",
 ]
 docs = [
     "sphinx >= 8, < 10",
+]
+# Kept out of default-groups so the default env has no httpx: anthropic pulls in
+# httpx transitively, which would defeat the no-httpx CI job. Only the evals
+# workflow installs this group. See plugins/aiobotocore-bot/evals/.
+evals = [
+    { include-group = "dev" },
+    "anthropic >= 0.40.0", # Used in plugins/aiobotocore-bot/evals/
 ]
 
 [tool.uv]

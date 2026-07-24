@@ -1,17 +1,19 @@
 from aiobotocore.awsrequest import AioAWSResponse
+from aiobotocore.config import AioConfig
 from aiobotocore.session import AioSession
 from aiobotocore.stub import AioStubber
 
 from .mock_server import AIOServer
 
 
-async def test_add_response():
+async def test_add_response(http_session_cls):
     session = AioSession()
 
     async with (
         AIOServer() as server,
         session.create_client(
             's3',
+            config=AioConfig(http_session_cls=http_session_cls),
             endpoint_url=server.endpoint_url,
             aws_secret_access_key='xxx',
             aws_access_key_id='xxx',
@@ -35,13 +37,14 @@ async def test_add_response():
         assert stubber._queue[0]['expected_params'] == expected_params
 
 
-async def test_add_client_error():
+async def test_add_client_error(http_session_cls):
     session = AioSession()
 
     async with (
         AIOServer() as server,
         session.create_client(
             's3',
+            config=AioConfig(http_session_cls=http_session_cls),
             endpoint_url=server.endpoint_url,
             aws_secret_access_key='xxx',
             aws_access_key_id='xxx',

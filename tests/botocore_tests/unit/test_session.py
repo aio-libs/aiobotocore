@@ -24,8 +24,18 @@ from botocore.model import ServiceModel
 
 import aiobotocore.config
 from aiobotocore import client
+from aiobotocore._async_primitives import infer_async_primitives
 from aiobotocore.session import ClientCreatorContext
 from tests.botocore_tests import create_session, mock, temporary_file
+
+
+def _http_backend_config(http_session_cls):
+    """Build a client config pinning the http backend, or ``None`` to leave
+    it at the default. Tests that resolve credentials via IMDS need this so
+    the lookup uses the anyio backend on trio (aiohttp is asyncio-only)."""
+    if http_session_cls is None:
+        return None
+    return aiobotocore.config.AioConfig(http_session_cls=http_session_cls)
 
 
 class BaseSessionTest:
@@ -48,8 +58,10 @@ class BaseSessionTest:
             yield environ_patch
 
     @pytest.fixture
-    def session(self, environ, environ_patch):
-        session = create_session()
+    def session(self, environ, environ_patch, http_session_cls):
+        session = create_session(
+            async_primitives=infer_async_primitives(http_session_cls)
+        )
         config_chain_builder = ConfigChainFactory(
             session=session,
             environ=environ,
@@ -285,7 +297,7 @@ class TestCreateClient(BaseSessionTest):
 
     @mock.patch('aiobotocore.session.AioClientCreator', autospec=True)
     async def test_create_client_with_ca_bundle_from_config(
-        self, client_creator, environ, session
+        self, client_creator, environ, session, http_session_cls
     ):
         with temporary_file('w') as f:
             del environ['FOO_PROFILE']
@@ -294,7 +306,11 @@ class TestCreateClient(BaseSessionTest):
             f.write('foo_ca_bundle=config-certs.pem\n')
             f.flush()
 
-            async with session.create_client('ec2', 'us-west-2'):
+            async with session.create_client(
+                'ec2',
+                'us-west-2',
+                config=_http_backend_config(http_session_cls),
+            ):
                 call_kwargs = (
                     client_creator.return_value.create_client.call_args[1]
                 )
@@ -325,7 +341,7 @@ class TestCreateClient(BaseSessionTest):
 
     @mock.patch('aiobotocore.session.AioClientCreator', autospec=True)
     async def test_create_client_verify_param_overrides_all(
-        self, client_creator, environ, session
+        self, client_creator, environ, session, http_session_cls
     ):
         with temporary_file('w') as f:
             # Set the ca cert using the config file
@@ -340,7 +356,10 @@ class TestCreateClient(BaseSessionTest):
 
             # Set the ca cert using the verify parameter
             async with session.create_client(
-                'ec2', 'us-west-2', verify='verify-certs.pem'
+                'ec2',
+                'us-west-2',
+                verify='verify-certs.pem',
+                config=_http_backend_config(http_session_cls),
             ):
                 call_kwargs = (
                     client_creator.return_value.create_client.call_args[1]
@@ -361,7 +380,7 @@ class TestCreateClient(BaseSessionTest):
 
     @mock.patch('aiobotocore.session.AioClientCreator', autospec=True)
     async def test_create_client_uses_api_version_from_config(
-        self, client_creator, environ, session
+        self, client_creator, environ, session, http_session_cls
     ):
         config_api_version = '2012-01-01'
         with temporary_file('w') as f:
@@ -374,7 +393,11 @@ class TestCreateClient(BaseSessionTest):
             )  # fmt: skip
             f.flush()
 
-            async with session.create_client('myservice', 'us-west-2'):
+            async with session.create_client(
+                'myservice',
+                'us-west-2',
+                config=_http_backend_config(http_session_cls),
+            ):
                 call_kwargs = (
                     client_creator.return_value.create_client.call_args[1]
                 )
@@ -382,7 +405,7 @@ class TestCreateClient(BaseSessionTest):
 
     @mock.patch('aiobotocore.session.AioClientCreator', autospec=True)
     async def test_can_specify_multiple_versions_from_config(
-        self, client_creator, environ, session
+        self, client_creator, environ, session, http_session_cls
     ):
         config_api_version = '2012-01-01'
         second_config_api_version = '2013-01-01'
@@ -397,13 +420,21 @@ class TestCreateClient(BaseSessionTest):
             )
             f.flush()
 
-            async with session.create_client('myservice', 'us-west-2'):
+            async with session.create_client(
+                'myservice',
+                'us-west-2',
+                config=_http_backend_config(http_session_cls),
+            ):
                 call_kwargs = (
                     client_creator.return_value.create_client.call_args[1]
                 )
                 assert call_kwargs['api_version'] == config_api_version
 
-            async with session.create_client('myservice2', 'us-west-2'):
+            async with session.create_client(
+                'myservice2',
+                'us-west-2',
+                config=_http_backend_config(http_session_cls),
+            ):
                 call_kwargs = (
                     client_creator.return_value.create_client.call_args[1]
                 )
@@ -411,7 +442,7 @@ class TestCreateClient(BaseSessionTest):
 
     @mock.patch('aiobotocore.session.AioClientCreator', autospec=True)
     async def test_param_api_version_overrides_config_value(
-        self, client_creator, environ, session
+        self, client_creator, environ, session, http_session_cls
     ):
         config_api_version = '2012-01-01'
         override_api_version = '2014-01-01'
@@ -426,7 +457,10 @@ class TestCreateClient(BaseSessionTest):
             f.flush()
 
             async with session.create_client(
-                'myservice', 'us-west-2', api_version=override_api_version
+                'myservice',
+                'us-west-2',
+                api_version=override_api_version,
+                config=_http_backend_config(http_session_cls),
             ):
                 call_kwargs = (
                     client_creator.return_value.create_client.call_args[1]
@@ -479,11 +513,16 @@ class TestCreateClient(BaseSessionTest):
 
 
 class TestClientMonitoring(BaseSessionTest):
-    async def assert_created_client_is_monitored(self, session):
+    async def assert_created_client_is_monitored(
+        self, session, http_session_cls=None
+    ):
+        config = _http_backend_config(http_session_cls)
         with mock.patch(
             'botocore.monitoring.Monitor', spec=True
         ) as mock_monitor:
-            async with session.create_client('ec2', 'us-west-2') as client:
+            async with session.create_client(
+                'ec2', 'us-west-2', config=config
+            ) as client:
                 mock_monitor.return_value.register.assert_called_with(
                     client.meta.events
                 )
@@ -498,21 +537,30 @@ class TestClientMonitoring(BaseSessionTest):
                 assert kwargs.get('host') == host
                 assert kwargs.get('port') == port
 
-    async def assert_created_client_is_not_monitored(self, session):
+    async def assert_created_client_is_not_monitored(
+        self, session, http_session_cls=None
+    ):
+        config = _http_backend_config(http_session_cls)
         with mock.patch(
             'botocore.session.monitoring.Monitor', spec=True
         ) as mock_monitor:
-            async with session.create_client('ec2', 'us-west-2'):
+            async with session.create_client(
+                'ec2', 'us-west-2', config=config
+            ):
                 mock_monitor.return_value.register.assert_not_called()
 
-    async def test_with_csm_enabled_from_config(self, environ, session):
+    async def test_with_csm_enabled_from_config(
+        self, environ, session, http_session_cls
+    ):
         with temporary_file('w') as f:
             del environ['FOO_PROFILE']
             environ['FOO_CONFIG_FILE'] = f.name
             f.write('[default]\n')
             f.write('csm_enabled=true\n')
             f.flush()
-            await self.assert_created_client_is_monitored(session)
+            await self.assert_created_client_is_monitored(
+                session, http_session_cls
+            )
 
     async def test_with_csm_enabled_from_env(self, environ, session):
         environ['AWS_CSM_ENABLED'] = 'true'
@@ -534,14 +582,18 @@ class TestClientMonitoring(BaseSessionTest):
             int(custom_port),
         )
 
-    async def test_with_csm_disabled_from_config(self, environ, session):
+    async def test_with_csm_disabled_from_config(
+        self, environ, session, http_session_cls
+    ):
         with temporary_file('w') as f:
             del environ['FOO_PROFILE']
             environ['FOO_CONFIG_FILE'] = f.name
             f.write('[default]\n')
             f.write('csm_enabled=false\n')
             f.flush()
-            await self.assert_created_client_is_not_monitored(session)
+            await self.assert_created_client_is_not_monitored(
+                session, http_session_cls
+            )
 
     async def test_with_csm_disabled_from_env(self, environ, session):
         environ['AWS_CSM_ENABLED'] = 'false'

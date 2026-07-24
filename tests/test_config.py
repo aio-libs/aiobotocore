@@ -6,7 +6,6 @@ import pytest
 from botocore.exceptions import ParamValidationError, ReadTimeoutError
 
 from aiobotocore.config import AioConfig
-from aiobotocore.httpsession import AIOHTTPSession
 from aiobotocore.httpxsession import HttpxSession
 from aiobotocore.session import AioSession, get_session
 from tests.mock_server import AIOServer
@@ -81,10 +80,21 @@ async def test_connector_args(current_http_backend: str):
     ):
         AioConfig({'socket_factory': True}, http_session_cls=HttpxSession)
 
+    # A subclass is still the httpx backend, so it gets the same validation.
+    class MyHttpxSession(HttpxSession): ...
+
+    with pytest.raises(
+        ParamValidationError,
+        match='Httpx does not support dns caching',
+    ):
+        AioConfig({'use_dns_cache': True}, http_session_cls=MyHttpxSession)
+
     # Test valid configs:
     AioConfig({"ttl_dns_cache": None})
     AioConfig({"ttl_dns_cache": 1})
-    AioConfig({"resolver": aiohttp.resolver.DefaultResolver()})
+    if current_http_backend == 'aiohttp':
+        # aiohttp's resolver constructor needs a running asyncio loop.
+        AioConfig({"resolver": aiohttp.resolver.DefaultResolver()})
     AioConfig({'keepalive_timeout': None})
     AioConfig({'socket_factory': None})
     AioConfig({'socket_factory': socket.socket})
@@ -98,10 +108,21 @@ async def test_connector_args(current_http_backend: str):
     assert aio_cfg.connector_args['keepalive_timeout'] == 75
 
 
-async def test_connector_timeout():
+def test_connector_args_httpx_session_instance():
+    # Passing an HttpxSession instance (not a class) must not raise TypeError out
+    # of issubclass; the bad value surfaces when the session is constructed.
+    # Needs a real HttpxSession instance, so it requires httpx installed.
+    pytest.importorskip("httpx")
+    AioConfig({'use_dns_cache': True}, http_session_cls=HttpxSession())
+
+
+async def test_connector_timeout(http_session_cls):
     session = AioSession()
     config = AioConfig(
-        max_pool_connections=1, connect_timeout=1, retries={'max_attempts': 0}
+        max_pool_connections=1,
+        connect_timeout=1,
+        retries={'max_attempts': 0},
+        http_session_cls=http_session_cls,
     )
     async with (
         AIOServer() as server,
@@ -126,13 +147,14 @@ async def test_connector_timeout():
                 tg.start_soon(get_and_wait)
 
 
-async def test_connector_timeout2():
+async def test_connector_timeout2(http_session_cls):
     session = AioSession()
     config = AioConfig(
         max_pool_connections=1,
         connect_timeout=1,
         read_timeout=1,
         retries={'max_attempts': 0},
+        http_session_cls=http_session_cls,
     )
     async with (
         AIOServer() as server,
@@ -164,10 +186,10 @@ def test_merge():
 
 
 # Check that it's possible to specify custom http_session_cls
-async def test_config_http_session_cls():
+async def test_config_http_session_cls(http_session_cls):
     class SuccessExc(Exception): ...
 
-    class MyHttpSession(AIOHTTPSession):
+    class MyHttpSession(http_session_cls):
         async def send(self, request):
             raise SuccessExc
 

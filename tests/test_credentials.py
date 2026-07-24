@@ -1,7 +1,9 @@
-import asyncio
 from unittest import mock
 
-from aiobotocore import credentials
+import anyio
+import pytest
+
+from aiobotocore import credentials, utils
 
 
 async def test_assumerolecredprovider_concurrent_load_no_race_condition():
@@ -26,8 +28,8 @@ async def test_assumerolecredprovider_concurrent_load_no_race_condition():
         }
     }
 
-    # A mock provider whose load() yields control via asyncio.sleep(0),
-    # allowing another task to interleave and expose the race condition.
+    # A mock provider whose load() yields control, allowing another task to
+    # interleave and expose the race condition.
     static_creds = credentials.AioCredentials('akid', 'skid')
 
     class _YieldingProvider:
@@ -35,7 +37,7 @@ async def test_assumerolecredprovider_concurrent_load_no_race_condition():
         CANONICAL_NAME = None
 
         async def load(self):
-            await asyncio.sleep(0)
+            await anyio.sleep(0)
             return static_creds
 
     mock_builder = mock.Mock()
@@ -53,5 +55,46 @@ async def test_assumerolecredprovider_concurrent_load_no_race_condition():
 
     # Both tasks must succeed; without the fix the second task raises
     # InfiniteLoopConfigError because it sees 'b' already in _visited_profiles.
-    results = await asyncio.gather(provider.load(), provider.load())
+    results = [None, None]
+
+    async def load_into(index):
+        results[index] = await provider.load()
+
+    async with anyio.create_task_group() as tg:
+        tg.start_soon(load_into, 0)
+        tg.start_soon(load_into, 1)
+
     assert all(r is not None for r in results)
+
+
+@pytest.fixture
+def container_fetcher_cls(current_http_backend):
+    # aiohttp sleeps via asyncio, httpx (which also runs on trio) via anyio.
+    if current_http_backend == 'httpx':
+        return utils.AnyioContainerMetadataFetcher
+    return utils.AioContainerMetadataFetcher
+
+
+async def test_container_provider_keeps_a_caller_supplied_fetcher(
+    container_fetcher_cls,
+):
+    # botocore's blocking default is swapped for an async one, but a fetcher
+    # the caller passed in (with its own session or timeout) is left alone.
+    fetcher = container_fetcher_cls()
+    provider = credentials.AnyioContainerProvider(fetcher=fetcher)
+    assert provider._fetcher is fetcher
+
+    assert isinstance(
+        credentials.AioContainerProvider()._fetcher,
+        utils.AioContainerMetadataFetcher,
+    )
+
+
+def test_anyio_container_provider_uses_httpx_fetcher_by_default():
+    # The anyio provider's default fetcher is the httpx-backed
+    # AnyioContainerMetadataFetcher, whose construction requires httpx.
+    pytest.importorskip("httpx")
+    assert isinstance(
+        credentials.AnyioContainerProvider()._fetcher,
+        utils.AnyioContainerMetadataFetcher,
+    )
