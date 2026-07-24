@@ -86,6 +86,9 @@ jobs:
       run: |
         uv sync --group awscrt
     - name: Run pre-commit hooks
+      env:
+        # work around https://github.com/crate-py/rpds/issues/210
+        PYO3_USE_ABI3_FORWARD_COMPATIBILITY: ${{ inputs.python-version == '3.15' && '1' || '0' }}
       run: |
         uv run make pre-commit
     - name: Run unittests
