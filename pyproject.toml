@@ -181,7 +181,18 @@ docstring-code-line-length = "dynamic"
 exclude_also = [
     "if TYPE_CHECKING",
     "@pytest.mark.localonly",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "def __repr__",
+    "if 0:",
+    "if __name__ == .__main__.:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod",
 ]
+
+[tool.coverage.run]
+# Include tests in coverage so dead code in tests is visible.
+source = ["aiobotocore", "tests"]
 
 [tool.rumdl]
 line-length = 120
