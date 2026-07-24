@@ -1,0 +1,51 @@
+---
+name: Reusable lint
+
+permissions: {}
+
+on:
+  workflow_call:
+    inputs:
+      enable-cache:
+        type: string
+        required: true
+
+env:
+  FORCE_COLOR: 1
+
+jobs:
+  lint:
+    name: Run pre-commit hooks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      UV_FROZEN: 1
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+      with:
+        persist-credentials: false
+        submodules: true
+    - name: Install uv
+      uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990  # v8.3.2
+      with:
+        # Pin uv so setup-uv skips the GitHub release-list API lookup
+        # that otherwise resolves pyproject.toml's required-version
+        # range. See claude.yml for the full reasoning.
+        version: '0.11.12'
+        enable-cache: ${{ inputs.enable-cache }}
+    # Cache pre-commit's per-hook environments. Without this, the job
+    # re-clones every hook repo (ruff, yamllint, rumdl, sphinx-lint,
+    # check-jsonschema, ...) and rebuilds their venvs. Restore-keys lets
+    # a partial hit salvage most of the cache when a single hook bumps.
+    - name: Cache pre-commit hook envs
+      # yamllint disable-line rule:line-length
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+      with:
+        path: ~/.cache/pre-commit
+        key: pre-commit-${{ runner.os }}-${{ hashFiles('.pre-commit-config.yaml') }}
+        restore-keys: pre-commit-${{ runner.os }}-
+    - name: Run pre-commit hooks
+      run: |
+        uv run make pre-commit
