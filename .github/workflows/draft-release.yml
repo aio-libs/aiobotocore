@@ -62,7 +62,7 @@ jobs:
             ;;
         esac
 
-    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
       with:
         # Need full history + tags so the skill can locate the previous
         # release boundary and walk the merge log.
@@ -86,7 +86,7 @@ jobs:
     # botocore-sync workflow's setup-uv step.
     - name: Set up uv + Python
       # yamllint disable-line rule:line-length
-      uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39  # v8.2.0
+      uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990  # v8.3.2
       with:
         version: '0.11.12'
         python-version: '3.12'
@@ -94,7 +94,7 @@ jobs:
 
     - name: Cache .venv
       # yamllint disable-line rule:line-length
-      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae  # v5.0.5
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
       with:
         path: .venv
         # yamllint disable-line rule:line-length
@@ -106,7 +106,7 @@ jobs:
     # each workflow run.
     - name: Cache pre-commit hook envs
       # yamllint disable-line rule:line-length
-      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae  # v5.0.5
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
       with:
         path: ~/.cache/pre-commit
         key: pre-commit-${{ runner.os }}-${{ hashFiles('.pre-commit-config.yaml') }}
@@ -130,8 +130,18 @@ jobs:
         } >> "$GITHUB_OUTPUT"
 
     # yamllint disable-line rule:line-length
-    - uses: anthropics/claude-code-action@51705da45eecce209d4700538bf8377d5b5fc695  # v1.0.152
+    - uses: anthropics/claude-code-action@700e7f8316990de46bed556429765647af760efc  # v1.0.176
       id: claude
+      env:
+        # The file-ops MCP server commits to a branch fixed at server
+        # startup from CLAUDE_BRANCH; there is no per-call branch arg. In
+        # agent mode this defaults to GITHUB_REF_NAME (``main``), whose
+        # branch protection rejects the commit. Scoped per *attempt* so a
+        # failed attempt's leftover branch is never committed on top of —
+        # file-ops reuses an existing ref, and run_id alone is stable
+        # across re-runs.
+        # yamllint disable-line rule:line-length
+        CLAUDE_BRANCH: claude/release-${{ github.run_id }}-${{ github.run_attempt }}
       with:
         anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
         use_commit_signing: true
@@ -161,3 +171,38 @@ jobs:
             }
           }
         # yamllint enable rule:line-length
+
+    # The action exits 0 even when it self-skips without running the
+    # agent (e.g. workflow validation on a PR that edits this file), so
+    # a dry run reports success having done nothing. No execution file
+    # means no agent. Covers dry runs, which never open a PR to check.
+    - name: Verify the agent ran
+      env:
+        EXECUTION_FILE: ${{ steps.claude.outputs.execution_file }}
+      run: |
+        if [ -z "$EXECUTION_FILE" ]; then
+          echo "::error::The agent never ran — the action produced no" \
+            "execution file. Check the step above for a skip reason."
+          exit 1
+        fi
+
+    # Independent of what the agent claims: confirm the PR is really
+    # there. The agent can abort in prose and still finish its turn
+    # cleanly (subtype=success, is_error=false), so its own report is
+    # not a reliable signal — the PR existing is.
+    - name: Verify the release PR was opened
+      if: ${{ !inputs.dry_run }}
+      env:
+        GH_TOKEN: ${{ github.token }}
+        # yamllint disable-line rule:line-length
+        BRANCH: claude/release-${{ github.run_id }}-${{ github.run_attempt }}
+      run: |
+        url=$(gh pr list --head "$BRANCH" --base main --state open \
+          --json url --jq '.[0].url // empty')
+        if [ -z "$url" ]; then
+          echo "::error::No release PR was opened from $BRANCH. The agent" \
+            "aborted without drafting a release — check its final message" \
+            "in the step above."
+          exit 1
+        fi
+        echo "Release PR: $url" >> "$GITHUB_STEP_SUMMARY"

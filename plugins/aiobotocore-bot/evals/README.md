@@ -125,7 +125,7 @@ Options:
 - `--runs N` — runs per case; majority vote decides pass/fail (default 3)
 - `--limit N` — max scenarios to evaluate (default 8)
 - `--case N` — only evaluate specific PR number (repeatable)
-- `--model <id>` — Anthropic model ID (default `claude-opus-4-7`)
+- `--model <id>` — Anthropic model ID (default: `DEFAULT_MODEL` in `_common.py`; `--help` prints it)
 - `--json-out <path>` — write per-run results as JSON
 
 ### What it checks
@@ -199,7 +199,7 @@ Options:
 
 - `--runs N` — runs per case; majority vote decides pass/fail (default 3)
 - `--case N` — only evaluate specific PR number (repeatable)
-- `--model <id>` — Anthropic model ID (default `claude-opus-4-7`)
+- `--model <id>` — Anthropic model ID (default: `DEFAULT_MODEL` in `_common.py`; `--help` prints it)
 - `--json-out <path>` — write per-run results as JSON
 
 ### When to run

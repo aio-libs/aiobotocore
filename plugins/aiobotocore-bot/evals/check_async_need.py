@@ -241,7 +241,9 @@ async def main() -> int:
         "--limit", type=int, default=8, help="Max historical PRs to evaluate"
     )
     parser.add_argument(
-        "--model", default=DEFAULT_MODEL, help="Anthropic model to use"
+        "--model",
+        default=DEFAULT_MODEL,
+        help="Anthropic model to use (default: %(default)s)",
     )
     parser.add_argument(
         "--case",

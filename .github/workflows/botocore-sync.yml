@@ -56,7 +56,7 @@ jobs:
       needs_update: >-
         ${{ steps.check.outputs.needs_update }}
     steps:
-    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       with:
         persist-credentials: false
 
@@ -165,9 +165,9 @@ jobs:
         PYEOF
 
   # Classify the diff with Sonnet before deciding which model to use for the
-  # actual sync. The classifier is mechanical (diff-walking + registry lookups)
-  # — Sonnet handles it for ~$0.10 per run versus ~$1+ if we ran the same step
-  # inside the Opus sync. Outputs `verdict` so `sync` below can pick the model:
+  # actual sync. The classifier is mechanical (diff-walking + registry lookups),
+  # so Sonnet handles it without spending Opus rates inside the sync job.
+  # Outputs `verdict` so `sync` below can pick the model:
   # no-port → Sonnet (cheap), anything else → Opus (full reasoning).
   classify:
     needs: detect
@@ -185,13 +185,13 @@ jobs:
       rationale: ${{ steps.parse.outputs.rationale }}
       affected_files: ${{ steps.affected.outputs.files }}
     steps:
-    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       with:
         persist-credentials: false
 
     - name: Set up uv + Python
       # yamllint disable-line rule:line-length
-      uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39  # v8.2.0
+      uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990  # v8.3.2
       with:
         version: '0.11.12'
         python-version: '3.12'
@@ -199,7 +199,7 @@ jobs:
 
     - name: Cache .venv
       # yamllint disable-line rule:line-length
-      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae  # v5.0.5
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
       with:
         path: .venv
         # yamllint disable-line rule:line-length
@@ -210,7 +210,7 @@ jobs:
     # sphinx-lint, check-jsonschema, ...) and rebuilds their venvs.
     - name: Cache pre-commit hook envs
       # yamllint disable-line rule:line-length
-      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae  # v5.0.5
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
       with:
         path: ~/.cache/pre-commit
         key: pre-commit-${{ runner.os }}-${{ hashFiles('.pre-commit-config.yaml') }}
@@ -220,7 +220,7 @@ jobs:
       run: uv sync --frozen
 
     - name: Cache botocore repo
-      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae  # v5.0.5
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
       with:
         path: /tmp/botocore
         key: botocore-repo
@@ -275,7 +275,7 @@ jobs:
         } >> "$GITHUB_OUTPUT"
 
     # yamllint disable-line rule:line-length
-    - uses: anthropics/claude-code-action@51705da45eecce209d4700538bf8377d5b5fc695  # v1.0.152
+    - uses: anthropics/claude-code-action@700e7f8316990de46bed556429765647af760efc  # v1.0.176
       id: claude
       with:
         anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -387,7 +387,7 @@ jobs:
       id-token: write
       actions: read
     steps:
-    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       with:
         fetch-depth: 0
         persist-credentials: false
@@ -399,7 +399,7 @@ jobs:
 
     - name: Set up uv + Python
       # yamllint disable-line rule:line-length
-      uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39  # v8.2.0
+      uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990  # v8.3.2
       with:
         # Pin uv — see claude.yml comment. Same rate-limit concern.
         version: '0.11.12'
@@ -412,7 +412,7 @@ jobs:
     # invalidates.
     - name: Cache .venv
       # yamllint disable-line rule:line-length
-      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae  # v5.0.5
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
       with:
         path: .venv
         # yamllint disable-line rule:line-length
@@ -422,7 +422,7 @@ jobs:
     # classify job above).
     - name: Cache pre-commit hook envs
       # yamllint disable-line rule:line-length
-      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae  # v5.0.5
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
       with:
         path: ~/.cache/pre-commit
         key: pre-commit-${{ runner.os }}-${{ hashFiles('.pre-commit-config.yaml') }}
@@ -470,7 +470,7 @@ jobs:
       run: uv pip install "botocore==$LATEST_BOTOCORE"
 
     - name: Cache botocore repo
-      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae  # v5.0.5
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
       with:
         path: /tmp/botocore
         key: botocore-repo
@@ -528,7 +528,7 @@ jobs:
         } >> "$GITHUB_OUTPUT"
 
     # yamllint disable-line rule:line-length
-    - uses: anthropics/claude-code-action@51705da45eecce209d4700538bf8377d5b5fc695  # v1.0.152
+    - uses: anthropics/claude-code-action@700e7f8316990de46bed556429765647af760efc  # v1.0.176
       id: claude
       env:
         CLAUDE_BRANCH: claude/botocore-sync
@@ -549,7 +549,7 @@ jobs:
         plugins: aiobotocore-bot@aiobotocore
         prompt: ${{ steps.prompt.outputs.PROMPT }}
         # Model is conditional on the classify job's verdict:
-        # - no-port → Sonnet (mechanical bump+PR; ~5× cheaper output)
+        # - no-port → Sonnet (mechanical bump+PR; cheaper output)
         # - everything else → Opus (real porting work, ambiguity, escalation)
         # When `verdict` is empty (classify failed/skipped) the fallback is
         # Opus, matching the prior single-job behavior.

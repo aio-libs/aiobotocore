@@ -1,4 +1,5 @@
 import asyncio
+import gzip
 import io
 from unittest.mock import MagicMock
 
@@ -6,7 +7,12 @@ import pytest
 from botocore.exceptions import IncompleteReadError
 
 from aiobotocore import response
-from aiobotocore.response import AioReadTimeoutError
+from aiobotocore.response import AioReadTimeoutError, HttpxStreamingBody
+
+try:
+    import httpx
+except ImportError:
+    httpx = None
 
 
 # https://github.com/boto/botocore/blob/develop/tests/unit/test_response.py
@@ -206,3 +212,302 @@ async def test_streaming_line_empty_body():
         content_length=0,
     )
     await assert_lines(stream.iter_lines(), [])
+
+
+async def test_streaming_body_raw_stream():
+    body = AsyncBytesIO(b'1234567890')
+    stream = response.StreamingBody(body, content_length=10)
+    assert stream.raw_stream is body
+
+
+async def test_streaming_body_tell():
+    body = AsyncBytesIO(b'1234567890')
+    stream = response.StreamingBody(body, content_length=10)
+    assert stream.tell() == 0
+    await stream.read(5)
+    assert stream.tell() == 5
+    await stream.read()
+    assert stream.tell() == 10
+
+
+async def test_streaming_body_readlines():
+    body = AsyncBytesIO(b'line1\nline2\nline3')
+    stream = response.StreamingBody(body, content_length=17)
+    lines = await stream.readlines()
+    assert lines == [b'line1', b'line2', b'line3']
+
+
+async def test_streaming_body_aclose():
+    body = AsyncBytesIO(b'12345')
+    stream = response.StreamingBody(body, content_length=5)
+    assert body.closed is False
+    await stream.aclose()
+    assert body.closed is True
+
+
+async def test_streaming_body_async_context_manager():
+    body = AsyncBytesIO(b'12345')
+    async with response.StreamingBody(body, content_length=5) as stream:
+        assert await stream.read() == b'12345'
+    assert body.closed is True
+
+
+# -- HttpxStreamingBody tests --
+
+
+class MockHttpxResponse:
+    """Mock that simulates httpx.Response for testing HttpxStreamingBody."""
+
+    def __init__(self, data: bytes, chunk_size: int = 1024):
+        self._data = data
+        self._chunk_size = chunk_size
+        self._closed = False
+
+    async def aiter_raw(self):
+        offset = 0
+        while offset < len(self._data):
+            yield self._data[offset : offset + self._chunk_size]
+            offset += self._chunk_size
+
+    async def aclose(self):
+        self._closed = True
+
+    @property
+    def closed(self):
+        return self._closed
+
+
+async def test_httpx_read_all():
+    body = MockHttpxResponse(b'1234567890')
+    stream = HttpxStreamingBody(body, content_length=10)
+    assert await stream.read() == b'1234567890'
+
+
+async def test_httpx_read_with_amt():
+    body = MockHttpxResponse(b'1234567890', chunk_size=4)
+    stream = HttpxStreamingBody(body, content_length=10)
+    assert await stream.read(5) == b'12345'
+    assert await stream.read(5) == b'67890'
+    assert await stream.read(5) == b''
+
+
+async def test_httpx_read_zero():
+    body = MockHttpxResponse(b'1234567890')
+    stream = HttpxStreamingBody(body, content_length=10)
+    assert await stream.read(0) == b''
+    assert await stream.read() == b'1234567890'
+
+
+async def test_httpx_content_length_validation():
+    body = MockHttpxResponse(b'123456789')
+    stream = HttpxStreamingBody(body, content_length=10)
+    with pytest.raises(IncompleteReadError):
+        await stream.read()
+
+
+async def test_httpx_content_length_validation_chunked():
+    body = MockHttpxResponse(b'123456789')
+    stream = HttpxStreamingBody(body, content_length=10)
+    assert await stream.read(9) == b'123456789'
+    with pytest.raises(IncompleteReadError):
+        await stream.read()
+
+
+async def test_httpx_readinto():
+    body = MockHttpxResponse(b'123456789', chunk_size=4)
+    stream = HttpxStreamingBody(body, content_length=9)
+    chunk = bytearray(b'\x00\x00\x00\x00\x00')
+    assert 5 == await stream.readinto(chunk)
+    assert chunk == bytearray(b'\x31\x32\x33\x34\x35')
+    assert 4 == await stream.readinto(chunk)
+    assert chunk == bytearray(b'\x36\x37\x38\x39\x35')
+
+
+async def test_httpx_readinto_with_invalid_length():
+    body = MockHttpxResponse(b'12')
+    stream = HttpxStreamingBody(body, content_length=9)
+    chunk = bytearray(b'\xde\xad\xbe\xef')
+    assert 2 == await stream.readinto(chunk)
+    assert chunk == bytearray(b'\x31\x32\xbe\xef')
+    with pytest.raises(IncompleteReadError):
+        await stream.readinto(chunk)
+
+
+async def test_httpx_readinto_empty_buffer():
+    body = MockHttpxResponse(b'12')
+    stream = HttpxStreamingBody(body, content_length=2)
+    chunk = bytearray(b'')
+    assert 0 == await stream.readinto(chunk)
+
+
+async def test_httpx_iter_chunks():
+    body = MockHttpxResponse(b'abcde', chunk_size=2)
+    stream = HttpxStreamingBody(body, content_length=5)
+    chunks = await _tolist(stream.iter_chunks(chunk_size=2))
+    assert chunks == [b'ab', b'cd', b'e']
+
+
+async def test_httpx_default_iter():
+    body = MockHttpxResponse(b'a' * 2048, chunk_size=4096)
+    stream = HttpxStreamingBody(body, content_length=2048)
+    chunks = await _tolist(stream)
+    assert len(chunks) == 2
+    assert chunks[0] == b'a' * 1024
+    assert chunks[1] == b'a' * 1024
+
+
+async def test_httpx_iter_lines():
+    body = MockHttpxResponse(b'line1\nline2\nline3')
+    stream = HttpxStreamingBody(body, content_length=17)
+    lines = [line async for line in stream.iter_lines()]
+    assert lines == [b'line1', b'line2', b'line3']
+
+
+async def test_httpx_readlines():
+    body = MockHttpxResponse(b'line1\nline2\nline3')
+    stream = HttpxStreamingBody(body, content_length=17)
+    lines = await stream.readlines()
+    assert lines == [b'line1', b'line2', b'line3']
+
+
+async def test_httpx_tell():
+    body = MockHttpxResponse(b'1234567890', chunk_size=4)
+    stream = HttpxStreamingBody(body, content_length=10)
+    assert stream.tell() == 0
+    await stream.read(5)
+    assert stream.tell() == 5
+    await stream.read()
+    assert stream.tell() == 10
+
+
+async def test_httpx_readable():
+    body = MockHttpxResponse(b'12345')
+    stream = HttpxStreamingBody(body, content_length=5)
+    assert stream.readable()
+    await stream.read()
+    assert not stream.readable()
+
+
+async def test_httpx_close():
+    body = MockHttpxResponse(b'12345')
+    stream = HttpxStreamingBody(body, content_length=5)
+    assert not body.closed
+    await stream.close()
+    assert body.closed
+
+
+async def test_httpx_async_context_manager():
+    body = MockHttpxResponse(b'12345')
+    async with HttpxStreamingBody(body, content_length=5) as stream:
+        data = await stream.read()
+        assert data == b'12345'
+    assert body.closed
+
+
+async def test_httpx_raw_stream():
+    body = MockHttpxResponse(b'12345')
+    stream = HttpxStreamingBody(body, content_length=5)
+    assert stream.raw_stream is body
+
+
+async def test_httpx_is_async_iterator():
+    body = MockHttpxResponse(b'a' * 1024 + b'b' * 1024 + b'c' * 2)
+    stream = HttpxStreamingBody(body, content_length=2050)
+    assert b'a' * 1024 == await stream.__anext__()
+    assert b'b' * 1024 == await stream.__anext__()
+    assert b'c' * 2 == await stream.__anext__()
+    with pytest.raises(StopAsyncIteration):
+        await stream.__anext__()
+
+
+async def test_httpx_small_chunks_buffering():
+    """Test that buffering works correctly when internal chunks are smaller
+    than requested read size."""
+    body = MockHttpxResponse(b'0123456789', chunk_size=3)
+    stream = HttpxStreamingBody(body, content_length=10)
+    # chunk_size=3 means internal chunks are [012, 345, 678, 9]
+    # but we request 5 bytes at a time
+    assert await stream.read(5) == b'01234'
+    assert await stream.read(5) == b'56789'
+    assert await stream.read(5) == b''
+
+
+async def test_httpx_read_negative_reads_all():
+    body = MockHttpxResponse(b'abcdef', chunk_size=2)
+    stream = HttpxStreamingBody(body, content_length=6)
+    assert await stream.read(-1) == b'abcdef'
+    assert stream.tell() == 6
+
+
+async def test_streaming_body_read_negative_reads_all():
+    body = AsyncBytesIO(b'abcdef')
+    stream = response.StreamingBody(body, content_length=6)
+    assert await stream.read(-1) == b'abcdef'
+    assert stream.tell() == 6
+
+
+@pytest.mark.skipif(httpx is None, reason='httpx is not installed')
+async def test_httpx_content_encoded_body_validates_wire_bytes():
+    """Content-Length describes wire bytes, so a gzip body must not be
+    decoded before it is counted."""
+    payload = b'hello world! ' * 100
+    wire = gzip.compress(payload)
+
+    async def handler(request):
+        # stream=, not content=: content= marks the stream consumed up front
+        return httpx.Response(
+            200,
+            headers={
+                'Content-Encoding': 'gzip',
+                'Content-Length': str(len(wire)),
+            },
+            stream=httpx.ByteStream(wire),
+        )
+
+    transport = httpx.MockTransport(handler)
+    async with httpx.AsyncClient(transport=transport) as client:
+        request = client.build_request('GET', 'http://example.com/obj')
+        raw = await client.send(request, stream=True)
+        stream = HttpxStreamingBody(raw, raw.headers.get('content-length'))
+        assert await stream.read() == wire
+
+
+# -- shared AioStreamingBodyBase behavior (both backends) --
+
+_BODY_FACTORIES = [
+    lambda: response.StreamingBody(AsyncBytesIO(b'12345'), content_length=5),
+    lambda: HttpxStreamingBody(MockHttpxResponse(b'12345'), content_length=5),
+]
+
+
+@pytest.mark.parametrize(
+    'make_body', _BODY_FACTORIES, ids=['aiohttp', 'httpx']
+)
+async def test_sync_iteration_is_blocked(make_body):
+    stream = make_body()
+    with pytest.raises(TypeError, match='is async'):
+        iter(stream)
+    with pytest.raises(TypeError, match='is async'):
+        next(stream)
+
+
+@pytest.mark.parametrize(
+    'make_body', _BODY_FACTORIES, ids=['aiohttp', 'httpx']
+)
+async def test_sync_context_manager_is_blocked(make_body):
+    stream = make_body()
+    with pytest.raises(TypeError, match='is async'):
+        with stream:
+            pass
+    # __enter__ raises before __exit__ can run, so check it directly too
+    with pytest.raises(TypeError, match='is async'):
+        stream.__exit__(None, None, None)
+
+
+@pytest.mark.parametrize(
+    'make_body', _BODY_FACTORIES, ids=['aiohttp', 'httpx']
+)
+async def test_set_socket_timeout_not_implemented(make_body):
+    stream = make_body()
+    with pytest.raises(NotImplementedError, match='not supported for async'):
+        stream.set_socket_timeout(1)

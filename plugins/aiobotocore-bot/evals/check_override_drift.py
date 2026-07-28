@@ -148,7 +148,9 @@ async def main() -> int:
         help="Only evaluate these PR numbers (repeatable)",
     )
     parser.add_argument(
-        "--model", default=DEFAULT_MODEL, help="Anthropic model to use"
+        "--model",
+        default=DEFAULT_MODEL,
+        help="Anthropic model to use (default: %(default)s)",
     )
     parser.add_argument(
         "--json-out", type=Path, help="Write full per-run results here"

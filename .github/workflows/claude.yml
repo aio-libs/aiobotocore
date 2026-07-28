@@ -125,7 +125,7 @@ jobs:
       id-token: write
       actions: read
     steps:
-    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       with:
         fetch-depth: 1
         persist-credentials: false
@@ -137,7 +137,7 @@ jobs:
 
     - name: Set up uv + Python
       # yamllint disable-line rule:line-length
-      uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39  # v8.2.0
+      uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990  # v8.3.2
       with:
         # Pin uv so setup-uv does not query the GitHub API to resolve
         # a matching release from pyproject.toml's required-version
@@ -153,7 +153,7 @@ jobs:
     # on uv.lock + pyproject.toml so any dep change invalidates.
     - name: Cache .venv
       # yamllint disable-line rule:line-length
-      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae  # v5.0.5
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
       with:
         path: .venv
         # yamllint disable-line rule:line-length
@@ -165,7 +165,7 @@ jobs:
     # rebuilds their venvs every workflow run.
     - name: Cache pre-commit hook envs
       # yamllint disable-line rule:line-length
-      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae  # v5.0.5
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
       with:
         path: ~/.cache/pre-commit
         key: pre-commit-${{ runner.os }}-${{ hashFiles('.pre-commit-config.yaml') }}
@@ -261,7 +261,7 @@ jobs:
         } >> "$GITHUB_OUTPUT"
 
     # yamllint disable-line rule:line-length
-    - uses: anthropics/claude-code-action@51705da45eecce209d4700538bf8377d5b5fc695  # v1.0.152
+    - uses: anthropics/claude-code-action@700e7f8316990de46bed556429765647af760efc  # v1.0.176
       id: claude
       env:
         CLAUDE_BRANCH: ${{ steps.pr_meta.outputs.branch || '' }}
@@ -295,14 +295,12 @@ jobs:
         # auto-discover user-scope plugins reliably — the Skill tool returns
         # "Unknown skill: aiobotocore-bot:*" without this flag. Tracked upstream
         # at anthropics/claude-code-action#1145.
-        # Sonnet for default PR-review and @claude responses. Code review
-        # is well within Sonnet's range -- diff-walk + project-rules check
-        # against CLAUDE.md is largely mechanical, the same shape as the
-        # botocore-sync classifier that already runs on Sonnet at ~$0.10
-        # per run vs ~$1+ for Opus. PR-review traffic is high (every push
-        # to every open PR triggers a run) so the cost gap compounds.
-        # Escalate to Opus selectively if a specific @claude task needs
-        # it -- a follow-up could route based on prompt content / labels.
+        # Sonnet for default PR-review and @claude responses: diff-walk +
+        # project-rules check against CLAUDE.md is largely mechanical, and
+        # PR-review traffic is the highest-volume Claude job here (every push
+        # to every open PR triggers a run), so the per-run gap compounds.
+        # TODO: the gap is now ~1.67x on output, not the ~10x this split was
+        # sized against -- revisit the routing: aio-libs/aiobotocore#1660
         claude_args: |
           --dangerously-skip-permissions
           --plugin-dir plugins/aiobotocore-bot
