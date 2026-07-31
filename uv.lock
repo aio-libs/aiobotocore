@@ -23,9 +23,11 @@ dependencies = [
 
 [package.optional-dependencies]
 httpx = [
+    { name = "anyio" },
     { name = "httpx" },
 ]
 httpx2 = [
+    { name = "anyio" },
     { name = "httpx2" },
 ]
 
@@ -78,6 +80,8 @@ evals = [
 requires-dist = [
     { name = "aiohttp", specifier = ">=3.14.0,<4.0.0" },
     { name = "aioitertools", specifier = ">=0.5.1,<1.0.0" },
+    { name = "anyio", marker = "extra == 'httpx'", specifier = ">=4.11.0,<5" },
+    { name = "anyio", marker = "extra == 'httpx2'", specifier = ">=4.11.0,<5" },
     { name = "botocore", specifier = ">=1.43.3,<1.43.57" },
     { name = "httpx", marker = "extra == 'httpx'", specifier = ">=0.25.1,<0.29" },
     { name = "httpx2", marker = "extra == 'httpx2'", specifier = ">=2.0,<3.0.0" },

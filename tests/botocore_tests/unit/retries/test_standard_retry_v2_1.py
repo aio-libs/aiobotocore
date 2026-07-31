@@ -328,12 +328,9 @@ class TestAioRetryHandlerLongPolling:
         context.operation_model = mock.Mock()
         context.operation_model.name = 'ReceiveMessage'
 
-        sleep_calls = []
-
-        async def fake_sleep(delay):
-            sleep_calls.append(delay)
-
-        with mock.patch('asyncio.sleep', side_effect=fake_sleep):
+        with mock.patch.object(
+            handler, '_sleep', new_callable=mock.AsyncMock
+        ) as sleep:
             result = await handler.needs_retry(
                 response=(context.http_response, {}),
                 attempts=1,
@@ -344,7 +341,7 @@ class TestAioRetryHandlerLongPolling:
 
         assert result is False
         retry_quota.acquire_retry_quota.assert_called_once()
-        assert sleep_calls == [0.05]
+        sleep.assert_awaited_once_with(0.05)
 
     async def test_non_long_polling_operation_does_not_sleep_when_quota_exhausted(
         self,
@@ -472,6 +469,8 @@ class _FakeClient:
 
     def __init__(self, service_id_name):
         self.meta = mock.Mock()
+        self._endpoint = mock.Mock()
+        self._endpoint.http_session = object()
         service_id = mock.Mock()
         service_id.hyphenize.return_value = service_id_name
         self.meta.service_model.service_id = service_id
@@ -494,6 +493,17 @@ class TestAioRegisterRetryHandler(unittest.TestCase):
         self.assertEqual(handler._service_name, 's3')
         self.assertIn('after-call.s3', self._registered_events(client))
         self.assertIn('needs-retry.s3', self._registered_events(client))
+
+    @mock.patch('aiobotocore.retries.standard.NEW_RETRIES_ENABLED', True)
+    def test_register_retry_handler_uses_anyio_for_httpx(self):
+        client = _FakeClient('s3')
+        client._endpoint.http_session = object.__new__(
+            aio_standard.HttpxSession
+        )
+
+        handler = aio_standard.register_retry_handler(client)
+
+        self.assertIsInstance(handler, aio_standard.AnyioRetryHandler)
 
     @mock.patch('aiobotocore.retries.standard.NEW_RETRIES_ENABLED', True)
     def test_register_retry_handler_new_retries_service_specific_max_attempts(

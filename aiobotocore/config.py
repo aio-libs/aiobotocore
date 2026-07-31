@@ -68,7 +68,7 @@ class AioConfig(botocore.client.Config):
         config_options = copy.copy(self._user_provided_options)
         config_options.update(other_config._user_provided_options)
         return AioConfig(
-            self.connector_args,
+            getattr(other_config, 'connector_args', self.connector_args),
             http_session_cls=getattr(
                 other_config, 'http_session_cls', self.http_session_cls
             ),

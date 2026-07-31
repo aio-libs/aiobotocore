@@ -107,6 +107,9 @@ async def test_connector_args(current_http_backend: str):
     assert cfg.read_timeout == 75
     assert aio_cfg.connector_args['keepalive_timeout'] == 75
 
+    merged = aio_cfg.merge(AioConfig({'keepalive_timeout': 25}))
+    assert merged.connector_args['keepalive_timeout'] == 25
+
 
 def test_connector_args_httpx_session_instance():
     # Passing an HttpxSession instance (not a class) must not raise TypeError out
