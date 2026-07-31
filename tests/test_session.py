@@ -10,6 +10,7 @@ from aiobotocore._async_primitives import (
     infer_async_primitives,
 )
 from aiobotocore.config import AioConfig
+from aiobotocore.httpxsession import HttpxSession
 from aiobotocore.session import AioSession
 
 
@@ -290,6 +291,16 @@ def test_session_constructor_accepts_async_primitives_enum():
 
     fetcher = resolver.get_provider('iam-role')._role_fetcher
     assert type(fetcher._session) is utils._RefCountedHttpxSession
+
+
+def test_async_primitives_follow_default_client_config():
+    pytest.importorskip("httpx")
+    session = AioSession()
+    session.set_default_client_config(
+        AioConfig(http_session_cls=HttpxSession)
+    )
+
+    assert session._async_primitives is AsyncPrimitives.ANYIO
 
 
 def test_session_fixture_uses_primitives_for_http_backend(

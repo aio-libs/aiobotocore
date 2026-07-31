@@ -736,15 +736,15 @@ class AioS3RegionRedirector(S3RegionRedirector):
 class AioContainerMetadataFetcher(ContainerMetadataFetcher):
     _ref_counted_session_cls = _RefCountedSession
 
-    def __init__(self, session=None):  # noqa: E501, lgtm [py/missing-call-to-init]
+    def __init__(
+        self, session=None, sleep=asyncio.sleep
+    ):  # noqa: E501, lgtm [py/missing-call-to-init]
         if session is None:
             session = self._ref_counted_session_cls(
                 timeout=self.TIMEOUT_SECONDS
             )
         self._session = session
-
-    async def _sleep(self, delay):
-        await asyncio.sleep(delay)
+        self._sleep = sleep
 
     async def retrieve_full_uri(self, full_url, headers=None):
         self._validate_allowed_url(full_url)
@@ -853,9 +853,10 @@ class AnyioContainerMetadataFetcher(AioContainerMetadataFetcher):
 
     _ref_counted_session_cls = _RefCountedHttpxSession
 
-    async def _sleep(self, delay):
-        # anyio is a hard dependency of httpx, so it is importable whenever
-        # the httpx backend is in use.
-        import anyio
+    def __init__(self, session=None, sleep=None):
+        if sleep is None:
+            # anyio is a hard dependency of the httpx backend.
+            import anyio
 
-        await anyio.sleep(delay)
+            sleep = anyio.sleep
+        super().__init__(session=session, sleep=sleep)

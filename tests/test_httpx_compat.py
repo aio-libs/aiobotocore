@@ -5,6 +5,7 @@ which is deprecated. Mirrors authlib's httpx compat tests.
 """
 
 import importlib
+import ssl
 import sys
 import warnings
 
@@ -69,3 +70,12 @@ def test_httpxsession_does_not_warn_on_httpx2(monkeypatch, recwarn):
     assert not any(
         issubclass(w.category, DeprecationWarning) for w in recwarn.list
     )
+
+
+def test_httpx2_uses_botocore_verify_context(monkeypatch):
+    """httpx2's truststore default must not replace botocore TLS settings."""
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    session = HttpxSession()
+    monkeypatch.setattr(session, '_get_ssl_context', lambda: context)
+
+    assert session._build_verify_context() is context

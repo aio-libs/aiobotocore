@@ -16,12 +16,15 @@ from botocore.session import Session as _SyncSession
 from botocore.useragent import register_feature_id
 
 from . import __version__, retryhandler
-from ._async_primitives import AsyncPrimitives
+from ._async_primitives import AsyncPrimitives, infer_async_primitives
 from .client import AioBaseClient, AioClientCreator
+from .config import AioConfig
 from .configprovider import AioSmartDefaultsConfigStoreFactory
 from .context import with_current_context
 from .credentials import AioCredentials, create_credential_resolver
 from .hooks import AioHierarchicalEmitter
+from .httpsession import AIOHTTPSession
+from .httpxsession import HttpxSession
 from .parsers import AioResponseParserFactory
 from .tokens import create_token_resolver
 from .utils import AioIMDSRegionProvider, AnyioIMDSRegionProvider
@@ -48,7 +51,7 @@ class AioSession(_SyncSession):
         event_hooks=None,
         include_builtin_handlers=True,
         profile=None,
-        async_primitives: AsyncPrimitives = AsyncPrimitives.ASYNCIO,
+        async_primitives: AsyncPrimitives | None = None,
     ):
         if event_hooks is None:
             event_hooks = AioHierarchicalEmitter()
@@ -56,9 +59,31 @@ class AioSession(_SyncSession):
         super().__init__(
             session_vars, event_hooks, include_builtin_handlers, profile
         )
-        self._async_primitives = async_primitives
+        if async_primitives is not None:
+            self._async_primitives = async_primitives
 
         self._set_user_agent_for_session()
+
+    @property
+    def _async_primitives(self):
+        config = self.get_default_client_config()
+        http_session_cls = getattr(
+            config, 'http_session_cls', AIOHTTPSession
+        )
+        return infer_async_primitives(http_session_cls)
+
+    @_async_primitives.setter
+    def _async_primitives(self, value):
+        http_session_cls = (
+            HttpxSession
+            if value is AsyncPrimitives.ANYIO
+            else AIOHTTPSession
+        )
+        config = self.get_default_client_config()
+        backend_config = AioConfig(http_session_cls=http_session_cls)
+        if config is not None:
+            backend_config = config.merge(backend_config)
+        self.set_default_client_config(backend_config)
 
     def _set_user_agent_for_session(self):
         # Mimic approach taken by AWS's aws-cli project
@@ -199,6 +224,14 @@ class AioSession(_SyncSession):
         aws_account_id=None,
     ):
         default_client_config = self.get_default_client_config()
+        if default_client_config is None and isinstance(config, AioConfig):
+            # The first explicit backend also establishes the session backend
+            # used by credentials, IMDS, token refresh, and loader offloading.
+            # Nested clients then inherit the same transport automatically.
+            default_client_config = AioConfig(
+                http_session_cls=config.http_session_cls
+            )
+            self.set_default_client_config(default_client_config)
         # If a config is provided and a default config is set, then
         # use the config resulting from merging the two.
         if config is not None and default_client_config is not None:

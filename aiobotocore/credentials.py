@@ -82,9 +82,10 @@ logger = logging.getLogger(__name__)
 
 def create_credential_resolver(
     session,
-    async_primitives,
     cache=None,
     region_name=None,
+    *,
+    async_primitives=AsyncPrimitives.ASYNCIO,
 ):
     """Create a default credential resolver.
     This creates a pre-configured credential resolver

@@ -4,6 +4,8 @@ from collections import deque
 from collections.abc import AsyncIterable, AsyncIterator
 from typing import Any, Generic, TypeVar
 
+import anyio
+
 T = TypeVar('T')
 
 
@@ -11,12 +13,9 @@ class _TeeState(Generic[T]):
     """Shared source and per-consumer buffers behind a set of tee iterators."""
 
     def __init__(self, itr: AsyncIterable[T], n: int) -> None:
-        import anyio
-
         self.iterator = itr.__aiter__()
         self.buffers = [deque() for _ in range(n)]
         self.lock = anyio.Lock()
-        self.cancelled_exc_class = anyio.get_cancelled_exc_class()
         # Empty until the source is done: holds None on exhaustion, else the
         # exception it raised. Replayed to every consumer, as aioitertools does.
         self.outcome: list[Any] = []
@@ -35,7 +34,7 @@ class _TeeState(Generic[T]):
                 value = await self.iterator.__anext__()
             except StopAsyncIteration:
                 self.outcome.append(None)
-            except self.cancelled_exc_class:
+            except anyio.get_cancelled_exc_class():
                 # Cancelling this consumer tears down the source, which is
                 # shared. Make the others fail loudly rather than silently
                 # yield a truncated stream.

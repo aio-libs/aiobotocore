@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import multiprocessing
 import random
-import re
 import string
 from contextlib import AsyncExitStack, ExitStack
 from itertools import chain
@@ -21,11 +20,8 @@ from aiobotocore.config import AioConfig
 from aiobotocore.httpsession import AIOHTTPSession
 from aiobotocore.httpxsession import HttpxSession, is_httpx_session_cls
 
-# The default http backend for tests that aren't parametrized by it (notably
-# the botocore-ported ones). httpx runs on both asyncio and trio, so prefer it
-# when installed; without httpx only aiohttp (asyncio-only) is available, and
-# the trio collection filter then drops those tests' trio variants.
-DEFAULT_HTTP_SESSION_CLS = AIOHTTPSession if httpx is None else HttpxSession
+# Match the library default for tests that do not select a backend explicitly.
+DEFAULT_HTTP_SESSION_CLS = AIOHTTPSession
 
 if TYPE_CHECKING:
     from _pytest.nodes import Node
@@ -727,10 +723,10 @@ def pytest_collection_modifyitems(config: pytest.Config, items):
     def item_params(item):
         return getattr(item, 'callspec', None) and item.callspec.params or {}
 
-    items[:] = [
-        item
-        for item in items
-        if not (
+    deselected = []
+    selected = []
+    for item in items:
+        if (
             item_params(item).get('anyio_backend') == 'trio'
             and not issubclass(
                 read_kwargs(item).get(
@@ -738,24 +734,32 @@ def pytest_collection_modifyitems(config: pytest.Config, items):
                 ),
                 HttpxSession,
             )
-        )
-    ]
+        ):
+            deselected.append(item)
+        else:
+            selected.append(item)
+    if deselected:
+        config.hook.pytest_deselected(items=deselected)
+    items[:] = selected
 
     http_backend = config.getoption("--http-backend")
     if http_backend == 'all':
         return
-    if http_backend == 'aiohttp':
-        ignore_backend = 'httpx'
-    else:
+    if http_backend != 'aiohttp':
         assert httpx is not None, (
             "Cannot run httpx as backend if it's not installed."
         )
-        ignore_backend = 'aiohttp'
     backend_skip = pytest.mark.skip(
         reason='Selected not to run with --http-backend'
     )
     for item in items:
-        if re.match(rf'.*\[.*{ignore_backend}.*\]', item.name):
+        session_cls = read_kwargs(item).get(
+            'http_session_cls', DEFAULT_HTTP_SESSION_CLS
+        )
+        is_httpx = issubclass(session_cls, HttpxSession)
+        if (http_backend == 'aiohttp' and is_httpx) or (
+            http_backend == 'httpx' and not is_httpx
+        ):
             item.add_marker(backend_skip)
 
 

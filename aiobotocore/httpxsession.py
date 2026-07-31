@@ -8,6 +8,7 @@ import ssl
 import warnings
 from collections.abc import AsyncIterable, Iterable
 from concurrent.futures import CancelledError
+from contextlib import AsyncExitStack
 from typing import TYPE_CHECKING, Any, cast
 
 import botocore
@@ -196,7 +197,11 @@ class HttpxSession:
         # The proxy connection gets the endpoint's verify settings but never
         # its client certificate: urllib3 passes cert_file=None when wrapping
         # the proxy socket, so only proxy_client_cert is offered to a proxy.
-        context = self._build_verify_context()
+        context = (
+            self._verify
+            if isinstance(self._verify, ssl.SSLContext)
+            else self._build_verify_context()
+        )
         try:
             url = parse_url(proxy_url)
             # urllib3 disables this by default but we need it for proper
@@ -235,6 +240,8 @@ class HttpxSession:
 
     async def __aenter__(self):
         assert not self._session
+        self._exit_stack = AsyncExitStack()
+        await self._exit_stack.__aenter__()
 
         # Resolve the proxy URL for each scheme so we can mount a transport
         # per proxy. httpx configures proxies on the client/transport rather
@@ -259,11 +266,10 @@ class HttpxSession:
             max_connections=self._max_pool_connections,
             keepalive_expiry=self._connector_args['keepalive_timeout'],
         )
+        self._sessions: dict[str | None, httpx.AsyncClient] = {}
 
-        # The AsyncClient is built lazily on the first send: httpx bakes proxy
-        # headers into the client, and BOTO_EXPERIMENTAL__ADD_PROXY_HOST_HEADER
-        # needs the request host, which we only learn then. A given session
-        # only ever talks to one endpoint host, so it's built exactly once.
+        # AsyncClients are built lazily because httpx bakes proxy headers into
+        # the transport and the experimental proxy Host header is per target.
         return self
 
     def _make_async_client(
@@ -304,27 +310,26 @@ class HttpxSession:
             trust_env=False,
         )
 
-    def _get_session(self, request_url: str) -> httpx.AsyncClient:
-        # Build the client on first use (see __aenter__). No await between the
-        # None check and the assignment, so this is race-free under
-        # cooperative scheduling even with concurrent sends.
-        if self._session is None:
-            proxy_host_header = None
-            if self._proxy_urls and ensure_boolean(
-                os.environ.get('BOTO_EXPERIMENTAL__ADD_PROXY_HOST_HEADER', '')
-            ):
-                # This is currently an "experimental" feature which provides
-                # no guarantees of backwards compatibility. It may be subject
-                # to change or removal in any patch version. Anyone opting in
-                # to this feature should strictly pin botocore.
-                proxy_host_header = urlparse(request_url).hostname
-            self._session = self._make_async_client(proxy_host_header)
+    async def _get_session(self, request_url: str) -> httpx.AsyncClient:
+        proxy_host_header = None
+        if self._proxy_urls and ensure_boolean(
+            os.environ.get('BOTO_EXPERIMENTAL__ADD_PROXY_HOST_HEADER', '')
+        ):
+            # Proxy headers are fixed on an httpx transport, so use one client
+            # per request host instead of pinning the first host seen.
+            proxy_host_header = urlparse(request_url).hostname
+        if proxy_host_header not in self._sessions:
+            client = self._make_async_client(proxy_host_header)
+            self._sessions[proxy_host_header] = (
+                await self._exit_stack.enter_async_context(client)
+            )
+        self._session = self._sessions[proxy_host_header]
         return self._session
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        if self._session:
-            await self._session.__aexit__(exc_type, exc_val, exc_tb)
-            self._session = None
+        await self._exit_stack.__aexit__(exc_type, exc_val, exc_tb)
+        self._sessions = {}
+        self._session = None
 
     def _get_ssl_context(self) -> SSLContext:
         return create_urllib3_context()
@@ -378,16 +383,34 @@ class HttpxSession:
             # This way of using it is currently ~undocumented, but recommended in
             # https://github.com/encode/httpx/discussions/1805#discussioncomment-8975989
             #
-            # Skip it when proxying: httpcore reuses the request's extensions for
-            # the proxy CONNECT request, and its "target" handling would replace
-            # the CONNECT authority (host:port) with this full URL, producing an
-            # invalid `CONNECT https://host/path` line. httpx/httpcore already
-            # build the correct target for both forward and tunnelled proxies.
-            extensions = (
-                {} if proxy_url else {"target": bytes(url, encoding='utf-8')}
-            )
+            extensions = {"target": bytes(url, encoding='utf-8')}
+            if proxy_url and urlparse(url).scheme == 'https':
+                # httpcore reuses endpoint extensions for its CONNECT request.
+                # Temporarily hide the raw endpoint target while CONNECT
+                # headers are serialized, then restore it for the tunneled
+                # request so non-normalized S3 paths remain byte-for-byte.
+                connect_target = extensions['target']
+                connect_extensions = None
 
-            session = self._get_session(url)
+                async def trace_connect(event, info):
+                    nonlocal connect_extensions
+                    if event.endswith('send_request_headers.started'):
+                        traced_request = info.get('request')
+                        if getattr(traced_request, 'method', None) == b'CONNECT':
+                            connect_extensions = traced_request.extensions
+                            connect_extensions.pop('target', None)
+                    elif connect_extensions is not None and event.endswith(
+                        (
+                            'send_request_headers.complete',
+                            'send_request_headers.failed',
+                        )
+                    ):
+                        connect_extensions['target'] = connect_target
+                        connect_extensions = None
+
+                extensions['trace'] = trace_connect
+
+            session = await self._get_session(url)
 
             httpx_request = session.build_request(
                 method=request.method,
