@@ -736,9 +736,7 @@ class AioS3RegionRedirector(S3RegionRedirector):
 class AioContainerMetadataFetcher(ContainerMetadataFetcher):
     _ref_counted_session_cls = _RefCountedSession
 
-    def __init__(
-        self, session=None, sleep=asyncio.sleep
-    ):  # noqa: E501, lgtm [py/missing-call-to-init]
+    def __init__(self, session=None, sleep=asyncio.sleep):  # noqa: E501, lgtm [py/missing-call-to-init]
         if session is None:
             session = self._ref_counted_session_cls(
                 timeout=self.TIMEOUT_SECONDS

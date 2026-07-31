@@ -296,9 +296,7 @@ def test_session_constructor_accepts_async_primitives_enum():
 def test_async_primitives_follow_default_client_config():
     pytest.importorskip("httpx")
     session = AioSession()
-    session.set_default_client_config(
-        AioConfig(http_session_cls=HttpxSession)
-    )
+    session.set_default_client_config(AioConfig(http_session_cls=HttpxSession))
 
     assert session._async_primitives is AsyncPrimitives.ANYIO
 

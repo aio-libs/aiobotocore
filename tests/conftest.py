@@ -726,14 +726,11 @@ def pytest_collection_modifyitems(config: pytest.Config, items):
     deselected = []
     selected = []
     for item in items:
-        if (
-            item_params(item).get('anyio_backend') == 'trio'
-            and not issubclass(
-                read_kwargs(item).get(
-                    'http_session_cls', DEFAULT_HTTP_SESSION_CLS
-                ),
-                HttpxSession,
-            )
+        if item_params(item).get('anyio_backend') == 'trio' and not issubclass(
+            read_kwargs(item).get(
+                'http_session_cls', DEFAULT_HTTP_SESSION_CLS
+            ),
+            HttpxSession,
         ):
             deselected.append(item)
         else:

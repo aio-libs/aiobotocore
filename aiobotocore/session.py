@@ -67,17 +67,13 @@ class AioSession(_SyncSession):
     @property
     def _async_primitives(self):
         config = self.get_default_client_config()
-        http_session_cls = getattr(
-            config, 'http_session_cls', AIOHTTPSession
-        )
+        http_session_cls = getattr(config, 'http_session_cls', AIOHTTPSession)
         return infer_async_primitives(http_session_cls)
 
     @_async_primitives.setter
     def _async_primitives(self, value):
         http_session_cls = (
-            HttpxSession
-            if value is AsyncPrimitives.ANYIO
-            else AIOHTTPSession
+            HttpxSession if value is AsyncPrimitives.ANYIO else AIOHTTPSession
         )
         config = self.get_default_client_config()
         backend_config = AioConfig(http_session_cls=http_session_cls)

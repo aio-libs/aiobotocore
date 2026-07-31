@@ -320,9 +320,9 @@ class HttpxSession:
             proxy_host_header = urlparse(request_url).hostname
         if proxy_host_header not in self._sessions:
             client = self._make_async_client(proxy_host_header)
-            self._sessions[proxy_host_header] = (
-                await self._exit_stack.enter_async_context(client)
-            )
+            self._sessions[
+                proxy_host_header
+            ] = await self._exit_stack.enter_async_context(client)
         self._session = self._sessions[proxy_host_header]
         return self._session
 
@@ -396,7 +396,10 @@ class HttpxSession:
                     nonlocal connect_extensions
                     if event.endswith('send_request_headers.started'):
                         traced_request = info.get('request')
-                        if getattr(traced_request, 'method', None) == b'CONNECT':
+                        if (
+                            getattr(traced_request, 'method', None)
+                            == b'CONNECT'
+                        ):
                             connect_extensions = traced_request.extensions
                             connect_extensions.pop('target', None)
                     elif connect_extensions is not None and event.endswith(
