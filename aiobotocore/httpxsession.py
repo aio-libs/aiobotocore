@@ -51,6 +51,7 @@ if TYPE_CHECKING:
 # builds a fresh HttpxSession per client, and under a warning filter of 'always'
 # an unguarded warning would fire on every instance.
 _LEGACY_HTTPX_WARNED = False
+_RAW_PROXY_TARGET = 'aiobotocore_raw_proxy_target'
 
 
 class _ProxyTargetExtensions(dict):
@@ -62,8 +63,8 @@ class _ProxyTargetExtensions(dict):
     raw S3 path on the endpoint request without replacing CONNECT's authority.
     """
 
-    def __init__(self, target: bytes):
-        super().__init__(target=target)
+    def __init__(self, extensions: dict, target: bytes):
+        super().__init__(extensions, target=target)
         self._target_applied = False
 
     def __contains__(self, key):
@@ -72,6 +73,22 @@ class _ProxyTargetExtensions(dict):
                 return False
             self._target_applied = True
         return super().__contains__(key)
+
+
+if httpx is not None:
+
+    class _ProxyTargetTransport(httpx.AsyncHTTPTransport):
+        async def handle_async_request(self, request):
+            target = request.extensions.pop(_RAW_PROXY_TARGET, None)
+            if target is not None:
+                # This is the last layer before HTTPcore constructs its
+                # endpoint Request, followed by its CONNECT Request. Preserve
+                # timeout and other HTTPX extensions while exposing target to
+                # the first construction only.
+                request.extensions = _ProxyTargetExtensions(
+                    request.extensions, target
+                )
+            return await super().handle_async_request(request)
 
 
 def _find_ssl_error(exc: BaseException) -> ssl.SSLError | None:
@@ -307,7 +324,7 @@ class HttpxSession:
                 headers=headers or None,
                 ssl_context=self._proxy_ssl_contexts.get(proxy_url),
             )
-            mounts[f'{scheme}://'] = httpx.AsyncHTTPTransport(
+            mounts[f'{scheme}://'] = _ProxyTargetTransport(
                 verify=self._verify,
                 limits=self._limits,
                 proxy=proxy,
@@ -405,7 +422,9 @@ class HttpxSession:
             # https://github.com/encode/httpx/discussions/1805#discussioncomment-8975989
             #
             target = bytes(url, encoding='utf-8')
-            extensions = {"target": target}
+            extensions = {
+                (_RAW_PROXY_TARGET if proxy_url else 'target'): target
+            }
 
             session = await self._get_session(url)
 
@@ -416,8 +435,6 @@ class HttpxSession:
                 content=content,
                 extensions=extensions,
             )
-            if proxy_url and urlparse(url).scheme == 'https':
-                httpx_request.extensions = _ProxyTargetExtensions(target)
             assert isinstance(httpx_request.stream, httpx.AsyncByteStream)
             # auth, follow_redirects
             response = await session.send(httpx_request, stream=True)
