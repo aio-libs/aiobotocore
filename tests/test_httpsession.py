@@ -4,9 +4,11 @@ import pytest
 
 from aiobotocore.httpsession import AIOHTTPSession
 from aiobotocore.httpxsession import HttpxSession
+from aiobotocore.session import AioSession
 
 
-async def test_cannot_create_client_sessions_outside_context(session):
+async def test_cannot_create_client_sessions_outside_context():
+    session = AioSession()
     s3_client_context = session.create_client(
         's3',
         'us-west-2',

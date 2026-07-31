@@ -1842,8 +1842,9 @@ async def test_processprovider_can_retrieve_account_id_via_profile_config(
 async def test_session_retrieve_creds_via_real_subprocess(
     http_session_cls, tmp_path
 ):
-    session = AioSession(
-        async_primitives=infer_async_primitives(http_session_cls)
+    session = AioSession()
+    session.set_default_client_config(
+        AioConfig(http_session_cls=http_session_cls)
     )
     script = tmp_path / 'credential_process.py'
     script.write_text(

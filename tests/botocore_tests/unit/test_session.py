@@ -210,6 +210,7 @@ class TestCreateClient(BaseSessionTest):
         self, client_creator, session
     ):
         # Make sure there is no default set
+        session.set_default_client_config(None)
         assert session.get_default_client_config() is None
 
         # The config passed to the client should be the one that is used
@@ -275,6 +276,7 @@ class TestCreateClient(BaseSessionTest):
             assert ec2_client.meta.region_name == 'us-west-2'
 
     async def test_create_client_with_region_and_client_config(self, session):
+        session.set_default_client_config(None)
         config = aiobotocore.config.AioConfig()
         # Use a client config with no region configured.
         async with session.create_client(
