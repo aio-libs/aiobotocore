@@ -240,9 +240,7 @@ class HttpxSession:
             cadata = ''.join(
                 ssl.DER_cert_to_PEM_cert(cert) for cert in ca_certs
             )
-            context.load_verify_locations(
-                cadata=cadata
-            )
+            context.load_verify_locations(cadata=cadata)
         return context
 
     def _setup_proxy_ssl_context(self, proxy_url: str) -> SSLContext:

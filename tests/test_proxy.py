@@ -25,7 +25,6 @@ from botocore.exceptions import (
 )
 
 from aiobotocore.httpxsession import HttpxSession
-
 from tests.tls_helpers import (
     prepared_request,
     serve_https_target,
