@@ -23,6 +23,7 @@ from botocore.exceptions import (
     InvalidProxiesConfigError,
     ProxyConnectionError,
 )
+
 from tests.tls_helpers import (
     prepared_request,
     serve_https_target,

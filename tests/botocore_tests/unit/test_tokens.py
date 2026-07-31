@@ -21,8 +21,8 @@ from botocore.exceptions import (
     TokenRetrievalError,
 )
 
-from aiobotocore.session import AioSession
 from aiobotocore._async_primitives import AsyncPrimitives
+from aiobotocore.session import AioSession
 from aiobotocore.tokens import (
     AioSSOTokenProvider,
     AnyioDeferredRefreshableToken,

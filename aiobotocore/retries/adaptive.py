@@ -1,7 +1,7 @@
 """An async reimplementation of the blocking elements from botocore.retries.adaptive."""
 
-import logging
 import asyncio
+import logging
 
 from botocore.retries import standard, throttling
 

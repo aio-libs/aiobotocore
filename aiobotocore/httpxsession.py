@@ -374,9 +374,7 @@ class HttpxSession:
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         try:
-            return await self._exit_stack.__aexit__(
-                exc_type, exc_val, exc_tb
-            )
+            return await self._exit_stack.__aexit__(exc_type, exc_val, exc_tb)
         finally:
             self._sessions = {}
             self._entered = False

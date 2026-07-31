@@ -36,6 +36,7 @@ def ca_bundle(ca, tmp_path):
     path.write_bytes(ca.cert_pem.bytes())
     return str(path)
 
+
 if TYPE_CHECKING:
     from _pytest.nodes import Node
 

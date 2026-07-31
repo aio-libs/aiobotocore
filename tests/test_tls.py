@@ -13,12 +13,14 @@ import json
 import anyio
 import pytest
 from botocore.exceptions import SSLError
+
 from tests.tls_helpers import (
     prepared_request,
     serve_https_target,
 )
 
 pytestmark = pytest.mark.anyio
+
 
 async def test_custom_ca_bundle(http_session_cls, ca, ca_bundle):
     # The endpoint's verify setting has to reach the connection: this CA is not
