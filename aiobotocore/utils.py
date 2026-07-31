@@ -40,6 +40,7 @@ from botocore.utils import (
 
 import aiobotocore.httpsession
 import aiobotocore.httpxsession
+from aiobotocore._async_primitives import AsyncPrimitives, create_lock
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +52,7 @@ class _RefCountedSessionMixin:
         self.__lock = None
 
     def _create_lock(self):
-        return asyncio.Lock()
+        return create_lock(AsyncPrimitives.ASYNCIO)
 
     @contextlib.asynccontextmanager
     async def acquire(self):
@@ -91,11 +92,7 @@ class _RefCountedHttpxSession(
     """Ref counted httpx session, for the backend that also runs on trio."""
 
     def _create_lock(self):
-        # anyio is a hard dependency of httpx, so it is importable whenever
-        # the httpx backend is in use.
-        import anyio
-
-        return anyio.Lock()
+        return create_lock(AsyncPrimitives.ANYIO)
 
 
 class AioIMDSFetcher(IMDSFetcher):

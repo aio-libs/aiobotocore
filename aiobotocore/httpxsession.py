@@ -152,7 +152,8 @@ class HttpxSession:
             self._connector_args = connector_args
 
         # TODO: neither this nor AIOHTTPSession handles socket_options
-        self._session: httpx.AsyncClient | None = None
+        self._entered = False
+        self._proxy_ssl_contexts: dict[str, SSLContext]
         conn_timeout: float | None
         read_timeout: float | None
 
@@ -277,38 +278,46 @@ class HttpxSession:
         return verify, proxy_ssl_contexts
 
     async def __aenter__(self):
-        assert not self._session
-        self._exit_stack = AsyncExitStack()
-        await self._exit_stack.__aenter__()
+        assert not self._entered
+        self._entered = True
+        try:
+            self._exit_stack = AsyncExitStack()
+            await self._exit_stack.__aenter__()
 
-        # Resolve the proxy URL for each scheme so we can mount a transport
-        # per proxy. httpx configures proxies on the client/transport rather
-        # than per-request the way aiohttp does. {scheme: fixed proxy url}
-        self._proxy_urls = {
-            scheme: proxy_url
-            for scheme in ('http', 'https')
-            if (proxy_url := self._proxy_config.proxy_url_for(f'{scheme}://'))
-        }
+            # Resolve the proxy URL for each scheme so we can mount a transport
+            # per proxy. httpx configures proxies on the client/transport rather
+            # than per-request the way aiohttp does. {scheme: fixed proxy url}
+            self._proxy_urls = {
+                scheme: proxy_url
+                for scheme in ('http', 'https')
+                if (
+                    proxy_url := self._proxy_config.proxy_url_for(
+                        f'{scheme}://'
+                    )
+                )
+            }
 
-        # Build the SSL contexts off the event loop on first entry — blocking
-        # file I/O for the endpoint verify context and any proxy TLS. (#1469)
-        self._proxy_ssl_contexts: dict[str, SSLContext] = {}
-        (
-            self._verify,
-            self._proxy_ssl_contexts,
-        ) = await anyio.to_thread.run_sync(
-            self._build_ssl_contexts, self._proxy_urls
-        )
+            # Build SSL contexts off the event loop on first entry — blocking
+            # file I/O for endpoint verification and proxy TLS. (#1469)
+            (
+                self._verify,
+                self._proxy_ssl_contexts,
+            ) = await anyio.to_thread.run_sync(
+                self._build_ssl_contexts, self._proxy_urls
+            )
 
-        self._limits = httpx.Limits(
-            max_connections=self._max_pool_connections,
-            keepalive_expiry=self._connector_args['keepalive_timeout'],
-        )
-        self._sessions: dict[str | None, httpx.AsyncClient] = {}
+            self._limits = httpx.Limits(
+                max_connections=self._max_pool_connections,
+                keepalive_expiry=self._connector_args['keepalive_timeout'],
+            )
+            self._sessions: dict[str | None, httpx.AsyncClient] = {}
 
-        # AsyncClients are built lazily because httpx bakes proxy headers into
-        # the transport and the experimental proxy Host header is per target.
-        return self
+            # AsyncClients are built lazily because httpx bakes proxy headers
+            # into the transport and the experimental Host header is per target.
+            return self
+        except BaseException:
+            self._entered = False
+            raise
 
     def _make_async_client(
         self, proxy_host_header: str | None
@@ -361,13 +370,16 @@ class HttpxSession:
             self._sessions[
                 proxy_host_header
             ] = await self._exit_stack.enter_async_context(client)
-        self._session = self._sessions[proxy_host_header]
-        return self._session
+        return self._sessions[proxy_host_header]
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        await self._exit_stack.__aexit__(exc_type, exc_val, exc_tb)
-        self._sessions = {}
-        self._session = None
+        try:
+            return await self._exit_stack.__aexit__(
+                exc_type, exc_val, exc_tb
+            )
+        finally:
+            self._sessions = {}
+            self._entered = False
 
     def _get_ssl_context(self) -> SSLContext:
         return create_urllib3_context()

@@ -136,6 +136,19 @@ fails — it stands up a proxy that demands a client certificate and asserts
 the endpoint's certificate does not satisfy it. Prefer a public aiohttp API
 here if one ever lands.
 
+The httpx backend has a second deliberate HTTPcore-internal dependency for
+proxied requests with raw S3 paths. HTTPcore constructs the endpoint request
+and then its CONNECT request from the same extensions mapping, probing
+`"target" in extensions` once for each. `_ProxyTargetExtensions` exposes the
+raw target only to the first probe, preserving the endpoint path without
+replacing the CONNECT authority. This relies on the probe order and count in
+HTTPcore and HTTPcore2, not a public hook. The compatibility test
+`tests/test_httpx_compat.py::test_proxy_connect_does_not_reuse_raw_endpoint_target`
+constructs both requests in order and pins the endpoint target, CONNECT
+target, and preservation of unrelated extensions. Prefer an upstream
+HTTPcore distinction between endpoint and tunnel targets if one becomes
+available.
+
 ## Pattern 4: Credential async layer
 
 Credential providers/fetchers that do network I/O (IMDS, STS,

@@ -22,6 +22,20 @@ from aiobotocore.httpxsession import HttpxSession, is_httpx_session_cls
 # Match the library default for tests that do not select a backend explicitly.
 DEFAULT_HTTP_SESSION_CLS = AIOHTTPSession
 
+
+@pytest.fixture
+def ca():
+    import trustme
+
+    return trustme.CA()
+
+
+@pytest.fixture
+def ca_bundle(ca, tmp_path):
+    path = tmp_path / "ca.pem"
+    path.write_bytes(ca.cert_pem.bytes())
+    return str(path)
+
 if TYPE_CHECKING:
     from _pytest.nodes import Node
 
@@ -715,33 +729,15 @@ def pytest_generate_tests(metafunc):
 def pytest_collection_modifyitems(config: pytest.Config, items):
     """Mark parametrized tests for skipping in case the corresponding backend is not enabled."""
 
-    # aiohttp is asyncio-only, so trio must never run on the aiohttp backend.
-    # Read the anyio backend from the item's params and the http backend from
-    # the config_kwargs mark rather than the item name: botocore-ported tests
-    # aren't parametrized by http backend and so default to aiohttp without
-    # ``aiohttp`` appearing in their name.
     def item_params(item):
         return getattr(item, 'callspec', None) and item.callspec.params or {}
 
-    deselected = []
-    selected = []
-    for item in items:
-        if item_params(item).get('anyio_backend') == 'trio' and not issubclass(
-            read_kwargs(item).get(
-                'http_session_cls', DEFAULT_HTTP_SESSION_CLS
-            ),
-            HttpxSession,
-        ):
-            deselected.append(item)
-        else:
-            selected.append(item)
-    if deselected:
-        config.hook.pytest_deselected(items=deselected)
-    items[:] = selected
+    def session_cls_of(item):
+        return read_kwargs(item).get(
+            'http_session_cls', DEFAULT_HTTP_SESSION_CLS
+        )
 
     http_backend = config.getoption("--http-backend")
-    if http_backend == 'all':
-        return
     if http_backend != 'aiohttp':
         assert httpx is not None, (
             "Cannot run httpx as backend if it's not installed."
@@ -749,15 +745,27 @@ def pytest_collection_modifyitems(config: pytest.Config, items):
     backend_skip = pytest.mark.skip(
         reason='Selected not to run with --http-backend'
     )
+
+    # aiohttp is asyncio-only, so trio must never run on the aiohttp backend.
+    # Read both selectors once per item: botocore-ported tests may use the
+    # shipped aiohttp default without the backend appearing in their name.
+    deselected = []
+    selected = []
     for item in items:
-        session_cls = read_kwargs(item).get(
-            'http_session_cls', DEFAULT_HTTP_SESSION_CLS
-        )
-        is_httpx = issubclass(session_cls, HttpxSession)
-        if (http_backend == 'aiohttp' and is_httpx) or (
-            http_backend == 'httpx' and not is_httpx
+        is_httpx = issubclass(session_cls_of(item), HttpxSession)
+        if item_params(item).get('anyio_backend') == 'trio' and not is_httpx:
+            deselected.append(item)
+            continue
+        if http_backend != 'all' and (
+            (http_backend == 'aiohttp' and is_httpx)
+            or (http_backend == 'httpx' and not is_httpx)
         ):
             item.add_marker(backend_skip)
+        selected.append(item)
+
+    if deselected:
+        config.hook.pytest_deselected(items=deselected)
+    items[:] = selected
 
 
 pytest_plugins = ['tests.mock_server']

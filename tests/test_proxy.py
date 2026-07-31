@@ -16,64 +16,21 @@ import sys
 import anyio
 import pytest
 import tiny_proxy
-import trustme
 from anyio.abc import SocketAttribute
 from anyio.streams.tls import TLSListener
-from botocore.awsrequest import AWSRequest
 from botocore.exceptions import (
     HTTPClientError,
     InvalidProxiesConfigError,
     ProxyConnectionError,
 )
+from tests.tls_helpers import (
+    prepared_request,
+    serve_https_target,
+)
 
 pytestmark = pytest.mark.anyio
 
-TARGET_HOST = "localhost"
 PROXY_HOST = "localhost"
-RESPONSE_BODY = b'{"ok": true}'
-
-
-async def _handle_target(stream) -> None:
-    """A minimal HTTP/1.1 server: read one request, return a fixed 200."""
-    try:
-        buf = b""
-        while b"\r\n\r\n" not in buf:
-            buf += await stream.receive()
-        await stream.send(
-            b"HTTP/1.1 200 OK\r\n"
-            b"Content-Length: %d\r\n"
-            b"Content-Type: application/json\r\n"
-            b"\r\n%b" % (len(RESPONSE_BODY), RESPONSE_BODY)
-        )
-    except (
-        anyio.EndOfStream,
-        anyio.BrokenResourceError,
-        ConnectionResetError,
-    ):  # pragma: no cover
-        pass
-    finally:
-        try:
-            await stream.aclose()
-        except (
-            anyio.BrokenResourceError,
-            ssl.SSLError,
-        ):  # pragma: no cover
-            # aclose() force-closes the socket and re-raises when the client
-            # hung up without a TLS shutdown handshake.
-            pass
-
-
-async def _serve_https_target(ca, *, task_status) -> None:
-    server_cert = ca.issue_cert(TARGET_HOST)
-    ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-    server_cert.configure_cert(ssl_context)
-
-    listener = await anyio.create_tcp_listener(
-        local_host="127.0.0.1", local_port=0
-    )
-    port = listener.extra(SocketAttribute.local_port)
-    task_status.started(port)
-    await TLSListener(listener, ssl_context).serve(_handle_target)
 
 
 async def _serve_http_proxy(*, task_status) -> None:
@@ -103,18 +60,6 @@ async def _serve_https_proxy(ca, *, client_ca=None, task_status) -> None:
     port = listener.extra(SocketAttribute.local_port)
     task_status.started(port)
     await TLSListener(listener, ssl_context).serve(handler.handle)
-
-
-@pytest.fixture
-def ca():
-    return trustme.CA()
-
-
-@pytest.fixture
-def ca_bundle(ca, tmp_path):
-    path = tmp_path / "ca.pem"
-    path.write_bytes(ca.cert_pem.bytes())
-    return str(path)
 
 
 @pytest.fixture
@@ -152,16 +97,6 @@ def client_cert(request, ca, tmp_path):
     return str(cert_path), str(key_path)
 
 
-def _prepared_request(port: int) -> AWSRequest:
-    request = AWSRequest(
-        method="GET",
-        url=f"https://{TARGET_HOST}:{port}/foo?id=1",
-        headers={"Accept": "application/json"},
-    ).prepare()
-    request.stream_output = False
-    return request
-
-
 @pytest.mark.parametrize("add_host_header", [False, True])
 async def test_https_request_through_http_proxy(
     http_session_cls, ca, ca_bundle, monkeypatch, add_host_header
@@ -171,13 +106,13 @@ async def test_https_request_through_http_proxy(
 
     async with anyio.create_task_group() as tg:
         proxy_port = await tg.start(_serve_http_proxy)
-        target_port = await tg.start(_serve_https_target, ca)
+        target_port = await tg.start(serve_https_target, ca)
 
         async with http_session_cls(
             proxies={"https": f"http://127.0.0.1:{proxy_port}"},
             verify=ca_bundle,
         ) as session:
-            response = await session.send(_prepared_request(target_port))
+            response = await session.send(prepared_request(target_port))
             assert response.status_code == 200
             assert json.loads(await response.content) == {"ok": True}
 
@@ -198,7 +133,7 @@ async def test_https_request_through_https_proxy(
 
     async with anyio.create_task_group() as tg:
         proxy_port = await tg.start(_serve_https_proxy, ca)
-        target_port = await tg.start(_serve_https_target, ca)
+        target_port = await tg.start(serve_https_target, ca)
 
         async with http_session_cls(
             proxies={"https": f"https://{PROXY_HOST}:{proxy_port}"},
@@ -208,7 +143,7 @@ async def test_https_request_through_https_proxy(
             },
             verify=ca_bundle,
         ) as session:
-            response = await session.send(_prepared_request(target_port))
+            response = await session.send(prepared_request(target_port))
             assert response.status_code == 200
             assert json.loads(await response.content) == {"ok": True}
 
@@ -227,7 +162,7 @@ async def test_https_request_through_https_proxy_with_combined_proxy_client_cert
 
     async with anyio.create_task_group() as tg:
         proxy_port = await tg.start(_serve_https_proxy, ca)
-        target_port = await tg.start(_serve_https_target, ca)
+        target_port = await tg.start(serve_https_target, ca)
 
         async with http_session_cls(
             proxies={"https": f"https://{PROXY_HOST}:{proxy_port}"},
@@ -237,7 +172,7 @@ async def test_https_request_through_https_proxy_with_combined_proxy_client_cert
             },
             verify=ca_bundle,
         ) as session:
-            response = await session.send(_prepared_request(target_port))
+            response = await session.send(prepared_request(target_port))
             assert response.status_code == 200
             assert json.loads(await response.content) == {"ok": True}
 
@@ -249,14 +184,14 @@ async def test_https_request_through_http_proxy_with_client_cert(
 ):
     async with anyio.create_task_group() as tg:
         proxy_port = await tg.start(_serve_http_proxy)
-        target_port = await tg.start(_serve_https_target, ca)
+        target_port = await tg.start(serve_https_target, ca)
 
         async with http_session_cls(
             proxies={"https": f"http://127.0.0.1:{proxy_port}"},
             verify=ca_bundle,
             client_cert=client_cert,
         ) as session:
-            response = await session.send(_prepared_request(target_port))
+            response = await session.send(prepared_request(target_port))
             assert response.status_code == 200
             assert json.loads(await response.content) == {"ok": True}
 
@@ -278,7 +213,7 @@ async def test_endpoint_client_cert_is_not_offered_to_proxy(
                 ca, client_ca=ca, task_status=task_status
             )
         )
-        target_port = await tg.start(_serve_https_target, ca)
+        target_port = await tg.start(serve_https_target, ca)
 
         async with http_session_cls(
             proxies={"https": f"https://{PROXY_HOST}:{proxy_port}"},
@@ -287,7 +222,7 @@ async def test_endpoint_client_cert_is_not_offered_to_proxy(
             client_cert=client_cert,
         ) as session:
             with pytest.raises((ProxyConnectionError, HTTPClientError)):
-                await session.send(_prepared_request(target_port))
+                await session.send(prepared_request(target_port))
 
         tg.cancel_scope.cancel()
 
@@ -305,10 +240,10 @@ async def test_environment_proxies_are_not_applied_by_the_backend(
     monkeypatch.setenv("ALL_PROXY", "http://127.0.0.1:1")
 
     async with anyio.create_task_group() as tg:
-        target_port = await tg.start(_serve_https_target, ca)
+        target_port = await tg.start(serve_https_target, ca)
 
         async with http_session_cls(verify=ca_bundle) as session:
-            response = await session.send(_prepared_request(target_port))
+            response = await session.send(prepared_request(target_port))
             assert response.status_code == 200
             assert json.loads(await response.content) == {"ok": True}
 
@@ -326,7 +261,7 @@ async def test_invalid_proxy_ca_bundle(http_session_cls, tmp_path):
             proxies={"https": "https://localhost:1"},
             proxies_config={"proxy_ca_bundle": missing},
         ) as session:
-            await session.send(_prepared_request(1))
+            await session.send(prepared_request(1))
 
 
 async def test_proxy_cannot_reach_target(http_session_cls, ca_bundle):
@@ -340,6 +275,6 @@ async def test_proxy_cannot_reach_target(http_session_cls, ca_bundle):
             verify=ca_bundle,
         ) as session:
             with pytest.raises(ProxyConnectionError):
-                await session.send(_prepared_request(1))
+                await session.send(prepared_request(1))
 
         tg.cancel_scope.cancel()

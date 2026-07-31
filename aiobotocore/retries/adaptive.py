@@ -1,6 +1,5 @@
 """An async reimplementation of the blocking elements from botocore.retries.adaptive."""
 
-import asyncio
 import logging
 
 from botocore.retries import standard, throttling
@@ -10,6 +9,7 @@ from botocore.retries import standard, throttling
 # blocking.
 from botocore.retries.adaptive import RateClocker
 
+from .._async_primitives import AsyncPrimitives, create_lock
 from ..httpsession import AIOHTTPSession
 from ..httpxsession import HttpxSession
 from . import bucket
@@ -84,7 +84,7 @@ class AsyncClientRateLimiter:
         self._lock = self._create_lock()
 
     def _create_lock(self):
-        return asyncio.Lock()
+        return create_lock(AsyncPrimitives.ASYNCIO)
 
     async def on_sending_request(self, request, **kwargs):
         if self._enabled:
@@ -125,8 +125,4 @@ class AnyioClientRateLimiter(AsyncClientRateLimiter):
     """Rate limiter for the httpx backend, which also runs on trio."""
 
     def _create_lock(self):
-        # anyio is a hard dependency of httpx, so it is importable whenever
-        # the httpx backend is in use.
-        import anyio
-
-        return anyio.Lock()
+        return create_lock(AsyncPrimitives.ANYIO)
