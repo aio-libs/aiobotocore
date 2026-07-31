@@ -10,6 +10,7 @@ from aiobotocore._async_primitives import (
     infer_async_primitives,
 )
 from aiobotocore.config import AioConfig
+from aiobotocore.credentials import _get_client_creator
 from aiobotocore.httpxsession import HttpxSession
 from aiobotocore.session import AioSession
 
@@ -272,34 +273,27 @@ def _imds_session_cls(session: AioSession):
     return type(fetcher._session)
 
 
-def test_imds_backend_follows_the_provided_primitive_asyncio():
-    session = AioSession(async_primitives=AsyncPrimitives.ASYNCIO)
+def test_imds_backend_follows_the_default_http_backend_asyncio():
+    session = AioSession()
     assert _imds_session_cls(session) is utils._RefCountedSession
 
 
-def test_imds_backend_follows_the_provided_primitive_anyio():
+def test_imds_backend_follows_the_default_http_backend_anyio():
     pytest.importorskip("httpx")
-    session = AioSession(async_primitives=AsyncPrimitives.ANYIO)
+    session = AioSession()
+    session.set_default_client_config(AioConfig(http_session_cls=HttpxSession))
     assert _imds_session_cls(session) is utils._RefCountedHttpxSession
 
 
-def test_session_constructor_accepts_async_primitives_enum():
+def test_credential_resolver_follows_the_default_http_backend():
     pytest.importorskip("httpx")
-    session = AioSession(async_primitives=AsyncPrimitives.ANYIO)
+    session = AioSession()
+    session.set_default_client_config(AioConfig(http_session_cls=HttpxSession))
 
     resolver = session._create_credential_resolver()
 
     fetcher = resolver.get_provider('iam-role')._role_fetcher
     assert type(fetcher._session) is utils._RefCountedHttpxSession
-
-
-def test_session_async_primitives_can_be_overridden():
-    session = AioSession(async_primitives=AsyncPrimitives.ASYNCIO)
-
-    session._async_primitives = AsyncPrimitives.ANYIO
-
-    assert session._async_primitives is AsyncPrimitives.ANYIO
-
 
 def test_async_primitives_follow_default_client_config():
     pytest.importorskip("httpx")
@@ -307,6 +301,18 @@ def test_async_primitives_follow_default_client_config():
     session.set_default_client_config(AioConfig(http_session_cls=HttpxSession))
 
     assert session._async_primitives is AsyncPrimitives.ANYIO
+
+
+@pytest.mark.parametrize('service_name', ['sts', 'sso', 'sso-oidc'])
+async def test_credential_nested_clients_follow_default_http_backend(
+    session, http_session_cls, service_name
+):
+    session.set_credentials('access-key', 'secret-key')
+    client_creator = _get_client_creator(session, 'us-east-1')
+
+    async with client_creator(service_name) as client:
+        assert client.meta.config.http_session_cls is http_session_cls
+        assert isinstance(client._endpoint.http_session, http_session_cls)
 
 
 def test_session_fixture_uses_primitives_for_http_backend(

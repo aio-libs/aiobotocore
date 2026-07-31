@@ -14,7 +14,6 @@ import anyio
 import pytest
 
 import aiobotocore.session
-from aiobotocore._async_primitives import infer_async_primitives
 from aiobotocore._httpx import httpx
 from aiobotocore.config import AioConfig
 from aiobotocore.httpsession import AIOHTTPSession
@@ -117,8 +116,9 @@ def aa_succeed_proxy_config(monkeypatch):  # pragma: no cover
 
 @pytest.fixture
 def session(http_session_cls) -> aiobotocore.session.AioSession:
-    session = aiobotocore.session.AioSession(
-        async_primitives=infer_async_primitives(http_session_cls)
+    session = aiobotocore.session.AioSession()
+    session.set_default_client_config(
+        AioConfig(http_session_cls=http_session_cls)
     )
     return session
 

@@ -24,7 +24,6 @@ from botocore.model import ServiceModel
 
 import aiobotocore.config
 from aiobotocore import client
-from aiobotocore._async_primitives import infer_async_primitives
 from aiobotocore.session import ClientCreatorContext
 from tests.botocore_tests import create_session, mock, temporary_file
 
@@ -59,8 +58,9 @@ class BaseSessionTest:
 
     @pytest.fixture
     def session(self, environ, environ_patch, http_session_cls):
-        session = create_session(
-            async_primitives=infer_async_primitives(http_session_cls)
+        session = create_session()
+        session.set_default_client_config(
+            _http_backend_config(http_session_cls)
         )
         config_chain_builder = ConfigChainFactory(
             session=session,

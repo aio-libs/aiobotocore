@@ -49,7 +49,6 @@ class AioSession(_SyncSession):
         event_hooks=None,
         include_builtin_handlers=True,
         profile=None,
-        async_primitives: AsyncPrimitives | None = None,
     ):
         if event_hooks is None:
             event_hooks = AioHierarchicalEmitter()
@@ -57,21 +56,13 @@ class AioSession(_SyncSession):
         super().__init__(
             session_vars, event_hooks, include_builtin_handlers, profile
         )
-        self._async_primitives_override = async_primitives
-
         self._set_user_agent_for_session()
 
     @property
     def _async_primitives(self):
-        if self._async_primitives_override is not None:
-            return self._async_primitives_override
         config = self.get_default_client_config()
         http_session_cls = getattr(config, 'http_session_cls', AIOHTTPSession)
         return infer_async_primitives(http_session_cls)
-
-    @_async_primitives.setter
-    def _async_primitives(self, value):
-        self._async_primitives_override = value
 
     def _set_user_agent_for_session(self):
         # Mimic approach taken by AWS's aws-cli project
