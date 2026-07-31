@@ -60,8 +60,8 @@ jobs:
         - ubuntu-24.04
         with-awscrt:
         - false
-        no-httpx:
-        - false
+        httpx-extra:  # preferred backend on the main matrix
+        - httpx2
         experimental:
         - false
         include:
@@ -70,17 +70,22 @@ jobs:
         - python-version: 3.14  # add an arm64 run
           os: ubuntu-24.04-arm
           with-awscrt: false
-          no-httpx: false
+          httpx-extra: httpx2
           experimental: false
         - python-version: 3.14  # add a no-httpx run
           os: ubuntu-24.04
           with-awscrt: false
-          no-httpx: true
+          httpx-extra: ''
+          experimental: false
+        - python-version: 3.14  # add a legacy-httpx (deprecated fallback) run
+          os: ubuntu-24.04
+          with-awscrt: false
+          httpx-extra: httpx
           experimental: false
         - python-version: 3.14  # add a with-awscrt run
           os: ubuntu-24.04
           with-awscrt: true
-          no-httpx: false
+          httpx-extra: httpx2
           experimental: false
       fail-fast: false
     uses: ./.github/workflows/reusable-test.yml
@@ -90,7 +95,7 @@ jobs:
       continue-on-error: ${{ matrix.experimental }}
       enable-cache: ${{ github.ref_type == 'tag' && 'false' || 'auto' }}
       with-awscrt: ${{ matrix.with-awscrt }}
-      no-httpx: ${{ matrix.no-httpx }}
+      httpx-extra: ${{ matrix.httpx-extra }}
     secrets:
       codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
@@ -175,4 +180,4 @@ jobs:
         test -f "dist/aiobotocore-${VERSION}-py3-none-any.whl"
     - name: Publish distribution 📦 to PyPI
       # yamllint disable-line rule:line-length
-      uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b  # v1.14.0
+      uses: pypa/gh-action-pypi-publish@ba38be9e461d3875417946c167d0b5f3d385a247  # v1.14.1
