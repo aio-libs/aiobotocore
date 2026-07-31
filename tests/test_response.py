@@ -10,12 +10,8 @@ from botocore.exceptions import (
 )
 
 from aiobotocore import response
+from aiobotocore._httpx import httpx
 from aiobotocore.response import AioReadTimeoutError, HttpxStreamingBody
-
-try:
-    import httpx
-except ImportError:
-    httpx = None
 
 
 # https://github.com/boto/botocore/blob/develop/tests/unit/test_response.py
