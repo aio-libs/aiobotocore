@@ -293,6 +293,14 @@ def test_session_constructor_accepts_async_primitives_enum():
     assert type(fetcher._session) is utils._RefCountedHttpxSession
 
 
+def test_session_async_primitives_can_be_overridden():
+    session = AioSession(async_primitives=AsyncPrimitives.ASYNCIO)
+
+    session._async_primitives = AsyncPrimitives.ANYIO
+
+    assert session._async_primitives is AsyncPrimitives.ANYIO
+
+
 def test_async_primitives_follow_default_client_config():
     pytest.importorskip("httpx")
     session = AioSession()
