@@ -86,7 +86,7 @@ jobs:
     # botocore-sync workflow's setup-uv step.
     - name: Set up uv + Python
       # yamllint disable-line rule:line-length
-      uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990  # v8.3.2
+      uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9  # v9.0.0
       with:
         version: '0.11.12'
         python-version: '3.12'
@@ -130,7 +130,7 @@ jobs:
         } >> "$GITHUB_OUTPUT"
 
     # yamllint disable-line rule:line-length
-    - uses: anthropics/claude-code-action@700e7f8316990de46bed556429765647af760efc  # v1.0.176
+    - uses: anthropics/claude-code-action@e0cf66d1d257526b5d07f141838c338921cb8455  # v1.0.182
       id: claude
       env:
         # The file-ops MCP server commits to a branch fixed at server

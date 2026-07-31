@@ -5,17 +5,13 @@ from collections.abc import Callable
 from inspect import iscoroutine
 
 import aioitertools
+import anyio
 import botocore.retries.adaptive
-
-try:
-    import anyio
-    import httpx
-except ImportError:
-    httpx = None
 import pytest
 
 import aiobotocore.retries.adaptive
 from aiobotocore import httpsession
+from aiobotocore._httpx import httpx
 from aiobotocore.response import StreamingBody
 
 

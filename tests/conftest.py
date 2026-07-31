@@ -14,13 +14,9 @@ import aiohttp
 import anyio
 import pytest
 
-try:
-    import httpx
-except ImportError:
-    httpx = None
-
 import aiobotocore.session
 from aiobotocore._async_primitives import infer_async_primitives
+from aiobotocore._httpx import httpx
 from aiobotocore.config import AioConfig
 from aiobotocore.httpsession import AIOHTTPSession
 from aiobotocore.httpxsession import HttpxSession, is_httpx_session_cls
