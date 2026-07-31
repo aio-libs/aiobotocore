@@ -295,6 +295,7 @@ def test_credential_resolver_follows_the_default_http_backend():
     fetcher = resolver.get_provider('iam-role')._role_fetcher
     assert type(fetcher._session) is utils._RefCountedHttpxSession
 
+
 def test_async_primitives_follow_default_client_config():
     pytest.importorskip("httpx")
     session = AioSession()
