@@ -14,15 +14,11 @@ from botocore.endpoint import (
 )
 from botocore.hooks import first_non_none_response
 
+from aiobotocore._httpx import httpx
 from aiobotocore.httpchecksum import handle_checksum_body
 from aiobotocore.httpsession import AIOHTTPSession
 from aiobotocore.parsers import AioResponseParserFactory
 from aiobotocore.response import AioHttpxStreamingBody, AioStreamingBody
-
-try:
-    import httpx
-except ImportError:
-    httpx = None
 
 DEFAULT_HTTP_SESSION_CLS = AIOHTTPSession
 
