@@ -220,14 +220,6 @@ class AioSession(_SyncSession):
         aws_account_id=None,
     ):
         default_client_config = self.get_default_client_config()
-        if default_client_config is None and isinstance(config, AioConfig):
-            # The first explicit backend also establishes the session backend
-            # used by credentials, IMDS, token refresh, and loader offloading.
-            # Nested clients then inherit the same transport automatically.
-            default_client_config = AioConfig(
-                http_session_cls=config.http_session_cls
-            )
-            self.set_default_client_config(default_client_config)
         # If a config is provided and a default config is set, then
         # use the config resulting from merging the two.
         if config is not None and default_client_config is not None:

@@ -53,6 +53,27 @@ if TYPE_CHECKING:
 _LEGACY_HTTPX_WARNED = False
 
 
+class _ProxyTargetExtensions(dict):
+    """Apply the raw target to the endpoint request, but not CONNECT.
+
+    HTTPcore constructs the endpoint request first and then reuses its
+    extensions when constructing CONNECT. Its ``Request`` checks for target
+    once during construction, so exposing it only on the first check keeps the
+    raw S3 path on the endpoint request without replacing CONNECT's authority.
+    """
+
+    def __init__(self, target: bytes):
+        super().__init__(target=target)
+        self._target_applied = False
+
+    def __contains__(self, key):
+        if key == 'target':
+            if self._target_applied:
+                return False
+            self._target_applied = True
+        return super().__contains__(key)
+
+
 def _find_ssl_error(exc: BaseException) -> ssl.SSLError | None:
     """Find an ``ssl.SSLError`` in ``exc``'s cause/context chain.
 
@@ -383,35 +404,8 @@ class HttpxSession:
             # This way of using it is currently ~undocumented, but recommended in
             # https://github.com/encode/httpx/discussions/1805#discussioncomment-8975989
             #
-            extensions = {"target": bytes(url, encoding='utf-8')}
-            if proxy_url and urlparse(url).scheme == 'https':
-                # httpcore reuses endpoint extensions for its CONNECT request.
-                # Temporarily hide the raw endpoint target while CONNECT
-                # headers are serialized, then restore it for the tunneled
-                # request so non-normalized S3 paths remain byte-for-byte.
-                connect_target = extensions['target']
-                connect_extensions = None
-
-                async def trace_connect(event, info):
-                    nonlocal connect_extensions
-                    if event.endswith('send_request_headers.started'):
-                        traced_request = info.get('request')
-                        if (
-                            getattr(traced_request, 'method', None)
-                            == b'CONNECT'
-                        ):
-                            connect_extensions = traced_request.extensions
-                            connect_extensions.pop('target', None)
-                    elif connect_extensions is not None and event.endswith(
-                        (
-                            'send_request_headers.complete',
-                            'send_request_headers.failed',
-                        )
-                    ):
-                        connect_extensions['target'] = connect_target
-                        connect_extensions = None
-
-                extensions['trace'] = trace_connect
+            target = bytes(url, encoding='utf-8')
+            extensions = {"target": target}
 
             session = await self._get_session(url)
 
@@ -422,6 +416,8 @@ class HttpxSession:
                 content=content,
                 extensions=extensions,
             )
+            if proxy_url and urlparse(url).scheme == 'https':
+                httpx_request.extensions = _ProxyTargetExtensions(target)
             assert isinstance(httpx_request.stream, httpx.AsyncByteStream)
             # auth, follow_redirects
             response = await session.send(httpx_request, stream=True)

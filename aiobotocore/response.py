@@ -10,10 +10,9 @@ from botocore.response import (
 )
 
 from aiobotocore import parsers
+from aiobotocore._httpx import httpx
 
-try:
-    import httpx
-
+if httpx is not None:
     _HTTPX_READ_TIMEOUTS: tuple[type[BaseException], ...] = (
         httpx.ReadTimeout,
     )
@@ -24,7 +23,7 @@ try:
         httpx.NetworkError,
         httpx.RemoteProtocolError,
     )
-except ImportError:
+else:
     # Never matches, so the aiohttp backend is unaffected.
     _HTTPX_READ_TIMEOUTS = ()
     _HTTPX_STREAM_ERRORS = ()
