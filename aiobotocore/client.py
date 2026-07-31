@@ -20,14 +20,21 @@ from botocore.waiter import xform_name
 from . import waiter
 from .args import AioClientArgsCreator
 from .context import with_current_context
-from .credentials import AioRefreshableCredentials
+from .credentials import (
+    AioRefreshableCredentials,
+    AnyioRefreshableCredentials,
+)
 from .discovery import AioEndpointDiscoveryHandler, AioEndpointDiscoveryManager
 from .httpchecksum import apply_request_checksum
 from .httpsession import AIOHTTPSession
 from .httpxsession import HttpxSession
 from .paginate import AioPaginator, AnyioPaginator
 from .retries import adaptive, standard
-from .utils import AioS3ExpressIdentityResolver, AioS3RegionRedirectorv2
+from .utils import (
+    AioS3ExpressIdentityResolver,
+    AioS3RegionRedirectorv2,
+    AnyioS3ExpressIdentityResolver,
+)
 
 history_recorder = get_global_history_recorder()
 
@@ -252,9 +259,13 @@ class AioClientCreator(ClientCreator):
     ):
         if client.meta.service_model.service_name != 's3':
             return
-        AioS3ExpressIdentityResolver(
-            client, AioRefreshableCredentials
-        ).register()
+        if isinstance(client._endpoint.http_session, HttpxSession):
+            resolver_cls = AnyioS3ExpressIdentityResolver
+            credential_cls = AnyioRefreshableCredentials
+        else:
+            resolver_cls = AioS3ExpressIdentityResolver
+            credential_cls = AioRefreshableCredentials
+        resolver_cls(client, credential_cls).register()
 
     def _register_s3_events(
         self,

@@ -4,6 +4,52 @@ import anyio
 import pytest
 
 from aiobotocore import credentials, utils
+from aiobotocore.httpxsession import is_httpx_session_cls
+
+
+async def test_refreshable_credentials_serialize_refreshes(http_session_cls):
+    credential_cls = (
+        credentials.AnyioRefreshableCredentials
+        if is_httpx_session_cls(http_session_cls)
+        else credentials.AioRefreshableCredentials
+    )
+    refresh_calls = 0
+
+    async def refresh():
+        nonlocal refresh_calls
+        refresh_calls += 1
+        await anyio.sleep(0)
+        return {
+            'access_key': 'refreshed-access',
+            'secret_key': 'refreshed-secret',
+            'token': 'refreshed-token',
+            'expiry_time': '2030-01-01T00:00:00Z',
+        }
+
+    creds = credential_cls.create_from_metadata(
+        metadata={
+            'access_key': 'expired-access',
+            'secret_key': 'expired-secret',
+            'token': 'expired-token',
+            'expiry_time': '2000-01-01T00:00:00Z',
+        },
+        refresh_using=refresh,
+        method='test',
+    )
+    results = []
+
+    async def get_credentials():
+        results.append(await creds.get_frozen_credentials())
+
+    async with anyio.create_task_group() as task_group:
+        task_group.start_soon(get_credentials)
+        task_group.start_soon(get_credentials)
+
+    assert refresh_calls == 1
+    assert [result.access_key for result in results] == [
+        'refreshed-access',
+        'refreshed-access',
+    ]
 
 
 async def test_assumerolecredprovider_concurrent_load_no_race_condition():

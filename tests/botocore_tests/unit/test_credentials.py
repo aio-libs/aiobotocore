@@ -43,6 +43,7 @@ from dateutil.tz import tzlocal, tzutc
 
 from aiobotocore import credentials
 from aiobotocore._async_primitives import (
+    AsyncPrimitives,
     infer_async_primitives,
 )
 from aiobotocore.config import AioConfig
@@ -1129,6 +1130,57 @@ async def test_createcredentialresolver(mock_session, http_session_cls):
         async_primitives=infer_async_primitives(http_session_cls),
     )
     assert isinstance(resolver, credentials.AioCredentialResolver)
+
+    if infer_async_primitives(http_session_cls) is AsyncPrimitives.ANYIO:
+        assert isinstance(
+            resolver.providers[0], credentials.AnyioAssumeRoleProvider
+        )
+        assert isinstance(
+            resolver.providers[-2], credentials.AnyioContainerProvider
+        )
+        assert isinstance(
+            resolver.providers[-1],
+            credentials.AnyioInstanceMetadataProvider,
+        )
+
+
+def test_createcredentialresolver_uses_anyio_credential_providers(
+    mock_session,
+):
+    resolver = credentials.create_credential_resolver(
+        mock_session(), async_primitives=AsyncPrimitives.ANYIO
+    )
+
+    assert isinstance(
+        resolver.providers[0], credentials.AnyioAssumeRoleProvider
+    )
+    credential_sources = resolver.providers[0]._credential_sourcer._providers
+    assert isinstance(credential_sources[0], credentials.AnyioEnvProvider)
+    assert any(
+        isinstance(provider, credentials.AnyioProcessProvider)
+        for provider in resolver.providers
+    )
+    assert any(
+        isinstance(
+            provider,
+            credentials.AnyioAssumeRoleWithWebIdentityProvider,
+        )
+        for provider in resolver.providers
+    )
+    assert any(
+        isinstance(provider, credentials.AnyioSSOProvider)
+        for provider in resolver.providers
+    )
+    assert any(
+        isinstance(provider, credentials.AnyioLoginProvider)
+        for provider in resolver.providers
+    )
+    assert isinstance(
+        resolver.providers[-2], credentials.AnyioContainerProvider
+    )
+    assert isinstance(
+        resolver.providers[-1], credentials.AnyioInstanceMetadataProvider
+    )
 
 
 async def test_get_credentials(mock_session, http_session_cls):

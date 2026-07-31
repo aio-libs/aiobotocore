@@ -1,6 +1,46 @@
+from unittest import mock
+
+import anyio
 import pytest
 
 from aiobotocore import utils
+from aiobotocore.httpxsession import is_httpx_session_cls
+
+
+async def test_s3express_cache_serializes_concurrent_refreshes(
+    http_session_cls,
+):
+    client = mock.Mock()
+    client.create_session = mock.AsyncMock(
+        return_value={
+            'Credentials': {
+                'AccessKeyId': 'access',
+                'SecretAccessKey': 'secret',
+                'SessionToken': 'token',
+                'Expiration': '2030-01-01T00:00:00Z',
+            }
+        }
+    )
+    credential = object()
+    credential_cls = mock.Mock()
+    credential_cls.create_from_metadata.return_value = credential
+    cache_cls = (
+        utils.AnyioS3ExpressIdentityCache
+        if is_httpx_session_cls(http_session_cls)
+        else utils.AioS3ExpressIdentityCache
+    )
+    cache = cache_cls(client, credential_cls)
+    results = []
+
+    async def get_credentials():
+        results.append(await cache.get_credentials('bucket'))
+
+    async with anyio.create_task_group() as task_group:
+        task_group.start_soon(get_credentials)
+        task_group.start_soon(get_credentials)
+
+    assert results == [credential, credential]
+    client.create_session.assert_awaited_once_with(Bucket='bucket')
 
 
 async def test_ref_counted_session_rolls_back_the_count_when_entry_fails_httpx():

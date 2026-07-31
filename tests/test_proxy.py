@@ -24,6 +24,8 @@ from botocore.exceptions import (
     ProxyConnectionError,
 )
 
+from aiobotocore.httpxsession import HttpxSession
+
 from tests.tls_helpers import (
     prepared_request,
     serve_https_target,
@@ -32,6 +34,42 @@ from tests.tls_helpers import (
 pytestmark = pytest.mark.anyio
 
 PROXY_HOST = "localhost"
+
+
+@pytest.mark.config_kwargs({'http_session_cls': HttpxSession})
+def test_httpx_proxy_context_does_not_mutate_endpoint_context():
+    endpoint_context = ssl.create_default_context()
+    endpoint_context.check_hostname = False
+    session = HttpxSession(
+        proxies={'https': 'https://localhost:1234'},
+        verify=endpoint_context,
+    )
+
+    verify, proxy_contexts = session._build_ssl_contexts(
+        {'https': 'https://localhost:1234'}
+    )
+
+    proxy_context = proxy_contexts['https://localhost:1234']
+    assert verify is endpoint_context
+    assert proxy_context is not endpoint_context
+    assert endpoint_context.check_hostname is False
+    assert proxy_context.check_hostname is True
+    assert set(proxy_context.get_ca_certs(binary_form=True)) == set(
+        endpoint_context.get_ca_certs(binary_form=True)
+    )
+
+
+@pytest.mark.config_kwargs({'http_session_cls': HttpxSession})
+async def test_httpx_proxy_uses_one_client_for_multiple_targets(monkeypatch):
+    monkeypatch.setenv('BOTO_EXPERIMENTAL__ADD_PROXY_HOST_HEADER', 'true')
+    async with HttpxSession(
+        proxies={'https': 'http://127.0.0.1:1234'}
+    ) as session:
+        first = await session._get_session('https://first.example')
+        second = await session._get_session('https://second.example')
+
+        assert first is second
+        assert len(session._sessions) == 1
 
 
 async def _serve_http_proxy(*, task_status) -> None:

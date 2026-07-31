@@ -1,6 +1,5 @@
 import asyncio
 import contextlib
-import functools
 import inspect
 import json
 import logging
@@ -418,16 +417,30 @@ class AioIdentityCache(IdentityCache):
 
 
 class AioS3ExpressIdentityCache(AioIdentityCache, S3ExpressIdentityCache):
-    @functools.lru_cache(maxsize=100)
-    def _get_credentials(self, bucket):
-        return asyncio.create_task(super().get_credentials(bucket=bucket))
+    def __init__(self, client, credential_cls):
+        super().__init__(client, credential_cls)
+        self._credentials = {}
+        self._refresh_locks = {}
+
+    def _create_lock(self):
+        return asyncio.Lock()
 
     async def get_credentials(self, bucket):
-        # upstream uses `@functools.lru_cache(maxsize=100)` to cache credentials.
-        # This is incompatible with async code.
-        # We need to implement custom caching logic.
+        credentials = self._credentials.get(bucket)
+        if credentials is not None:
+            return credentials
 
-        return await self._get_credentials(bucket=bucket)
+        lock = self._refresh_locks.setdefault(bucket, self._create_lock())
+        async with lock:
+            credentials = self._credentials.get(bucket)
+            if credentials is None:
+                credentials = await super().get_credentials(bucket=bucket)
+                self._credentials[bucket] = credentials
+                if len(self._credentials) > 100:
+                    oldest_bucket = next(iter(self._credentials))
+                    self._credentials.pop(oldest_bucket)
+                    self._refresh_locks.pop(oldest_bucket, None)
+            return credentials
 
     def build_refresh_callback(self, bucket):
         async def refresher():
@@ -446,13 +459,26 @@ class AioS3ExpressIdentityCache(AioIdentityCache, S3ExpressIdentityCache):
         return refresher
 
 
+class AnyioS3ExpressIdentityCache(AioS3ExpressIdentityCache):
+    def _create_lock(self):
+        import anyio
+
+        return anyio.Lock()
+
+
 class AioS3ExpressIdentityResolver(S3ExpressIdentityResolver):
+    _cache_cls = AioS3ExpressIdentityCache
+
     def __init__(self, client, credential_cls, cache=None):
         super().__init__(client, credential_cls, cache)
 
         if cache is None:
-            cache = AioS3ExpressIdentityCache(self._client, credential_cls)
+            cache = self._cache_cls(self._client, credential_cls)
         self._cache = cache
+
+
+class AnyioS3ExpressIdentityResolver(AioS3ExpressIdentityResolver):
+    _cache_cls = AnyioS3ExpressIdentityCache
 
 
 class AioS3RegionRedirectorv2(S3RegionRedirectorv2):

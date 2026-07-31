@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import io
-import os
 import socket
 import ssl
 import warnings
@@ -26,7 +25,6 @@ from botocore.httpsession import (
     ReadTimeoutError,
     _is_ipaddress,
     create_urllib3_context,
-    ensure_boolean,
     get_cert_path,
     logger,
     mask_proxy_url,
@@ -228,6 +226,25 @@ class HttpxSession:
             ssl_context.load_cert_chain(self._cert_file, self._key_file)
         return ssl_context
 
+    def _clone_verify_context(self, source: SSLContext) -> SSLContext:
+        """Copy endpoint verification settings without its client cert."""
+        context = self._get_ssl_context()
+        context.options = source.options
+        context.minimum_version = source.minimum_version
+        context.maximum_version = source.maximum_version
+        context.verify_flags = source.verify_flags
+        context.verify_mode = source.verify_mode
+        context.check_hostname = source.check_hostname
+        ca_certs = source.get_ca_certs(binary_form=True)
+        if ca_certs:
+            cadata = ''.join(
+                ssl.DER_cert_to_PEM_cert(cert) for cert in ca_certs
+            )
+            context.load_verify_locations(
+                cadata=cadata
+            )
+        return context
+
     def _setup_proxy_ssl_context(self, proxy_url: str) -> SSLContext:
         proxies_settings = self._proxy_config.settings
         proxy_ca_bundle = proxies_settings.get('proxy_ca_bundle')
@@ -237,7 +254,7 @@ class HttpxSession:
         # its client certificate: urllib3 passes cert_file=None when wrapping
         # the proxy socket, so only proxy_client_cert is offered to a proxy.
         context = (
-            self._verify
+            self._clone_verify_context(self._verify)
             if isinstance(self._verify, ssl.SSLContext)
             else self._build_verify_context()
         )
@@ -310,24 +327,19 @@ class HttpxSession:
                 max_connections=self._max_pool_connections,
                 keepalive_expiry=self._connector_args['keepalive_timeout'],
             )
-            self._sessions: dict[str | None, httpx.AsyncClient] = {}
+            self._sessions: dict[None, httpx.AsyncClient] = {}
 
-            # AsyncClients are built lazily because httpx bakes proxy headers
-            # into the transport and the experimental Host header is per target.
+            # The client is built lazily so constructing a session remains
+            # side-effect free until it is entered and first used.
             return self
         except BaseException:
             self._entered = False
             raise
 
-    def _make_async_client(
-        self, proxy_host_header: str | None
-    ) -> httpx.AsyncClient:
+    def _make_async_client(self) -> httpx.AsyncClient:
         mounts = {}
         for scheme, proxy_url in self._proxy_urls.items():
             headers = self._proxy_config.proxy_headers_for(proxy_url)
-            if proxy_host_header is not None:
-                # Experimental: mirror botocore's conn.proxy_headers['host'].
-                headers = {**headers, 'host': proxy_host_header}
             proxy = httpx.Proxy(
                 url=proxy_url,
                 headers=headers or None,
@@ -357,20 +369,15 @@ class HttpxSession:
             trust_env=False,
         )
 
-    async def _get_session(self, request_url: str) -> httpx.AsyncClient:
-        proxy_host_header = None
-        if self._proxy_urls and ensure_boolean(
-            os.environ.get('BOTO_EXPERIMENTAL__ADD_PROXY_HOST_HEADER', '')
-        ):
-            # Proxy headers are fixed on an httpx transport, so use one client
-            # per request host instead of pinning the first host seen.
-            proxy_host_header = urlparse(request_url).hostname
-        if proxy_host_header not in self._sessions:
-            client = self._make_async_client(proxy_host_header)
-            self._sessions[
-                proxy_host_header
-            ] = await self._exit_stack.enter_async_context(client)
-        return self._sessions[proxy_host_header]
+    async def _get_session(self, _request_url: str) -> httpx.AsyncClient:
+        # httpcore generates CONNECT's Host header from each request target,
+        # so one client can serve every target without multiplying pool limits.
+        if None not in self._sessions:
+            client = self._make_async_client()
+            self._sessions[None] = await self._exit_stack.enter_async_context(
+                client
+            )
+        return self._sessions[None]
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         try:
