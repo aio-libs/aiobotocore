@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import multiprocessing
 import os
 import random
 import string
@@ -43,7 +42,7 @@ def ca_bundle(ca, tmp_path):
 if TYPE_CHECKING:
     from _pytest.nodes import Node
 
-# Appended not inserted: ``spawn`` children need ``tests``; the wheel must win.
+# Appended, not inserted: ``from tests.x import`` needs the rootdir, the wheel must still win.
 _repo_root = str(Path(__file__).resolve().parent.parent)
 if _repo_root not in sys.path:
     sys.path.append(_repo_root)
@@ -71,12 +70,6 @@ def isolate_aws_environment(request, tmp_path_factory):
         for name in [k for k in os.environ if k.startswith('AWS_')]:
             del os.environ[name]
         os.environ.update(saved)
-
-
-@pytest.fixture(scope="session", autouse=True)
-def always_spawn():
-    # enforce multiprocessing start method `spawn` to prevent deadlocks in the child
-    multiprocessing.set_start_method("spawn", force=True)
 
 
 @pytest.fixture(params=['asyncio', 'trio'])
