@@ -137,7 +137,7 @@ Buckets and the signals that place a PR in each:
 - **doc** -- ``docs:`` prefix, or only files under ``docs/`` and
   ``*.md``/``*.rst`` touched
 - **contrib** -- ``ci:``/``chore:``/``test:`` prefix, or only files
-  under ``.github/``, ``tests/``, ``Makefile``, ``pyproject.toml``
+  under ``.github/``, ``tests/``, ``pyproject.toml``
   (without source changes) touched
 - **misc** -- anything else with a user-visible effect that didn't
   match any rule above

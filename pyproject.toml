@@ -177,13 +177,13 @@ markers = [
 # so what you run locally is what CI runs. Anything that is a property of the
 # suite rather than of one invocation belongs in the sections above, not here.
 [tool.poe.tasks]
+# ``lint`` and ``clean`` need a git repo, so they are not tasks the test tasks
+# may depend on: the suite has to stay runnable from an unpacked sdist.
 lint = "pre-commit run --all --show-diff-on-failure"
-test.cmd = "pytest -s -vv"
-test.deps = ["lint"]
+test = "pytest -s -vv"
 vtest.cmd = "pytest -s -vv"
 vtest.env = { PYTHONTRACEMALLOC = "5", PYTHONFAULTHANDLER = "1" }
-cov.cmd = "pytest -s -vv --cov --cov-report=term --cov-report=html"
-cov.deps = ["lint"]
+cov = "pytest -s -vv --cov --cov-report=term --cov-report=html"
 docs = "uv run --group docs sphinx-build -W -b html docs docs/_build/html"
 
 # What the CI matrix runs. ``--http-backend`` defaults to exercising both

@@ -25,7 +25,7 @@ from aiobotocore.httpxsession import HttpxSession
 if TYPE_CHECKING:
     from _pytest.nodes import Node
 
-# Appended, not inserted: ``spawn`` children import ``tests``, but the installed aiobotocore must keep beating the adjacent source tree.
+# Appended not inserted: ``spawn`` children need ``tests``; the wheel must win.
 _repo_root = str(Path(__file__).resolve().parent.parent)
 if _repo_root not in sys.path:
     sys.path.append(_repo_root)

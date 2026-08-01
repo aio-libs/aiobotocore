@@ -54,10 +54,21 @@ Everything lives in ``pyproject.toml``: the tasks above under
 ``[tool.poe.tasks]`` (run ``uv run poe`` to list them), and the test contract
 itself -- import mode, marker strictness, warning filters, coverage paths --
 under ``[tool.pytest.ini_options]`` and ``[tool.coverage.*]``. CI runs the same
-tasks, and a bare ``pytest`` behaves the same as ``poe test``, so use whichever
-you prefer. Invoke ``pytest`` rather than ``python -m pytest``: the latter puts
-the working directory on ``sys.path``, where the ``aiobotocore`` source tree
-shadows any installed copy.
+tasks, and a bare ``pytest`` runs the suite exactly as ``poe test`` does, so use
+whichever you prefer. Invoke ``pytest`` rather than ``python -m pytest``: the
+latter puts the working directory on ``sys.path``, where the ``aiobotocore``
+source tree shadows any installed copy.
+
+The suite also runs straight out of an unpacked sdist, which is how CI runs it::
+
+    $ tar xzf aiobotocore-X.Y.Z.tar.gz && cd aiobotocore-X.Y.Z
+    $ uv sync --frozen --no-default-groups --group test
+    $ uv run --no-sync poe mototest
+
+``--no-default-groups --group test`` matters: the defaults pull in ``pre-commit``
+and the eval dependencies, which an sdist has no use for. ``poe lint`` and
+``poe clean`` are the two tasks that do *not* work there, since both need a git
+repository.
 
 
 Packaging

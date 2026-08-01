@@ -262,7 +262,7 @@ Python, uv, and all dev dependencies are pre-installed.
 - Run tests via `rtk test` (pre-installed on PATH): `rtk test uv run pytest <path>`. It shows
   only failures, collapsing a passing run to a one-line summary — keeps verbose pytest output
   out of your context. On failure it still surfaces the failing tests and tracebacks.
-- Run pre-commit: `uv run pre-commit run --all --show-diff-on-failure`
+- Run pre-commit: `uv run poe lint`
 - Do NOT use `pip install` — all deps are available via `uv run`
 - Do NOT search for uv/pytest/rtk — they are on PATH
 - To read botocore source, use Read on the installed files — do NOT use `inspect.getsource()` in Bash
