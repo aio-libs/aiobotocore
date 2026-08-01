@@ -30,6 +30,10 @@ async def test_create_waiter_with_client(
     assert iscoroutinefunction(waiter.wait)
 
 
+# CreateStack isn't idempotent: a retried request reports AlreadyExists.
+@pytest.mark.config_kwargs(
+    {'read_timeout': 60, 'retries': {'max_attempts': 0}}
+)
 async def test_sqs(cloudformation_client):
     # moto's backends are process-global, so a per-test server doesn't isolate names.
     stack_name = random_name()

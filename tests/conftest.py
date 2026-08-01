@@ -184,16 +184,17 @@ def read_kwargs(node: Node) -> dict[str, object]:
 
 @pytest.fixture
 def config(request, region, signature_version):
-    config_kwargs = read_kwargs(request.node)
-
     connect_timeout = read_timout = 5
 
+    # Merged, not passed alongside, so config_kwargs can override these.
     return AioConfig(
-        region_name=region,
-        signature_version=signature_version,
-        read_timeout=read_timout,
-        connect_timeout=connect_timeout,
-        **config_kwargs,
+        **{
+            'region_name': region,
+            'signature_version': signature_version,
+            'read_timeout': read_timout,
+            'connect_timeout': connect_timeout,
+            **read_kwargs(request.node),
+        }
     )
 
 
