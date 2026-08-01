@@ -1,5 +1,5 @@
 import asyncio
-import multiprocessing
+import threading
 
 # Third Party
 import aiohttp
@@ -16,71 +16,64 @@ _proxy_bypass = {
 host = '127.0.0.1'
 
 
-# This runs in a subprocess for a variety of reasons
-# 1) early versions of python 3.5 did not correctly set one thread per run loop
-# 2) aiohttp uses get_event_loop instead of using the passed in run loop
-# 3) aiohttp shutdown can be hairy
-class AIOServer(multiprocessing.Process):
+# A thread with its own loop, not a subprocess: the spawned child took >30s to bind on 3.12 and only 3.12.
+class AIOServer:
     """
     This is a mock AWS service which will 5 seconds before returning
     a response to test socket timeouts.
     """
 
     def __init__(self):
-        self._conn, child_conn = multiprocessing.Pipe()
-        self._stop = multiprocessing.Event()
-        super().__init__(target=self._run, args=(child_conn, self._stop))
         self.endpoint_url = None
-        self.daemon = True  # die when parent dies
+        self._ready = threading.Event()
+        self._stop = threading.Event()
+        self._error = None
+        self._thread = None
 
-    def _run(self, conn, stop):
-        asyncio.run(self._serve(conn, stop))
+    def _run(self):
+        loop = asyncio.new_event_loop()
+        try:
+            loop.run_until_complete(self._serve())
+        except BaseException as exc:
+            self._error = exc
+            self._ready.set()
+        finally:
+            loop.close()
 
-    async def _serve(self, conn, stop):
+    async def _serve(self):
         app = aiohttp.web.Application()
         app.router.add_route('*', '/ok', self.ok)
         app.router.add_route('*', '/{anything:.*}', self.stream_handler)
 
         runner = aiohttp.web.AppRunner(app)
         await runner.setup()
-        # Port 0 and report back: no window for another process to take it.
+        # Port 0, published once bound: nothing can take it in between.
         site = aiohttp.web.TCPSite(runner, host, 0)
         await site.start()
-        conn.send(site.name)
-        await asyncio.to_thread(stop.wait)
+        self.endpoint_url = site.name
+        self._ready.set()
+        await asyncio.to_thread(self._stop.wait)
         await runner.cleanup()
 
     async def __aenter__(self):
-        self.start()
-        # __aexit__ only runs if __aenter__ returns, so a failed start reaps here.
-        try:
-            self.endpoint_url = await self._await_bound_url()
-        except BaseException:
+        self._thread = threading.Thread(target=self._run, daemon=True)
+        self._thread.start()
+        # __aexit__ only runs if __aenter__ returns, so a failed start stops here.
+        if not await asyncio.to_thread(self._ready.wait, 30):
             self._shutdown()
-            raise
+            pytest.fail('mock server never bound a port')
+        if self._error is not None:
+            self._shutdown()
+            raise self._error
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         self._shutdown()
 
-    # Loopback binds are near-instant; a long budget just parks the xdist worker.
-    async def _await_bound_url(self, timeout: float = 10) -> str:
-        if not await asyncio.to_thread(self._conn.poll, timeout):
-            pytest.fail(
-                f'mock server never bound a port (exitcode={self.exitcode})'
-            )
-        return self._conn.recv()
-
     def _shutdown(self):
         self._stop.set()
-        self.join(timeout=5)
-        # terminate() does not wait, so join or the child keeps holding its port.
-        if self.is_alive():
-            self.terminate()
-            self.join(timeout=2)
-        if self.is_alive():
-            self.kill()
-            self.join(timeout=2)
+        if self._thread is not None:
+            self._thread.join(timeout=10)
 
     @staticmethod
     async def ok(request):
