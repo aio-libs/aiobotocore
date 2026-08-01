@@ -28,18 +28,19 @@ async def test_create_waiter_with_client(
     assert iscoroutinefunction(waiter.wait)
 
 
-async def test_create_waiter_with_unknown_http_session(
+async def test_create_waiter_with_custom_http_session_uses_asyncio(
     cloudformation_client, cloudformation_waiter_model, monkeypatch
 ):
     monkeypatch.setattr(
         cloudformation_client._endpoint, 'http_session', object()
     )
-    with pytest.raises(TypeError, match='unknown http session type'):
-        create_waiter_with_client(
-            'StackCreateComplete',
-            cloudformation_waiter_model,
-            cloudformation_client,
-        )
+    waiter = create_waiter_with_client(
+        'StackCreateComplete',
+        cloudformation_waiter_model,
+        cloudformation_client,
+    )
+
+    assert isinstance(waiter, AIOWaiter)
 
 
 async def test_sqs(

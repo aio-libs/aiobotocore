@@ -14,10 +14,13 @@ from botocore.endpoint import (
 )
 from botocore.hooks import first_non_none_response
 
+from aiobotocore._async_primitives import (
+    AsyncPrimitives,
+    infer_async_primitives,
+)
 from aiobotocore._httpx import httpx
 from aiobotocore.httpchecksum import handle_checksum_body
 from aiobotocore.httpsession import AIOHTTPSession
-from aiobotocore.httpxsession import is_httpx_session_cls
 from aiobotocore.parsers import AioResponseParserFactory
 from aiobotocore.response import AioHttpxStreamingBody, AioStreamingBody
 
@@ -354,7 +357,7 @@ class AioEndpointCreator(EndpointCreator):
             connector_args=connector_args,
         )
 
-        if is_httpx_session_cls(http_session_cls):
+        if infer_async_primitives(http_session_cls) is AsyncPrimitives.ANYIO:
             endpoint_cls = AnyioEndpoint
         else:
             endpoint_cls = AioEndpoint

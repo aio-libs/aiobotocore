@@ -123,31 +123,6 @@ async def test_httpx_proxy_uses_one_client_for_multiple_targets(monkeypatch):
 
 
 @pytest.mark.config_kwargs({'http_session_cls': HttpxSession})
-async def test_httpx_proxy_host_header_uses_one_client_per_target(monkeypatch):
-    monkeypatch.setenv('BOTO_EXPERIMENTAL__ADD_PROXY_HOST_HEADER', 'true')
-    async with HttpxSession(
-        proxies={'https': 'http://127.0.0.1:1234'}
-    ) as session:
-        proxy_headers = []
-        original_proxy = httpxsession.httpx.Proxy
-
-        def recording_proxy(*args, **kwargs):
-            proxy_headers.append(kwargs['headers'])
-            return original_proxy(*args, **kwargs)
-
-        monkeypatch.setattr(httpxsession.httpx, 'Proxy', recording_proxy)
-        first = await session._get_session('https://first.example')
-        second = await session._get_session('https://second.example')
-
-        assert first is not second
-        assert set(session._sessions) == {'first.example', 'second.example'}
-        assert proxy_headers == [
-            {'host': 'first.example'},
-            {'host': 'second.example'},
-        ]
-
-
-@pytest.mark.config_kwargs({'http_session_cls': HttpxSession})
 async def test_httpx_concurrent_requests_create_one_client(monkeypatch):
     async with HttpxSession() as session:
         client = session._make_async_client()
@@ -247,13 +222,9 @@ def client_cert(request, ca, tmp_path):
     return str(cert_path), str(key_path)
 
 
-@pytest.mark.parametrize("add_host_header", [False, True])
 async def test_https_request_through_http_proxy(
-    http_session_cls, ca, ca_bundle, monkeypatch, add_host_header
+    http_session_cls, ca, ca_bundle
 ):
-    if add_host_header:
-        monkeypatch.setenv("BOTO_EXPERIMENTAL__ADD_PROXY_HOST_HEADER", "true")
-
     async with anyio.create_task_group() as tg:
         proxy_port = await tg.start(_serve_http_proxy)
         target_port = await tg.start(serve_https_target, ca)

@@ -57,3 +57,24 @@ async def test_ssl_context_built_off_loop_on_first_request(
         # Second call: cached connector, no additional thread dispatch.
         await http._get_session(proxy_url=None)
         to_thread.assert_called_once()
+
+
+async def test_ssl_context_built_inline_without_file_io(
+    mocker, current_http_backend
+):
+    if current_http_backend == 'httpx':
+        run_sync = mocker.patch(
+            'aiobotocore.httpxsession.anyio.to_thread.run_sync',
+            wraps=anyio.to_thread.run_sync,
+        )
+        async with HttpxSession(verify=False):
+            run_sync.assert_not_called()
+        return
+
+    to_thread = mocker.patch(
+        'aiobotocore.httpsession.asyncio.to_thread',
+        wraps=__import__('asyncio').to_thread,
+    )
+    async with AIOHTTPSession(verify=False) as http:
+        await http._get_session(proxy_url=None)
+        to_thread.assert_not_called()

@@ -18,6 +18,7 @@ from botocore.utils import get_service_module_name
 from botocore.waiter import xform_name
 
 from . import waiter
+from ._async_primitives import AsyncPrimitives, infer_async_primitives
 from .args import AioClientArgsCreator
 from .context import with_current_context
 from .credentials import (
@@ -26,7 +27,6 @@ from .credentials import (
 )
 from .discovery import AioEndpointDiscoveryHandler, AioEndpointDiscoveryManager
 from .httpchecksum import apply_request_checksum
-from .httpsession import AIOHTTPSession
 from .httpxsession import HttpxSession
 from .paginate import AioPaginator, AnyioPaginator
 from .retries import adaptive, standard
@@ -598,15 +598,13 @@ class AioBaseClient(BaseClient):
             # the underlying Paginator.paginate method. This is needed to
             # attach a docstring to the method.
             # aiohttp is asyncio-only; the httpx backend also runs on trio.
-            http_session = self._endpoint.http_session
-            if isinstance(http_session, HttpxSession):
+            async_primitives = infer_async_primitives(
+                type(self._endpoint.http_session)
+            )
+            if async_primitives is AsyncPrimitives.ANYIO:
                 paginator_cls = AnyioPaginator
-            elif isinstance(http_session, AIOHTTPSession):
-                paginator_cls = AioPaginator
             else:
-                raise TypeError(
-                    f"unknown http session type: {type(http_session)}"
-                )
+                paginator_cls = AioPaginator
 
             def paginate(self, **kwargs):
                 return paginator_cls.paginate(self, **kwargs)

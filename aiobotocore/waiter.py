@@ -18,9 +18,8 @@ from botocore.waiter import (
     xform_name,
 )
 
+from ._async_primitives import AsyncPrimitives, infer_async_primitives
 from .context import with_current_context
-from .httpsession import AIOHTTPSession
-from .httpxsession import HttpxSession
 
 
 def create_waiter_with_client(waiter_name, waiter_model, client):
@@ -48,13 +47,13 @@ def create_waiter_with_client(waiter_name, waiter_model, client):
     )
 
     # aiohttp is asyncio-only; the httpx backend also runs on trio.
-    http_session = client._endpoint.http_session
-    if isinstance(http_session, HttpxSession):
+    async_primitives = infer_async_primitives(
+        type(client._endpoint.http_session)
+    )
+    if async_primitives is AsyncPrimitives.ANYIO:
         waiter_cls = AnyioWaiter
-    elif isinstance(http_session, AIOHTTPSession):
-        waiter_cls = AIOWaiter
     else:
-        raise TypeError(f"unknown http session type: {type(http_session)}")
+        waiter_cls = AIOWaiter
 
     # Create a new wait method that will serve as a proxy to the underlying
     # Waiter.wait method. This is needed to attach a docstring to the

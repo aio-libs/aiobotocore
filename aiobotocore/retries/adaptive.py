@@ -10,8 +10,7 @@ from botocore.retries import standard, throttling
 # blocking.
 from botocore.retries.adaptive import RateClocker
 
-from ..httpsession import AIOHTTPSession
-from ..httpxsession import HttpxSession
+from .._async_primitives import AsyncPrimitives, infer_async_primitives
 from . import bucket
 
 logger = logging.getLogger(__name__)
@@ -19,15 +18,15 @@ logger = logging.getLogger(__name__)
 
 def register_retry_handler(client):
     # aiohttp is asyncio-only; the httpx backend also runs on trio.
-    http_session = client._endpoint.http_session
-    if isinstance(http_session, HttpxSession):
+    async_primitives = infer_async_primitives(
+        type(client._endpoint.http_session)
+    )
+    if async_primitives is AsyncPrimitives.ANYIO:
         token_bucket_cls = bucket.AnyioTokenBucket
         rate_limiter_cls = AnyioClientRateLimiter
-    elif isinstance(http_session, AIOHTTPSession):
+    else:
         token_bucket_cls = bucket.AsyncTokenBucket
         rate_limiter_cls = AsyncClientRateLimiter
-    else:
-        raise TypeError(f"unknown http session type: {type(http_session)}")
 
     clock = bucket.Clock()
     rate_adjustor = throttling.CubicCalculator(
