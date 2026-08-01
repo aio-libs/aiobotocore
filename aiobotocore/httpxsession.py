@@ -377,9 +377,9 @@ class HttpxSession:
             async with self._session_lock:
                 if None not in self._sessions:
                     client = self._make_async_client()
-                    self._sessions[None] = (
-                        await self._exit_stack.enter_async_context(client)
-                    )
+                    self._sessions[
+                        None
+                    ] = await self._exit_stack.enter_async_context(client)
         return self._sessions[None]
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
