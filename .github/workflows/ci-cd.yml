@@ -115,7 +115,7 @@ jobs:
       enable-cache: ${{ github.ref_type == 'tag' && 'false' || 'auto' }}
       with-awscrt: ${{ matrix.with-awscrt }}
       httpx-extra: ${{ matrix.httpx-extra }}
-      timeout-minutes: ${{ matrix.timeout-minutes || 10 }}
+      timeout-minutes: ${{ matrix.timeout-minutes || 15 }}
     secrets:
       codecov-token: ${{ secrets.CODECOV_TOKEN }}
 

@@ -160,6 +160,10 @@ addopts = [
     "--strict-config",
     "--strict-markers",
     "--import-mode=importlib",
+    # Surface the slowest tests on every run, so a regression in suite time has
+    # a visible owner rather than showing up as "CI got slower".
+    "--durations=15",
+    "--durations-min=1.0",
 ]
 # ``scripts`` and not ``.``: the rootdir on sys.path re-introduces the shadowing
 # above. Lets tests do ``from changelog import ...`` (the CHANGES.rst parser
