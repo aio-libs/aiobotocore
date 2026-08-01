@@ -22,6 +22,7 @@ from botocore.retries.standard import (
 )
 
 from .._helpers import async_any, resolve_awaitable
+from ..httpxsession import HttpxSession
 from .special import AioRetryDDBChecksumError
 
 
@@ -29,6 +30,11 @@ def register_retry_handler(client, max_attempts=None):
     service_id = client.meta.service_model.service_id
     service_event_name = service_id.hyphenize()
     retry_event_adapter = RetryEventAdapter()
+    retry_handler_cls = (
+        AnyioRetryHandler
+        if isinstance(client._endpoint.http_session, HttpxSession)
+        else AioRetryHandler
+    )
 
     if NEW_RETRIES_ENABLED:
         if (
@@ -42,7 +48,7 @@ def register_retry_handler(client, max_attempts=None):
         retry_quota = RetryQuotaChecker(
             quota.RetryQuota(), throttling_detector
         )
-        handler = AioRetryHandler(
+        handler = retry_handler_cls(
             retry_policy=AioRetryPolicy(
                 retry_checker=AioStandardRetryConditions(
                     max_attempts=max_attempts
@@ -58,7 +64,7 @@ def register_retry_handler(client, max_attempts=None):
         )
     else:
         retry_quota = RetryQuotaChecker(quota.RetryQuota())
-        handler = AioRetryHandler(
+        handler = retry_handler_cls(
             retry_policy=AioRetryPolicy(
                 retry_checker=AioStandardRetryConditions(
                     max_attempts=max_attempts or DEFAULT_MAX_ATTEMPTS
@@ -82,6 +88,9 @@ def register_retry_handler(client, max_attempts=None):
 
 
 class AioRetryHandler(RetryHandler):
+    def __init__(self, *args, sleep=asyncio.sleep, **kwargs):
+        super().__init__(*args, sleep=sleep, **kwargs)
+
     async def needs_retry(self, **kwargs):
         """Connect as a handler to the needs-retry event."""
         retry_delay = None
@@ -101,7 +110,7 @@ class AioRetryHandler(RetryHandler):
                         polling_delay = self._retry_policy.compute_retry_delay(
                             context
                         )
-                        await asyncio.sleep(polling_delay)
+                        await self._sleep(polling_delay)
                         logger.debug(
                             "Retry needed but retry quota reached, "
                             "not retrying request."
@@ -121,6 +130,13 @@ class AioRetryHandler(RetryHandler):
             logger.debug("Not retrying request.")
         self._retry_event_adapter.adapt_retry_response_from_context(context)
         return retry_delay
+
+
+class AnyioRetryHandler(AioRetryHandler):
+    def __init__(self, *args, **kwargs):
+        import anyio
+
+        super().__init__(*args, sleep=anyio.sleep, **kwargs)
 
 
 class AioRetryPolicy(RetryPolicy):

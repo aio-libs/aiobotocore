@@ -8,6 +8,7 @@ import asyncio
 import json
 import logging
 import os
+import shlex
 import shutil
 import subprocess
 import sys
@@ -41,6 +42,12 @@ from botocore.utils import (
 from dateutil.tz import tzlocal, tzutc
 
 from aiobotocore import credentials
+from aiobotocore._async_primitives import (
+    AsyncPrimitives,
+    infer_async_primitives,
+)
+from aiobotocore._httpx import httpx
+from aiobotocore.config import AioConfig
 from aiobotocore.credentials import (
     AioAssumeRoleProvider,
     AioCanonicalNameCredentialSourcer,
@@ -52,6 +59,7 @@ from aiobotocore.credentials import (
     AioSSOCredentialFetcher,
     AioSSOProvider,
 )
+from aiobotocore.httpxsession import is_httpx_session_cls
 from aiobotocore.session import AioSession
 from tests.botocore_tests import random_chars, requires_crt, skip_if_crt
 from tests.botocore_tests.helpers import StubbedSession
@@ -1100,6 +1108,9 @@ def mock_session():
         session = mock.Mock(spec=AioSession)
         session.get_component = fake_get_component
         session.full_config = {}
+        # A real string, not a Mock: it becomes the IMDS request's User-Agent
+        # header, and httpx rejects non-str/bytes header values.
+        session.user_agent.return_value = 'aiobotocore-test'
 
         for name, value in fake_instance_variables.items():
             config_loader.set_config_variable(name, value)
@@ -1112,19 +1123,100 @@ def mock_session():
     return _f
 
 
-async def test_createcredentialresolver(mock_session):
+async def test_createcredentialresolver(mock_session, http_session_cls):
     session = mock_session()
 
-    resolver = credentials.create_credential_resolver(session)
+    resolver = credentials.create_credential_resolver(
+        session,
+        async_primitives=infer_async_primitives(http_session_cls),
+    )
     assert isinstance(resolver, credentials.AioCredentialResolver)
 
+    if infer_async_primitives(http_session_cls) is AsyncPrimitives.ANYIO:
+        assert isinstance(
+            resolver.providers[0], credentials.AnyioAssumeRoleProvider
+        )
+        assert isinstance(
+            resolver.providers[-2], credentials.AnyioContainerProvider
+        )
+        assert isinstance(
+            resolver.providers[-1],
+            credentials.AnyioInstanceMetadataProvider,
+        )
 
-async def test_get_credentials(mock_session):
+
+def test_createcredentialresolver_uses_anyio_credential_providers(
+    mock_session,
+):
+    if httpx is None:
+        pytest.skip('requires an HTTPX backend')
+
+    resolver = credentials.create_credential_resolver(
+        mock_session(), async_primitives=AsyncPrimitives.ANYIO
+    )
+
+    assert isinstance(
+        resolver.providers[0], credentials.AnyioAssumeRoleProvider
+    )
+    credential_sources = resolver.providers[0]._credential_sourcer._providers
+    assert isinstance(credential_sources[0], credentials.AnyioEnvProvider)
+    assert any(
+        isinstance(provider, credentials.AnyioProcessProvider)
+        for provider in resolver.providers
+    )
+    assert any(
+        isinstance(
+            provider,
+            credentials.AnyioAssumeRoleWithWebIdentityProvider,
+        )
+        for provider in resolver.providers
+    )
+    assert any(
+        isinstance(provider, credentials.AnyioSSOProvider)
+        for provider in resolver.providers
+    )
+    assert any(
+        isinstance(provider, credentials.AnyioLoginProvider)
+        for provider in resolver.providers
+    )
+    assert isinstance(
+        resolver.providers[-2], credentials.AnyioContainerProvider
+    )
+    assert isinstance(
+        resolver.providers[-1], credentials.AnyioInstanceMetadataProvider
+    )
+
+
+async def test_get_credentials(mock_session, http_session_cls):
     session = mock_session()
 
-    creds = await credentials.get_credentials(session)
+    resolver = credentials.create_credential_resolver(
+        session,
+        async_primitives=infer_async_primitives(http_session_cls),
+    )
+    creds = await resolver.load_credentials()
 
     assert creds is None
+
+
+async def test_get_credentials_uses_session_async_primitives(
+    mock_session, http_session_cls
+):
+    session = mock_session()
+    session._async_primitives = infer_async_primitives(http_session_cls)
+    resolver = mock.Mock()
+    resolver.load_credentials = mock.AsyncMock(return_value=None)
+
+    with mock.patch(
+        'aiobotocore.credentials.create_credential_resolver',
+        return_value=resolver,
+    ) as create_resolver:
+        await credentials.get_credentials(session)
+
+    create_resolver.assert_called_once_with(
+        session, async_primitives=session._async_primitives
+    )
+    resolver.load_credentials.assert_awaited_once_with()
 
 
 class Self:
@@ -1144,9 +1236,11 @@ class _AsyncCtx:
 
 # From class TestSSOCredentialFetcher:
 @pytest.fixture
-async def ssl_credential_fetcher_setup():
-    async with AioSession().create_client(
-        'sso', region_name='us-east-1'
+async def ssl_credential_fetcher_setup(session, http_session_cls):
+    async with session.create_client(
+        'sso',
+        region_name='us-east-1',
+        config=AioConfig(http_session_cls=http_session_cls),
     ) as sso:
         self = Self()
         self.sso = sso
@@ -1337,7 +1431,7 @@ async def _create_session(self, profile=None):
 
 
 @pytest.fixture
-def assume_role_setup(base_assume_role_test_setup):
+def assume_role_setup(base_assume_role_test_setup, http_session_cls):
     self = base_assume_role_test_setup
 
     self.environ['AWS_ACCESS_KEY_ID'] = 'access_key'
@@ -1493,14 +1587,16 @@ async def test_sso_cred_fetcher_feature_ids_registered_during_get_credentials(
 
 # from TestSSOProvider
 @pytest.fixture
-async def sso_provider_setup():
+async def sso_provider_setup(session, http_session_cls):
     self = Self()
     with mock.patch(
         'aiobotocore.credentials.AioLoginProvider.load',
         return_value=None,
     ):
-        async with AioSession().create_client(
-            'sso', region_name='us-east-1'
+        async with session.create_client(
+            'sso',
+            region_name='us-east-1',
+            config=AioConfig(http_session_cls=http_session_cls),
         ) as sso:
             self.sso = sso
             self.stubber = Stubber(self.sso)
@@ -1656,14 +1752,22 @@ async def test_load_sso_credentials_with_account_id(sso_provider_setup):
 
 # From class TestProcessProvider(BaseEnvVar):
 @pytest.fixture()
-def process_provider():
+def process_provider(http_session_cls):
+    # The httpx backend (which also runs on trio) needs the anyio provider:
+    # its thread fallback uses anyio, whereas the aiohttp one uses asyncio.
+    provider_cls = (
+        credentials.AnyioProcessProvider
+        if is_httpx_session_cls(http_session_cls)
+        else credentials.AioProcessProvider
+    )
+
     def _f(profile_name='default', loaded_config=None, invoked_process=None):
         load_config = mock.Mock(return_value=loaded_config)
         popen_mock = mock.Mock(
             return_value=invoked_process or mock.Mock(),
             spec=asyncio.create_subprocess_exec,
         )
-        return popen_mock, credentials.AioProcessProvider(
+        return popen_mock, provider_cls(
             profile_name, load_config, popen=popen_mock
         )
 
@@ -1789,6 +1893,49 @@ async def test_processprovider_can_retrieve_account_id_via_profile_config(
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
     )
+
+
+async def test_session_retrieve_creds_via_real_subprocess(
+    http_session_cls, tmp_path
+):
+    session = AioSession()
+    session.set_default_client_config(
+        AioConfig(http_session_cls=http_session_cls)
+    )
+    script = tmp_path / 'credential_process.py'
+    script.write_text(
+        "\n".join(
+            [
+                "import json",
+                "print(json.dumps({",
+                "    'Version': 1,",
+                "    'AccessKeyId': 'foo',",
+                "    'SecretAccessKey': 'bar',",
+                "    'SessionToken': 'baz',",
+                "}))",
+            ]
+        )
+    )
+    config_file = tmp_path / 'config'
+    config_file.write_text(
+        "\n".join(
+            [
+                "[default]",
+                f"credential_process = {shlex.join([sys.executable, str(script)])}",
+                "",
+            ]
+        )
+    )
+    session.set_config_variable('config_file', str(config_file))
+    session.set_config_variable('profile', 'default')
+    creds = await session.get_credentials()
+
+    assert isinstance(creds, credentials.AioCredentials)
+    assert creds is not None
+    assert creds.access_key == 'foo'
+    assert creds.secret_key == 'bar'
+    assert creds.token == 'baz'
+    assert creds.method == 'custom-process'
 
 
 @pytest.fixture
@@ -2178,13 +2325,12 @@ async def test_processprovider_bad_config(process_provider):
     assert creds is None
 
 
-async def test_session_credentials():
+async def test_session_credentials(session):
     with mock.patch(
         'aiobotocore.credentials.AioCredentialResolver.load_credentials'
     ) as mock_obj:
         mock_obj.return_value = 'somecreds'
 
-        session = AioSession()
         creds = await session.get_credentials()
         assert creds == 'somecreds'
 
@@ -2207,7 +2353,7 @@ class TestAioLoginProvider:
     @pytest.mark.parametrize(
         "test_case", _load_login_test_cases(), ids=lambda x: x["documentation"]
     )
-    async def test_login_credentials(self, test_case):
+    async def test_login_credentials(self, test_case, http_session_cls):
         tempdir = tempfile.mkdtemp()
         config_file = os.path.join(tempdir, 'config')
         cache_dir = os.path.join(tempdir, 'cache')
@@ -2231,6 +2377,9 @@ class TestAioLoginProvider:
 
         try:
             session = AioSession(profile='signin')
+            session.set_default_client_config(
+                AioConfig(http_session_cls=http_session_cls)
+            )
             token_cache = JSONFileCache(cache_dir)
 
             def load_config():

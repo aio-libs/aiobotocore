@@ -11,6 +11,8 @@ from unittest.mock import Mock, patch
 
 import pytest
 
+from aiobotocore._async_primitives import infer_async_primitives
+from aiobotocore.config import AioConfig
 from aiobotocore.credentials import _get_client_creator
 from aiobotocore.utils import create_nested_client
 
@@ -30,10 +32,15 @@ class TestCreateNestedClient:
         # It's now an async generator context manager, not ClientCreatorContext
         assert '_AsyncGeneratorContextManager' in str(type(client_context))
 
-    async def test_create_nested_client_creates_working_client(self, session):
+    async def test_create_nested_client_creates_working_client(
+        self, session, http_session_cls
+    ):
         """Test that create_nested_client creates a functional client."""
         client_context = create_nested_client(
-            session, 's3', region_name='us-east-1'
+            session,
+            's3',
+            region_name='us-east-1',
+            config=AioConfig(http_session_cls=http_session_cls),
         )
 
         async with client_context as client:
@@ -46,7 +53,12 @@ class TestCreateNestedClient:
     @patch('aiobotocore.utils.reset_plugin_context')
     @patch('aiobotocore.utils.PluginContext')
     async def test_create_nested_client_manages_plugin_context(
-        self, mock_plugin_context, mock_reset, mock_set, session
+        self,
+        mock_plugin_context,
+        mock_reset,
+        mock_set,
+        session,
+        http_session_cls,
     ):
         """Test that create_nested_client properly manages plugin context."""
         mock_ctx = Mock()
@@ -56,7 +68,10 @@ class TestCreateNestedClient:
 
         # Call create_nested_client and actually enter the context manager
         client_context = create_nested_client(
-            session, 's3', region_name='us-east-1'
+            session,
+            's3',
+            region_name='us-east-1',
+            config=AioConfig(http_session_cls=http_session_cls),
         )
         async with client_context:
             pass  # Just test that context management works
@@ -213,7 +228,9 @@ class TestGetClientCreator:
 class TestPluginContextIntegration:
     """Integration tests for plugin context functionality."""
 
-    async def test_plugin_context_prevents_infinite_loops(self, session):
+    async def test_plugin_context_prevents_infinite_loops(
+        self, session, http_session_cls
+    ):
         """Test that plugin context prevents infinite loops in credential providers."""
         # This is a more complex integration test that simulates the scenario
         # where a credential provider might try to create a client
@@ -237,7 +254,9 @@ class TestPluginContextIntegration:
             session, '_create_client', side_effect=mock_create_client
         ):
             client_context = session.create_client(
-                's3', region_name='us-east-1'
+                's3',
+                region_name='us-east-1',
+                config=AioConfig(http_session_cls=http_session_cls),
             )
             async with client_context as client:
                 assert client._service_model.service_name == 's3'
@@ -245,7 +264,9 @@ class TestPluginContextIntegration:
         # Should have been called at least once for the main client
         assert call_count >= 1
 
-    async def test_plugin_context_environment_variable_handling(self, session):
+    async def test_plugin_context_environment_variable_handling(
+        self, session, http_session_cls
+    ):
         """Test that plugin context properly handles environment variables."""
         # Test with plugins enabled via environment variable
         with patch.dict(
@@ -255,7 +276,10 @@ class TestPluginContextIntegration:
                 'aiobotocore.utils.PluginContext'
             ) as mock_plugin_context:
                 client_context = create_nested_client(
-                    session, 's3', region_name='us-east-1'
+                    session,
+                    's3',
+                    region_name='us-east-1',
+                    config=AioConfig(http_session_cls=http_session_cls),
                 )
                 async with client_context:
                     # Should create context with plugins disabled regardless of env var
@@ -263,14 +287,15 @@ class TestPluginContextIntegration:
                         plugins="DISABLED"
                     )
 
-    async def test_multiple_nested_clients(self, session):
+    async def test_multiple_nested_clients(self, session, http_session_cls):
         """Test creating multiple nested clients works correctly."""
+        config = AioConfig(http_session_cls=http_session_cls)
         # Create multiple nested clients
         s3_context = create_nested_client(
-            session, 's3', region_name='us-east-1'
+            session, 's3', region_name='us-east-1', config=config
         )
         sts_context = create_nested_client(
-            session, 'sts', region_name='us-east-1'
+            session, 'sts', region_name='us-east-1', config=config
         )
 
         # Both should work independently
@@ -304,20 +329,32 @@ class TestPluginContextIntegration:
 class TestCredentialProviderIntegration:
     """Test integration with credential providers."""
 
-    def test_credential_resolver_uses_get_client_creator(self, session):
+    def test_credential_resolver_uses_get_client_creator(
+        self, session, http_session_cls
+    ):
         """Test that credential resolver can use _get_client_creator."""
         from aiobotocore.credentials import create_credential_resolver
 
         # This should not raise any import errors
-        resolver = create_credential_resolver(session, region_name='us-east-1')
+        resolver = create_credential_resolver(
+            session,
+            region_name='us-east-1',
+            async_primitives=infer_async_primitives(http_session_cls),
+        )
         assert resolver is not None
 
-    def test_assume_role_provider_uses_client_creator(self, session):
+    def test_assume_role_provider_uses_client_creator(
+        self, session, http_session_cls
+    ):
         """Test that AssumeRoleProvider can be created with client creator."""
         from aiobotocore.credentials import create_credential_resolver
 
         # Create credential resolver which should use _get_client_creator internally
-        resolver = create_credential_resolver(session, region_name='us-east-1')
+        resolver = create_credential_resolver(
+            session,
+            region_name='us-east-1',
+            async_primitives=infer_async_primitives(http_session_cls),
+        )
 
         # Should have providers that can use client creators
         assert len(resolver.providers) > 0
@@ -393,10 +430,15 @@ class TestErrorHandling:
         assert hasattr(client_context, '__aenter__')
         assert hasattr(client_context, '__aexit__')
 
-    async def test_nested_client_context_manager(self, session):
+    async def test_nested_client_context_manager(
+        self, session, http_session_cls
+    ):
         """Test that nested client works as a context manager."""
         client_context = create_nested_client(
-            session, 's3', region_name='us-east-1'
+            session,
+            's3',
+            region_name='us-east-1',
+            config=AioConfig(http_session_cls=http_session_cls),
         )
 
         async with client_context as client:

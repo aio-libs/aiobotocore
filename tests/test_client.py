@@ -1,11 +1,23 @@
 import pytest
 from botocore.exceptions import OperationNotPageableError
 
+from aiobotocore.paginate import AioPaginator
+
 
 async def test_get_paginator_not_supported_by_service(sns_client):
     operation_name = 'list_tags_for_resource'
     with pytest.raises(OperationNotPageableError):
         sns_client.get_paginator(operation_name)
+
+
+async def test_get_paginator_custom_http_session_uses_asyncio(
+    sns_client, monkeypatch
+):
+    monkeypatch.setattr(sns_client._endpoint, 'http_session', object())
+
+    paginator = sns_client.get_paginator('list_topics')
+
+    assert isinstance(paginator, AioPaginator)
 
 
 async def test_get_waiter_not_supported_by_service(sns_client):

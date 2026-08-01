@@ -77,7 +77,14 @@ class AioClientArgsCreator(ClientArgsCreator):
             connector_args = None
             http_session_cls = DEFAULT_HTTP_SESSION_CLS
 
-        new_config = AioConfig(connector_args, **config_kwargs)
+        new_config = AioConfig(
+            connector_args,
+            http_session_cls=http_session_cls,
+            warm_up_loader_caches=getattr(
+                client_config, 'warm_up_loader_caches', False
+            ),
+            **config_kwargs,
+        )
         endpoint_creator = AioEndpointCreator(event_emitter)
 
         endpoint = endpoint_creator.create_endpoint(

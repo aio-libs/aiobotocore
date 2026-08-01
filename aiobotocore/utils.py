@@ -1,9 +1,9 @@
 import asyncio
 import contextlib
-import functools
 import inspect
 import json
 import logging
+from collections import OrderedDict
 
 import botocore.awsrequest
 from botocore.exceptions import (
@@ -39,20 +39,24 @@ from botocore.utils import (
 )
 
 import aiobotocore.httpsession
+import aiobotocore.httpxsession
 
 logger = logging.getLogger(__name__)
 
 
-class _RefCountedSession(aiobotocore.httpsession.AIOHTTPSession):
+class _RefCountedSessionMixin:
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.__ref_count = 0
         self.__lock = None
 
+    def _create_lock(self):
+        return asyncio.Lock()
+
     @contextlib.asynccontextmanager
     async def acquire(self):
         if not self.__lock:
-            self.__lock = asyncio.Lock()
+            self.__lock = self._create_lock()
 
         # ensure we have a session
         async with self.__lock:
@@ -75,7 +79,27 @@ class _RefCountedSession(aiobotocore.httpsession.AIOHTTPSession):
                 self.__ref_count -= 1
 
 
+class _RefCountedSession(
+    _RefCountedSessionMixin, aiobotocore.httpsession.AIOHTTPSession
+):
+    pass
+
+
+class _RefCountedHttpxSession(
+    _RefCountedSessionMixin, aiobotocore.httpxsession.HttpxSession
+):
+    """Ref counted httpx session, for the backend that also runs on trio."""
+
+    def _create_lock(self):
+        import anyio
+
+        return anyio.Lock()
+
+
 class AioIMDSFetcher(IMDSFetcher):
+    # aiohttp is asyncio-only; the httpx backend also runs on trio.
+    _ref_counted_session_cls = _RefCountedSession
+
     def __init__(
         self,
         timeout=DEFAULT_METADATA_SERVICE_TIMEOUT,  # noqa: E501, lgtm [py/missing-call-to-init]
@@ -101,7 +125,7 @@ class AioIMDSFetcher(IMDSFetcher):
         self._imds_v1_disabled = config.get('ec2_metadata_v1_disabled')
         self._user_agent = user_agent
 
-        self._session = session or _RefCountedSession(
+        self._session = session or self._ref_counted_session_cls(
             timeout=self._timeout,
             proxies=get_environ_proxies(self._base_url),
         )
@@ -290,7 +314,17 @@ class AioInstanceMetadataFetcher(AioIMDSFetcher, InstanceMetadataFetcher):
         )
 
 
+class AnyioInstanceMetadataFetcher(AioInstanceMetadataFetcher):
+    """IMDS credential fetcher for the httpx backend, which also runs on trio."""
+
+    _ref_counted_session_cls = _RefCountedHttpxSession
+
+
 class AioIMDSRegionProvider(IMDSRegionProvider):
+    def _get_fetcher_cls(self):
+        # Resolved lazily: the fetcher classes are defined further down.
+        return AioInstanceMetadataRegionFetcher
+
     async def provide(self):
         """Provide the region value from IMDS."""
         instance_region = await self._get_instance_metadata_region()
@@ -319,7 +353,7 @@ class AioIMDSRegionProvider(IMDSRegionProvider):
                 'ec2_metadata_v1_disabled'
             ),
         }
-        fetcher = AioInstanceMetadataRegionFetcher(
+        fetcher = self._get_fetcher_cls()(
             timeout=metadata_timeout,
             num_attempts=metadata_num_attempts,
             env=self._environ,
@@ -356,6 +390,19 @@ class AioInstanceMetadataRegionFetcher(
         return region
 
 
+class AnyioInstanceMetadataRegionFetcher(AioInstanceMetadataRegionFetcher):
+    """IMDS region fetcher for the httpx backend, which also runs on trio."""
+
+    _ref_counted_session_cls = _RefCountedHttpxSession
+
+
+class AnyioIMDSRegionProvider(AioIMDSRegionProvider):
+    """IMDS region provider for the httpx backend, which also runs on trio."""
+
+    def _get_fetcher_cls(self):
+        return AnyioInstanceMetadataRegionFetcher
+
+
 class AioIdentityCache(IdentityCache):
     async def get_credentials(self, **kwargs):
         callback = self.build_refresh_callback(**kwargs)
@@ -371,16 +418,36 @@ class AioIdentityCache(IdentityCache):
 
 
 class AioS3ExpressIdentityCache(AioIdentityCache, S3ExpressIdentityCache):
-    @functools.lru_cache(maxsize=100)
-    def _get_credentials(self, bucket):
-        return asyncio.create_task(super().get_credentials(bucket=bucket))
+    def __init__(self, client, credential_cls):
+        super().__init__(client, credential_cls)
+        self._credentials = OrderedDict()
+        self._refresh_locks = {}
+
+    def _create_lock(self):
+        return asyncio.Lock()
 
     async def get_credentials(self, bucket):
-        # upstream uses `@functools.lru_cache(maxsize=100)` to cache credentials.
-        # This is incompatible with async code.
-        # We need to implement custom caching logic.
+        credentials = self._credentials.get(bucket)
+        if credentials is not None:
+            self._credentials.move_to_end(bucket)
+            return credentials
 
-        return await self._get_credentials(bucket=bucket)
+        lock = self._refresh_locks.get(bucket)
+        if lock is None:
+            lock = self._create_lock()
+            self._refresh_locks[bucket] = lock
+        async with lock:
+            credentials = self._credentials.get(bucket)
+            if credentials is None:
+                credentials = await super().get_credentials(bucket=bucket)
+                self._credentials[bucket] = credentials
+                if len(self._credentials) > 100:
+                    oldest_bucket = next(iter(self._credentials))
+                    self._credentials.pop(oldest_bucket)
+                    self._refresh_locks.pop(oldest_bucket, None)
+            else:
+                self._credentials.move_to_end(bucket)
+            return credentials
 
     def build_refresh_callback(self, bucket):
         async def refresher():
@@ -399,13 +466,26 @@ class AioS3ExpressIdentityCache(AioIdentityCache, S3ExpressIdentityCache):
         return refresher
 
 
+class AnyioS3ExpressIdentityCache(AioS3ExpressIdentityCache):
+    def _create_lock(self):
+        import anyio
+
+        return anyio.Lock()
+
+
 class AioS3ExpressIdentityResolver(S3ExpressIdentityResolver):
+    _cache_cls = AioS3ExpressIdentityCache
+
     def __init__(self, client, credential_cls, cache=None):
         super().__init__(client, credential_cls, cache)
 
         if cache is None:
-            cache = AioS3ExpressIdentityCache(self._client, credential_cls)
+            cache = self._cache_cls(self._client, credential_cls)
         self._cache = cache
+
+
+class AnyioS3ExpressIdentityResolver(AioS3ExpressIdentityResolver):
+    _cache_cls = AnyioS3ExpressIdentityCache
 
 
 class AioS3RegionRedirectorv2(S3RegionRedirectorv2):
@@ -685,9 +765,13 @@ class AioS3RegionRedirector(S3RegionRedirector):
 
 
 class AioContainerMetadataFetcher(ContainerMetadataFetcher):
+    _ref_counted_session_cls = _RefCountedSession
+
     def __init__(self, session=None, sleep=asyncio.sleep):  # noqa: E501, lgtm [py/missing-call-to-init]
         if session is None:
-            session = _RefCountedSession(timeout=self.TIMEOUT_SECONDS)
+            session = self._ref_counted_session_cls(
+                timeout=self.TIMEOUT_SECONDS
+            )
         self._session = session
         self._sleep = sleep
 
@@ -791,3 +875,17 @@ async def create_nested_client(session, service_name, **kwargs):
     finally:
         if token:
             reset_plugin_context(token)
+
+
+class AnyioContainerMetadataFetcher(AioContainerMetadataFetcher):
+    """Container metadata fetcher for the httpx backend, which also runs on trio."""
+
+    _ref_counted_session_cls = _RefCountedHttpxSession
+
+    def __init__(self, session=None, sleep=None):
+        if sleep is None:
+            # anyio is a hard dependency of the httpx backend.
+            import anyio
+
+            sleep = anyio.sleep
+        super().__init__(session=session, sleep=sleep)

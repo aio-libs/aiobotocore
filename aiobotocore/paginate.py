@@ -108,8 +108,11 @@ class AioPageIterator(PageIterator):
             else:
                 yield results
 
+    def _tee(self, n):
+        return aioitertools.tee(self, n)
+
     def result_key_iters(self):
-        teed_results = aioitertools.tee(self, len(self.result_keys))
+        teed_results = self._tee(len(self.result_keys))
         return [
             ResultKeyIterator(i, result_key)
             for i, result_key in zip(teed_results, self.result_keys)
@@ -165,8 +168,26 @@ class AioPageIterator(PageIterator):
         return complete_result
 
 
+class AnyioPageIterator(AioPageIterator):
+    """Page iterator for the httpx backend, which also runs on trio."""
+
+    def _tee(self, n):
+        # aioitertools.tee is built on asyncio.Queue. anyio is a hard
+        # dependency of httpx, so ._tee is importable whenever the httpx
+        # backend is in use.
+        from ._tee import tee
+
+        return tee(self, n)
+
+
 class AioPaginator(Paginator):
     PAGE_ITERATOR_CLS = AioPageIterator
+
+
+class AnyioPaginator(AioPaginator):
+    """Paginator for the httpx backend, which also runs on trio."""
+
+    PAGE_ITERATOR_CLS = AnyioPageIterator
 
 
 class ResultKeyIterator:

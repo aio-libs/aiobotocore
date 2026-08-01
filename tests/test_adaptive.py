@@ -32,6 +32,14 @@ class FakeClock(bucket.Clock):
         return self.timestamp_sequences.pop(0)
 
 
+def test_register_retry_handler_custom_http_session_uses_asyncio():
+    client = mock.Mock(_endpoint=mock.Mock(http_session=object()))
+
+    limiter = adaptive.register_retry_handler(client)
+
+    assert isinstance(limiter, adaptive.AsyncClientRateLimiter)
+
+
 class TestAsyncClientRateLimiter:
     @pytest.fixture(autouse=True)
     def _setup(self):
@@ -94,12 +102,17 @@ class TestAsyncClientRateLimiter:
 
 class TestAsyncTokenBucket:
     @pytest.fixture(autouse=True)
-    def _setup(self):
+    def _setup(self, current_http_backend):
         self.timestamp_sequences = [0]
         self.clock = FakeClock(self.timestamp_sequences)
+        # aiohttp is asyncio-only; the httpx backend also runs on trio.
+        if current_http_backend == 'httpx':
+            self.bucket_cls = bucket.AnyioTokenBucket
+        else:
+            self.bucket_cls = bucket.AsyncTokenBucket
 
     def create_token_bucket(self, max_rate=10, min_rate=0.1):
-        return bucket.AsyncTokenBucket(
+        return self.bucket_cls(
             max_rate=max_rate, clock=self.clock, min_rate=min_rate
         )
 

@@ -28,7 +28,18 @@ class AsyncTokenBucket:
         self._set_max_rate(max_rate)
         # The main difference between this implementation and the botocore TokenBucket
         # implementation is replacing a threading.Condition by this asyncio.Condition.
-        self._new_fill_rate_condition = asyncio.Condition()
+        self._new_fill_rate_condition = self._create_condition()
+
+    def _create_condition(self):
+        return asyncio.Condition()
+
+    async def _wait_for_new_fill_rate(self, sleep_amount):
+        try:
+            await asyncio.wait_for(
+                self._new_fill_rate_condition.wait(), sleep_amount
+            )
+        except asyncio.TimeoutError:
+            pass
 
     @property
     def max_rate(self):
@@ -88,12 +99,7 @@ class AsyncTokenBucket:
             # Not enough capacity.
             sleep_amount = self._sleep_amount(amount)
             while sleep_amount > 0:
-                try:
-                    await asyncio.wait_for(
-                        self._new_fill_rate_condition.wait(), sleep_amount
-                    )
-                except asyncio.TimeoutError:
-                    pass
+                await self._wait_for_new_fill_rate(sleep_amount)
                 self._refill()
                 sleep_amount = self._sleep_amount(amount)
             self._current_capacity -= amount
@@ -112,3 +118,21 @@ class AsyncTokenBucket:
         new_capacity = min(self._max_capacity, current_capacity + fill_amount)
         self._current_capacity = new_capacity
         self._last_timestamp = timestamp
+
+
+class AnyioTokenBucket(AsyncTokenBucket):
+    """Token bucket for the httpx backend, which also runs on trio."""
+
+    # anyio is a hard dependency of httpx, so it is importable whenever the
+    # httpx backend is in use.
+
+    def _create_condition(self):
+        import anyio
+
+        return anyio.Condition()
+
+    async def _wait_for_new_fill_rate(self, sleep_amount):
+        import anyio
+
+        with anyio.move_on_after(sleep_amount):
+            await self._new_fill_rate_condition.wait()

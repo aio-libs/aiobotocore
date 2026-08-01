@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import multiprocessing
 import random
-import re
 import string
 from contextlib import AsyncExitStack, ExitStack
 from itertools import chain
@@ -18,7 +17,25 @@ import aiobotocore.session
 from aiobotocore._httpx import httpx
 from aiobotocore.config import AioConfig
 from aiobotocore.httpsession import AIOHTTPSession
-from aiobotocore.httpxsession import HttpxSession
+from aiobotocore.httpxsession import HttpxSession, is_httpx_session_cls
+
+# Match the library default for tests that do not select a backend explicitly.
+DEFAULT_HTTP_SESSION_CLS = AIOHTTPSession
+
+
+@pytest.fixture
+def ca():
+    import trustme
+
+    return trustme.CA()
+
+
+@pytest.fixture
+def ca_bundle(ca, tmp_path):
+    path = tmp_path / "ca.pem"
+    path.write_bytes(ca.cert_pem.bytes())
+    return str(path)
+
 
 if TYPE_CHECKING:
     from _pytest.nodes import Node
@@ -32,9 +49,9 @@ def always_spawn():
     multiprocessing.set_start_method("spawn", force=True)
 
 
-@pytest.fixture
-def anyio_backend():
-    return 'asyncio'
+@pytest.fixture(params=['asyncio', 'trio'])
+def anyio_backend(request):
+    return request.param
 
 
 def random_bucketname():
@@ -94,14 +111,6 @@ async def assert_num_uploads_found(
     )
 
 
-# Used by test_fail_proxy_request as it will fail during setup, so needs to
-# be skipped before `skipif` would be able to skip the test.
-@pytest.fixture
-def skip_httpx(current_http_backend: str) -> None:
-    if current_http_backend == 'httpx':
-        pytest.skip('proxy support not implemented for httpx')
-
-
 @pytest.fixture
 def aa_fail_proxy_config(monkeypatch):
     # NOTE: name of this fixture must be alphabetically first to run first
@@ -121,8 +130,11 @@ def aa_succeed_proxy_config(monkeypatch):  # pragma: no cover
 
 
 @pytest.fixture
-def session() -> aiobotocore.session.AioSession:
+def session(http_session_cls) -> aiobotocore.session.AioSession:
     session = aiobotocore.session.AioSession()
+    session.set_default_client_config(
+        AioConfig(http_session_cls=http_session_cls)
+    )
     return session
 
 
@@ -152,17 +164,11 @@ def s3_verify():
 
 
 @pytest.fixture
-def current_http_backend(request) -> Literal['httpx', 'aiohttp']:
-    for mark in request.node.iter_markers("config_kwargs"):
-        assert len(mark.args) == 1
-        assert isinstance(mark.args[0], dict)
-        http_session_cls = mark.args[0].get('http_session_cls')
-        if http_session_cls is HttpxSession:
-            return 'httpx'
-        # since aiohttp is default we don't test explicitly setting it
-        elif http_session_cls is AIOHTTPSession:  # pragma: no cover
-            return 'aiohttp'
-    return 'aiohttp'
+def current_http_backend(http_session_cls) -> Literal['httpx', 'aiohttp']:
+    # Depend on http_session_cls (rather than reading the marker directly) so
+    # tests that only need the backend name still get parametrized over both
+    # backends by pytest_generate_tests.
+    return 'httpx' if is_httpx_session_cls(http_session_cls) else 'aiohttp'
 
 
 def read_kwargs(node: Node) -> dict[str, object]:
@@ -173,6 +179,19 @@ def read_kwargs(node: Node) -> dict[str, object]:
         assert isinstance(mark.args[0], dict)
         config_kwargs.update(mark.args[0])
     return config_kwargs
+
+
+@pytest.fixture
+def http_session_cls(request) -> type:
+    """The http session class this test is parametrized with.
+
+    Tests that build their own client (rather than using the ``config``
+    fixture) need this to honor the ``--http-backend`` parametrization.
+    Unparametrized tests use the library's default aiohttp session class.
+    """
+    return read_kwargs(request.node).get(
+        'http_session_cls', DEFAULT_HTTP_SESSION_CLS
+    )
 
 
 @pytest.fixture
@@ -678,13 +697,23 @@ def pytest_addoption(parser: pytest.Parser):
 
 
 def pytest_generate_tests(metafunc):
-    """Parametrize all tests to run with both aiohttp and httpx as backend.
-    This is not a super clean solution, as some tests will not differ at all with
-    different http backends."""
+    """Parametrize backend-dependent tests to run with both aiohttp and httpx.
+
+    Only tests that actually select an http backend need both variants — either
+    directly via the ``http_session_cls`` fixture or transitively through a
+    fixture that requests it (e.g. ``session``, and thus ``s3_client``). Tests
+    that don't touch the backend would otherwise just run twice identically."""
+    if 'http_session_cls' not in metafunc.fixturenames:
+        return
     metafunc.parametrize(
         '',
         [
-            pytest.param(id='aiohttp'),
+            pytest.param(
+                id='aiohttp',
+                marks=pytest.mark.config_kwargs(
+                    {'http_session_cls': AIOHTTPSession}
+                ),
+            ),
             pytest.param(
                 id='httpx',
                 marks=pytest.mark.config_kwargs(
@@ -697,22 +726,44 @@ def pytest_generate_tests(metafunc):
 
 def pytest_collection_modifyitems(config: pytest.Config, items):
     """Mark parametrized tests for skipping in case the corresponding backend is not enabled."""
+
+    def item_params(item):
+        return getattr(item, 'callspec', None) and item.callspec.params or {}
+
+    def session_cls_of(item):
+        return read_kwargs(item).get(
+            'http_session_cls', DEFAULT_HTTP_SESSION_CLS
+        )
+
     http_backend = config.getoption("--http-backend")
-    if http_backend == 'all':
-        return
-    if http_backend == 'aiohttp':
-        ignore_backend = 'httpx'
-    else:
+    if http_backend != 'aiohttp':
         assert httpx is not None, (
             "Cannot run httpx as backend if it's not installed."
         )
-        ignore_backend = 'aiohttp'
     backend_skip = pytest.mark.skip(
         reason='Selected not to run with --http-backend'
     )
+
+    # aiohttp is asyncio-only, so trio must never run on the aiohttp backend.
+    # Read both selectors once per item: botocore-ported tests may use the
+    # shipped aiohttp default without the backend appearing in their name.
+    deselected = []
+    selected = []
     for item in items:
-        if re.match(rf'.*\[.*{ignore_backend}.*\]', item.name):
+        is_httpx = issubclass(session_cls_of(item), HttpxSession)
+        if item_params(item).get('anyio_backend') == 'trio' and not is_httpx:
+            deselected.append(item)
+            continue
+        if http_backend != 'all' and (
+            (http_backend == 'aiohttp' and is_httpx)
+            or (http_backend == 'httpx' and not is_httpx)
+        ):
             item.add_marker(backend_skip)
+        selected.append(item)
+
+    if deselected:
+        config.hook.pytest_deselected(items=deselected)
+    items[:] = selected
 
 
 pytest_plugins = ['tests.mock_server']

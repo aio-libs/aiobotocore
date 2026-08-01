@@ -21,8 +21,14 @@ from botocore.exceptions import (
     TokenRetrievalError,
 )
 
+from aiobotocore._async_primitives import AsyncPrimitives
 from aiobotocore.session import AioSession
-from aiobotocore.tokens import AioSSOTokenProvider
+from aiobotocore.tokens import (
+    AioSSOTokenProvider,
+    AnyioDeferredRefreshableToken,
+    AnyioSSOTokenProvider,
+    create_token_resolver,
+)
 
 
 def parametrize(cases):
@@ -118,6 +124,24 @@ def _run_token_provider_test_case(provider, test_case):
         assert auth_token is not None
     else:
         assert auth_token is None
+
+
+def test_token_resolver_uses_anyio_provider():
+    session = _create_mock_session({})
+    session._async_primitives = AsyncPrimitives.ANYIO
+
+    resolver = create_token_resolver(session)
+
+    assert isinstance(resolver._providers[-1], AnyioSSOTokenProvider)
+
+
+def test_anyio_sso_provider_uses_anyio_refreshable_token():
+    session = _create_mock_session(sso_provider_resolution_cases[0]['config'])
+    provider = AnyioSSOTokenProvider(session, profile_name='test')
+
+    token = provider.load_token()
+
+    assert isinstance(token, AnyioDeferredRefreshableToken)
 
 
 @parametrize(sso_provider_resolution_cases)
