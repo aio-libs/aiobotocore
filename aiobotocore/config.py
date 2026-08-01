@@ -2,7 +2,7 @@ import collections.abc
 import copy
 import ssl
 import sys
-from typing import TypedDict
+from typing import TypedDict, cast
 
 import botocore.client
 from aiohttp import SocketFactoryType
@@ -37,23 +37,41 @@ class _ConnectorArgs(TypedDict):
 
 
 _HttpSessionType = AIOHTTPSession | HttpxSession
+_OPTION_DEFAULT = object()
 
 
 class AioConfig(botocore.client.Config):
     def __init__(
         self,
-        connector_args: _ConnectorArgs | None = None,
-        http_session_cls: type[_HttpSessionType] = DEFAULT_HTTP_SESSION_CLS,
-        warm_up_loader_caches: bool = False,
+        connector_args: _ConnectorArgs | None | object = _OPTION_DEFAULT,
+        http_session_cls: type[_HttpSessionType] | object = _OPTION_DEFAULT,
+        warm_up_loader_caches: bool | object = _OPTION_DEFAULT,
         **kwargs,
     ):
+        aio_options = {}
+        if connector_args is not _OPTION_DEFAULT:
+            aio_options['connector_args'] = connector_args
+        else:
+            connector_args = None
+        if http_session_cls is not _OPTION_DEFAULT:
+            aio_options['http_session_cls'] = http_session_cls
+        else:
+            http_session_cls = DEFAULT_HTTP_SESSION_CLS
+        if warm_up_loader_caches is not _OPTION_DEFAULT:
+            aio_options['warm_up_loader_caches'] = warm_up_loader_caches
+        else:
+            warm_up_loader_caches = False
+
         super().__init__(**kwargs)
+        self._user_provided_options.update(aio_options)
 
         self.connector_args: _ConnectorArgs = (
-            copy.copy(connector_args) if connector_args else {}
+            copy.copy(cast(_ConnectorArgs, connector_args))
+            if connector_args
+            else {}
         )
-        self.http_session_cls: type[_HttpSessionType] = http_session_cls
-        self.warm_up_loader_caches: bool = warm_up_loader_caches
+        self.http_session_cls = cast(type[_HttpSessionType], http_session_cls)
+        self.warm_up_loader_caches = cast(bool, warm_up_loader_caches)
         self._validate_connector_args(
             self.connector_args, self.http_session_cls
         )
@@ -67,18 +85,7 @@ class AioConfig(botocore.client.Config):
         # Adapted from parent class
         config_options = copy.copy(self._user_provided_options)
         config_options.update(other_config._user_provided_options)
-        return AioConfig(
-            getattr(other_config, 'connector_args', self.connector_args),
-            http_session_cls=getattr(
-                other_config, 'http_session_cls', self.http_session_cls
-            ),
-            warm_up_loader_caches=getattr(
-                other_config,
-                'warm_up_loader_caches',
-                self.warm_up_loader_caches,
-            ),
-            **config_options,
-        )
+        return AioConfig(**config_options)
 
     @staticmethod
     def _validate_connector_args(

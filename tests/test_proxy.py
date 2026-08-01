@@ -24,6 +24,7 @@ from botocore.exceptions import (
     ProxyConnectionError,
 )
 
+from aiobotocore import httpxsession
 from aiobotocore.httpxsession import HttpxSession
 from tests.tls_helpers import (
     prepared_request,
@@ -81,7 +82,6 @@ def test_httpx_proxy_context_with_verification_disabled():
 
 @pytest.mark.config_kwargs({'http_session_cls': HttpxSession})
 async def test_httpx_proxy_uses_one_client_for_multiple_targets(monkeypatch):
-    monkeypatch.setenv('BOTO_EXPERIMENTAL__ADD_PROXY_HOST_HEADER', 'true')
     async with HttpxSession(
         proxies={'https': 'http://127.0.0.1:1234'}
     ) as session:
@@ -90,6 +90,31 @@ async def test_httpx_proxy_uses_one_client_for_multiple_targets(monkeypatch):
 
         assert first is second
         assert len(session._sessions) == 1
+
+
+@pytest.mark.config_kwargs({'http_session_cls': HttpxSession})
+async def test_httpx_proxy_host_header_uses_one_client_per_target(monkeypatch):
+    monkeypatch.setenv('BOTO_EXPERIMENTAL__ADD_PROXY_HOST_HEADER', 'true')
+    async with HttpxSession(
+        proxies={'https': 'http://127.0.0.1:1234'}
+    ) as session:
+        proxy_headers = []
+        original_proxy = httpxsession.httpx.Proxy
+
+        def recording_proxy(*args, **kwargs):
+            proxy_headers.append(kwargs['headers'])
+            return original_proxy(*args, **kwargs)
+
+        monkeypatch.setattr(httpxsession.httpx, 'Proxy', recording_proxy)
+        first = await session._get_session('https://first.example')
+        second = await session._get_session('https://second.example')
+
+        assert first is not second
+        assert set(session._sessions) == {'first.example', 'second.example'}
+        assert proxy_headers == [
+            {'host': 'first.example'},
+            {'host': 'second.example'},
+        ]
 
 
 @pytest.mark.config_kwargs({'http_session_cls': HttpxSession})

@@ -188,6 +188,20 @@ def test_merge():
     assert new_config is not other_config
 
 
+def test_merge_preserves_unspecified_aio_options():
+    config = AioConfig(
+        connector_args={'keepalive_timeout': 1},
+        http_session_cls=HttpxSession,
+        warm_up_loader_caches=True,
+    )
+
+    new_config = config.merge(AioConfig(region_name='us-east-1'))
+
+    assert new_config.connector_args == {'keepalive_timeout': 1}
+    assert new_config.http_session_cls is HttpxSession
+    assert new_config.warm_up_loader_caches is True
+
+
 # Check that it's possible to specify custom http_session_cls
 async def test_config_http_session_cls(http_session_cls):
     class SuccessExc(Exception): ...
