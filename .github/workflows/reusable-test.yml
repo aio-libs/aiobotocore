@@ -25,6 +25,11 @@ on:
         # 'httpx' (deprecated legacy fallback), or '' (no httpx backend).
         type: string
         required: true
+      timeout-minutes:
+        # Raise only for interpreters whose deps still lack wheels and so
+        # have to be compiled from sdists on every cache miss.
+        type: number
+        default: 5
     secrets:
       codecov-token:
         required: false
@@ -42,7 +47,7 @@ jobs:
     continue-on-error: ${{ inputs.continue-on-error }}
     env:
       UV_FROZEN: 1
-    timeout-minutes: 5
+    timeout-minutes: ${{ inputs.timeout-minutes }}
 
     steps:
     - name: Checkout
@@ -56,7 +61,7 @@ jobs:
         # Pin uv so setup-uv skips the GitHub release-list API lookup
         # that otherwise resolves pyproject.toml's required-version
         # range. See claude.yml for the full reasoning.
-        version: '0.11.12'
+        version: '0.11.33'
         python-version: ${{ inputs.python-version }}
         enable-cache: ${{ inputs.enable-cache }}
     # ``setup-uv`` above caches uv's wheel-download cache; this caches
