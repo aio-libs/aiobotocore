@@ -37,6 +37,36 @@ PROXY_HOST = "localhost"
 
 
 @pytest.mark.config_kwargs({'http_session_cls': HttpxSession})
+async def test_httpx_entry_failure_closes_exit_stack(monkeypatch):
+    class RecordingExitStack(httpxsession.AsyncExitStack):
+        closed = False
+        exit_exception = None
+
+        async def __aexit__(self, exc_type, exc, traceback):
+            self.closed = True
+            self.exit_exception = exc
+            return await super().__aexit__(exc_type, exc, traceback)
+
+    exit_stack = RecordingExitStack()
+    monkeypatch.setattr(httpxsession, 'AsyncExitStack', lambda: exit_stack)
+    session = HttpxSession()
+
+    def fail_build_ssl_contexts(_proxy_urls):
+        raise RuntimeError('setup failed')
+
+    monkeypatch.setattr(
+        session, '_build_ssl_contexts', fail_build_ssl_contexts
+    )
+
+    with pytest.raises(RuntimeError, match='setup failed'):
+        await session.__aenter__()
+
+    assert exit_stack.closed
+    assert isinstance(exit_stack.exit_exception, RuntimeError)
+    assert session._entered is False
+
+
+@pytest.mark.config_kwargs({'http_session_cls': HttpxSession})
 def test_httpx_proxy_context_does_not_mutate_endpoint_context():
     endpoint_context = ssl.create_default_context()
     endpoint_context.check_hostname = False

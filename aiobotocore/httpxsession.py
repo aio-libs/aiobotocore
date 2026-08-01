@@ -335,8 +335,13 @@ class HttpxSession:
             # The client is built lazily so constructing a session remains
             # side-effect free until it is entered and first used.
             return self
-        except BaseException:
-            self._entered = False
+        except BaseException as exc:
+            try:
+                await self._exit_stack.__aexit__(
+                    type(exc), exc, exc.__traceback__
+                )
+            finally:
+                self._entered = False
             raise
 
     def _make_async_client(
