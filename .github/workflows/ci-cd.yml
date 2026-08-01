@@ -87,6 +87,15 @@ jobs:
           with-awscrt: true
           httpx-extra: httpx2
           experimental: false
+        # Prerelease interpreter: most C/Rust deps have no cp315 wheels yet,
+        # so this run compiles them from sdists -- slow, and breakable by any
+        # upstream release. Experimental until 3.15 is final.
+        - python-version: 3.15
+          os: ubuntu-24.04
+          with-awscrt: false
+          httpx-extra: httpx2
+          experimental: true
+          timeout-minutes: 30
       fail-fast: false
     uses: ./.github/workflows/reusable-test.yml
     with:
@@ -96,6 +105,7 @@ jobs:
       enable-cache: ${{ github.ref_type == 'tag' && 'false' || 'auto' }}
       with-awscrt: ${{ matrix.with-awscrt }}
       httpx-extra: ${{ matrix.httpx-extra }}
+      timeout-minutes: ${{ matrix.timeout-minutes || 5 }}
     secrets:
       codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
