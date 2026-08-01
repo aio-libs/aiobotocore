@@ -340,6 +340,7 @@ jobs:
   # event payload.
   notify-fork-pr:
     if: >-
+      github.repository == 'aio-libs/aiobotocore' &&
       github.event_name == 'pull_request_target' &&
       github.event.pull_request.head.repo.fork == true
     runs-on: ubuntu-latest
