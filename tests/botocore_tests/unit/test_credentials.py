@@ -46,6 +46,7 @@ from aiobotocore._async_primitives import (
     AsyncPrimitives,
     infer_async_primitives,
 )
+from aiobotocore._httpx import httpx
 from aiobotocore.config import AioConfig
 from aiobotocore.credentials import (
     AioAssumeRoleProvider,
@@ -1147,6 +1148,9 @@ async def test_createcredentialresolver(mock_session, http_session_cls):
 def test_createcredentialresolver_uses_anyio_credential_providers(
     mock_session,
 ):
+    if httpx is None:
+        pytest.skip('requires an HTTPX backend')
+
     resolver = credentials.create_credential_resolver(
         mock_session(), async_primitives=AsyncPrimitives.ANYIO
     )
