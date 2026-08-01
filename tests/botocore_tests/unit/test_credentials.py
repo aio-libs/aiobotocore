@@ -2388,6 +2388,8 @@ class TestAioLoginProvider:
 
             mock_client = mock.AsyncMock()
             mock_client.__aenter__.return_value = mock_client
+            # client.meta is sync: AsyncMock makes register() an unawaited coro.
+            mock_client.meta = mock.MagicMock()
             mock_client.exceptions.AccessDeniedException = (
                 botocore.exceptions.ClientError
             )
@@ -2616,6 +2618,8 @@ async def test_login_credential_fetcher_access_denied_errors(
 
     client = mock.AsyncMock()
     client.__aenter__.return_value = client
+    # client.meta is sync: AsyncMock makes register() an unawaited coro.
+    client.meta = mock.MagicMock()
     client.exceptions.AccessDeniedException = ClientError
     client.create_o_auth2_token.side_effect = ClientError(
         {'Error': {'Code': 'AccessDeniedException'}, 'error': error_type},
