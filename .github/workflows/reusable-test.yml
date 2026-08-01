@@ -87,8 +87,11 @@ jobs:
       uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
       with:
         path: .venv
-        # yamllint disable-line rule:line-length
-        key: venv-${{ runner.os }}-py${{ inputs.python-version }}-${{ inputs.with-awscrt && 'awscrt-' || '' }}${{ inputs.httpx-extra || 'no-httpx' }}-${{ hashFiles('uv.lock', 'pyproject.toml') }}
+        key: >-
+          venv-${{ runner.os }}-py${{ inputs.python-version }}-${{
+          inputs.with-awscrt && 'awscrt-' || '' }}${{
+          inputs.httpx-extra || 'no-httpx' }}-${{
+          hashFiles('uv.lock', 'pyproject.toml') }}
     # moto runs Lambda invocations in a real container, so test_run_lambda pays
     # an image pull. Start it here, in the background, so it overlaps with the
     # dependency install instead of stalling the test. Image name mirrors moto's
@@ -119,8 +122,9 @@ jobs:
       env:
         COLOR: 'yes'
         HTTP_BACKEND: ${{ inputs.httpx-extra && 'all' || 'aiohttp' }}
-        # yamllint disable-line rule:line-length
-        COV_ARGS: ${{ inputs.coverage && '--cov --cov-report=term --cov-report=xml' || '' }}
+        COV_ARGS: >-
+          ${{ inputs.coverage
+          && '--cov --cov-report=term --cov-report=xml' || '' }}
       run: |
         uv run --no-sync poe mototest
     - name: Upload coverage to Codecov

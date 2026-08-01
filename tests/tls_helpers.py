@@ -54,9 +54,10 @@ async def serve_https_target(
     listener = await anyio.create_tcp_listener(
         local_host="127.0.0.1", local_port=0
     )
-    port = listener.extra(SocketAttribute.local_port)
-    task_status.started(port)
-    await TLSListener(listener, ssl_context).serve(handle_target)
+    async with listener:
+        port = listener.extra(SocketAttribute.local_port)
+        task_status.started(port)
+        await TLSListener(listener, ssl_context).serve(handle_target)
 
 
 def prepared_request(port: int, host: str = TARGET_HOST) -> AWSRequest:

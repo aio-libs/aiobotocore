@@ -515,6 +515,12 @@ class TestCreateClient(BaseSessionTest):
 
 
 class TestClientMonitoring(BaseSessionTest):
+    @pytest.fixture(autouse=True)
+    def no_csm_socket(self):
+        # botocore hands the CSM monitor a UDP socket nothing ever closes.
+        with mock.patch('botocore.session.socket'):
+            yield
+
     async def assert_created_client_is_monitored(
         self, session, http_session_cls=None
     ):

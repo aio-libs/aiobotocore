@@ -19,6 +19,7 @@ import tiny_proxy
 from anyio.abc import SocketAttribute
 from anyio.streams.tls import TLSListener
 from botocore.exceptions import (
+    EndpointConnectionError,
     HTTPClientError,
     InvalidProxiesConfigError,
     ProxyConnectionError,
@@ -163,9 +164,10 @@ async def _serve_http_proxy(*, task_status) -> None:
     listener = await anyio.create_tcp_listener(
         local_host="127.0.0.1", local_port=0
     )
-    port = listener.extra(SocketAttribute.local_port)
-    task_status.started(port)
-    await listener.serve(handler.handle)
+    async with listener:
+        port = listener.extra(SocketAttribute.local_port)
+        task_status.started(port)
+        await listener.serve(handler.handle)
 
 
 async def _serve_https_proxy(ca, *, client_ca=None, task_status) -> None:
@@ -182,9 +184,10 @@ async def _serve_https_proxy(ca, *, client_ca=None, task_status) -> None:
     listener = await anyio.create_tcp_listener(
         local_host="127.0.0.1", local_port=0
     )
-    port = listener.extra(SocketAttribute.local_port)
-    task_status.started(port)
-    await TLSListener(listener, ssl_context).serve(handler.handle)
+    async with listener:
+        port = listener.extra(SocketAttribute.local_port)
+        task_status.started(port)
+        await TLSListener(listener, ssl_context).serve(handler.handle)
 
 
 @pytest.fixture
@@ -342,7 +345,14 @@ async def test_endpoint_client_cert_is_not_offered_to_proxy(
             verify=ca_bundle,
             client_cert=client_cert,
         ) as session:
-            with pytest.raises((ProxyConnectionError, HTTPClientError)):
+            # anyio force-closes on handshake failure: TLS alert races the RST.
+            with pytest.raises(
+                (
+                    ProxyConnectionError,
+                    HTTPClientError,
+                    EndpointConnectionError,
+                )
+            ):
                 await session.send(prepared_request(target_port))
 
         tg.cancel_scope.cancel()

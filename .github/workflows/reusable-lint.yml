@@ -58,9 +58,11 @@ jobs:
         uv run pytest \
           --cov-report= \
           --cov=plugins/aiobotocore-bot/evals \
-          --cov=tests \
+          --cov=tests/evals \
           tests/evals/test_common.py
-        uv run coverage xml
+        # pyproject's source_pkgs still applies on top of --cov, so without
+        # --include this reports all of aiobotocore at ~0% and sinks the flag.
+        uv run coverage xml --include='plugins/*,tests/evals/*'
     - name: Upload eval coverage to Codecov
       uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f  # v6.0.2
       with:

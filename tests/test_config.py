@@ -139,8 +139,9 @@ async def test_connector_timeout(http_session_cls):
     ):
 
         async def get_and_wait():
-            await s3_client.get_object(Bucket='foo', Key='bar')
-            await anyio.sleep(100)
+            resp = await s3_client.get_object(Bucket='foo', Key='bar')
+            async with resp['Body']:
+                await anyio.sleep(100)
 
         # second request should not timeout just because there isn't a
         # connector available
@@ -171,7 +172,8 @@ async def test_connector_timeout2(http_session_cls):
     ):
         with pytest.raises(ReadTimeoutError):
             resp = await s3_client.get_object(Bucket='foo', Key='bar')
-            await resp["Body"].read()
+            async with resp["Body"] as body:
+                await body.read()
 
 
 async def test_get_session():

@@ -184,12 +184,15 @@ addopts = [
 # above. Lets tests do ``from changelog import ...`` (the CHANGES.rst parser
 # shared with .github/workflows/auto-release-on-merge.yml).
 pythonpath = ["scripts"]
-# A never-awaited coroutine is always a test bug, so fail on it rather than let
-# it scroll past. ResourceWarning can't be promoted yet -- tests/test_proxy.py
-# and tests/test_tls.py still leak sockets.
+# A never-awaited coroutine or a leaked socket is always a test bug, so fail on
+# it rather than let it scroll past. A ResourceWarning usually fires from a
+# __del__ during GC, which reaches pytest as PytestUnraisableExceptionWarning --
+# promoting ResourceWarning alone would miss every one of them.
 filterwarnings = [
     "default",
     "error:coroutine .* was never awaited:RuntimeWarning",
+    "error::ResourceWarning",
+    "error::pytest.PytestUnraisableExceptionWarning",
 ]
 xfail_strict = true
 markers = [
@@ -230,10 +233,13 @@ mototest.env = { HTTP_BACKEND.default = "all", PYTHONTRACEMALLOC = "5", PYTHONFA
 
 clean.shell = "git clean -Xdf"
 
+# ``tests`` belongs in source_pkgs, not source: as a source *path* it becomes an
+# XML <source> root, so files are written bare (``test_utils.py``) and Codecov
+# can't tell them from their tests/botocore_tests/unit/ namesakes -- it drops the
+# ambiguous ones. As a package the rootdir stays the root and paths stay prefixed.
 [tool.coverage.run]
 relative_files = true
-source_pkgs = ["aiobotocore"]
-source = ["tests"]
+source_pkgs = ["aiobotocore", "tests"]
 
 # Reports the wheel installed into site-packages under its repo-relative path
 # so Codecov can line it up with the checkout.
