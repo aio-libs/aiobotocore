@@ -7,6 +7,8 @@ import zipfile
 import botocore.client
 import pytest
 
+from .conftest import random_name
+
 
 async def _get_role_arn(iam_client, role_name: str):
     try:
@@ -41,10 +43,9 @@ def lambda_handler(event, context):
     return _process_lambda(lambda_src)
 
 
-async def test_run_lambda(
-    iam_client, lambda_client, aws_lambda_zip, current_http_backend
-):
-    function_name = f'test-function-{current_http_backend}'
+async def test_run_lambda(iam_client, lambda_client, aws_lambda_zip):
+    # Unique per test: a run dying before cleanup leaks into moto's global backend.
+    function_name = random_name()
     role_arn = await _get_role_arn(iam_client, 'test-iam-role')
     lambda_response = await lambda_client.create_function(
         FunctionName=function_name,
