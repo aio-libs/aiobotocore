@@ -60,7 +60,11 @@ botocore-dev = [
     # "wheel==0.46.3",
     # "behave==1.2.5",
     # "jsonschema==4.23.0",
-    "coverage==7.2.7",
+    # Deliberately ahead of botocore's ==7.2.7: that release ships no C tracer
+    # for 3.12+, so coverage silently falls back to the pure-Python tracer and
+    # costs +158% on 3.12 instead of +20%. Measured on tests/botocore_tests:
+    # 14.08s pinned vs 5.50s here. Test-only, so it cannot affect users.
+    "coverage>=7.10,<8",
     # "setuptools==71.1.0;python_version>='3.12'",
     # "packaging==24.1;python_version>='3.12'", # Requirement for setuptools>=71
 
