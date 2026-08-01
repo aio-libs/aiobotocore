@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import multiprocessing
+import os
 import random
 import string
 import sys
@@ -48,6 +49,28 @@ if _repo_root not in sys.path:
     sys.path.append(_repo_root)
 
 host = '127.0.0.1'
+
+
+# botocore reads ~/.aws/config, so a developer's max_attempts/retry_mode/region silently change what the suite asserts.
+# Not the monkeypatch fixture: requesting it here would tear it down after the client fixtures that depend on its undo.
+@pytest.fixture(autouse=True)
+def isolate_aws_environment(request, tmp_path_factory):
+    if request.node.get_closest_marker('localonly'):
+        yield
+        return
+
+    saved = {k: v for k, v in os.environ.items() if k.startswith('AWS_')}
+    empty = tmp_path_factory.mktemp('no-aws-config')
+    for name in saved:
+        del os.environ[name]
+    os.environ['AWS_CONFIG_FILE'] = str(empty / 'config')
+    os.environ['AWS_SHARED_CREDENTIALS_FILE'] = str(empty / 'credentials')
+    try:
+        yield
+    finally:
+        for name in [k for k in os.environ if k.startswith('AWS_')]:
+            del os.environ[name]
+        os.environ.update(saved)
 
 
 @pytest.fixture(scope="session", autouse=True)
