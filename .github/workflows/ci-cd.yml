@@ -33,6 +33,17 @@ on:
         required: false
         type: string
 
+# Superseded PR runs are wasted work -- a push should cancel the run it
+# replaces. Two things must NOT be cancelled, and the group key handles both:
+# ``event_name`` keeps pull_request, push, merge_group and workflow_dispatch in
+# separate groups, and on ``main`` the SHA is folded in so every commit gets its
+# own group. So merge-queue runs and the tag/dispatch publish path always run to
+# completion; only a superseded PR head is cancelled.
+concurrency:
+  # yamllint disable-line rule:line-length
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && format('-{0}', github.sha) || '' }}
+  cancel-in-progress: true
+
 env:
   FORCE_COLOR: 1
 
