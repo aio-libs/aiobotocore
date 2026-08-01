@@ -58,6 +58,13 @@ Tasks live in `[tool.poe.tasks]` (`uv run poe` lists them); the test contract li
 Makefile. Use `pytest`, never `python -m pytest` — the latter puts the cwd on `sys.path`,
 where the `aiobotocore` source tree shadows the installed package CI is trying to test.
 
+Leaks are failures, not warnings: `ResourceWarning` and `PytestUnraisableExceptionWarning`
+are both errors, so an unclosed socket or a never-awaited coroutine fails the suite. Most
+arrive from a `__del__` during GC, which is why the second one is needed and why the test
+that fails is often not the one that leaked — it is just the one that triggered the
+collection. Find the real culprit with `PYTHONTRACEMALLOC=15`, which adds the allocation
+traceback.
+
 # Packaging
 
 Built by `hatchling`; sdist contents are declared in `[tool.hatch.build.targets.sdist]`.
@@ -68,8 +75,9 @@ as its working tree and installs the wheel over it. So:
 - New test-suite runtime dependency → the `test` dependency group (`dev` is repo tooling only).
 - New top-level file or directory → either the sdist `include` list or
   `[tool.check-sdist] git-only`. The `check-sdist` hook fails until it is in one of them.
-- New test file → it must reach the sdist. The build job diffs collected node IDs between
-  checkout and sdist and fails on any mismatch.
+- New test file → it must reach the sdist. `check-sdist` covers this too, with one blind
+  spot: it forgives anything listed in the sdist `exclude` list by design, so adding a path
+  there silently stops shipping those tests.
 
 # Versioning
 

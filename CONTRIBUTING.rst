@@ -86,9 +86,9 @@ Two consequences for contributors:
   ``check-sdist`` pre-commit hook fails if a git-tracked file is neither
   included nor listed under ``[tool.check-sdist] git-only``. If you add a
   top-level directory, decide which list it belongs in.
-* The build job additionally collects the suite from the checkout and from the
-  unpacked sdist and diffs the node IDs, so a test file that silently failed to
-  ship is caught even when the file lists happen to line up.
+* ``check-sdist`` forgives anything in the sdist ``exclude`` list by design, so
+  adding a path there is the one way to stop shipping tests without CI noticing.
+  Keep that list minimal — it is currently just ``tests/evals``.
 
 Test-only dependencies belong in the ``test`` dependency group; ``dev`` is for
 repo tooling that the sdist does not need (``pre-commit``, eval deps).
