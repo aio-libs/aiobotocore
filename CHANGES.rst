@@ -1,6 +1,23 @@
 Changes
 -------
 
+3.9.0 (2026-08-01)
+^^^^^^^^^^^^^^^^^^
+* bump botocore dependency specification to support
+  ``"botocore >= 1.43.3, < 1.43.57"`` (#1665, #1668, #1675)
+* bump aiohttp dependency specification to support
+  ``"aiohttp >= 3.14.0, < 4.0.0"`` (#1667)
+* run the optional ``httpx`` backend on ``trio`` in addition to ``asyncio``,
+  via ``anyio`` primitives, so aiobotocore is usable from trio-based projects
+  (closes #749) (#1667)
+* prefer ``httpx2`` — Pydantic's maintained, API-compatible fork of ``httpx``
+  — for the optional httpx backend, adding a new ``aiobotocore[httpx2]``
+  extra; the existing ``aiobotocore[httpx]`` extra keeps working but now
+  installs the deprecated legacy ``httpx`` package and emits a
+  ``DeprecationWarning`` when used (#1669)
+* fix the release-drafting workflow silently reporting success when the
+  agent never ran (#1664)
+
 3.8.0 (2026-07-17)
 ^^^^^^^^^^^^^^^^^^
 * bump botocore dependency specification to support
