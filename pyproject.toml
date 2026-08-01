@@ -198,8 +198,12 @@ docs = "uv run --group docs sphinx-build -W -b html docs docs/_build/html"
 # backends; CI overrides it to aiohttp on the no-httpx job.
 # No --reruns: retrying hides flakes instead of fixing them, and doubles the
 # cost of every failure. Nothing is marked flaky, so nothing needs it.
+# ``worksteal`` rather than the default ``load``: the server-heavy tests sort
+# late, so load hands them out together and the last 10% of the suite takes
+# ~44% of the wall clock -- with every expensive test running at once, which is
+# also when they start timing out. Idle workers steal instead.
 mototest.cmd = """
-  pytest -vv -m "not localonly" -n auto
+  pytest -vv -m "not localonly" -n auto --dist worksteal
   --cov --cov-report=term --cov-report=xml
   --log-cli-level=DEBUG --http-backend=${HTTP_BACKEND}
 """
