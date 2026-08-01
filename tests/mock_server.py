@@ -34,10 +34,11 @@ class AIOServer:
         loop = asyncio.new_event_loop()
         try:
             loop.run_until_complete(self._serve())
-        except BaseException as exc:
+        except Exception as exc:
             self._error = exc
-            self._ready.set()
         finally:
+            # Always unblock __aenter__, even if the loop died before binding.
+            self._ready.set()
             loop.close()
 
     async def _serve(self):
@@ -65,6 +66,9 @@ class AIOServer:
         if self._error is not None:
             self._shutdown()
             raise self._error
+        if self.endpoint_url is None:
+            self._shutdown()
+            pytest.fail('mock server thread exited before binding')
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
@@ -90,7 +94,7 @@ class AIOServer:
         await resp.prepare(request)
         # Outlast the client read timeout, but return at once on shutdown.
         await asyncio.to_thread(self._stop.wait, 5)
-        await resp.drain()
+        await resp.write(b'')
         return resp
 
 
