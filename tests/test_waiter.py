@@ -45,10 +45,6 @@ async def test_create_waiter_with_custom_http_session_uses_asyncio(
     assert isinstance(waiter, AIOWaiter)
 
 
-# CreateStack isn't idempotent: a retried request reports AlreadyExists.
-@pytest.mark.config_kwargs(
-    {'read_timeout': 60, 'retries': {'max_attempts': 0}}
-)
 async def test_sqs(cloudformation_client):
     # Random, not axis-derived: moto is global and axes get added (trio just did).
     stack_name = random_name()

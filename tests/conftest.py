@@ -226,7 +226,7 @@ def http_session_cls(request) -> type:
 
 @pytest.fixture
 def config(request, region, signature_version):
-    connect_timeout = read_timout = 5
+    connect_timeout = read_timout = 20
 
     # Merged, not passed alongside, so config_kwargs can override these.
     return AioConfig(
@@ -235,6 +235,8 @@ def config(request, region, signature_version):
             'signature_version': signature_version,
             'read_timeout': read_timout,
             'connect_timeout': connect_timeout,
+            # Creates aren't idempotent: retrying one that timed out against local moto reports "already exists".
+            'retries': {'max_attempts': 0},
             **read_kwargs(request.node),
         }
     )
