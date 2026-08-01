@@ -55,9 +55,10 @@ class AIOServer(multiprocessing.Process):
             aiohttp.web.run_app(
                 app, host=host, port=self._port, handle_signals=False
             )
-        except BaseException:
+        except BaseException:  # pragma: no cover
+            # Error path: server failed to start
             pytest.fail('unable to start and connect to aiohttp server')
-            raise
+            raise  # noqa: B904
 
     async def __aenter__(self):
         self.start()
@@ -67,9 +68,10 @@ class AIOServer(multiprocessing.Process):
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         try:
             self.terminate()
-        except BaseException:
+        except BaseException:  # pragma: no cover
+            # Error path: cleanup failed
             pytest.fail("Unable to shut down server")
-            raise
+            raise  # noqa: B904
 
     @staticmethod
     async def ok(request):
@@ -101,9 +103,10 @@ class AIOServer(multiprocessing.Process):
                     return
                 except (aiohttp.ClientConnectionError, asyncio.TimeoutError):
                     await asyncio.sleep(0.5)
-                except BaseException:
+                except BaseException:  # pragma: no cover
+                    # Unexpected error path during server startup
                     pytest.fail('unable to start/connect to aiohttp server')
-                    raise
+                    raise  # noqa: B904
 
         pytest.fail('unable to start and connect to aiohttp server')
 

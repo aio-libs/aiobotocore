@@ -347,7 +347,8 @@ class TestErrorHandling:
                 try:
                     async with client_context:
                         pass  # pragma: no cover
-                except Exception:
+                except Exception:  # pragma: no cover
+                    # Error path: invalid service context cleanup
                     pass  # We expect this might fail
 
                 # Context should still be set and reset

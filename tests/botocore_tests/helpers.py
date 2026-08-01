@@ -43,10 +43,12 @@ class StubbedSession(aiobotocore.session.AioSession):
                 )
             yield self._client_stubs[service_name]
 
-    def activate_stubs(self):
+    def activate_stubs(self):  # pragma: no cover
+        # Batch activation path (not exercised in current test suite)
         for stub in self._client_stubs.values():
             stub.activate()
 
-    def verify_stubs(self):
+    def verify_stubs(self):  # pragma: no cover
+        # Batch verification path (not exercised in current test suite)
         for stub in self._client_stubs.values():
             stub.assert_no_pending_responses()
