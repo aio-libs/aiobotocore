@@ -90,7 +90,12 @@ jobs:
         # Prerelease interpreter: most C/Rust deps have no cp315 wheels yet,
         # so this run compiles them from sdists -- slow, and breakable by any
         # upstream release. Experimental until 3.15 is final.
-        - python-version: 3.15
+        #
+        # Pinned to an exact beta, not bare `3.15`: both the uv and .venv
+        # cache keys embed this string, and betas share the `cp315` wheel tag
+        # while breaking ABI, so a bare `3.15` restores extensions built
+        # against the previous beta and segfaults. Bump to test a newer one.
+        - python-version: 3.15.0b4
           os: ubuntu-24.04
           with-awscrt: false
           httpx-extra: httpx2
