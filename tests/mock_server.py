@@ -1,6 +1,5 @@
 import asyncio
 import multiprocessing
-import socket
 
 # Third Party
 import aiohttp
@@ -17,17 +16,6 @@ _proxy_bypass = {
 host = '127.0.0.1'
 
 
-def get_free_tcp_port(release_socket: bool = False):
-    sckt = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sckt.bind((host, 0))
-    addr, port = sckt.getsockname()
-    if release_socket:
-        sckt.close()
-        return port
-
-    return sckt, port
-
-
 # This runs in a subprocess for a variety of reasons
 # 1) early versions of python 3.5 did not correctly set one thread per run loop
 # 2) aiohttp uses get_event_loop instead of using the passed in run loop
@@ -39,37 +27,59 @@ class AIOServer(multiprocessing.Process):
     """
 
     def __init__(self):
-        super().__init__(target=self._run)
-        self._loop = None
-        self._port = get_free_tcp_port(True)
-        self.endpoint_url = f'http://{host}:{self._port}'
+        self._conn, child_conn = multiprocessing.Pipe()
+        self._stop = multiprocessing.Event()
+        super().__init__(target=self._run, args=(child_conn, self._stop))
+        self.endpoint_url = None
         self.daemon = True  # die when parent dies
 
-    def _run(self):
-        asyncio.set_event_loop(asyncio.new_event_loop())
+    def _run(self, conn, stop):
+        asyncio.run(self._serve(conn, stop))
+
+    async def _serve(self, conn, stop):
         app = aiohttp.web.Application()
         app.router.add_route('*', '/ok', self.ok)
         app.router.add_route('*', '/{anything:.*}', self.stream_handler)
 
-        try:
-            aiohttp.web.run_app(
-                app, host=host, port=self._port, handle_signals=False
-            )
-        except BaseException:
-            pytest.fail('unable to start and connect to aiohttp server')
-            raise
+        runner = aiohttp.web.AppRunner(app)
+        await runner.setup()
+        # Port 0 and report back: no window for another process to take it.
+        site = aiohttp.web.TCPSite(runner, host, 0)
+        await site.start()
+        conn.send(site.name)
+        await asyncio.to_thread(stop.wait)
+        await runner.cleanup()
 
     async def __aenter__(self):
         self.start()
-        await self._wait_until_up()
+        # __aexit__ only runs if __aenter__ returns, so a failed start reaps here.
+        try:
+            self.endpoint_url = await self._await_bound_url()
+        except BaseException:
+            self._shutdown()
+            raise
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        try:
+        self._shutdown()
+
+    async def _await_bound_url(self, timeout: float = 30) -> str:
+        if not await asyncio.to_thread(self._conn.poll, timeout):
+            pytest.fail(
+                f'mock server never bound a port (exitcode={self.exitcode})'
+            )
+        return self._conn.recv()
+
+    def _shutdown(self):
+        self._stop.set()
+        self.join(timeout=10)
+        # terminate() does not wait, so join or the child keeps holding its port.
+        if self.is_alive():
             self.terminate()
-        except BaseException:
-            pytest.fail("Unable to shut down server")
-            raise
+            self.join(timeout=5)
+        if self.is_alive():
+            self.kill()
+            self.join(timeout=5)
 
     @staticmethod
     async def ok(request):
@@ -84,28 +94,10 @@ class AIOServer(multiprocessing.Process):
         )
 
         await resp.prepare(request)
-        await asyncio.sleep(5)
+        # Outlast the client read timeout, but return at once on shutdown.
+        await asyncio.to_thread(self._stop.wait, 5)
         await resp.drain()
         return resp
-
-    async def _wait_until_up(self):
-        async with aiohttp.ClientSession() as session:
-            for i in range(0, 30):
-                if self.exitcode is not None:
-                    pytest.fail('unable to start/connect to aiohttp server')
-                    return
-
-                try:
-                    # we need to bypass the proxies due to monkey patches
-                    await session.get(self.endpoint_url + '/ok', timeout=0.5)
-                    return
-                except (aiohttp.ClientConnectionError, asyncio.TimeoutError):
-                    await asyncio.sleep(0.5)
-                except BaseException:
-                    pytest.fail('unable to start/connect to aiohttp server')
-                    raise
-
-        pytest.fail('unable to start and connect to aiohttp server')
 
 
 @pytest.fixture

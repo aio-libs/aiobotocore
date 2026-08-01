@@ -86,7 +86,7 @@ test = [
     "packaging >= 24.1, < 27", # Used in test_version.py
     "poethepoet >= 0.29, < 1", # Runs [tool.poe.tasks]; CI drives the suite through it
     "pytest-mock >= 3.14.1, < 4", # Used in test_session.py
-    "pytest-rerunfailures >= 16.0.1, < 17", # Used in test_lambda.py
+    "pytest-rerunfailures >= 16.0.1, < 17", # Available for opt-in @pytest.mark.flaky
     "time-machine >= 2.15.0, < 4", # Used in test_signers.py
 ]
 dev = [
@@ -196,8 +196,10 @@ docs = "uv run --group docs sphinx-build -W -b html docs docs/_build/html"
 
 # What the CI matrix runs. ``--http-backend`` defaults to exercising both
 # backends; CI overrides it to aiohttp on the no-httpx job.
+# No --reruns: retrying hides flakes instead of fixing them, and doubles the
+# cost of every failure. Nothing is marked flaky, so nothing needs it.
 mototest.cmd = """
-  pytest -vv -m "not localonly" -n auto --reruns 1
+  pytest -vv -m "not localonly" -n auto
   --cov --cov-report=term --cov-report=xml
   --log-cli-level=DEBUG --http-backend=${HTTP_BACKEND}
 """
