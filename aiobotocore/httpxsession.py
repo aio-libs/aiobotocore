@@ -260,7 +260,10 @@ class HttpxSession:
             url = parse_url(proxy_url)
             # urllib3 disables this by default but we need it for proper
             # proxy tls negotiation when proxy_url is not an IP Address
-            if self._verify and not _is_ipaddress(url.host):
+            if (
+                context.verify_mode != ssl.CERT_NONE
+                and not _is_ipaddress(url.host)
+            ):
                 context.check_hostname = True
             if proxy_ca_bundle is not None:
                 context.load_verify_locations(cafile=proxy_ca_bundle)

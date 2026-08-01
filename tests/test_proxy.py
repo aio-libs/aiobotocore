@@ -59,6 +59,27 @@ def test_httpx_proxy_context_does_not_mutate_endpoint_context():
 
 
 @pytest.mark.config_kwargs({'http_session_cls': HttpxSession})
+def test_httpx_proxy_context_with_verification_disabled():
+    endpoint_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    endpoint_context.check_hostname = False
+    endpoint_context.verify_mode = ssl.CERT_NONE
+    session = HttpxSession(
+        proxies={'https': 'https://localhost:1234'},
+        verify=endpoint_context,
+    )
+
+    verify, proxy_contexts = session._build_ssl_contexts(
+        {'https': 'https://localhost:1234'}
+    )
+
+    proxy_context = proxy_contexts['https://localhost:1234']
+    assert verify is endpoint_context
+    assert proxy_context is not endpoint_context
+    assert proxy_context.verify_mode == ssl.CERT_NONE
+    assert proxy_context.check_hostname is False
+
+
+@pytest.mark.config_kwargs({'http_session_cls': HttpxSession})
 async def test_httpx_proxy_uses_one_client_for_multiple_targets(monkeypatch):
     monkeypatch.setenv('BOTO_EXPERIMENTAL__ADD_PROXY_HOST_HEADER', 'true')
     async with HttpxSession(
