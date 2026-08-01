@@ -162,7 +162,7 @@ jobs:
     permissions:
       security-events: write
 
-    uses: zizmorcore/workflow/.github/workflows/reusable-zizmor.yml@3bb5e95068d0f44b6d2f3f7e91379bed1d2f96a8
+    uses: zizmorcore/workflow/.github/workflows/reusable-zizmor.yml@465600191822382e76d26abf77772f21262ecdb6
 
   check:  # This job does nothing and is only used for the branch protection
     if: always()
