@@ -227,7 +227,13 @@ class AioSession(_SyncSession):
         loader = self.get_component('data_loader')
 
         if getattr(config, 'warm_up_loader_caches', False):
-            if self._async_primitives is AsyncPrimitives.ANYIO:
+            http_session_cls = getattr(
+                config, 'http_session_cls', AIOHTTPSession
+            )
+            if (
+                infer_async_primitives(http_session_cls)
+                is AsyncPrimitives.ANYIO
+            ):
                 import anyio.to_thread
 
                 await anyio.to_thread.run_sync(

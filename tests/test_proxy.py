@@ -92,6 +92,42 @@ async def test_httpx_proxy_uses_one_client_for_multiple_targets(monkeypatch):
         assert len(session._sessions) == 1
 
 
+@pytest.mark.config_kwargs({'http_session_cls': HttpxSession})
+async def test_httpx_concurrent_requests_create_one_client(monkeypatch):
+    async with HttpxSession() as session:
+        client = session._make_async_client()
+        entered = anyio.Event()
+        release = anyio.Event()
+        calls = 0
+
+        async def enter_async_context(_client):
+            nonlocal calls
+            calls += 1
+            entered.set()
+            await release.wait()
+            return client
+
+        monkeypatch.setattr(
+            session._exit_stack,
+            'enter_async_context',
+            enter_async_context,
+        )
+        results = []
+
+        async def get_session(target):
+            results.append(await session._get_session(target))
+
+        async with anyio.create_task_group() as task_group:
+            task_group.start_soon(get_session, 'https://first.example')
+            await entered.wait()
+            task_group.start_soon(get_session, 'https://second.example')
+            release.set()
+
+        assert results == [client, client]
+        assert calls == 1
+        await client.aclose()
+
+
 async def _serve_http_proxy(*, task_status) -> None:
     handler = tiny_proxy.HttpProxyHandler()
     listener = await anyio.create_tcp_listener(

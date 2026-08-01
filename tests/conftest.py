@@ -187,10 +187,7 @@ def http_session_cls(request) -> type:
 
     Tests that build their own client (rather than using the ``config``
     fixture) need this to honor the ``--http-backend`` parametrization.
-    Defaults to httpx when installed: it runs on both asyncio and trio,
-    whereas aiohttp is asyncio-only, so an unmarked test (e.g. a
-    botocore-ported one that isn't parametrized by http backend) must not
-    pin itself to aiohttp on trio.
+    Unparametrized tests use the library's default aiohttp session class.
     """
     return read_kwargs(request.node).get(
         'http_session_cls', DEFAULT_HTTP_SESSION_CLS

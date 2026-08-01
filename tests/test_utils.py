@@ -30,6 +30,7 @@ async def test_s3express_cache_serializes_concurrent_refreshes(
         else utils.AioS3ExpressIdentityCache
     )
     cache = cache_cls(client, credential_cls)
+    cache._create_lock = mock.Mock(wraps=cache._create_lock)
     results = []
 
     async def get_credentials():
@@ -40,16 +41,20 @@ async def test_s3express_cache_serializes_concurrent_refreshes(
         task_group.start_soon(get_credentials)
 
     assert results == [credential, credential]
+    cache._create_lock.assert_called_once_with()
 
     for index in range(1, 100):
         bucket = f'bucket-{index}'
         cache._credentials[bucket] = object()
         cache._refresh_locks[bucket] = object()
 
+    # A cache hit refreshes recency, matching functools.lru_cache.
+    assert await cache.get_credentials('bucket') is credential
     await cache.get_credentials('new-bucket')
 
-    assert 'bucket' not in cache._credentials
-    assert 'bucket' not in cache._refresh_locks
+    assert 'bucket' in cache._credentials
+    assert 'bucket-1' not in cache._credentials
+    assert 'bucket-1' not in cache._refresh_locks
     assert 'new-bucket' in cache._credentials
     assert client.create_session.await_args_list == [
         mock.call(Bucket='bucket'),

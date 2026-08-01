@@ -328,6 +328,7 @@ class HttpxSession:
                 keepalive_expiry=self._connector_args['keepalive_timeout'],
             )
             self._sessions: dict[None, httpx.AsyncClient] = {}
+            self._session_lock = anyio.Lock()
 
             # The client is built lazily so constructing a session remains
             # side-effect free until it is entered and first used.
@@ -373,10 +374,12 @@ class HttpxSession:
         # httpcore generates CONNECT's Host header from each request target,
         # so one client can serve every target without multiplying pool limits.
         if None not in self._sessions:
-            client = self._make_async_client()
-            self._sessions[None] = await self._exit_stack.enter_async_context(
-                client
-            )
+            async with self._session_lock:
+                if None not in self._sessions:
+                    client = self._make_async_client()
+                    self._sessions[None] = (
+                        await self._exit_stack.enter_async_context(client)
+                    )
         return self._sessions[None]
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):

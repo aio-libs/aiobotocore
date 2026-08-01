@@ -3,6 +3,7 @@ import contextlib
 import inspect
 import json
 import logging
+from collections import OrderedDict
 
 import botocore.awsrequest
 from botocore.exceptions import (
@@ -419,7 +420,7 @@ class AioIdentityCache(IdentityCache):
 class AioS3ExpressIdentityCache(AioIdentityCache, S3ExpressIdentityCache):
     def __init__(self, client, credential_cls):
         super().__init__(client, credential_cls)
-        self._credentials = {}
+        self._credentials = OrderedDict()
         self._refresh_locks = {}
 
     def _create_lock(self):
@@ -428,9 +429,13 @@ class AioS3ExpressIdentityCache(AioIdentityCache, S3ExpressIdentityCache):
     async def get_credentials(self, bucket):
         credentials = self._credentials.get(bucket)
         if credentials is not None:
+            self._credentials.move_to_end(bucket)
             return credentials
 
-        lock = self._refresh_locks.setdefault(bucket, self._create_lock())
+        lock = self._refresh_locks.get(bucket)
+        if lock is None:
+            lock = self._create_lock()
+            self._refresh_locks[bucket] = lock
         async with lock:
             credentials = self._credentials.get(bucket)
             if credentials is None:
@@ -440,6 +445,8 @@ class AioS3ExpressIdentityCache(AioIdentityCache, S3ExpressIdentityCache):
                     oldest_bucket = next(iter(self._credentials))
                     self._credentials.pop(oldest_bucket)
                     self._refresh_locks.pop(oldest_bucket, None)
+            else:
+                self._credentials.move_to_end(bucket)
             return credentials
 
     def build_refresh_callback(self, bucket):
