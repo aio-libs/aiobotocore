@@ -210,7 +210,9 @@ class AIOHTTPSession:
                 self._build_ssl_contexts, proxy_url
             )
         else:
-            ssl_context, proxy_ssl_context = self._build_ssl_contexts(proxy_url)
+            ssl_context, proxy_ssl_context = self._build_ssl_contexts(
+                proxy_url
+            )
         return _ProxySSLTCPConnector(
             limit=self._max_pool_connections,
             ssl=ssl_context,

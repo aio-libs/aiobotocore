@@ -324,8 +324,8 @@ class HttpxSession:
                     self._build_ssl_contexts, self._proxy_urls
                 )
             else:
-                self._verify, self._proxy_ssl_contexts = self._build_ssl_contexts(
-                    self._proxy_urls
+                self._verify, self._proxy_ssl_contexts = (
+                    self._build_ssl_contexts(self._proxy_urls)
                 )
 
             self._limits = httpx.Limits(
