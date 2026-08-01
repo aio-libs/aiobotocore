@@ -596,10 +596,17 @@ def fake_aiohttp_session(responses: list[Response] | Response):
                 self.request = request
                 self.url = request.url
                 self._body, self.status_code = next(data)
-                self.content = self._content()
-                self.text = self._text()
                 if not isinstance(self._body, str):
                     raise self._body
+
+            # Properties, not attributes: eager coroutines went un-awaited.
+            @property
+            def content(self):
+                return self._content()
+
+            @property
+            def text(self):
+                return self._text()
 
             async def _content(self):
                 return self._body.encode('utf-8')

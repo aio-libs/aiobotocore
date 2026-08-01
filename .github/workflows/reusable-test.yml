@@ -25,11 +25,17 @@ on:
         # 'httpx' (deprecated legacy fallback), or '' (no httpx backend).
         type: string
         required: true
+      coverage:
+        # Coverage costs ~20%. Interpreter version changes almost nothing in
+        # the report but the backend does, so ci-cd.yml turns this on for one
+        # job per backend variant (currently the four 3.14 x86 jobs).
+        type: boolean
+        default: false
       timeout-minutes:
         # Raise only for interpreters whose deps still lack wheels and so
         # have to be compiled from sdists on every cache miss.
         type: number
-        default: 5
+        default: 10
     secrets:
       codecov-token:
         required: false
@@ -50,11 +56,19 @@ jobs:
     timeout-minutes: ${{ inputs.timeout-minutes }}
 
     steps:
-    - name: Checkout
-      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+    # The suite runs out of the sdist against the wheel, not out of the Git
+    # checkout against an editable install -- so a dist that can't be installed
+    # or is missing files fails here rather than after release. Lint keeps
+    # using actions/checkout; it needs the files the sdist deliberately omits.
+    - name: Retrieve the project source from the sdist in the GHA artifact
+      # yamllint disable-line rule:line-length
+      uses: re-actors/checkout-python-sdist@b129ca9a0849134511cced3dcc0b0cfe6e09ebfb  # v3.0.0
+    - name: Download distribution 📦
+      # yamllint disable-line rule:line-length
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
       with:
-        persist-credentials: false
-        submodules: true
+        name: python-package-distributions
+        path: dist/
     - name: Install uv
       uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9  # v9.0.0
       with:
@@ -74,55 +88,53 @@ jobs:
       uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
       with:
         path: .venv
-        # yamllint disable-line rule:line-length
-        key: venv-${{ runner.os }}-py${{ inputs.python-version }}-${{ inputs.with-awscrt && 'awscrt-' || '' }}${{ hashFiles('uv.lock', 'pyproject.toml') }}
-    - name: Install awscrt
-      if: ${{ inputs.with-awscrt }}
+        key: >-
+          venv-${{ runner.os }}-py${{ inputs.python-version }}-${{
+          inputs.with-awscrt && 'awscrt-' || '' }}${{
+          inputs.httpx-extra || 'no-httpx' }}-${{
+          hashFiles('uv.lock', 'pyproject.toml') }}
+    # moto runs Lambda invocations in a real container, so test_run_lambda pays
+    # an image pull. Start it here, in the background, so it overlaps with the
+    # dependency install instead of stalling the test. Image name mirrors moto's
+    # resolution order for runtime pythonX.Y (awslambda/models.py); best-effort,
+    # since moto pulls it itself if this misses.
+    - name: Warm the moto Lambda image
       run: |
-        uv sync --group awscrt
+        nohup docker pull ghcr.io/shogo82148/lambda-python:3.9 \
+          > "${RUNNER_TEMP}/lambda-image-pull.log" 2>&1 &
+    # ``--no-default-groups --group test`` keeps repo-only tooling (pre-commit,
+    # anthropic) out; ``--no-install-project`` leaves the aiobotocore slot empty
+    # for the wheel to fill.
+    - name: Install test dependencies
+      env:
+        # Passed via env (not interpolated into the run: script) to avoid
+        # template-injection; empty means no httpx extra (aiohttp only).
+        HTTPX_EXTRA: ${{ inputs.httpx-extra }}
+        AWSCRT_GROUP: ${{ inputs.with-awscrt && '--group=awscrt' || '' }}
+      run: |
+        uv sync --no-install-project --no-default-groups --group test \
+          ${HTTPX_EXTRA:+--extra="$HTTPX_EXTRA"} ${AWSCRT_GROUP}
+    - name: Install aiobotocore from the built wheel
+      run: |
+        uv pip install --no-deps --no-index --find-links dist/ aiobotocore
+    # ``--no-sync`` or uv would reinstall the project from the working tree and
+    # undo the wheel install above.
     - name: Run unittests
       env:
         COLOR: 'yes'
         HTTP_BACKEND: ${{ inputs.httpx-extra && 'all' || 'aiohttp' }}
-        # Passed via env (not interpolated into the run: script) to avoid
-        # template-injection; empty means no httpx extra (aiohttp only).
-        HTTPX_EXTRA: ${{ inputs.httpx-extra }}
+        COV_ARGS: >-
+          ${{ inputs.coverage
+          && '--cov --cov-report=term --cov-report=xml' || '' }}
       run: |
-        uv run ${HTTPX_EXTRA:+--extra=$HTTPX_EXTRA} make mototest
+        uv run --no-sync poe mototest
     - name: Upload coverage to Codecov
+      if: ${{ inputs.coverage }}
       uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f  # v6.0.2
       with:
         files: ./coverage.xml
         # yamllint disable-line rule:line-length
         flags: unittests,os-${{ inputs.os }},python-${{ inputs.python-version }}${{ inputs.with-awscrt && ',with-awscrt' || '' }}${{ inputs.httpx-extra && format(',{0}', inputs.httpx-extra) || ',no-httpx' }}
-        name: codecov-umbrella
-        fail_ci_if_error: true
-        verbose: true
-    - name: Run eval common tests
-      env:
-        COLOR: 'yes'
-      run: |
-        # Install eval-only deps after the no-httpx unit test path has
-        # completed; the evals group pulls in anthropic, which can bring
-        # in httpx transitively.
-        if ${{ inputs.with-awscrt }}; then
-          uv sync --group awscrt --group evals
-        else
-          uv sync --group evals
-        fi
-        uv run pytest \
-          --cov-append \
-          --cov-report= \
-          --cov=plugins/aiobotocore-bot/evals \
-          --cov=tests \
-          tests/evals/test_common.py
-        uv run coverage xml
-    - name: Upload eval coverage to Codecov
-      uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f  # v6.0.2
-      with:
-        files: ./coverage.xml
-        # yamllint disable-line rule:line-length
-        flags: evals-common,os-${{ inputs.os }},python-${{ inputs.python-version }}${{ inputs.with-awscrt && ',with-awscrt' || '' }}${{ inputs.httpx-extra && format(',{0}', inputs.httpx-extra) || ',no-httpx' }}
         name: codecov-umbrella
         fail_ci_if_error: true
         verbose: true

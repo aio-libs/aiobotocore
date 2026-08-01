@@ -19,7 +19,7 @@ then read files directly — do not use `inspect.getsource()`.
 Run before committing:
 
 ```bash
-uv run pre-commit run --all --show-diff-on-failure
+uv run poe lint
 ```
 
 Key constraints:
@@ -32,14 +32,52 @@ Key constraints:
 
 ```bash
 uv run pytest -sv tests/<path>           # run specific tests
-uv run make mototest                     # moto-based tests (CI runs these)
+uv run poe mototest                      # moto-based tests (CI runs these)
 uv run pytest -sv tests/test_patches.py  # hash validation
 ```
+
+## Naming moto resources
+
+**Never hardcode a moto resource name — use `random_name()` from `tests/conftest.py`.**
+The `moto_server` fixture is function-scoped, but moto's backends are process-global
+singletons: a fresh `ThreadedMotoServer` on a new port still sees resources created by
+earlier tests in the same xdist worker. Cleaning up at the end of the test is not enough,
+because a test that fails partway (a read timeout, say) leaks its resources, and every
+later test using the same hardcoded name then fails with `AlreadyExists` — including the
+test's own sibling parametrizations, of which there are up to four (async backend x HTTP
+backend). Nothing retries, so the first leak is permanent for that worker.
 
 ## Test directory structure
 
 - `tests/` — aiobotocore-specific tests (parametrized with aiohttp+httpx via conftest.py)
 - `tests/botocore_tests/` — tests ported from botocore (not parametrized with HTTP backends)
+- `tests/evals/` — drives `plugins/`, so it is git-only and excluded from the sdist
+
+Tasks live in `[tool.poe.tasks]` (`uv run poe` lists them); the test contract lives in
+`[tool.pytest.ini_options]` and `[tool.coverage.*]`. CI runs the same tasks. There is no
+Makefile. Use `pytest`, never `python -m pytest` — the latter puts the cwd on `sys.path`,
+where the `aiobotocore` source tree shadows the installed package CI is trying to test.
+
+Leaks are failures, not warnings: `ResourceWarning` and `PytestUnraisableExceptionWarning`
+are both errors, so an unclosed socket or a never-awaited coroutine fails the suite. Most
+arrive from a `__del__` during GC, which is why the second one is needed and why the test
+that fails is often not the one that leaked — it is just the one that triggered the
+collection. Find the real culprit with `PYTHONTRACEMALLOC=15`, which adds the allocation
+traceback.
+
+# Packaging
+
+Built by `hatchling`; sdist contents are declared in `[tool.hatch.build.targets.sdist]`.
+
+CI tests the dist, not the checkout: `build` runs first, then the matrix unpacks the sdist
+as its working tree and installs the wheel over it. So:
+
+- New test-suite runtime dependency → the `test` dependency group (`dev` is repo tooling only).
+- New top-level file or directory → either the sdist `include` list or
+  `[tool.check-sdist] git-only`. The `check-sdist` hook fails until it is in one of them.
+- New test file → it must reach the sdist. `check-sdist` covers this too, with one blind
+  spot: it forgives anything listed in the sdist `exclude` list by design, so adding a path
+  there silently stops shipping those tests.
 
 # Versioning
 
@@ -106,7 +144,7 @@ not apply to humans editing the repo directly.
   `cc8814f6`, `verified: true`). Prefer the MCP tool; if it's ever blocked, the `gh api` git-data
   route is a legitimate escape hatch. Only `git push` is off-limits.
 - **Pre-commit setup:** before committing, run `uv run pre-commit install` once, then
-  `uv run pre-commit run --all --show-diff-on-failure` before pushing. If pre-commit modifies
+  `uv run poe lint` before pushing. If pre-commit modifies
   files, stage them and commit again (as a new commit — do not amend).
 - **Fork PRs are read-only:** when `IS_FORK` is true, never push commits. Review comments only.
 - **No `--amend`, no force-push to `main`:** the workflows never rewrite history. Every fix is

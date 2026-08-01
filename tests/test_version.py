@@ -1,9 +1,9 @@
 from pathlib import Path
 
+from changelog import parse, validate
 from packaging import version
 
 import aiobotocore
-from scripts.changelog import parse, validate
 
 _root_path = Path(__file__).absolute().parent.parent
 

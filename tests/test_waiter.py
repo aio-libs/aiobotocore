@@ -9,6 +9,8 @@ from aiobotocore.waiter import (
     create_waiter_with_client,
 )
 
+from .conftest import random_name
+
 
 @pytest.fixture
 def cloudformation_waiter_model(cloudformation_client):
@@ -43,28 +45,16 @@ async def test_create_waiter_with_custom_http_session_uses_asyncio(
     assert isinstance(waiter, AIOWaiter)
 
 
-async def test_sqs(
-    cloudformation_client,
-    request,
-    anyio_backend: str,
-    current_http_backend: str,
-):
-    # The http backend alone is shared by the asyncio and trio httpx ids, which
-    # xdist can run concurrently against the one moto server, so the async
-    # backend has to be part of the name too — for the queue as well as the
-    # stack, since two stacks cannot both create my-queue. The attempt number
-    # keeps a rerun off the stack its failed attempt left behind;
-    # pytest-rerunfailures only sets execution_count when reruns are enabled.
-    attempt = getattr(request.node, 'execution_count', 1)
-    unique = f'{anyio_backend}-{current_http_backend}-{attempt}'
-    stack_name = f'my-stack-{unique}'
+async def test_sqs(cloudformation_client):
+    # Random, not axis-derived: moto is global and axes get added (trio just did).
+    stack_name = random_name()
     cloudformation_template = json.dumps(
         {
             "AWSTemplateFormatVersion": "2010-09-09",
             "Resources": {
                 "queue1": {
                     "Type": "AWS::SQS::Queue",
-                    "Properties": {"QueueName": f"my-queue-{unique}"},
+                    "Properties": {"QueueName": random_name()},
                 }
             },
         }

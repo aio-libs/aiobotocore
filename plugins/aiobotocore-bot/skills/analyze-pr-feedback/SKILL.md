@@ -131,7 +131,7 @@ Three outcomes per action (or per group of related actions):
    relevant thread. No new commit. If `--resolve` was passed, resolve the thread.
 2. **Not yet addressed, confidence >= 80** — push one targeted signed commit via
    `mcp__github_file_ops__commit_files` that addresses the whole group. **Before posting the reply, validate
-   the commit** — run `uv run pre-commit run --all --show-diff-on-failure` at minimum, and any task-specific
+   the commit** — run `uv run poe lint` at minimum, and any task-specific
    tests relevant to the change (e.g. `uv run pytest tests/test_patches.py -x` for botocore overrides). Only
    after validation passes, reply on each relevant thread with the new SHA and a one-line explanation. If
    `--resolve` was passed, resolve the thread. If validation fails, fix forward or downgrade to

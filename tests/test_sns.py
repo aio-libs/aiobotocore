@@ -3,6 +3,8 @@ import json
 import botocore
 import pytest
 
+from tests.mock_server import AIOServer
+
 
 def _get_topic_policy(topic_arn: str):
     return {
@@ -67,20 +69,22 @@ async def test_creating_subscription(sns_client, topic_arn):
 
 
 async def test_publish_to_http(sns_client, topic_arn):
-    response = await sns_client.subscribe(
-        TopicArn=topic_arn,
-        Protocol='http',
-        Endpoint="http://httpbin.org/endpoint",
-    )
-    subscription_arn = response['SubscriptionArn']
+    # Local, not httpbin.org: moto really POSTs here, so publish() was blocking on the internet.
+    async with AIOServer() as server:
+        response = await sns_client.subscribe(
+            TopicArn=topic_arn,
+            Protocol='http',
+            Endpoint=server.endpoint_url + '/ok',
+        )
+        subscription_arn = response['SubscriptionArn']
 
-    response = await sns_client.publish(
-        TopicArn=topic_arn,
-        Message="Test msg",
-        Subject="my subject",
-    )
-    pytest.aio.assert_status_code(response, 200)
-    await sns_client.unsubscribe(SubscriptionArn=subscription_arn)
+        response = await sns_client.publish(
+            TopicArn=topic_arn,
+            Message="Test msg",
+            Subject="my subject",
+        )
+        pytest.aio.assert_status_code(response, 200)
+        await sns_client.unsubscribe(SubscriptionArn=subscription_arn)
 
 
 async def test_get_missing_endpoint_attributes(sns_client):

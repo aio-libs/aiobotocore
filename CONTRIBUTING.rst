@@ -30,7 +30,7 @@ There are two set of tests, those that can be mocked through `moto <https://gith
 
 To run the moto tests::
 
-    $ uv run make mototest
+    $ uv run poe mototest
 
 To run the non-moto tests, make sure you have your amazon key and secret accessible via environment variables::
 
@@ -40,15 +40,58 @@ To run the non-moto tests, make sure you have your amazon key and secret accessi
 
 Execute full tests suite::
 
-    $ uv run make test
+    $ uv run poe test
 
 Execute full tests suite with coverage::
 
-    $ uv run make cov
+    $ uv run poe cov
 
 To run individual use following command::
 
     $ uv run pytest -sv tests/test_monitor.py -k test_name
+
+Everything lives in ``pyproject.toml``: the tasks above under
+``[tool.poe.tasks]`` (run ``uv run poe`` to list them), and the test contract
+itself -- import mode, marker strictness, warning filters, coverage paths --
+under ``[tool.pytest.ini_options]`` and ``[tool.coverage.*]``. CI runs the same
+tasks, and a bare ``pytest`` runs the suite exactly as ``poe test`` does, so use
+whichever you prefer. Invoke ``pytest`` rather than ``python -m pytest``: the
+latter puts the working directory on ``sys.path``, where the ``aiobotocore``
+source tree shadows any installed copy.
+
+The suite also runs straight out of an unpacked sdist, which is how CI runs it::
+
+    $ tar xzf aiobotocore-X.Y.Z.tar.gz && cd aiobotocore-X.Y.Z
+    $ uv sync --frozen --no-default-groups --group test
+    $ uv run --no-sync poe mototest
+
+``--no-default-groups --group test`` matters: the defaults pull in ``pre-commit``
+and the eval dependencies, which an sdist has no use for. ``poe lint`` and
+``poe clean`` are the two tasks that do *not* work there, since both need a git
+repository.
+
+
+Packaging
+---------
+
+CI does not test the checkout. It builds the wheel and sdist first, then runs
+the matrix out of the *unpacked sdist* against the *installed wheel*, so a
+release artifact that is missing files or fails to install breaks the build
+rather than users.
+
+Two consequences for contributors:
+
+* Anything the test suite needs at runtime has to ship in the sdist. Sdist
+  contents are declared in ``[tool.hatch.build.targets.sdist]``; the
+  ``check-sdist`` pre-commit hook fails if a git-tracked file is neither
+  included nor listed under ``[tool.check-sdist] git-only``. If you add a
+  top-level directory, decide which list it belongs in.
+* ``check-sdist`` forgives anything in the sdist ``exclude`` list by design, so
+  adding a path there is the one way to stop shipping tests without CI noticing.
+  Keep that list minimal — it is currently just ``tests/evals``.
+
+Test-only dependencies belong in the ``test`` dependency group; ``dev`` is for
+repo tooling that the sdist does not need (``pre-commit``, eval deps).
 
 
 Reporting an Issue

@@ -33,6 +33,20 @@ on:
         required: false
         type: string
 
+# Superseded PR runs are wasted work -- a push should cancel the run it
+# replaces. Two things must NOT be cancelled, and the group key handles both:
+# ``event_name`` keeps pull_request, push, merge_group and workflow_dispatch in
+# separate groups, and on ``main`` the SHA is folded in so every commit gets its
+# own group. So merge-queue runs and the tag/dispatch publish path always run to
+# completion; only a superseded PR head is cancelled.
+concurrency:
+  group: >-
+    ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}${{
+    github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    && format('-{0}', github.sha)
+    || '' }}
+  cancel-in-progress: true
+
 env:
   FORCE_COLOR: 1
 
@@ -47,6 +61,10 @@ jobs:
 
   test:
     name: test${{ '' }}  # zizmor: ignore[obfuscation] nest jobs under the same sidebar category
+    # The matrix consumes the dists rather than the checkout, so it can't start
+    # until they exist. This is the dependency direction #1169 asks for.
+    needs:
+    - build
     strategy:
       matrix:
         python-version:
@@ -111,7 +129,14 @@ jobs:
       enable-cache: ${{ github.ref_type == 'tag' && 'false' || 'auto' }}
       with-awscrt: ${{ matrix.with-awscrt }}
       httpx-extra: ${{ matrix.httpx-extra }}
-      timeout-minutes: ${{ matrix.timeout-minutes || 5 }}
+      # Coverage costs ~20%, and interpreter version changes almost nothing in
+      # the report -- but the backend does: aiobotocore/_httpx.py is only
+      # reached by the legacy-httpx job, and awscrt swaps whole code paths. So
+      # measure every 3.14 x86 job (one per backend variant) and no others.
+      coverage: >-
+        ${{ matrix.python-version == '3.14'
+        && matrix.os == 'ubuntu-24.04' }}
+      timeout-minutes: ${{ matrix.timeout-minutes || 15 }}
     secrets:
       codecov-token: ${{ secrets.CODECOV_TOKEN }}
 

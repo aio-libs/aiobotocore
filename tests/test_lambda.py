@@ -7,6 +7,8 @@ import zipfile
 import botocore.client
 import pytest
 
+from .conftest import random_name
+
 
 async def _get_role_arn(iam_client, role_name: str):
     try:
@@ -41,22 +43,9 @@ def lambda_handler(event, context):
     return _process_lambda(lambda_src)
 
 
-async def test_run_lambda(
-    iam_client,
-    lambda_client,
-    aws_lambda_zip,
-    request,
-    anyio_backend,
-    current_http_backend,
-):
-    # The http backend alone is shared by the asyncio and trio httpx ids, which
-    # xdist can run concurrently against the one moto server — one test invoking
-    # while the other deletes the same-named function times out. The attempt
-    # number keeps a rerun off the function its failed attempt left behind;
-    # pytest-rerunfailures only sets execution_count when reruns are enabled.
-    attempt = getattr(request.node, 'execution_count', 1)
-    unique = f'{anyio_backend}-{current_http_backend}-{attempt}'
-    function_name = f'test-function-{unique}'
+async def test_run_lambda(iam_client, lambda_client, aws_lambda_zip):
+    # Random, not axis-derived: moto is global and axes get added (trio just did).
+    function_name = random_name()
     role_arn = await _get_role_arn(iam_client, 'test-iam-role')
     lambda_response = await lambda_client.create_function(
         FunctionName=function_name,

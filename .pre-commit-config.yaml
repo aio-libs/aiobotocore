@@ -25,6 +25,19 @@ repos:
   rev: c58479ef13b52c53ef39c6481614eba04d78b46f  # 0.11.12
   hooks:
   - id: uv-lock
+# Fails if a git-tracked file is missing from the sdist (or vice versa).
+# ``[tool.check-sdist] git-only`` in pyproject.toml lists the deliberate
+# exclusions. The sdist has to stay runnable: CI tests the dist rather than the
+# checkout, and downstream packagers build from it.
+- repo: https://github.com/henryiii/check-sdist
+  # yamllint disable-line rule:line-length
+  rev: 377c4f639d3c5fd025ee882a22ae243e12bef469  # v1.5.0
+  hooks:
+  - id: check-sdist
+    args: [--inject-junk]
+    additional_dependencies:
+    - hatchling>=1.27.0
+    - hatch-fancy-pypi-readme>=24.1.0
 - repo: https://github.com/adrienverge/yamllint
   # yamllint disable-line rule:line-length
   rev: 79a6b2b1392eaf49cdd32ac4f14be1a809bbd8f7  # v1.37.1

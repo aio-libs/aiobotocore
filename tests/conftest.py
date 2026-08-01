@@ -1,10 +1,12 @@
 from __future__ import annotations
 
-import multiprocessing
+import os
 import random
 import string
+import sys
 from contextlib import AsyncExitStack, ExitStack
 from itertools import chain
+from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 from unittest.mock import patch
 
@@ -40,13 +42,34 @@ def ca_bundle(ca, tmp_path):
 if TYPE_CHECKING:
     from _pytest.nodes import Node
 
+# Appended, not inserted: ``from tests.x import`` needs the rootdir, the wheel must still win.
+_repo_root = str(Path(__file__).resolve().parent.parent)
+if _repo_root not in sys.path:
+    sys.path.append(_repo_root)
+
 host = '127.0.0.1'
 
 
-@pytest.fixture(scope="session", autouse=True)
-def always_spawn():
-    # enforce multiprocessing start method `spawn` to prevent deadlocks in the child
-    multiprocessing.set_start_method("spawn", force=True)
+# botocore reads ~/.aws/config, so a developer's max_attempts/retry_mode/region silently change what the suite asserts.
+# Not the monkeypatch fixture: requesting it here would tear it down after the client fixtures that depend on its undo.
+@pytest.fixture(autouse=True)
+def isolate_aws_environment(request, tmp_path_factory):
+    if request.node.get_closest_marker('localonly'):
+        yield
+        return
+
+    saved = {k: v for k, v in os.environ.items() if k.startswith('AWS_')}
+    empty = tmp_path_factory.mktemp('no-aws-config')
+    for name in saved:
+        del os.environ[name]
+    os.environ['AWS_CONFIG_FILE'] = str(empty / 'config')
+    os.environ['AWS_SHARED_CREDENTIALS_FILE'] = str(empty / 'credentials')
+    try:
+        yield
+    finally:
+        for name in [k for k in os.environ if k.startswith('AWS_')]:
+            del os.environ[name]
+        os.environ.update(saved)
 
 
 @pytest.fixture(params=['asyncio', 'trio'])
@@ -196,16 +219,20 @@ def http_session_cls(request) -> type:
 
 @pytest.fixture
 def config(request, region, signature_version):
-    config_kwargs = read_kwargs(request.node)
+    # Generous because retries are off below: local moto only trips this if wedged.
+    connect_timeout = read_timout = 60
 
-    connect_timeout = read_timout = 5
-
+    # Merged, not passed alongside, so config_kwargs can override these.
     return AioConfig(
-        region_name=region,
-        signature_version=signature_version,
-        read_timeout=read_timout,
-        connect_timeout=connect_timeout,
-        **config_kwargs,
+        **{
+            'region_name': region,
+            'signature_version': signature_version,
+            'read_timeout': read_timout,
+            'connect_timeout': connect_timeout,
+            # Creates aren't idempotent: retrying one that timed out against local moto reports "already exists".
+            'retries': {'max_attempts': 0},
+            **read_kwargs(request.node),
+        }
     )
 
 
@@ -290,22 +317,14 @@ async def s3_client(
 async def alternative_s3_client(
     session,
     alternative_region,
-    signature_version,
     moto_server,
     mocking_test,
     aws_auth,
-    request,
+    config,
 ):
     kw = {'endpoint_url': moto_server, **aws_auth} if mocking_test else {}
-    kwargs = read_kwargs(request.node)
-
-    config = AioConfig(
-        region_name=alternative_region,
-        signature_version=signature_version,
-        read_timeout=5,
-        connect_timeout=5,
-        **kwargs,
-    )
+    # Derived, not rebuilt: the two s3 fixtures must not drift on timeouts.
+    config = config.merge(AioConfig(region_name=alternative_region))
 
     async with session.create_client(
         's3', region_name=alternative_region, config=config, **kw
