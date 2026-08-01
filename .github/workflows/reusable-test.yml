@@ -84,6 +84,15 @@ jobs:
         path: .venv
         # yamllint disable-line rule:line-length
         key: venv-${{ runner.os }}-py${{ inputs.python-version }}-${{ inputs.with-awscrt && 'awscrt-' || '' }}${{ inputs.httpx-extra || 'no-httpx' }}-${{ hashFiles('uv.lock', 'pyproject.toml') }}
+    # moto runs Lambda invocations in a real container, so test_run_lambda pays
+    # an image pull. Start it here, in the background, so it overlaps with the
+    # dependency install instead of stalling the test. Image name mirrors moto's
+    # resolution order for runtime pythonX.Y (awslambda/models.py); best-effort,
+    # since moto pulls it itself if this misses.
+    - name: Warm the moto Lambda image
+      run: |
+        nohup docker pull ghcr.io/shogo82148/lambda-python:3.9 \
+          > "${RUNNER_TEMP}/lambda-image-pull.log" 2>&1 &
     # ``--no-default-groups --group test`` keeps repo-only tooling (pre-commit,
     # anthropic) out; ``--no-install-project`` leaves the aiobotocore slot empty
     # for the wheel to fill.
