@@ -184,7 +184,13 @@ addopts = [
 # above. Lets tests do ``from changelog import ...`` (the CHANGES.rst parser
 # shared with .github/workflows/auto-release-on-merge.yml).
 pythonpath = ["scripts"]
-filterwarnings = ["default"]
+# A never-awaited coroutine is always a test bug, so fail on it rather than let
+# it scroll past. ResourceWarning can't be promoted yet -- tests/test_proxy.py
+# and tests/test_tls.py still leak sockets.
+filterwarnings = [
+    "default",
+    "error:coroutine .* was never awaited:RuntimeWarning",
+]
 xfail_strict = true
 markers = [
     "localonly",
@@ -215,10 +221,12 @@ docs = "uv run --group docs sphinx-build -W -b html docs docs/_build/html"
 # also when they start timing out. Idle workers steal instead.
 mototest.cmd = """
   pytest -vv -m "not localonly" -n auto --dist worksteal
-  --cov --cov-report=term --cov-report=xml
+  ${COV_ARGS}
   --log-cli-level=DEBUG --http-backend=${HTTP_BACKEND}
 """
-mototest.env = { HTTP_BACKEND.default = "all", PYTHONTRACEMALLOC = "5", PYTHONFAULTHANDLER = "1" }
+# COV_ARGS is emptied by CI on the jobs that do not report coverage; measuring
+# it on every interpreter costs ~20% for a near-identical report.
+mototest.env = { HTTP_BACKEND.default = "all", PYTHONTRACEMALLOC = "5", PYTHONFAULTHANDLER = "1", COV_ARGS.default = "--cov --cov-report=term --cov-report=xml" }
 
 clean.shell = "git clean -Xdf"
 

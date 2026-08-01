@@ -226,7 +226,8 @@ def http_session_cls(request) -> type:
 
 @pytest.fixture
 def config(request, region, signature_version):
-    connect_timeout = read_timout = 20
+    # Generous because retries are off below: local moto only trips this if wedged.
+    connect_timeout = read_timout = 60
 
     # Merged, not passed alongside, so config_kwargs can override these.
     return AioConfig(

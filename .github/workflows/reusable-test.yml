@@ -25,6 +25,11 @@ on:
         # 'httpx' (deprecated legacy fallback), or '' (no httpx backend).
         type: string
         required: true
+      coverage:
+        # Coverage costs ~20% and the report is near-identical across
+        # interpreters, so only one job in the matrix measures it.
+        type: boolean
+        default: false
       timeout-minutes:
         # Raise only for interpreters whose deps still lack wheels and so
         # have to be compiled from sdists on every cache miss.
@@ -114,9 +119,12 @@ jobs:
       env:
         COLOR: 'yes'
         HTTP_BACKEND: ${{ inputs.httpx-extra && 'all' || 'aiohttp' }}
+        # yamllint disable-line rule:line-length
+        COV_ARGS: ${{ inputs.coverage && '--cov --cov-report=term --cov-report=xml' || '' }}
       run: |
         uv run --no-sync poe mototest
     - name: Upload coverage to Codecov
+      if: ${{ inputs.coverage }}
       uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f  # v6.0.2
       with:
         files: ./coverage.xml
