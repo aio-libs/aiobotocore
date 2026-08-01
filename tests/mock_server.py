@@ -63,7 +63,8 @@ class AIOServer(multiprocessing.Process):
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         self._shutdown()
 
-    async def _await_bound_url(self, timeout: float = 30) -> str:
+    # Loopback binds are near-instant; a long budget just parks the xdist worker.
+    async def _await_bound_url(self, timeout: float = 10) -> str:
         if not await asyncio.to_thread(self._conn.poll, timeout):
             pytest.fail(
                 f'mock server never bound a port (exitcode={self.exitcode})'
@@ -72,14 +73,14 @@ class AIOServer(multiprocessing.Process):
 
     def _shutdown(self):
         self._stop.set()
-        self.join(timeout=10)
+        self.join(timeout=5)
         # terminate() does not wait, so join or the child keeps holding its port.
         if self.is_alive():
             self.terminate()
-            self.join(timeout=5)
+            self.join(timeout=2)
         if self.is_alive():
             self.kill()
-            self.join(timeout=5)
+            self.join(timeout=2)
 
     @staticmethod
     async def ok(request):
