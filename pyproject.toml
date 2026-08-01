@@ -88,7 +88,6 @@ test = [
     "packaging >= 24.1, < 27", # Used in test_version.py
     "poethepoet >= 0.29, < 1", # Runs [tool.poe.tasks]; CI drives the suite through it
     "pytest-mock >= 3.14.1, < 4", # Used in test_session.py
-    "pytest-rerunfailures >= 16.0.1, < 17", # Available for opt-in @pytest.mark.flaky
     "time-machine >= 2.15.0, < 4", # Used in test_signers.py
     "tiny-proxy >= 0.3.0, < 0.4", # CONNECT proxy for tests/test_proxy.py
     "trio >= 0.27, < 1", # anyio_backend parametrization in tests/conftest.py

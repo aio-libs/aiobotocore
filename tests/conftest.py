@@ -324,22 +324,14 @@ async def s3_client(
 async def alternative_s3_client(
     session,
     alternative_region,
-    signature_version,
     moto_server,
     mocking_test,
     aws_auth,
-    request,
+    config,
 ):
     kw = {'endpoint_url': moto_server, **aws_auth} if mocking_test else {}
-    kwargs = read_kwargs(request.node)
-
-    config = AioConfig(
-        region_name=alternative_region,
-        signature_version=signature_version,
-        read_timeout=5,
-        connect_timeout=5,
-        **kwargs,
-    )
+    # Derived, not rebuilt: the two s3 fixtures must not drift on timeouts.
+    config = config.merge(AioConfig(region_name=alternative_region))
 
     async with session.create_client(
         's3', region_name=alternative_region, config=config, **kw

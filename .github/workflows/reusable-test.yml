@@ -26,8 +26,9 @@ on:
         type: string
         required: true
       coverage:
-        # Coverage costs ~20% and the report is near-identical across
-        # interpreters, so only one job in the matrix measures it.
+        # Coverage costs ~20%. Interpreter version changes almost nothing in
+        # the report but the backend does, so ci-cd.yml turns this on for one
+        # job per backend variant (currently the four 3.14 x86 jobs).
         type: boolean
         default: false
       timeout-minutes:

@@ -43,8 +43,9 @@ The `moto_server` fixture is function-scoped, but moto's backends are process-gl
 singletons: a fresh `ThreadedMotoServer` on a new port still sees resources created by
 earlier tests in the same xdist worker. Cleaning up at the end of the test is not enough,
 because a test that fails partway (a read timeout, say) leaks its resources, and every
-later test using the same hardcoded name then fails with `AlreadyExists` — including its
-own `--reruns` retry and the other HTTP-backend parametrization.
+later test using the same hardcoded name then fails with `AlreadyExists` — including the
+test's own sibling parametrizations, of which there are up to four (async backend x HTTP
+backend). Nothing retries, so the first leak is permanent for that worker.
 
 ## Test directory structure
 
