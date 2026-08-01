@@ -119,7 +119,7 @@ async def test_httpx_proxy_uses_one_client_for_multiple_targets(monkeypatch):
         second = await session._get_session('https://second.example')
 
         assert first is second
-        assert len(session._sessions) == 1
+        assert session._session is first
 
 
 @pytest.mark.config_kwargs({'http_session_cls': HttpxSession})
