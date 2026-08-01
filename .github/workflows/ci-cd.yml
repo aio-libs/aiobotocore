@@ -47,6 +47,10 @@ jobs:
 
   test:
     name: test${{ '' }}  # zizmor: ignore[obfuscation] nest jobs under the same sidebar category
+    # The matrix consumes the dists rather than the checkout, so it can't start
+    # until they exist. This is the dependency direction #1169 asks for.
+    needs:
+    - build
     strategy:
       matrix:
         python-version:

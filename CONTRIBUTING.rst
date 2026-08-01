@@ -50,6 +50,35 @@ To run individual use following command::
 
     $ uv run pytest -sv tests/test_monitor.py -k test_name
 
+The ``make`` targets are aliases. Import mode, marker strictness, warning
+filters and coverage paths live in ``pyproject.toml``, so a bare ``pytest``
+behaves the same way -- use whichever you prefer. Invoke ``pytest`` rather than
+``python -m pytest``: the latter puts the working directory on ``sys.path``,
+where the ``aiobotocore`` source tree shadows any installed copy.
+
+
+Packaging
+---------
+
+CI does not test the checkout. It builds the wheel and sdist first, then runs
+the matrix out of the *unpacked sdist* against the *installed wheel*, so a
+release artifact that is missing files or fails to install breaks the build
+rather than users.
+
+Two consequences for contributors:
+
+* Anything the test suite needs at runtime has to ship in the sdist. Sdist
+  contents are declared in ``[tool.hatch.build.targets.sdist]``; the
+  ``check-sdist`` pre-commit hook fails if a git-tracked file is neither
+  included nor listed under ``[tool.check-sdist] git-only``. If you add a
+  top-level directory, decide which list it belongs in.
+* The build job additionally collects the suite from the checkout and from the
+  unpacked sdist and diffs the node IDs, so a test file that silently failed to
+  ship is caught even when the file lists happen to line up.
+
+Test-only dependencies belong in the ``test`` dependency group; ``dev`` is for
+repo tooling that the sdist does not need (``pre-commit``, eval deps).
+
 
 Reporting an Issue
 ------------------

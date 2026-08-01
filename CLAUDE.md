@@ -40,6 +40,24 @@ uv run pytest -sv tests/test_patches.py  # hash validation
 
 - `tests/` — aiobotocore-specific tests (parametrized with aiohttp+httpx via conftest.py)
 - `tests/botocore_tests/` — tests ported from botocore (not parametrized with HTTP backends)
+- `tests/evals/` — drives `plugins/`, so it is git-only and excluded from the sdist
+
+The `make` targets are aliases; the test contract lives in `[tool.pytest.ini_options]`.
+Use `pytest`, never `python -m pytest` — the latter puts the cwd on `sys.path`, where the
+`aiobotocore` source tree shadows the installed package that CI is trying to test.
+
+# Packaging
+
+Built by `hatchling`; sdist contents are declared in `[tool.hatch.build.targets.sdist]`.
+
+CI tests the dist, not the checkout: `build` runs first, then the matrix unpacks the sdist
+as its working tree and installs the wheel over it. So:
+
+- New test-suite runtime dependency → the `test` dependency group (`dev` is repo tooling only).
+- New top-level file or directory → either the sdist `include` list or
+  `[tool.check-sdist] git-only`. The `check-sdist` hook fails until it is in one of them.
+- New test file → it must reach the sdist. The build job diffs collected node IDs between
+  checkout and sdist and fails on any mismatch.
 
 # Versioning
 

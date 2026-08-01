@@ -49,3 +49,9 @@ jobs:
     - name: Run pre-commit hooks
       run: |
         uv run make pre-commit
+    # tests/evals exercises plugins/, which the sdist excludes -- so the test
+    # matrix, which runs out of the sdist, never sees them. This is the only
+    # job with a full checkout.
+    - name: Run the git-only tests
+      run: |
+        uv run pytest -q tests/evals

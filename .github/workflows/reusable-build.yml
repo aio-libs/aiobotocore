@@ -13,7 +13,7 @@ jobs:
   build:
     name: Build distribution 📦
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    timeout-minutes: 10
 
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
@@ -37,3 +37,38 @@ jobs:
       with:
         name: python-package-distributions
         path: dist/
+
+    # ``twine check`` validates metadata, not contents. The test matrix runs
+    # out of the sdist, and downstream distros build from it, so the sdist has
+    # to carry a suite that collects. Compare the collected node IDs from the
+    # checkout against the ones from the unpacked sdist -- any test file that
+    # failed to ship shows up as a missing node.
+    - name: Build a test env with the wheel and nothing from the checkout
+      run: |
+        uv venv "${RUNNER_TEMP}/collect-venv"
+        uv export --frozen --no-emit-project --no-default-groups --group test \
+          --extra httpx2 --output-file "${RUNNER_TEMP}/test-reqs.txt"
+        uv pip install --python "${RUNNER_TEMP}/collect-venv" \
+          -r "${RUNNER_TEMP}/test-reqs.txt"
+        uv pip install --python "${RUNNER_TEMP}/collect-venv" --no-deps dist/*.whl
+    - name: Unpack the sdist
+      run: |
+        mkdir -p "${RUNNER_TEMP}/sdist-src"
+        tar xzf dist/*.tar.gz -C "${RUNNER_TEMP}/sdist-src" --strip-components=1
+    - name: Collect tests from the Git checkout
+      # tests/evals drives plugins/, which is repo tooling and not shipped.
+      run: >-
+        "${RUNNER_TEMP}/collect-venv/bin/pytest" --collect-only -q
+        --ignore=tests/evals
+        | grep -E '^tests/' | sort > "${RUNNER_TEMP}/git-collected"
+      shell: bash -eEuo pipefail {0}
+    - name: Collect tests from the unpacked sdist
+      run: >-
+        "${RUNNER_TEMP}/collect-venv/bin/pytest" --collect-only -q
+        | grep -E '^tests/' | sort > "${RUNNER_TEMP}/sdist-collected"
+      shell: bash -eEuo pipefail {0}
+      working-directory: ${{ runner.temp }}/sdist-src
+    - name: Verify the sdist carries the whole suite
+      run: >-
+        diff --unified
+        "${RUNNER_TEMP}/sdist-collected" "${RUNNER_TEMP}/git-collected"

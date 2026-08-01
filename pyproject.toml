@@ -1,6 +1,6 @@
 [build-system]
-requires = ["setuptools>=77.0.0"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling>=1.27.0", "hatch-fancy-pypi-readme>=24.1.0"]
+build-backend = "hatchling.build"
 
 [project]
 name = "aiobotocore"
@@ -10,6 +10,7 @@ authors = [
     { name = "Nikolay Novik", email = "nickolainovik@gmail.com" },
 ]
 license = "Apache-2.0"
+license-files = ["LICENSE"]
 classifiers = [
     'Development Status :: 4 - Beta',
     'Intended Audience :: Developers',
@@ -70,17 +71,23 @@ botocore-dev = [
     # "atomicwrites>=1.0", # Windows requirement
     # "colorama>0.3.0", # Windows requirement
 ]
-dev = [
-    "anthropic >= 0.40.0", # Used in plugins/aiobotocore-bot/evals/
+# Everything needed to run the suite and nothing else, so CI (and a downstream
+# packager) can set up against an unpacked sdist without repo-only tooling.
+test = [
+    { include-group = "botocore-dev" },
     "anyio >= 4.11.0",
     "dill >= 0.3.3, < 0.5", # Used in test_patches.py
     "docker >= 7.1, < 8",
     "moto[server,s3,sqs,awslambda,dynamodb,cloudformation,sns,batch,ec2,rds] >= 5.1.8, < 6",
     "packaging >= 24.1, < 27", # Used in test_version.py
-    "pre-commit >= 3.5.0, < 5",
     "pytest-mock >= 3.14.1, < 4", # Used in test_session.py
     "pytest-rerunfailures >= 16.0.1, < 17", # Used in test_lambda.py
     "time-machine >= 2.15.0, < 4", # Used in test_signers.py
+]
+dev = [
+    { include-group = "test" },
+    "anthropic >= 0.40.0", # Used in plugins/aiobotocore-bot/evals/
+    "pre-commit >= 3.5.0, < 5",
 ]
 awscrt = [
     "botocore[crt]",
@@ -90,30 +97,91 @@ docs = [
 ]
 
 [tool.uv]
-default-groups = [
-    "botocore-dev",
-    "dev",
-]
+default-groups = ["dev"]  # transitively pulls in ``test`` and ``botocore-dev``
 required-version = ">=0.8.4,<0.13"
 
-[tool.setuptools.dynamic]
-version = { attr = "aiobotocore.__version__" }
-readme = { file = ["README.rst", "CHANGES.rst"] }
+[tool.hatch.version]
+path = "aiobotocore/__init__.py"
 
-[tool.setuptools.packages.find]
-include = ["aiobotocore*"]
+[tool.hatch.metadata.hooks.fancy-pypi-readme]
+content-type = "text/x-rst"
+
+[[tool.hatch.metadata.hooks.fancy-pypi-readme.fragments]]
+path = "README.rst"
+
+# README.rst ends on link targets; without a blank line RST reads the CHANGES
+# title as a continuation and PyPI refuses to render the description.
+[[tool.hatch.metadata.hooks.fancy-pypi-readme.fragments]]
+text = "\n\n"
+
+[[tool.hatch.metadata.hooks.fancy-pypi-readme.fragments]]
+path = "CHANGES.rst"
+
+[tool.hatch.build.targets.wheel]
+packages = ["aiobotocore"]
+
+# The sdist has to be self-sufficient: a downstream packager unpacks it, runs
+# ``uv sync --frozen`` (hence uv.lock) and gets a runnable suite. CI relies on
+# the same property to test the dist instead of the checkout. Keep in sync with
+# ``[tool.check-sdist] git-only``.
+[tool.hatch.build.targets.sdist]
+include = [
+    "/aiobotocore",
+    "/docs",
+    "/examples",
+    "/scripts",
+    "/tests",
+    "/CHANGES.rst",
+    "/CONTRIBUTING.rst",
+    "/Makefile",
+    "/README.rst",
+    "/uv.lock",
+]
+# Exercises plugins/aiobotocore-bot/, which is repo tooling and isn't shipped.
+exclude = ["/tests/evals"]
+
+[tool.check-sdist]
+git-only = [
+    ".*",
+    "AGENTS.md",
+    "CLAUDE.md",
+    "plugins",
+    "tests/evals",
+]
 
 [tool.pytest.ini_options]
 cache_dir = "/tmp/pytest_aiobotocore_cache"
 anyio_mode = "auto"
-# So tests can ``from scripts.changelog import ...`` (the centralized
-# CHANGES.rst parser shared with .github/workflows/auto-release-on-merge.yml).
-pythonpath = ["."]
+testpaths = ["tests"]
+# ``importlib`` stops pytest prepending the rootdir to sys.path, so a checkout
+# sitting next to an installed aiobotocore can't shadow it. Without that the
+# suite silently tests the source tree instead of the dist it was handed.
+addopts = [
+    "--strict-config",
+    "--strict-markers",
+    "--import-mode=importlib",
+]
+# ``scripts`` and not ``.``: the rootdir on sys.path re-introduces the shadowing
+# above. Lets tests do ``from changelog import ...`` (the CHANGES.rst parser
+# shared with .github/workflows/auto-release-on-merge.yml).
+pythonpath = ["scripts"]
+filterwarnings = ["default"]
+xfail_strict = true
 markers = [
     "localonly",
     "config_kwargs",
     "patch_attributes",
 ]
+
+[tool.coverage.run]
+relative_files = true
+source_pkgs = ["aiobotocore"]
+source = ["tests"]
+
+# Reports the wheel installed into site-packages under its repo-relative path
+# so Codecov can line it up with the checkout.
+[tool.coverage.paths]
+aiobotocore = ["aiobotocore/", "*/site-packages/aiobotocore/"]
 
 [tool.ruff]
 exclude = [

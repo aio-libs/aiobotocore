@@ -4,8 +4,10 @@ import multiprocessing
 import random
 import re
 import string
+import sys
 from contextlib import AsyncExitStack, ExitStack
 from itertools import chain
+from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 from unittest.mock import patch
 
@@ -22,6 +24,11 @@ from aiobotocore.httpxsession import HttpxSession
 
 if TYPE_CHECKING:
     from _pytest.nodes import Node
+
+# Appended, not inserted: ``spawn`` children import ``tests``, but the installed aiobotocore must keep beating the adjacent source tree.
+_repo_root = str(Path(__file__).resolve().parent.parent)
+if _repo_root not in sys.path:
+    sys.path.append(_repo_root)
 
 host = '127.0.0.1'
 

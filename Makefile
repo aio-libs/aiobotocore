@@ -1,24 +1,39 @@
 # Some simple testing tasks (sorry, UNIX only).
+#
+# These targets are thin aliases. The test contract itself -- import mode,
+# marker strictness, warning filters, testpaths, coverage paths -- lives in
+# pyproject.toml, so a bare ``pytest`` behaves the same as CI and the suite runs
+# straight out of an unpacked sdist, where this file is not what CI invokes.
+#
+# Note ``pytest`` and never ``python -m pytest``: the latter puts the working
+# directory on sys.path, which shadows an installed aiobotocore with the source
+# tree sitting next to it.
 
 # ?= is conditional assign, so users can pass options on the CLI instead of manually editing this file
 HTTP_BACKEND?='all'
 FLAGS?=
 
+# ``-X tracemalloc=5 -X faulthandler`` equivalents, now that we no longer go
+# through ``python -m``.
+TRACE_ENV=PYTHONTRACEMALLOC=5 PYTHONFAULTHANDLER=1
+
 pre-commit:
 	pre-commit run --all --show-diff-on-failure
 
 test: pre-commit
-	python -Wd -m pytest -s -vv $(FLAGS) ./tests/
+	pytest -s -vv $(FLAGS)
 
 vtest:
-	python -Wd -X tracemalloc=5 -X faulthandler -m pytest -s -vv $(FLAGS) ./tests/
+	$(TRACE_ENV) pytest -s -vv $(FLAGS)
 
 cov cover coverage: pre-commit
-	python -Wd -m pytest -s -vv --cov-report term --cov-report html --cov aiobotocore ./tests
+	pytest -s -vv --cov --cov-report term --cov-report html $(FLAGS)
 	@echo "open file://`pwd`/htmlcov/index.html"
 
 mototest:
-	python -Wd -X tracemalloc=5 -X faulthandler -m pytest -vv -m "not localonly" -n auto --reruns 1 --cov-report term --cov-report html --cov-report xml --cov=aiobotocore --cov=tests --log-cli-level=DEBUG  --http-backend=$(HTTP_BACKEND) $(FLAGS) aiobotocore tests
+	$(TRACE_ENV) pytest -vv -m "not localonly" -n auto --reruns 1 \
+		--cov --cov-report term --cov-report html --cov-report xml \
+		--log-cli-level=DEBUG --http-backend=$(HTTP_BACKEND) $(FLAGS)
 
 clean:
 	rm -rf `find . -name __pycache__`
@@ -43,4 +58,4 @@ doc docs:
 	uv run --group docs sphinx-build -W -b html docs docs/_build/html
 	@echo "open file://`pwd`/docs/_build/html/index.html"
 
-.PHONY: all pre-commit test vtest cov clean doc docs
+.PHONY: all pre-commit test vtest cov cover coverage mototest clean doc docs
