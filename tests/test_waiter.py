@@ -1,3 +1,4 @@
+import json
 from inspect import iscoroutinefunction
 
 import pytest
@@ -7,6 +8,8 @@ from aiobotocore.waiter import (
     WaiterModel,
     create_waiter_with_client,
 )
+
+from .conftest import random_name
 
 
 @pytest.fixture
@@ -27,19 +30,20 @@ async def test_create_waiter_with_client(
     assert iscoroutinefunction(waiter.wait)
 
 
-async def test_sqs(cloudformation_client, current_http_backend: str):
-    stack_name = 'my-stack-{current_http_backend}'
-    cloudformation_template = """{
-      "AWSTemplateFormatVersion": "2010-09-09",
-      "Resources": {
-        "queue1": {
-          "Type": "AWS::SQS::Queue",
-          "Properties": {
-            "QueueName": "my-queue"
-          }
+async def test_sqs(cloudformation_client):
+    # moto's backends are process-global, so a per-test server doesn't isolate names.
+    stack_name = random_name()
+    cloudformation_template = json.dumps(
+        {
+            "AWSTemplateFormatVersion": "2010-09-09",
+            "Resources": {
+                "queue1": {
+                    "Type": "AWS::SQS::Queue",
+                    "Properties": {"QueueName": random_name()},
+                }
+            },
         }
-      }
-    }"""
+    )
 
     # Create stack
     resp = await cloudformation_client.create_stack(

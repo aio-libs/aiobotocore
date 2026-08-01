@@ -36,6 +36,16 @@ uv run poe mototest                      # moto-based tests (CI runs these)
 uv run pytest -sv tests/test_patches.py  # hash validation
 ```
 
+## Naming moto resources
+
+**Never hardcode a moto resource name — use `random_name()` from `tests/conftest.py`.**
+The `moto_server` fixture is function-scoped, but moto's backends are process-global
+singletons: a fresh `ThreadedMotoServer` on a new port still sees resources created by
+earlier tests in the same xdist worker. Cleaning up at the end of the test is not enough,
+because a test that fails partway (a read timeout, say) leaks its resources, and every
+later test using the same hardcoded name then fails with `AlreadyExists` — including its
+own `--reruns` retry and the other HTTP-backend parametrization.
+
 ## Test directory structure
 
 - `tests/` — aiobotocore-specific tests (parametrized with aiohttp+httpx via conftest.py)
