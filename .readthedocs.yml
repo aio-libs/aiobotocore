@@ -2,7 +2,7 @@
 version: 2
 
 # Build docs the same way locally and on Read the Docs:
-#   * locally:    `make docs`           (uses `uv run` via Makefile)
+#   * locally:    `uv run poe docs`
 #   * RTD:        the commands below    (also uses `uv run`)
 # Both pull sphinx from the ``docs`` dependency-group in pyproject.toml,
 # so the version is pinned in one place. (#1166)

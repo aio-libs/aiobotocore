@@ -30,7 +30,7 @@ There are two set of tests, those that can be mocked through `moto <https://gith
 
 To run the moto tests::
 
-    $ uv run make mototest
+    $ uv run poe mototest
 
 To run the non-moto tests, make sure you have your amazon key and secret accessible via environment variables::
 
@@ -40,21 +40,24 @@ To run the non-moto tests, make sure you have your amazon key and secret accessi
 
 Execute full tests suite::
 
-    $ uv run make test
+    $ uv run poe test
 
 Execute full tests suite with coverage::
 
-    $ uv run make cov
+    $ uv run poe cov
 
 To run individual use following command::
 
     $ uv run pytest -sv tests/test_monitor.py -k test_name
 
-The ``make`` targets are aliases. Import mode, marker strictness, warning
-filters and coverage paths live in ``pyproject.toml``, so a bare ``pytest``
-behaves the same way -- use whichever you prefer. Invoke ``pytest`` rather than
-``python -m pytest``: the latter puts the working directory on ``sys.path``,
-where the ``aiobotocore`` source tree shadows any installed copy.
+Everything lives in ``pyproject.toml``: the tasks above under
+``[tool.poe.tasks]`` (run ``uv run poe`` to list them), and the test contract
+itself -- import mode, marker strictness, warning filters, coverage paths --
+under ``[tool.pytest.ini_options]`` and ``[tool.coverage.*]``. CI runs the same
+tasks, and a bare ``pytest`` behaves the same as ``poe test``, so use whichever
+you prefer. Invoke ``pytest`` rather than ``python -m pytest``: the latter puts
+the working directory on ``sys.path``, where the ``aiobotocore`` source tree
+shadows any installed copy.
 
 
 Packaging

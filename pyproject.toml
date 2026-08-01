@@ -80,6 +80,7 @@ test = [
     "docker >= 7.1, < 8",
     "moto[server,s3,sqs,awslambda,dynamodb,cloudformation,sns,batch,ec2,rds] >= 5.1.8, < 6",
     "packaging >= 24.1, < 27", # Used in test_version.py
+    "poethepoet >= 0.29, < 1", # Runs [tool.poe.tasks]; CI drives the suite through it
     "pytest-mock >= 3.14.1, < 4", # Used in test_session.py
     "pytest-rerunfailures >= 16.0.1, < 17", # Used in test_lambda.py
     "time-machine >= 2.15.0, < 4", # Used in test_signers.py
@@ -133,7 +134,6 @@ include = [
     "/tests",
     "/CHANGES.rst",
     "/CONTRIBUTING.rst",
-    "/Makefile",
     "/README.rst",
     "/uv.lock",
 ]
@@ -172,6 +172,30 @@ markers = [
     "config_kwargs",
     "patch_attributes",
 ]
+
+# Task definitions, run with ``uv run poe <task>``. CI drives these same tasks,
+# so what you run locally is what CI runs. Anything that is a property of the
+# suite rather than of one invocation belongs in the sections above, not here.
+[tool.poe.tasks]
+lint = "pre-commit run --all --show-diff-on-failure"
+test.cmd = "pytest -s -vv"
+test.deps = ["lint"]
+vtest.cmd = "pytest -s -vv"
+vtest.env = { PYTHONTRACEMALLOC = "5", PYTHONFAULTHANDLER = "1" }
+cov.cmd = "pytest -s -vv --cov --cov-report=term --cov-report=html"
+cov.deps = ["lint"]
+docs = "uv run --group docs sphinx-build -W -b html docs docs/_build/html"
+
+# What the CI matrix runs. ``--http-backend`` defaults to exercising both
+# backends; CI overrides it to aiohttp on the no-httpx job.
+mototest.cmd = """
+  pytest -vv -m "not localonly" -n auto --reruns 1
+  --cov --cov-report=term --cov-report=xml
+  --log-cli-level=DEBUG --http-backend=${HTTP_BACKEND}
+"""
+mototest.env = { HTTP_BACKEND.default = "all", PYTHONTRACEMALLOC = "5", PYTHONFAULTHANDLER = "1" }
+
+clean.shell = "git clean -Xdf"
 
 [tool.coverage.run]
 relative_files = true
