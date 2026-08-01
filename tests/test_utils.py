@@ -40,7 +40,21 @@ async def test_s3express_cache_serializes_concurrent_refreshes(
         task_group.start_soon(get_credentials)
 
     assert results == [credential, credential]
-    client.create_session.assert_awaited_once_with(Bucket='bucket')
+
+    for index in range(1, 100):
+        bucket = f'bucket-{index}'
+        cache._credentials[bucket] = object()
+        cache._refresh_locks[bucket] = object()
+
+    await cache.get_credentials('new-bucket')
+
+    assert 'bucket' not in cache._credentials
+    assert 'bucket' not in cache._refresh_locks
+    assert 'new-bucket' in cache._credentials
+    assert client.create_session.await_args_list == [
+        mock.call(Bucket='bucket'),
+        mock.call(Bucket='new-bucket'),
+    ]
 
 
 async def test_ref_counted_session_rolls_back_the_count_when_entry_fails_httpx():
