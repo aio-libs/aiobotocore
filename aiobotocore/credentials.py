@@ -65,19 +65,28 @@ from botocore.credentials import (
 from botocore.useragent import register_feature_id, register_feature_ids
 from dateutil.tz import tzutc
 
+from aiobotocore._async_primitives import AsyncPrimitives
 from aiobotocore._helpers import resolve_awaitable
 from aiobotocore.config import AioConfig
 from aiobotocore.tokens import AioSSOTokenProvider
 from aiobotocore.utils import (
     AioContainerMetadataFetcher,
     AioInstanceMetadataFetcher,
+    AnyioContainerMetadataFetcher,
+    AnyioInstanceMetadataFetcher,
     create_nested_client,
 )
 
 logger = logging.getLogger(__name__)
 
 
-def create_credential_resolver(session, cache=None, region_name=None):
+def create_credential_resolver(
+    session,
+    cache=None,
+    region_name=None,
+    *,
+    async_primitives=AsyncPrimitives.ASYNCIO,
+):
     """Create a default credential resolver.
     This creates a pre-configured credential resolver
     that includes the default lookup chain for
@@ -104,10 +113,23 @@ def create_credential_resolver(session, cache=None, region_name=None):
     if cache is None:
         cache = {}
 
-    env_provider = AioEnvProvider()
-    container_provider = AioContainerProvider()
-    instance_metadata_provider = AioInstanceMetadataProvider(
-        iam_role_fetcher=AioInstanceMetadataFetcher(
+    if async_primitives is AsyncPrimitives.ANYIO:
+        env_provider = AnyioEnvProvider()
+        container_provider = AnyioContainerProvider()
+        iam_role_fetcher_cls = AnyioInstanceMetadataFetcher
+        instance_metadata_provider_cls = AnyioInstanceMetadataProvider
+        profile_provider_builder_cls = AnyioProfileProviderBuilder
+        assume_role_provider_cls = AnyioAssumeRoleProvider
+    else:
+        env_provider = AioEnvProvider()
+        container_provider = AioContainerProvider()
+        iam_role_fetcher_cls = AioInstanceMetadataFetcher
+        instance_metadata_provider_cls = AioInstanceMetadataProvider
+        profile_provider_builder_cls = AioProfileProviderBuilder
+        assume_role_provider_cls = AioAssumeRoleProvider
+
+    instance_metadata_provider = instance_metadata_provider_cls(
+        iam_role_fetcher=iam_role_fetcher_cls(
             timeout=metadata_timeout,
             num_attempts=num_attempts,
             user_agent=session.user_agent(),
@@ -115,10 +137,10 @@ def create_credential_resolver(session, cache=None, region_name=None):
         )
     )
 
-    profile_provider_builder = AioProfileProviderBuilder(
+    profile_provider_builder = profile_provider_builder_cls(
         session, cache=cache, region_name=region_name
     )
-    assume_role_provider = AioAssumeRoleProvider(
+    assume_role_provider = assume_role_provider_cls(
         load_config=lambda: session.full_config,
         client_creator=_get_client_creator(session, region_name),
         cache=cache,
@@ -226,8 +248,53 @@ class AioProfileProviderBuilder(ProfileProviderBuilder):
         )
 
 
+class AnyioProfileProviderBuilder(AioProfileProviderBuilder):
+    def _create_process_provider(self, profile_name):
+        return AnyioProcessProvider(
+            profile_name=profile_name,
+            load_config=lambda: self._session.full_config,
+        )
+
+    def _create_web_identity_provider(self, profile_name, disable_env_vars):
+        return AnyioAssumeRoleWithWebIdentityProvider(
+            load_config=lambda: self._session.full_config,
+            client_creator=_get_client_creator(
+                self._session, self._region_name
+            ),
+            cache=self._cache,
+            profile_name=profile_name,
+            disable_env_vars=disable_env_vars,
+        )
+
+    def _create_sso_provider(self, profile_name):
+        from aiobotocore.tokens import AnyioSSOTokenProvider
+
+        return AnyioSSOProvider(
+            load_config=lambda: self._session.full_config,
+            client_creator=self._session.create_client,
+            profile_name=profile_name,
+            cache=self._cache,
+            token_cache=self._sso_token_cache,
+            token_provider=AnyioSSOTokenProvider(
+                self._session,
+                cache=self._sso_token_cache,
+                profile_name=profile_name,
+            ),
+        )
+
+    def _create_login_provider(self, profile_name):
+        return AnyioLoginProvider(
+            load_config=lambda: self._session.full_config,
+            client_creator=self._session.create_client,
+            profile_name=profile_name,
+            token_cache=self._login_token_cache,
+        )
+
+
 async def get_credentials(session):
-    resolver = create_credential_resolver(session)
+    resolver = create_credential_resolver(
+        session, async_primitives=session._async_primitives
+    )
     return await resolver.load_credentials()
 
 
@@ -291,9 +358,12 @@ class AioCredentials(Credentials):
 
 
 class AioRefreshableCredentials(RefreshableCredentials):
+    def _create_lock(self):
+        return asyncio.Lock()
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._refresh_lock = asyncio.Lock()
+        self._refresh_lock = self._create_lock()
 
     async def get_account_id(self):
         await self._refresh()
@@ -439,9 +509,22 @@ class AioDeferredRefreshableCredentials(
         self._account_id = None
         self._expiry_time = None
         self._time_fetcher = time_fetcher
-        self._refresh_lock = asyncio.Lock()
+        self._refresh_lock = self._create_lock()
         self.method = method
         self._frozen_credentials = None
+
+
+class AnyioRefreshableCredentials(AioRefreshableCredentials):
+    def _create_lock(self):
+        import anyio
+
+        return anyio.Lock()
+
+
+class AnyioDeferredRefreshableCredentials(
+    AioDeferredRefreshableCredentials, AnyioRefreshableCredentials
+):
+    pass
 
 
 class AioCachedCredentialFetcher(CachedCredentialFetcher):
@@ -560,6 +643,8 @@ def _run_credential_process_sync(process_list):
 
 
 class AioProcessProvider(ProcessProvider):
+    _refreshable_credentials_cls = AioRefreshableCredentials
+
     def __init__(self, *args, popen=asyncio.create_subprocess_exec, **kwargs):
         super().__init__(*args, **kwargs, popen=popen)
 
@@ -572,7 +657,7 @@ class AioProcessProvider(ProcessProvider):
         creds_dict = await self._retrieve_credentials_using(credential_process)
         register_feature_id('CREDENTIALS_PROCESS')
         if creds_dict.get('expiry_time') is not None:
-            return AioRefreshableCredentials.create_from_metadata(
+            return self._refreshable_credentials_cls.create_from_metadata(
                 creds_dict,
                 lambda: self._retrieve_credentials_using(credential_process),
                 self.METHOD,
@@ -603,7 +688,7 @@ class AioProcessProvider(ProcessProvider):
             # support the Proactor loop (e.g. ``psycopg``). Fall back
             # to running the credential process synchronously in a
             # worker thread so the loop stays unblocked. (#1415)
-            stdout, stderr, returncode = await asyncio.to_thread(
+            stdout, stderr, returncode = await self._run_in_thread(
                 _run_credential_process_sync, process_list
             )
         if returncode != 0:
@@ -634,8 +719,55 @@ class AioProcessProvider(ProcessProvider):
                 error_msg=f"Missing required key in response: {e}",
             )
 
+    async def _run_in_thread(self, func, *args):
+        return await asyncio.to_thread(func, *args)
+
+
+class _AnyioSubprocess:
+    """Adapts an anyio ``CompletedProcess`` to the ``asyncio`` subprocess
+    interface (awaitable ``communicate()`` plus ``returncode``) that
+    ``AioProcessProvider._retrieve_credentials_using`` expects."""
+
+    def __init__(self, completed):
+        self._completed = completed
+
+    @property
+    def returncode(self):
+        return self._completed.returncode
+
+    async def communicate(self):
+        return self._completed.stdout, self._completed.stderr
+
+
+async def _anyio_create_subprocess_exec(
+    program, *args, stdout=None, stderr=None
+):
+    # anyio is a hard dependency of httpx, so it is importable whenever the
+    # httpx (trio-capable) backend is in use. Unlike asyncio subprocesses, it
+    # works on trio, whose event loop has no asyncio subprocess transport.
+    import anyio
+
+    completed = await anyio.run_process(
+        [program, *args], stdout=stdout, stderr=stderr, check=False
+    )
+    return _AnyioSubprocess(completed)
+
+
+class AnyioProcessProvider(AioProcessProvider):
+    _refreshable_credentials_cls = AnyioRefreshableCredentials
+
+    def __init__(self, *args, popen=_anyio_create_subprocess_exec, **kwargs):
+        super().__init__(*args, popen=popen, **kwargs)
+
+    async def _run_in_thread(self, func, *args):
+        import anyio.to_thread
+
+        return await anyio.to_thread.run_sync(func, *args)
+
 
 class AioInstanceMetadataProvider(InstanceMetadataProvider):
+    _refreshable_credentials_cls = AioRefreshableCredentials
+
     async def load(self):
         fetcher = self._role_fetcher
         metadata = await fetcher.retrieve_iam_role_credentials()
@@ -646,7 +778,7 @@ class AioInstanceMetadataProvider(InstanceMetadataProvider):
             'Found credentials from IAM Role: %s', metadata['role_name']
         )
 
-        creds = AioRefreshableCredentials.create_from_metadata(
+        creds = self._refreshable_credentials_cls.create_from_metadata(
             metadata,
             method=self.METHOD,
             refresh_using=fetcher.retrieve_iam_role_credentials,
@@ -654,7 +786,13 @@ class AioInstanceMetadataProvider(InstanceMetadataProvider):
         return creds
 
 
+class AnyioInstanceMetadataProvider(AioInstanceMetadataProvider):
+    _refreshable_credentials_cls = AnyioRefreshableCredentials
+
+
 class AioEnvProvider(EnvProvider):
+    _refreshable_credentials_cls = AioRefreshableCredentials
+
     async def load(self):
         access_key = self.environ.get(self._mapping['access_key'], '')
 
@@ -667,7 +805,7 @@ class AioEnvProvider(EnvProvider):
             expiry_time = credentials['expiry_time']
             if expiry_time is not None:
                 expiry_time = parse(expiry_time)
-                return AioRefreshableCredentials(
+                return self._refreshable_credentials_cls(
                     credentials['access_key'],
                     credentials['secret_key'],
                     credentials['token'],
@@ -686,6 +824,10 @@ class AioEnvProvider(EnvProvider):
             )
         else:
             return None
+
+
+class AnyioEnvProvider(AioEnvProvider):
+    _refreshable_credentials_cls = AnyioRefreshableCredentials
 
 
 class AioOriginalEC2Provider(OriginalEC2Provider):
@@ -793,6 +935,8 @@ class AioBotoProvider(BotoProvider):
 
 
 class AioAssumeRoleProvider(AssumeRoleProvider):
+    _deferred_credentials_cls = AioDeferredRefreshableCredentials
+
     async def load(self):
         # Reset visited profiles on each load() call to avoid false positives
         # when multiple async tasks concurrently call load() on the same provider
@@ -845,7 +989,7 @@ class AioAssumeRoleProvider(AssumeRoleProvider):
         # The initial credentials are empty and the expiration time is set
         # to now so that we can delay the call to assume role until it is
         # strictly needed.
-        return AioDeferredRefreshableCredentials(
+        return self._deferred_credentials_cls(
             method=self.METHOD,
             refresh_using=refresher,
             time_fetcher=_local_now,
@@ -930,7 +1074,13 @@ class AioAssumeRoleProvider(AssumeRoleProvider):
         return credentials
 
 
+class AnyioAssumeRoleProvider(AioAssumeRoleProvider):
+    _deferred_credentials_cls = AnyioDeferredRefreshableCredentials
+
+
 class AioAssumeRoleWithWebIdentityProvider(AssumeRoleWithWebIdentityProvider):
+    _deferred_credentials_cls = AioDeferredRefreshableCredentials
+
     async def load(self):
         return await self._assume_role_with_web_identity()
 
@@ -969,10 +1119,16 @@ class AioAssumeRoleWithWebIdentityProvider(AssumeRoleWithWebIdentityProvider):
         # The initial credentials are empty and the expiration time is set
         # to now so that we can delay the call to assume role until it is
         # strictly needed.
-        return AioDeferredRefreshableCredentials(
+        return self._deferred_credentials_cls(
             method=self.METHOD,
             refresh_using=fetcher.fetch_credentials,
         )
+
+
+class AnyioAssumeRoleWithWebIdentityProvider(
+    AioAssumeRoleWithWebIdentityProvider
+):
+    _deferred_credentials_cls = AnyioDeferredRefreshableCredentials
 
 
 class AioCanonicalNameCredentialSourcer(CanonicalNameCredentialSourcer):
@@ -1030,12 +1186,19 @@ class AioCanonicalNameCredentialSourcer(CanonicalNameCredentialSourcer):
 
 
 class AioContainerProvider(ContainerProvider):
+    _fetcher_cls = AioContainerMetadataFetcher
+    _refreshable_credentials_cls = AioRefreshableCredentials
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        # This will always run if no fetcher arg is provided
-        if isinstance(self._fetcher, ContainerMetadataFetcher):
-            self._fetcher = AioContainerMetadataFetcher()
+        # This will always run if no fetcher arg is provided. A caller's own
+        # async fetcher is left alone; only botocore's blocking default is
+        # swapped out.
+        if isinstance(
+            self._fetcher, ContainerMetadataFetcher
+        ) and not isinstance(self._fetcher, AioContainerMetadataFetcher):
+            self._fetcher = self._fetcher_cls()
 
     async def load(self):
         if self.ENV_VAR in self._environ or self.ENV_VAR_FULL in self._environ:
@@ -1048,7 +1211,7 @@ class AioContainerProvider(ContainerProvider):
             full_uri = self._environ[self.ENV_VAR_FULL]
         fetcher = self._create_fetcher(full_uri)
         creds = await fetcher()
-        return AioRefreshableCredentials(
+        return self._refreshable_credentials_cls(
             access_key=creds['access_key'],
             secret_key=creds['secret_key'],
             token=creds['token'],
@@ -1082,6 +1245,14 @@ class AioContainerProvider(ContainerProvider):
             }
 
         return fetch_creds
+
+
+class AnyioContainerProvider(AioContainerProvider):
+    """Container credential provider for the httpx backend, which also runs
+    on trio."""
+
+    _fetcher_cls = AnyioContainerMetadataFetcher
+    _refreshable_credentials_cls = AnyioRefreshableCredentials
 
 
 class AioCredentialResolver(CredentialResolver):
@@ -1159,6 +1330,8 @@ class AioSSOCredentialFetcher(
 
 
 class AioSSOProvider(SSOProvider):
+    _deferred_credentials_cls = AioDeferredRefreshableCredentials
+
     async def load(self):
         sso_config = self._load_sso_config()
         if not sso_config:
@@ -1190,10 +1363,14 @@ class AioSSOProvider(SSOProvider):
             self._feature_ids.add('CREDENTIALS_SSO_LEGACY')
 
         register_feature_ids(self._feature_ids)
-        return AioDeferredRefreshableCredentials(
+        return self._deferred_credentials_cls(
             method=self.METHOD,
             refresh_using=sso_fetcher.fetch_credentials,
         )
+
+
+class AnyioSSOProvider(AioSSOProvider):
+    _deferred_credentials_cls = AnyioDeferredRefreshableCredentials
 
 
 class AioLoginCredentialFetcher(LoginCredentialFetcher):
@@ -1282,6 +1459,8 @@ class AioLoginCredentialFetcher(LoginCredentialFetcher):
 
 
 class AioLoginProvider(LoginProvider):
+    _refreshable_credentials_cls = AioRefreshableCredentials
+
     async def load(self):
         loaded_config = self._load_config()
         profiles = loaded_config.get('profiles', {})
@@ -1313,7 +1492,7 @@ class AioLoginProvider(LoginProvider):
         # regardless if they're expired
         cached_credentials = fetcher.load_cached_credentials()
 
-        return AioRefreshableCredentials(
+        return self._refreshable_credentials_cls(
             access_key=cached_credentials['access_key'],
             secret_key=cached_credentials['secret_key'],
             token=cached_credentials['token'],
@@ -1323,6 +1502,10 @@ class AioLoginProvider(LoginProvider):
             refresh_using=fetcher.refresh_credentials,
             time_fetcher=_local_now,
         )
+
+
+class AnyioLoginProvider(AioLoginProvider):
+    _refreshable_credentials_cls = AnyioRefreshableCredentials
 
 
 def _get_client_creator(session, region_name):

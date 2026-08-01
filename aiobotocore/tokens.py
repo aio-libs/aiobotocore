@@ -15,6 +15,7 @@ from botocore.tokens import (
     _utc_now,
 )
 
+from aiobotocore._async_primitives import AsyncPrimitives
 from aiobotocore.config import AioConfig
 from aiobotocore.utils import create_nested_client
 
@@ -22,21 +23,29 @@ logger = logging.getLogger(__name__)
 
 
 def create_token_resolver(session):
+    provider_cls = (
+        AnyioSSOTokenProvider
+        if session._async_primitives is AsyncPrimitives.ANYIO
+        else AioSSOTokenProvider
+    )
     providers = [
         ScopedEnvTokenProvider(session),
-        AioSSOTokenProvider(session),
+        provider_cls(session),
     ]
     return TokenProviderChain(providers=providers)
 
 
 class AioDeferredRefreshableToken(DeferredRefreshableToken):
+    def _create_lock(self):
+        return asyncio.Lock()
+
     def __init__(self, method, refresh_using, time_fetcher=_utc_now):  # noqa: E501, lgtm [py/missing-call-to-init]
         self._time_fetcher = time_fetcher
         self._refresh_using = refresh_using
         self.method = method
 
         # The frozen token is protected by this lock
-        self._refresh_lock = asyncio.Lock()
+        self._refresh_lock = self._create_lock()
         self._frozen_token = None
         self._next_refresh = None
 
@@ -85,7 +94,16 @@ class AioDeferredRefreshableToken(DeferredRefreshableToken):
             )
 
 
+class AnyioDeferredRefreshableToken(AioDeferredRefreshableToken):
+    def _create_lock(self):
+        import anyio
+
+        return anyio.Lock()
+
+
 class AioSSOTokenProvider(SSOTokenProvider):
+    _token_cls = AioDeferredRefreshableToken
+
     async def _attempt_create_token(self, token):
         async with self._client as client:
             response = await client.create_token(
@@ -168,6 +186,10 @@ class AioSSOTokenProvider(SSOTokenProvider):
         if self._sso_config is None:
             return None
 
-        return AioDeferredRefreshableToken(
+        return self._token_cls(
             self.METHOD, self._refresher, time_fetcher=self._now
         )
+
+
+class AnyioSSOTokenProvider(AioSSOTokenProvider):
+    _token_cls = AnyioDeferredRefreshableToken

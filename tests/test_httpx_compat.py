@@ -5,13 +5,14 @@ which is deprecated. Mirrors authlib's httpx compat tests.
 """
 
 import importlib
+import ssl
 import sys
 import warnings
 
 import pytest
 
 from aiobotocore import _httpx
-from aiobotocore.httpxsession import HttpxSession
+from aiobotocore.httpxsession import HttpxSession, _ProxyTargetExtensions
 
 pytestmark = pytest.mark.skipif(
     _httpx.httpx is None,
@@ -69,3 +70,38 @@ def test_httpxsession_does_not_warn_on_httpx2(monkeypatch, recwarn):
     assert not any(
         issubclass(w.category, DeprecationWarning) for w in recwarn.list
     )
+
+
+def test_httpx2_uses_botocore_verify_context(monkeypatch):
+    """httpx2's truststore default must not replace botocore TLS settings."""
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    session = HttpxSession()
+    monkeypatch.setattr(session, '_get_ssl_context', lambda: context)
+
+    assert session._build_verify_context() is context
+
+
+def test_proxy_connect_does_not_reuse_raw_endpoint_target():
+    core = importlib.import_module(
+        "httpcore" if _httpx.HTTPX_IS_LEGACY else "httpcore2"
+    )
+    extensions = _ProxyTargetExtensions(
+        {'timeout': {'connect': 1}}, b'https://example.com/a/../b'
+    )
+    endpoint = core.Request(
+        b'GET', b'https://example.com/', extensions=extensions
+    )
+    connect = core.Request(
+        b'CONNECT',
+        core.URL(
+            scheme=b'http',
+            host=b'proxy',
+            port=80,
+            target=b'example.com:443',
+        ),
+        extensions=extensions,
+    )
+
+    assert endpoint.url.target == b'https://example.com/a/../b'
+    assert connect.url.target == b'example.com:443'
+    assert connect.extensions['timeout']['connect'] == 1

@@ -50,9 +50,22 @@ jobs:
       run: |
         uv run poe lint
     # tests/evals exercises plugins/, which the sdist excludes -- so the test
-    # matrix, which runs out of the sdist, never sees them. Run here rather
-    # than in build: this job syncs the default groups, so it already has the
-    # anthropic dependency they import.
-    - name: Run the git-only tests
+    # matrix, running out of the sdist, never sees them. The evals group is not
+    # a default group because anthropic pulls httpx in transitively.
+    - name: Run eval common tests
       run: |
-        uv run pytest -q tests/evals
+        uv sync --group evals
+        uv run pytest \
+          --cov-report= \
+          --cov=plugins/aiobotocore-bot/evals \
+          --cov=tests \
+          tests/evals/test_common.py
+        uv run coverage xml
+    - name: Upload eval coverage to Codecov
+      uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f  # v6.0.2
+      with:
+        files: ./coverage.xml
+        flags: evals-common
+        name: codecov-umbrella
+        fail_ci_if_error: true
+        verbose: true

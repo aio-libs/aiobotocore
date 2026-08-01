@@ -44,7 +44,7 @@ def lambda_handler(event, context):
 
 
 async def test_run_lambda(iam_client, lambda_client, aws_lambda_zip):
-    # Unique per test: a run dying before cleanup leaks into moto's global backend.
+    # Random, not axis-derived: moto is global and axes get added (trio just did).
     function_name = random_name()
     role_arn = await _get_role_arn(iam_client, 'test-iam-role')
     lambda_response = await lambda_client.create_function(

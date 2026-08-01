@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import itertools
 import json
-import unittest
 from collections.abc import Iterator
 from contextlib import asynccontextmanager
 from unittest import mock
@@ -20,6 +19,7 @@ from botocore.utils import BadIMDSRequestError, MetadataRetrievalError
 
 from aiobotocore import utils
 from aiobotocore.awsrequest import AioAWSResponse
+from aiobotocore.httpxsession import is_httpx_session_cls
 from aiobotocore.regions import AioEndpointRulesetResolver
 from aiobotocore.utils import (
     AioInstanceMetadataFetcher,
@@ -28,8 +28,11 @@ from aiobotocore.utils import (
 from tests.test_response import AsyncBytesIO
 
 
-class TestS3RegionRedirector(unittest.IsolatedAsyncioTestCase):
-    async def asyncSetUp(self):
+class TestS3RegionRedirector:
+    pytestmark = pytest.mark.anyio
+
+    @pytest.fixture(autouse=True)
+    def _setup(self):
         self.client = mock.AsyncMock()
         self.client._ruleset_resolver = AioEndpointRulesetResolver(
             endpoint_ruleset_data={
@@ -76,13 +79,13 @@ class TestS3RegionRedirector(unittest.IsolatedAsyncioTestCase):
         old_url = 'https://us-west-2.amazonaws.com/foo'
         new_endpoint = 'https://eu-central-1.amazonaws.com'
         new_url = self.redirector.set_request_url(old_url, new_endpoint)
-        self.assertEqual(new_url, 'https://eu-central-1.amazonaws.com/foo')
+        assert new_url == 'https://eu-central-1.amazonaws.com/foo'
 
     def test_set_request_url_keeps_old_scheme(self):
         old_url = 'http://us-west-2.amazonaws.com/foo'
         new_endpoint = 'https://eu-central-1.amazonaws.com'
         new_url = self.redirector.set_request_url(old_url, new_endpoint)
-        self.assertEqual(new_url, 'http://eu-central-1.amazonaws.com/foo')
+        assert new_url == 'http://eu-central-1.amazonaws.com/foo'
 
     def test_sets_signing_context_from_cache(self):
         self.cache['foo'] = 'new-region-1'
@@ -92,7 +95,7 @@ class TestS3RegionRedirector(unittest.IsolatedAsyncioTestCase):
         params = {'Bucket': 'foo'}
         builtins = {'AWS::Region': 'old-region-1'}
         self.redirector.redirect_from_cache(builtins, params)
-        self.assertEqual(builtins.get('AWS::Region'), 'new-region-1')
+        assert builtins.get('AWS::Region') == 'new-region-1'
 
     def test_only_changes_context_if_bucket_in_cache(self):
         self.cache['foo'] = 'new-region-1'
@@ -102,7 +105,7 @@ class TestS3RegionRedirector(unittest.IsolatedAsyncioTestCase):
         params = {'Bucket': 'bar'}
         builtins = {'AWS::Region': 'old-region-1'}
         self.redirector.redirect_from_cache(builtins, params)
-        self.assertEqual(builtins.get('AWS::Region'), 'old-region-1')
+        assert builtins.get('AWS::Region') == 'old-region-1'
 
     async def test_redirect_from_error(self):
         request_dict = {
@@ -153,21 +156,17 @@ class TestS3RegionRedirector(unittest.IsolatedAsyncioTestCase):
         )
 
         # The response needs to be 0 so that there is no retry delay
-        self.assertEqual(redirect_response, 0)
+        assert redirect_response == 0
 
-        self.assertEqual(
-            request_dict['url'], 'https://eu-central-1.amazonaws.com/foo'
-        )
+        assert request_dict['url'] == 'https://eu-central-1.amazonaws.com/foo'
 
         expected_signing_context = {
             'region': 'eu-central-1',
             'disableDoubleEncoding': True,
         }
         signing_context = request_dict['context'].get('signing')
-        self.assertEqual(signing_context, expected_signing_context)
-        self.assertTrue(
-            request_dict['context']['s3_redirect'].get('redirected')
-        )
+        assert signing_context == expected_signing_context
+        assert request_dict['context']['s3_redirect'].get('redirected')
 
     async def test_does_not_redirect_if_previously_redirected(self):
         request_dict = {
@@ -192,7 +191,7 @@ class TestS3RegionRedirector(unittest.IsolatedAsyncioTestCase):
         redirect_response = await self.redirector.redirect_from_error(
             request_dict, response, self.operation
         )
-        self.assertIsNone(redirect_response)
+        assert redirect_response is None
 
     async def test_does_not_redirect_unless_permanentredirect_recieved(self):
         request_dict = {}
@@ -200,8 +199,8 @@ class TestS3RegionRedirector(unittest.IsolatedAsyncioTestCase):
         redirect_response = await self.redirector.redirect_from_error(
             request_dict, response, self.operation
         )
-        self.assertIsNone(redirect_response)
-        self.assertEqual(request_dict, {})
+        assert redirect_response is None
+        assert request_dict == {}
 
     async def test_does_not_redirect_if_region_cannot_be_found(self):
         request_dict = {
@@ -231,7 +230,7 @@ class TestS3RegionRedirector(unittest.IsolatedAsyncioTestCase):
             request_dict, response, self.operation
         )
 
-        self.assertIsNone(redirect_response)
+        assert redirect_response is None
 
     async def test_redirects_301(self):
         request_dict = {
@@ -259,13 +258,13 @@ class TestS3RegionRedirector(unittest.IsolatedAsyncioTestCase):
         redirect_response = await self.redirector.redirect_from_error(
             request_dict, response, self.operation
         )
-        self.assertEqual(redirect_response, 0)
+        assert redirect_response == 0
 
         self.operation.name = 'ListObjects'
         redirect_response = await self.redirector.redirect_from_error(
             request_dict, response, self.operation
         )
-        self.assertIsNone(redirect_response)
+        assert redirect_response is None
 
     async def test_redirects_400_head_bucket(self):
         request_dict = {
@@ -293,13 +292,13 @@ class TestS3RegionRedirector(unittest.IsolatedAsyncioTestCase):
         redirect_response = await self.redirector.redirect_from_error(
             request_dict, response, self.operation
         )
-        self.assertEqual(redirect_response, 0)
+        assert redirect_response == 0
 
         self.operation.name = 'ListObjects'
         redirect_response = await self.redirector.redirect_from_error(
             request_dict, response, self.operation
         )
-        self.assertIsNone(redirect_response)
+        assert redirect_response is None
 
     async def test_does_not_redirect_400_head_bucket_no_region_header(self):
         # We should not redirect a 400 Head* if the region header is not
@@ -321,9 +320,9 @@ class TestS3RegionRedirector(unittest.IsolatedAsyncioTestCase):
             request_dict, response, self.operation
         )
         head_bucket_calls = self.client.head_bucket.call_count
-        self.assertIsNone(redirect_response)
+        assert redirect_response is None
         # We should not have made an additional head bucket call
-        self.assertEqual(head_bucket_calls, 0)
+        assert head_bucket_calls == 0
 
     async def test_does_not_redirect_if_None_response(self):
         request_dict = {
@@ -334,7 +333,7 @@ class TestS3RegionRedirector(unittest.IsolatedAsyncioTestCase):
         redirect_response = await self.redirector.redirect_from_error(
             request_dict, response, self.operation
         )
-        self.assertIsNone(redirect_response)
+        assert redirect_response is None
 
     async def test_redirects_on_illegal_location_constraint_from_opt_in_region(
         self,
@@ -364,7 +363,7 @@ class TestS3RegionRedirector(unittest.IsolatedAsyncioTestCase):
         redirect_response = await self.redirector.redirect_from_error(
             request_dict, response, self.operation
         )
-        self.assertEqual(redirect_response, 0)
+        assert redirect_response == 0
 
     async def test_no_redirect_on_illegal_location_constraint_from_bad_location_constraint(
         self,
@@ -396,7 +395,7 @@ class TestS3RegionRedirector(unittest.IsolatedAsyncioTestCase):
         redirect_response = await self.redirector.redirect_from_error(
             request_dict, response, self.operation
         )
-        self.assertIsNone(redirect_response)
+        assert redirect_response is None
 
     async def test_get_region_from_response(self):
         response = (
@@ -413,7 +412,7 @@ class TestS3RegionRedirector(unittest.IsolatedAsyncioTestCase):
             },
         )
         region = await self.redirector.get_bucket_region('foo', response)
-        self.assertEqual(region, 'eu-central-1')
+        assert region == 'eu-central-1'
 
     async def test_get_region_from_response_error_body(self):
         response = (
@@ -429,7 +428,7 @@ class TestS3RegionRedirector(unittest.IsolatedAsyncioTestCase):
             },
         )
         region = await self.redirector.get_bucket_region('foo', response)
-        self.assertEqual(region, 'eu-central-1')
+        assert region == 'eu-central-1'
 
     async def test_get_region_from_head_bucket_error(self):
         self.set_client_response_headers(
@@ -447,7 +446,7 @@ class TestS3RegionRedirector(unittest.IsolatedAsyncioTestCase):
             },
         )
         region = await self.redirector.get_bucket_region('foo', response)
-        self.assertEqual(region, 'eu-central-1')
+        assert region == 'eu-central-1'
 
     async def test_get_region_from_head_bucket_success(self):
         success_response = {
@@ -469,7 +468,7 @@ class TestS3RegionRedirector(unittest.IsolatedAsyncioTestCase):
             },
         )
         region = await self.redirector.get_bucket_region('foo', response)
-        self.assertEqual(region, 'eu-central-1')
+        assert region == 'eu-central-1'
 
     async def test_no_redirect_from_error_for_accesspoint(self):
         request_dict = {
@@ -499,7 +498,7 @@ class TestS3RegionRedirector(unittest.IsolatedAsyncioTestCase):
         redirect_response = await self.redirector.redirect_from_error(
             request_dict, response, self.operation
         )
-        self.assertEqual(redirect_response, None)
+        assert redirect_response is None
 
     async def test_no_redirect_from_error_for_mrap_accesspoint(self):
         mrap_arn = 'arn:aws:s3::123456789012:accesspoint:mfzwi23gnjvgw.mrap'
@@ -530,7 +529,7 @@ class TestS3RegionRedirector(unittest.IsolatedAsyncioTestCase):
         redirect_response = await self.redirector.redirect_from_error(
             request_dict, response, self.operation
         )
-        self.assertEqual(redirect_response, None)
+        assert redirect_response is None
 
     async def test_get_region_validates_region_from_header(self):
         response = (
@@ -542,7 +541,7 @@ class TestS3RegionRedirector(unittest.IsolatedAsyncioTestCase):
                 },
             },
         )
-        with self.assertRaises(InvalidRegionError):
+        with pytest.raises(InvalidRegionError):
             await self.redirector.get_bucket_region('foo', response)
 
     async def test_get_region_validates_region_from_error_body(self):
@@ -556,7 +555,7 @@ class TestS3RegionRedirector(unittest.IsolatedAsyncioTestCase):
                 'ResponseMetadata': {'HTTPHeaders': {}},
             },
         )
-        with self.assertRaises(InvalidRegionError):
+        with pytest.raises(InvalidRegionError):
             await self.redirector.get_bucket_region('foo', response)
 
     async def test_get_region_validates_region_from_head_bucket(self):
@@ -570,7 +569,7 @@ class TestS3RegionRedirector(unittest.IsolatedAsyncioTestCase):
                 'ResponseMetadata': {'HTTPHeaders': {}},
             },
         )
-        with self.assertRaises(InvalidRegionError):
+        with pytest.raises(InvalidRegionError):
             await self.redirector.get_bucket_region('foo', response)
 
 
@@ -744,8 +743,11 @@ async def test_idmsfetcher_timeout():
         await fetcher._get_request('path', None)
 
 
-class TestInstanceMetadataFetcher(unittest.IsolatedAsyncioTestCase):
-    async def asyncSetUp(self):
+class TestInstanceMetadataFetcher:
+    pytestmark = pytest.mark.anyio
+
+    @pytest.fixture(autouse=True)
+    def _setup(self):
         urllib3_session_send = 'aiobotocore.httpsession.AIOHTTPSession.send'
         self._urllib3_patch = mock.patch(urllib3_session_send)
         self._send = self._urllib3_patch.start()
@@ -766,7 +768,8 @@ class TestInstanceMetadataFetcher(unittest.IsolatedAsyncioTestCase):
             'role_name': self._role_name,
         }
 
-    async def asyncTearDown(self):
+        yield
+
         self._urllib3_patch.stop()
 
     def add_imds_response(self, body, status_code=200):
@@ -810,14 +813,14 @@ class TestInstanceMetadataFetcher(unittest.IsolatedAsyncioTestCase):
         env = {'AWS_EC2_METADATA_DISABLED': 'true'}
         fetcher = AioInstanceMetadataFetcher(env=env)
         result = await fetcher.retrieve_iam_role_credentials()
-        self.assertEqual(result, {})
+        assert result == {}
         self._send.assert_not_called()
 
     async def test_disabled_by_environment_mixed_case(self):
         env = {'AWS_EC2_METADATA_DISABLED': 'tRuE'}
         fetcher = AioInstanceMetadataFetcher(env=env)
         result = await fetcher.retrieve_iam_role_credentials()
-        self.assertEqual(result, {})
+        assert result == {}
         self._send.assert_not_called()
 
     async def test_disabling_env_var_not_true(self):
@@ -831,7 +834,7 @@ class TestInstanceMetadataFetcher(unittest.IsolatedAsyncioTestCase):
         fetcher = AioInstanceMetadataFetcher(base_url=url, env=env)
         result = await fetcher.retrieve_iam_role_credentials()
 
-        self.assertEqual(result, self._expected_creds)
+        assert result == self._expected_creds
 
     async def test_includes_user_agent_header(self):
         user_agent = 'my-user-agent'
@@ -843,9 +846,9 @@ class TestInstanceMetadataFetcher(unittest.IsolatedAsyncioTestCase):
             user_agent=user_agent
         ).retrieve_iam_role_credentials()
 
-        self.assertEqual(self._send.call_count, 3)
-        for call in self._send.calls:
-            self.assertTrue(call[0][0].headers['User-Agent'], user_agent)
+        assert self._send.call_count == 3
+        for call in self._send.call_args_list:
+            assert call[0][0].headers['User-Agent'] == user_agent
 
     async def test_non_200_response_for_role_name_is_retried(self):
         # Response for role name that have a non 200 status code should
@@ -859,7 +862,7 @@ class TestInstanceMetadataFetcher(unittest.IsolatedAsyncioTestCase):
         result = await AioInstanceMetadataFetcher(
             num_attempts=2
         ).retrieve_iam_role_credentials()
-        self.assertEqual(result, self._expected_creds)
+        assert result == self._expected_creds
 
     async def test_http_connection_error_for_role_name_is_retried(self):
         # Connection related errors should be retried
@@ -870,7 +873,7 @@ class TestInstanceMetadataFetcher(unittest.IsolatedAsyncioTestCase):
         result = await AioInstanceMetadataFetcher(
             num_attempts=2
         ).retrieve_iam_role_credentials()
-        self.assertEqual(result, self._expected_creds)
+        assert result == self._expected_creds
 
     async def test_empty_response_for_role_name_is_retried(self):
         # Response for role name that have a non 200 status code should
@@ -882,7 +885,7 @@ class TestInstanceMetadataFetcher(unittest.IsolatedAsyncioTestCase):
         result = await AioInstanceMetadataFetcher(
             num_attempts=2
         ).retrieve_iam_role_credentials()
-        self.assertEqual(result, self._expected_creds)
+        assert result == self._expected_creds
 
     async def test_non_200_response_is_retried(self):
         self.add_get_token_imds_response(token='token')
@@ -896,7 +899,7 @@ class TestInstanceMetadataFetcher(unittest.IsolatedAsyncioTestCase):
         result = await AioInstanceMetadataFetcher(
             num_attempts=2
         ).retrieve_iam_role_credentials()
-        self.assertEqual(result, self._expected_creds)
+        assert result == self._expected_creds
 
     async def test_http_connection_errors_is_retried(self):
         self.add_get_token_imds_response(token='token')
@@ -907,7 +910,7 @@ class TestInstanceMetadataFetcher(unittest.IsolatedAsyncioTestCase):
         result = await AioInstanceMetadataFetcher(
             num_attempts=2
         ).retrieve_iam_role_credentials()
-        self.assertEqual(result, self._expected_creds)
+        assert result == self._expected_creds
 
     async def test_empty_response_is_retried(self):
         self.add_get_token_imds_response(token='token')
@@ -919,7 +922,7 @@ class TestInstanceMetadataFetcher(unittest.IsolatedAsyncioTestCase):
         result = await AioInstanceMetadataFetcher(
             num_attempts=2
         ).retrieve_iam_role_credentials()
-        self.assertEqual(result, self._expected_creds)
+        assert result == self._expected_creds
 
     async def test_invalid_json_is_retried(self):
         self.add_get_token_imds_response(token='token')
@@ -931,7 +934,7 @@ class TestInstanceMetadataFetcher(unittest.IsolatedAsyncioTestCase):
         result = await AioInstanceMetadataFetcher(
             num_attempts=2
         ).retrieve_iam_role_credentials()
-        self.assertEqual(result, self._expected_creds)
+        assert result == self._expected_creds
 
     async def test_exhaust_retries_on_role_name_request(self):
         self.add_get_token_imds_response(token='token')
@@ -939,7 +942,7 @@ class TestInstanceMetadataFetcher(unittest.IsolatedAsyncioTestCase):
         result = await AioInstanceMetadataFetcher(
             num_attempts=1
         ).retrieve_iam_role_credentials()
-        self.assertEqual(result, {})
+        assert result == {}
 
     async def test_exhaust_retries_on_credentials_request(self):
         self.add_get_token_imds_response(token='token')
@@ -948,7 +951,7 @@ class TestInstanceMetadataFetcher(unittest.IsolatedAsyncioTestCase):
         result = await AioInstanceMetadataFetcher(
             num_attempts=1
         ).retrieve_iam_role_credentials()
-        self.assertEqual(result, {})
+        assert result == {}
 
     async def test_missing_fields_in_credentials_response(self):
         self.add_get_token_imds_response(token='token')
@@ -961,7 +964,7 @@ class TestInstanceMetadataFetcher(unittest.IsolatedAsyncioTestCase):
         result = (
             await AioInstanceMetadataFetcher().retrieve_iam_role_credentials()
         )
-        self.assertEqual(result, {})
+        assert result == {}
 
     async def test_token_is_included(self):
         user_agent = 'my-user-agent'
@@ -974,12 +977,10 @@ class TestInstanceMetadataFetcher(unittest.IsolatedAsyncioTestCase):
         ).retrieve_iam_role_credentials()
 
         # Check that subsequent calls after getting the token include the token.
-        self.assertEqual(self._send.call_count, 3)
+        assert self._send.call_count == 3
         for call in self._send.call_args_list[1:]:
-            self.assertEqual(
-                call[0][0].headers['x-aws-ec2-metadata-token'], 'token'
-            )
-        self.assertEqual(result, self._expected_creds)
+            assert call[0][0].headers['x-aws-ec2-metadata-token'] == 'token'
+        assert result == self._expected_creds
 
     async def test_metadata_token_not_supported_404(self):
         user_agent = 'my-user-agent'
@@ -992,8 +993,8 @@ class TestInstanceMetadataFetcher(unittest.IsolatedAsyncioTestCase):
         ).retrieve_iam_role_credentials()
 
         for call in self._send.call_args_list[1:]:
-            self.assertNotIn('x-aws-ec2-metadata-token', call[0][0].headers)
-        self.assertEqual(result, self._expected_creds)
+            assert 'x-aws-ec2-metadata-token' not in call[0][0].headers
+        assert result == self._expected_creds
 
     async def test_metadata_token_not_supported_403(self):
         user_agent = 'my-user-agent'
@@ -1006,8 +1007,8 @@ class TestInstanceMetadataFetcher(unittest.IsolatedAsyncioTestCase):
         ).retrieve_iam_role_credentials()
 
         for call in self._send.call_args_list[1:]:
-            self.assertNotIn('x-aws-ec2-metadata-token', call[0][0].headers)
-        self.assertEqual(result, self._expected_creds)
+            assert 'x-aws-ec2-metadata-token' not in call[0][0].headers
+        assert result == self._expected_creds
 
     async def test_metadata_token_not_supported_405(self):
         user_agent = 'my-user-agent'
@@ -1020,8 +1021,8 @@ class TestInstanceMetadataFetcher(unittest.IsolatedAsyncioTestCase):
         ).retrieve_iam_role_credentials()
 
         for call in self._send.call_args_list[1:]:
-            self.assertNotIn('x-aws-ec2-metadata-token', call[0][0].headers)
-        self.assertEqual(result, self._expected_creds)
+            assert 'x-aws-ec2-metadata-token' not in call[0][0].headers
+        assert result == self._expected_creds
 
     async def test_metadata_token_not_supported_timeout(self):
         user_agent = 'my-user-agent'
@@ -1034,8 +1035,8 @@ class TestInstanceMetadataFetcher(unittest.IsolatedAsyncioTestCase):
         ).retrieve_iam_role_credentials()
 
         for call in self._send.call_args_list[1:]:
-            self.assertNotIn('x-aws-ec2-metadata-token', call[0][0].headers)
-        self.assertEqual(result, self._expected_creds)
+            assert 'x-aws-ec2-metadata-token' not in call[0][0].headers
+        assert result == self._expected_creds
 
     async def test_token_not_supported_exhaust_retries(self):
         user_agent = 'my-user-agent'
@@ -1048,8 +1049,8 @@ class TestInstanceMetadataFetcher(unittest.IsolatedAsyncioTestCase):
         ).retrieve_iam_role_credentials()
 
         for call in self._send.call_args_list[1:]:
-            self.assertNotIn('x-aws-ec2-metadata-token', call[0][0].headers)
-        self.assertEqual(result, self._expected_creds)
+            assert 'x-aws-ec2-metadata-token' not in call[0][0].headers
+        assert result == self._expected_creds
 
     async def test_metadata_token_bad_request_yields_no_credentials(self):
         user_agent = 'my-user-agent'
@@ -1057,10 +1058,18 @@ class TestInstanceMetadataFetcher(unittest.IsolatedAsyncioTestCase):
         result = await AioInstanceMetadataFetcher(
             user_agent=user_agent
         ).retrieve_iam_role_credentials()
-        self.assertEqual(result, {})
+        assert result == {}
 
 
-async def test_containermetadatafetcher_retrieve_url():
+@pytest.fixture
+def container_fetcher_cls(http_session_cls):
+    # aiohttp sleeps via asyncio, httpx (which also runs on trio) via anyio.
+    if is_httpx_session_cls(http_session_cls):
+        return utils.AnyioContainerMetadataFetcher
+    return utils.AioContainerMetadataFetcher
+
+
+async def test_containermetadatafetcher_retrieve_url(container_fetcher_cls):
     json_body = json.dumps(
         {
             "AccessKeyId": "a",
@@ -1070,10 +1079,9 @@ async def test_containermetadatafetcher_retrieve_url():
         }
     )
 
-    sleep = mock.AsyncMock()
     http = fake_aiohttp_session((json_body, 200))
 
-    fetcher = utils.AioContainerMetadataFetcher(http, sleep)
+    fetcher = container_fetcher_cls(http)
     resp = await fetcher.retrieve_uri('/foo?id=1')
     assert resp['AccessKeyId'] == 'a'
     assert resp['SecretAccessKey'] == 'b'
@@ -1089,23 +1097,29 @@ async def test_containermetadatafetcher_retrieve_url():
     assert resp['Expiration'] == 'd'
 
 
-async def test_containermetadatafetcher_retrieve_url_bad_status():
+async def test_containermetadatafetcher_retrieve_url_bad_status(
+    container_fetcher_cls,
+):
     json_body = "not json"
 
-    sleep = mock.AsyncMock()
     http = fake_aiohttp_session((json_body, 500))
 
-    fetcher = utils.AioContainerMetadataFetcher(http, sleep)
+    fetcher = container_fetcher_cls(http)
+    # Drive the retry loop through the real _sleep without the delay: the
+    # aiohttp fetcher sleeps via asyncio, the anyio one via anyio.
+    fetcher.SLEEP_TIME = 0
     with pytest.raises(MetadataRetrievalError):
         await fetcher.retrieve_uri('/foo?id=1')
 
 
-async def test_containermetadatafetcher_retrieve_url_not_json():
+async def test_containermetadatafetcher_retrieve_url_not_json(
+    container_fetcher_cls,
+):
     json_body = "not json"
 
-    sleep = mock.AsyncMock()
     http = fake_aiohttp_session((json_body, 200))
 
-    fetcher = utils.AioContainerMetadataFetcher(http, sleep)
+    fetcher = container_fetcher_cls(http)
+    fetcher.SLEEP_TIME = 0
     with pytest.raises(MetadataRetrievalError):
         await fetcher.retrieve_uri('/foo?id=1')

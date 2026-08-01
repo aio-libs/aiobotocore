@@ -7,11 +7,15 @@ are tested via mocked check_output so tests don't hit git or the gh API.
 
 from __future__ import annotations
 
+import importlib
 import json
 from pathlib import Path
 from unittest.mock import patch
 
-import _common
+import pytest
+
+pytest.importorskip('anthropic')
+_common = importlib.import_module("_common")
 
 
 def test_load_skill_body_strips_frontmatter(tmp_path: Path) -> None:

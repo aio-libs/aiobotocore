@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import asyncio
 import io
-import os
 import socket
 import ssl
 import warnings
 from collections.abc import AsyncIterable, Iterable
 from concurrent.futures import CancelledError
+from contextlib import AsyncExitStack
 from typing import TYPE_CHECKING, Any, cast
 
 import botocore
@@ -18,12 +18,18 @@ from botocore.httpsession import (
     ConnectTimeoutError,
     EndpointConnectionError,
     HTTPClientError,
+    InvalidProxiesConfigError,
+    LocationParseError,
+    ProxyConfiguration,
     ProxyConnectionError,
     ReadTimeoutError,
+    _is_ipaddress,
     create_urllib3_context,
-    ensure_boolean,
     get_cert_path,
     logger,
+    mask_proxy_url,
+    parse_url,
+    urlparse,
 )
 from multidict import CIMultiDict
 
@@ -33,6 +39,9 @@ from aiobotocore._httpx import HTTPX_IS_LEGACY, httpx
 
 from ._constants import DEFAULT_KEEPALIVE_TIMEOUT
 
+if httpx is not None:
+    # anyio is a dependency of both supported httpx implementations.
+    import anyio.to_thread
 if TYPE_CHECKING:
     from ssl import SSLContext
 
@@ -40,6 +49,65 @@ if TYPE_CHECKING:
 # builds a fresh HttpxSession per client, and under a warning filter of 'always'
 # an unguarded warning would fire on every instance.
 _LEGACY_HTTPX_WARNED = False
+_RAW_PROXY_TARGET = 'aiobotocore_raw_proxy_target'
+
+
+class _ProxyTargetExtensions(dict):
+    """Apply the raw target to the endpoint request, but not CONNECT.
+
+    HTTPcore constructs the endpoint request first and then reuses its
+    extensions when constructing CONNECT. Its ``Request`` checks for target
+    once during construction, so exposing it only on the first check keeps the
+    raw S3 path on the endpoint request without replacing CONNECT's authority.
+    """
+
+    def __init__(self, extensions: dict, target: bytes):
+        super().__init__(extensions, target=target)
+        self._target_applied = False
+
+    def __contains__(self, key):
+        if key == 'target':
+            if self._target_applied:
+                return False
+            self._target_applied = True
+        return super().__contains__(key)
+
+
+if httpx is not None:
+
+    class _ProxyTargetTransport(httpx.AsyncHTTPTransport):
+        async def handle_async_request(self, request):
+            target = request.extensions.pop(_RAW_PROXY_TARGET, None)
+            if target is not None:
+                # This is the last layer before HTTPcore constructs its
+                # endpoint Request, followed by its CONNECT Request. Preserve
+                # timeout and other HTTPX extensions while exposing target to
+                # the first construction only.
+                request.extensions = _ProxyTargetExtensions(
+                    request.extensions, target
+                )
+            return await super().handle_async_request(request)
+
+
+def _find_ssl_error(exc: BaseException) -> ssl.SSLError | None:
+    """Find an ``ssl.SSLError`` in ``exc``'s cause/context chain.
+
+    A failed TLS handshake reaches us as
+    ``httpx.ConnectError -> httpcore.ConnectError -> ssl.SSLError``, linked by
+    ``__cause__`` then ``__context__``, so both links are followed rather than
+    assuming a fixed depth.
+    """
+    seen: set[int] = set()
+    unvisited: list[BaseException | None] = [exc]
+    while unvisited:
+        current = unvisited.pop()
+        if current is None or id(current) in seen:
+            continue
+        seen.add(id(current))
+        if isinstance(current, ssl.SSLError):
+            return current
+        unvisited += [current.__cause__, current.__context__]
+    return None
 
 
 class HttpxSession:
@@ -69,10 +137,10 @@ class HttpxSession:
                 DeprecationWarning,
                 stacklevel=2,
             )
-        if proxies or proxies_config:
-            raise NotImplementedError(
-                "Proxy support not implemented with httpx as backend."
-            )
+
+        self._proxy_config = ProxyConfiguration(
+            proxies=proxies, proxies_settings=proxies_config
+        )
 
         if connector_args is None:
             self._connector_args: dict[str, Any] = {
@@ -82,7 +150,8 @@ class HttpxSession:
             self._connector_args = connector_args
 
         # TODO: neither this nor AIOHTTPSession handles socket_options
-        self._session: httpx.AsyncClient | None = None
+        self._entered = False
+        self._proxy_ssl_contexts: dict[str, SSLContext]
         conn_timeout: float | None
         read_timeout: float | None
 
@@ -133,52 +202,205 @@ class HttpxSession:
                 'SSLContext', self._connector_args['ssl_context']
             )
 
+    def _build_verify_context(self) -> SSLContext:
+        # The endpoint's verify settings, without the client certificate.
+        ssl_context = self._get_ssl_context()
+        if self._verify:
+            # urllib3 disables this by default because it verifies the hostname
+            # itself; httpcore leaves it to the context.
+            ssl_context.check_hostname = True
+            ca_certs = get_cert_path(self._verify)
+            if ca_certs:
+                ssl_context.load_verify_locations(ca_certs, None, None)
+        else:
+            ssl_context.check_hostname = False
+            ssl_context.verify_mode = ssl.CERT_NONE
+        return ssl_context
+
     def _build_ssl_context(self) -> SSLContext:
         # Synchronous SSL context construction. Caller runs off the event loop.
-        ssl_context = self._get_ssl_context()
-        ca_certs = get_cert_path(self._verify)
-        if ca_certs:
-            ssl_context.load_verify_locations(ca_certs, None, None)
-        return ssl_context
-
-    async def __aenter__(self):
-        assert not self._session
-
-        # Build the SSL context off the event loop on first entry — only when
-        # verify is truthy and an explicit ssl_context wasn't supplied. (#1469)
-        if self._verify is True or isinstance(self._verify, str):
-            self._verify = await asyncio.to_thread(self._build_ssl_context)
-
-        limits = httpx.Limits(
-            max_connections=self._max_pool_connections,
-            keepalive_expiry=self._connector_args['keepalive_timeout'],
-        )
-
-        # TODO [httpx]: I put logic here to minimize diff / accidental downstream
-        # consequences - but can probably put this logic in __init__
-        if self._cert_file and self._key_file is None:
-            cert = self._cert_file
-        elif self._cert_file:
-            cert = (self._cert_file, self._key_file)
-        else:
-            cert = None
-
-        self._session = httpx.AsyncClient(
-            timeout=self._timeout, limits=limits, cert=cert
-        )
-        return self
-
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
-        if self._session:
-            await self._session.__aexit__(exc_type, exc_val, exc_tb)
-            self._session = None
-            self._connector = None
-
-    def _get_ssl_context(self) -> SSLContext:
-        ssl_context = create_urllib3_context()
+        ssl_context = self._build_verify_context()
         if self._cert_file:
+            # urllib3 keeps sending the client certificate when cert_reqs is
+            # CERT_NONE, so this is not conditional on verify.
             ssl_context.load_cert_chain(self._cert_file, self._key_file)
         return ssl_context
+
+    def _clone_verify_context(self, source: SSLContext) -> SSLContext:
+        """Copy endpoint verification settings without its client cert."""
+        context = self._get_ssl_context()
+        context.options = source.options
+        context.minimum_version = source.minimum_version
+        context.maximum_version = source.maximum_version
+        context.verify_flags = source.verify_flags
+        context.verify_mode = source.verify_mode
+        context.check_hostname = source.check_hostname
+        ca_certs = source.get_ca_certs(binary_form=True)
+        if ca_certs:
+            cadata = ''.join(
+                ssl.DER_cert_to_PEM_cert(cert) for cert in ca_certs
+            )
+            context.load_verify_locations(cadata=cadata)
+        return context
+
+    def _setup_proxy_ssl_context(self, proxy_url: str) -> SSLContext:
+        proxies_settings = self._proxy_config.settings
+        proxy_ca_bundle = proxies_settings.get('proxy_ca_bundle')
+        proxy_cert = proxies_settings.get('proxy_client_cert')
+
+        # The proxy connection gets the endpoint's verify settings but never
+        # its client certificate: urllib3 passes cert_file=None when wrapping
+        # the proxy socket, so only proxy_client_cert is offered to a proxy.
+        context = (
+            self._clone_verify_context(self._verify)
+            if isinstance(self._verify, ssl.SSLContext)
+            else self._build_verify_context()
+        )
+        try:
+            url = parse_url(proxy_url)
+            # urllib3 disables this by default but we need it for proper
+            # proxy tls negotiation when proxy_url is not an IP Address
+            if context.verify_mode != ssl.CERT_NONE and not _is_ipaddress(
+                url.host
+            ):
+                context.check_hostname = True
+            if proxy_ca_bundle is not None:
+                context.load_verify_locations(cafile=proxy_ca_bundle)
+
+            if isinstance(proxy_cert, tuple):
+                context.load_cert_chain(proxy_cert[0], keyfile=proxy_cert[1])
+            elif isinstance(proxy_cert, str):
+                context.load_cert_chain(proxy_cert)
+
+            return context
+        except (OSError, LocationParseError) as e:
+            raise InvalidProxiesConfigError(error=e)
+
+    def _build_ssl_contexts(
+        self, proxy_urls: dict[str, str]
+    ) -> tuple[SSLContext, dict[str, SSLContext]]:
+        # Synchronous SSL context construction. Caller runs off the event loop.
+        verify = (
+            self._verify
+            if isinstance(self._verify, ssl.SSLContext)
+            else self._build_ssl_context()
+        )
+        # Only an https proxy does a TLS handshake of its own; httpx rejects
+        # ssl_context on an http proxy.
+        proxy_ssl_contexts = {
+            proxy_url: self._setup_proxy_ssl_context(proxy_url)
+            for proxy_url in set(proxy_urls.values())
+            if urlparse(proxy_url).scheme == 'https'
+        }
+        return verify, proxy_ssl_contexts
+
+    async def __aenter__(self):
+        assert not self._entered
+        self._entered = True
+        try:
+            self._exit_stack = AsyncExitStack()
+            await self._exit_stack.__aenter__()
+
+            # Resolve the proxy URL for each scheme so we can mount a transport
+            # per proxy. httpx configures proxies on the client/transport rather
+            # than per-request the way aiohttp does. {scheme: fixed proxy url}
+            self._proxy_urls = {
+                scheme: proxy_url
+                for scheme in ('http', 'https')
+                if (
+                    proxy_url := self._proxy_config.proxy_url_for(
+                        f'{scheme}://'
+                    )
+                )
+            }
+
+            # Build SSL contexts off the event loop on first entry — blocking
+            # file I/O for endpoint verification and proxy TLS. (#1469)
+            if self._verify or self._cert_file or self._proxy_urls:
+                (
+                    self._verify,
+                    self._proxy_ssl_contexts,
+                ) = await anyio.to_thread.run_sync(
+                    self._build_ssl_contexts, self._proxy_urls
+                )
+            else:
+                self._verify, self._proxy_ssl_contexts = (
+                    self._build_ssl_contexts(self._proxy_urls)
+                )
+
+            self._limits = httpx.Limits(
+                max_connections=self._max_pool_connections,
+                keepalive_expiry=self._connector_args['keepalive_timeout'],
+            )
+            self._session: httpx.AsyncClient | None = None
+            self._session_lock = anyio.Lock()
+
+            # The client is built lazily so constructing a session remains
+            # side-effect free until it is entered and first used.
+            return self
+        except BaseException as exc:
+            try:
+                await self._exit_stack.__aexit__(
+                    type(exc), exc, exc.__traceback__
+                )
+            finally:
+                self._entered = False
+            raise
+
+    def _make_async_client(self) -> httpx.AsyncClient:
+        mounts = {}
+        for scheme, proxy_url in self._proxy_urls.items():
+            headers = self._proxy_config.proxy_headers_for(proxy_url)
+            proxy = httpx.Proxy(
+                url=proxy_url,
+                headers=headers or None,
+                ssl_context=self._proxy_ssl_contexts.get(proxy_url),
+            )
+            mounts[f'{scheme}://'] = _ProxyTargetTransport(
+                verify=self._verify,
+                limits=self._limits,
+                proxy=proxy,
+            )
+
+        # verify carries the endpoint TLS settings, including the client
+        # certificate; the proxy hop above gets a context without it. Requests
+        # matching a mounted proxy transport use that transport instead.
+        return httpx.AsyncClient(
+            timeout=self._timeout,
+            limits=self._limits,
+            mounts=mounts,
+            verify=self._verify,
+            # botocore resolves environment proxies itself (get_environ_proxies,
+            # which also honours system bypass settings) and passes the result
+            # in, so httpx must not apply its own — aiohttp and urllib3 only
+            # ever see what botocore decided. trust_env also gates httpx's use
+            # of SSL_CERT_FILE/SSL_CERT_DIR, which botocore ignores; that is
+            # moot while verify is always a prebuilt SSLContext, but the
+            # environment must not become a source of trust if that changes.
+            trust_env=False,
+        )
+
+    async def _get_session(self, _request_url: str) -> httpx.AsyncClient:
+        # httpcore generates CONNECT's Host header from each request target,
+        # so one client can serve every target without multiplying pool limits.
+        if self._session is None:
+            async with self._session_lock:
+                if self._session is None:
+                    client = self._make_async_client()
+                    self._session = await self._exit_stack.enter_async_context(
+                        client
+                    )
+        return self._session
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        try:
+            return await self._exit_stack.__aexit__(exc_type, exc_val, exc_tb)
+        finally:
+            self._session = None
+            self._entered = False
+
+    def _get_ssl_context(self) -> SSLContext:
+        return create_urllib3_context()
 
     async def close(self) -> None:
         await self.__aexit__(None, None, None)
@@ -186,17 +408,15 @@ class HttpxSession:
     async def send(
         self, request: AWSPreparedRequest
     ) -> aiobotocore.awsrequest.HttpxAWSResponse:
+        # A proxy is mounted per scheme; when one matches this request, any
+        # connection failure is a failure to reach the proxy rather than the
+        # endpoint. httpx surfaces a forward (http) proxy failure as a plain
+        # ConnectError, so we key off the configured proxy instead. None when
+        # no proxy applies.
+        proxy_url = self._proxy_config.proxy_url_for(request.url)
         try:
             url = request.url
             headers = request.headers
-
-            # currently no support for BOTO_EXPERIMENTAL__ADD_PROXY_HOST_HEADER
-            if ensure_boolean(
-                os.environ.get('BOTO_EXPERIMENTAL__ADD_PROXY_HOST_HEADER', '')
-            ):
-                raise NotImplementedError(
-                    'httpx implementation of aiobotocore does not (currently) support proxies'
-                )
 
             headers_ = CIMultiDict(
                 (z[0], _text(z[1], encoding='utf-8')) for z in headers.items()
@@ -215,7 +435,7 @@ class HttpxSession:
                 else:
                     for item in stream:
                         yield item
-                        await asyncio.sleep(0)  # Yield control to event loop
+                        await anyio.sleep(0)  # Yield control to event loop
 
             if isinstance(
                 request.body, (AsyncIterable, io.BytesIO)
@@ -230,11 +450,15 @@ class HttpxSession:
             # See test_basic_s3.test_non_normalized_key_paths
             # This way of using it is currently ~undocumented, but recommended in
             # https://github.com/encode/httpx/discussions/1805#discussioncomment-8975989
-            extensions = {"target": bytes(url, encoding='utf-8')}
+            #
+            target = bytes(url, encoding='utf-8')
+            extensions = {
+                (_RAW_PROXY_TARGET if proxy_url else 'target'): target
+            }
 
-            assert self._session is not None
+            session = await self._get_session(url)
 
-            httpx_request = self._session.build_request(
+            httpx_request = session.build_request(
                 method=request.method,
                 url=url,
                 headers=headers,
@@ -243,7 +467,7 @@ class HttpxSession:
             )
             assert isinstance(httpx_request.stream, httpx.AsyncByteStream)
             # auth, follow_redirects
-            response = await self._session.send(httpx_request, stream=True)
+            response = await session.send(httpx_request, stream=True)
             response_headers = botocore.compat.HTTPHeaders.from_pairs(
                 response.headers.items()
             )
@@ -264,6 +488,18 @@ class HttpxSession:
             return http_response
 
         except httpx.ConnectError as e:
+            # httpx wraps a failed TLS handshake in a ConnectError; botocore
+            # (and the aiohttp backend) report those as an SSLError.
+            if (ssl_error := _find_ssl_error(e)) is not None:
+                raise botocore.exceptions.SSLError(
+                    endpoint_url=request.url, error=ssl_error
+                )
+            # A forward (http) proxy that can't be reached surfaces here rather
+            # than as a ProxyError, so attribute it to the proxy when one applies.
+            if proxy_url:
+                raise ProxyConnectionError(
+                    proxy_url=mask_proxy_url(proxy_url), error=e
+                )
             raise EndpointConnectionError(endpoint_url=request.url, error=e)
         except (socket.gaierror,) as e:
             raise EndpointConnectionError(endpoint_url=request.url, error=e)
@@ -274,7 +510,9 @@ class HttpxSession:
         except httpx.TimeoutException as e:
             raise ConnectTimeoutError(endpoint_url=request.url, error=e)
         except httpx.ProxyError as e:
-            raise ProxyConnectionError(endpoint_url=request.url, error=e)
+            raise ProxyConnectionError(
+                proxy_url=mask_proxy_url(proxy_url), error=e
+            )
         except httpx.CloseError as e:
             raise ConnectionClosedError(endpoint_url=request.url, error=e)
         except ssl.SSLError:
@@ -288,3 +526,15 @@ class HttpxSession:
             message = 'Exception received when sending httpx HTTP request'
             logger.debug(message, exc_info=True)
             raise HTTPClientError(error=e)
+
+
+def is_httpx_session_cls(http_session_cls) -> bool:
+    """Whether ``http_session_cls`` selects the httpx backend.
+
+    aiohttp is asyncio-only; the httpx backend also runs on trio. Not a bare
+    ``issubclass``: this reaches us straight from user config, and need not
+    be a class at all.
+    """
+    return isinstance(http_session_cls, type) and issubclass(
+        http_session_cls, HttpxSession
+    )

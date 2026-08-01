@@ -4,6 +4,7 @@ import threading
 # Third Party
 import aiohttp
 import aiohttp.web
+import anyio.to_thread
 import pytest
 from aiohttp.web import StreamResponse
 from moto.server import ThreadedMotoServer
@@ -60,24 +61,28 @@ class AIOServer:
         self._thread = threading.Thread(target=self._run, daemon=True)
         self._thread.start()
         # __aexit__ only runs if __aenter__ returns, so a failed start stops here.
-        if not await asyncio.to_thread(self._ready.wait, 30):
-            self._shutdown()
+        if not await self._wait_until_up():
+            await self._shutdown()
             pytest.fail('mock server never bound a port')
         if self._error is not None:
-            self._shutdown()
+            await self._shutdown()
             raise self._error
         if self.endpoint_url is None:
-            self._shutdown()
+            await self._shutdown()
             pytest.fail('mock server thread exited before binding')
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        self._shutdown()
+        await self._shutdown()
 
-    def _shutdown(self):
+    # anyio, not asyncio: this half runs on the test's framework, trio included.
+    async def _wait_until_up(self, timeout: float = 30) -> bool:
+        return await anyio.to_thread.run_sync(self._ready.wait, timeout)
+
+    async def _shutdown(self):
         self._stop.set()
         if self._thread is not None:
-            self._thread.join(timeout=10)
+            await anyio.to_thread.run_sync(self._thread.join, 10)
 
     @staticmethod
     async def ok(request):

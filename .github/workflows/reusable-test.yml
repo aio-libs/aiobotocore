@@ -121,7 +121,7 @@ jobs:
       with:
         files: ./coverage.xml
         # yamllint disable-line rule:line-length
-        flags: unittests,os-${{ inputs.os }},python-${{ inputs.python-version }}${{ inputs.with-awscrt && ',with-awscrt' || '' }}${{ inputs.httpx-extra && format(',{0}', inputs.httpx-extra) || ',no-httpx' }}  # optional
-        name: codecov-umbrella  # optional
-        fail_ci_if_error: true  # optional (default = false)
-        verbose: true  # optional (default = false)
+        flags: unittests,os-${{ inputs.os }},python-${{ inputs.python-version }}${{ inputs.with-awscrt && ',with-awscrt' || '' }}${{ inputs.httpx-extra && format(',{0}', inputs.httpx-extra) || ',no-httpx' }}
+        name: codecov-umbrella
+        fail_ci_if_error: true
+        verbose: true
