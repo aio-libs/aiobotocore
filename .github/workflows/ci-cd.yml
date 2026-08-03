@@ -157,12 +157,25 @@ jobs:
         fail_ci_if_error: true
         run_command: send-notifications
 
+  # The upstream action, not zizmorcore/workflow: that reusable workflow is
+  # branded an early preview, appears nowhere in zizmor's docs, and ships no
+  # tags -- so Dependabot has no version to track and its pin rots silently,
+  # which is how it ended up three deprecated actions behind.
   zizmor:
     name: 🌈 zizmor
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
     permissions:
-      security-events: write
-
-    uses: zizmorcore/workflow/.github/workflows/reusable-zizmor.yml@3bb5e95068d0f44b6d2f3f7e91379bed1d2f96a8
+      security-events: write  # upload the SARIF to the security tab
+      contents: read
+      actions: read
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      with:
+        persist-credentials: false
+    # Uploads SARIF under category `zizmor` itself (advanced-security defaults
+    # to true), so this needs no upload step of its own.
+    - uses: zizmorcore/zizmor-action@3dc1ecc9bcb9e94e9b2c709687979e1298497054  # v0.6.2
 
   check:  # This job does nothing and is only used for the branch protection
     if: always()
