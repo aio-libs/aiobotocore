@@ -162,6 +162,8 @@ jobs:
     permissions:
       security-events: write
 
+    # No tag to name: upstream ships no tags or releases, so this is main@4656001
+    # (2026-04-14). Dependabot can't track a bare SHA -- bump this one by hand.
     uses: zizmorcore/workflow/.github/workflows/reusable-zizmor.yml@465600191822382e76d26abf77772f21262ecdb6
 
   check:  # This job does nothing and is only used for the branch protection
