@@ -83,6 +83,7 @@ class AIOHTTPSession:
 
         # TODO: handle socket_options
         # keep track of sessions by proxy url (if any)
+        self._sessions_lock = asyncio.Lock()
         self._sessions: dict[str | None, aiohttp.ClientSession] | None = None
         self._verify = verify
         self._proxy_config = ProxyConfiguration(
@@ -128,10 +129,11 @@ class AIOHTTPSession:
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         assert self._sessions is not None, 'Session was never entered'
-        self._sessions.clear()
-        await self._exit_stack.aclose()
-        # Make _sessions unusable once context is exited
-        self._sessions = None
+        async with self._sessions_lock:
+            self._sessions.clear()
+            await self._exit_stack.aclose()
+            # Make _sessions unusable once context is exited
+            self._sessions = None
 
     def _get_ssl_context(self):
         return create_urllib3_context()
@@ -222,17 +224,19 @@ class AIOHTTPSession:
 
     async def _get_session(self, proxy_url):
         if not (session := self._sessions.get(proxy_url)):
-            connector = await self._create_connector(proxy_url)
-            self._sessions[proxy_url] = (
-                session
-            ) = await self._exit_stack.enter_async_context(
-                aiohttp.ClientSession(
-                    connector=connector,
-                    timeout=self._timeout,
-                    skip_auto_headers={'CONTENT-TYPE'},
-                    auto_decompress=False,
-                ),
-            )
+            async with self._sessions_lock:
+                if not (session := self._sessions.get(proxy_url)):
+                    connector = await self._create_connector(proxy_url)
+                    self._sessions[proxy_url] = (
+                        session
+                    ) = await self._exit_stack.enter_async_context(
+                        aiohttp.ClientSession(
+                            connector=connector,
+                            timeout=self._timeout,
+                            skip_auto_headers={'CONTENT-TYPE'},
+                            auto_decompress=False,
+                        ),
+                    )
 
         return session
 
