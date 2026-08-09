@@ -2399,11 +2399,11 @@ class TestAioLoginProvider:
                     'responseCode' in api_call
                     and api_call['responseCode'] >= 400
                 ):
-                    mock_client.create_o_auth2_token.side_effect = ClientError(
+                    mock_client.create_oauth2_token.side_effect = ClientError(
                         {}, 'CreateOAuth2Token'
                     )
                 else:
-                    mock_client.create_o_auth2_token.return_value = api_call[
+                    mock_client.create_oauth2_token.return_value = api_call[
                         'response'
                     ]
 
@@ -2477,10 +2477,10 @@ class TestAioLoginProvider:
     @staticmethod
     def _validate_refresh_calls(mock_client, mock_api_calls):
         if not mock_api_calls:
-            mock_client.create_o_auth2_token.assert_not_called()
+            mock_client.create_oauth2_token.assert_not_called()
             return
 
-        call_args_list = mock_client.create_o_auth2_token.call_args_list
+        call_args_list = mock_client.create_oauth2_token.call_args_list
 
         for i, expected_api_call in enumerate(mock_api_calls):
             actual_call = call_args_list[i]
@@ -2621,7 +2621,7 @@ async def test_login_credential_fetcher_access_denied_errors(
     # client.meta is sync: AsyncMock makes register() an unawaited coro.
     client.meta = mock.MagicMock()
     client.exceptions.AccessDeniedException = ClientError
-    client.create_o_auth2_token.side_effect = ClientError(
+    client.create_oauth2_token.side_effect = ClientError(
         {'Error': {'Code': 'AccessDeniedException'}, 'error': error_type},
         'CreateOAuth2Token',
     )
