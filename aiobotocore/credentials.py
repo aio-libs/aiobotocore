@@ -1406,7 +1406,7 @@ class AioLoginCredentialFetcher(LoginCredentialFetcher):
             )
 
             try:
-                response = await client.create_o_auth2_token(
+                response = await client.create_oauth2_token(
                     tokenInput={
                         'clientId': token['clientId'],
                         'refreshToken': token['refreshToken'],
