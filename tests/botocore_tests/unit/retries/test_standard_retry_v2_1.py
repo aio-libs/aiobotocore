@@ -17,7 +17,7 @@ from collections import Counter
 
 import pytest
 from botocore import configprovider
-from botocore.awsrequest import AWSResponse
+from botocore.awsrequest import AWSRequest, AWSResponse
 from botocore.exceptions import ReadTimeoutError
 from botocore.retries import quota, standard
 
@@ -550,3 +550,9 @@ class TestNewRetriesEnvironmentVariable(BaseEnvVar):
 
     def test_no_env_var_uses_default(self):
         self.assertFalse(configprovider._resolve_new_retries())
+
+
+def test_seeder_adds_max_to_empty_context():
+    request = AWSRequest()
+    aio_standard.MaxAttemptsSeeder(3).seed_max_attempts(request)
+    assert request.context['retries'] == {'max': 3}

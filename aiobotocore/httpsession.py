@@ -243,6 +243,26 @@ class AIOHTTPSession:
     async def close(self):
         await self.__aexit__(None, None, None)
 
+    def _get_request_timeout(self, request):
+        """Resolve a per-request timeout override from the request context.
+
+        Returns an ``aiohttp.ClientTimeout`` when the request context contains
+        a ``read_timeout`` override, otherwise ``None`` to defer to the
+        session's default timeout which is configured through client config.
+
+        """
+        # `context` is a recent addition to AWSPreparedRequest, so a request
+        # without the attribute is still possible.
+        context = getattr(request, 'context', None)
+        if context is None:
+            return None
+        read_timeout = context.get('read_timeout')
+        if read_timeout is None:
+            return None
+        return aiohttp.ClientTimeout(
+            sock_connect=self._timeout.sock_connect, sock_read=read_timeout
+        )
+
     async def send(self, request):
         try:
             proxy_url = self._proxy_config.proxy_url_for(request.url)
@@ -273,6 +293,13 @@ class AIOHTTPSession:
 
             url = URL(url, encoded=True)
             session = await self._get_session(proxy_url)
+            extra_kwargs = {}
+            request_timeout = self._get_request_timeout(request)
+            if request_timeout is not None:
+                # Only include the timeout kwarg when overridden; passing
+                # timeout=None would disable timeouts entirely rather than
+                # defer to the session's default timeout.
+                extra_kwargs['timeout'] = request_timeout
             response = await session.request(
                 request.method,
                 url=url,
@@ -281,6 +308,7 @@ class AIOHTTPSession:
                 data=data,
                 proxy=proxy_url,
                 proxy_headers=proxy_headers,
+                **extra_kwargs,
             )
 
             # botocore converts keys to str, so make sure that they are in

@@ -1438,6 +1438,7 @@ def test_protocol_parsers():
             {
                 'c65ca250524de59d89a32f213f38c7403666bfef',
                 'e997fded0da29c9682417ca0c7a3be2dd0bf78bc',
+                '78e0dfb77cc501e113b22b09a8480778f1f5f870',
             },
         ),
         (
@@ -1480,6 +1481,13 @@ def test_protocol_parsers():
                 'da0ae35712211bc38938e93c4af8b7aeb999084e',
                 '09035248202bfd94c7ae7c532e515ec6fe2fab4b',
                 '9467973723adb514c620981f46e3faba8ecd59dc',
+                'dc2a6d66286b5413704564fe21e421343a323136',
+            },
+        ),
+        (
+            standard.MaxAttemptsSeeder,
+            {
+                '5ae1adc1ed7883f6c27998a117f8904c58e4551a',
             },
         ),
         (

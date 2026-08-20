@@ -405,6 +405,31 @@ class HttpxSession:
     async def close(self) -> None:
         await self.__aexit__(None, None, None)
 
+    def _get_request_timeout(
+        self, request: AWSPreparedRequest
+    ) -> httpx.Timeout | None:
+        """Resolve a per-request timeout override from the request context.
+
+        Returns an ``httpx.Timeout`` when the request context contains a
+        ``read_timeout`` override, otherwise ``None`` to defer to the client's
+        default timeout which is configured through client config.
+
+        """
+        # `context` is a recent addition to AWSPreparedRequest, so a request
+        # without the attribute is still possible.
+        context = getattr(request, 'context', None)
+        if context is None:
+            return None
+        read_timeout = context.get('read_timeout')
+        if read_timeout is None:
+            return None
+        return httpx.Timeout(
+            connect=self._timeout.connect,
+            read=read_timeout,
+            write=self._timeout.write,
+            pool=self._timeout.pool,
+        )
+
     async def send(
         self, request: AWSPreparedRequest
     ) -> aiobotocore.awsrequest.HttpxAWSResponse:
@@ -458,12 +483,19 @@ class HttpxSession:
 
             session = await self._get_session(url)
 
+            extra_kwargs = {}
+            request_timeout = self._get_request_timeout(request)
+            if request_timeout is not None:
+                # Only include the timeout kwarg when overridden; omitting it
+                # defers to the client's default timeout.
+                extra_kwargs['timeout'] = request_timeout
             httpx_request = session.build_request(
                 method=request.method,
                 url=url,
                 headers=headers,
                 content=content,
                 extensions=extensions,
+                **extra_kwargs,
             )
             assert isinstance(httpx_request.stream, httpx.AsyncByteStream)
             # auth, follow_redirects
