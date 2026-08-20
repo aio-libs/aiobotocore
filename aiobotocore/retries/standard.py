@@ -6,6 +6,7 @@ from botocore.retries.standard import (
     NEW_RETRIES_ENABLED,
     ExponentialBackoff,
     MaxAttemptsChecker,
+    MaxAttemptsSeeder,
     ModeledRetryableChecker,
     OrRetryChecker,
     RetryEventAdapter,
@@ -44,6 +45,18 @@ def register_retry_handler(client, max_attempts=None):
             max_attempts = _SERVICE_MAX_ATTEMPTS[service_event_name]
         elif max_attempts is None:
             max_attempts = DEFAULT_MAX_ATTEMPTS
+        # The ``max`` token of the ``amz-sdk-request`` header is otherwise
+        # only populated once a retry is attempted, so it's missing from
+        # the initial attempt.  Seeding it here ensures that it's present
+        # on every attempt. This handler runs before ``add_retry_headers``
+        # because the emitter invokes more specific events first, and
+        # ``add_retry_headers`` is registered on the generic
+        # ``request-created``.
+        client.meta.events.register(
+            f'request-created.{service_event_name}',
+            MaxAttemptsSeeder(max_attempts).seed_max_attempts,
+            unique_id=f'seed-max-attempts-{service_event_name}',
+        )
         throttling_detector = ThrottlingErrorDetector(retry_event_adapter)
         retry_quota = RetryQuotaChecker(
             quota.RetryQuota(), throttling_detector
