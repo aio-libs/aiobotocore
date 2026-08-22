@@ -1,6 +1,21 @@
 Changes
 -------
 
+3.9.1 (2026-08-20)
+^^^^^^^^^^^^^^^^^^^
+* bump botocore dependency specification to support
+  ``"botocore >= 1.43.66, < 1.43.76"`` (#1693, #1709)
+* seed the ``amz-sdk-request`` header's ``max`` token on the initial request
+  attempt (previously only appeared once a retry occurred) and honour a
+  per-request ``read_timeout`` override when computing retry timing, matching
+  botocore 1.43.66 and 1.43.72 (#1709)
+* fix login credential refreshes calling botocore's sync-only
+  ``create_o_auth2_token`` compatibility alias, which aiobotocore cannot
+  resolve asynchronously, by calling the generated ``create_oauth2_token``
+  method directly (closes #1697) (#1704)
+* fix a concurrency-safety issue in ``HTTPSession`` session management
+  (closes #1695) (#1696)
+
 3.9.0 (2026-08-01)
 ^^^^^^^^^^^^^^^^^^
 * bump botocore dependency specification to support
