@@ -1082,6 +1082,7 @@ def test_protocol_parsers():
             generate_presigned_url,
             {
                 'd03631d6810e2453b8874bc76619927b694a4207',
+                '126a923ca50273eb07647b5f121f9e49f624ea0a',
             },
         ),
         (
