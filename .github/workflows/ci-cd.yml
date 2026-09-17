@@ -175,7 +175,7 @@ jobs:
         persist-credentials: false
     # Uploads SARIF under category `zizmor` itself (advanced-security defaults
     # to true), so this needs no upload step of its own.
-    - uses: zizmorcore/zizmor-action@3dc1ecc9bcb9e94e9b2c709687979e1298497054  # v0.6.2
+    - uses: zizmorcore/zizmor-action@70fb788f84895a7701f5643d103d587e460b5c99  # v0.6.3
 
   check:  # This job does nothing and is only used for the branch protection
     if: always()
@@ -189,7 +189,7 @@ jobs:
 
     steps:
     - name: Decide whether the needed jobs succeeded or failed
-      uses: re-actors/alls-green@05ac9388f0aebcb5727afa17fcccfecd6f8ec5fe  # v1.2.2
+      uses: re-actors/alls-green@b5b5b37504aa4183270bd3d855c52a67f212be35  # v1.3.0
       with:
         jobs: ${{ toJSON(needs) }}
 
