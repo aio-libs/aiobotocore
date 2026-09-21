@@ -107,7 +107,7 @@ requires-dist = [
     { name = "aioitertools", specifier = ">=0.5.1,<1.0.0" },
     { name = "anyio", marker = "extra == 'httpx'", specifier = ">=4.11.0,<5" },
     { name = "anyio", marker = "extra == 'httpx2'", specifier = ">=4.11.0,<5" },
-    { name = "botocore", specifier = ">=1.43.98,<1.43.99" },
+    { name = "botocore", specifier = ">=1.43.97,<1.43.99" },
     { name = "httpx", marker = "extra == 'httpx'", specifier = ">=0.25.1,<0.29" },
     { name = "httpx2", marker = "extra == 'httpx2'", specifier = ">=2.0,<3.0.0" },
     { name = "jmespath", specifier = ">=0.7.1,<2.0.0" },
