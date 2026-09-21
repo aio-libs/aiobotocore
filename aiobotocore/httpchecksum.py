@@ -80,6 +80,10 @@ class _ChecksumMixin:
         self._checksum = checksum
         self._expected = expected
 
+    @property
+    def checksum(self):
+        return self._checksum
+
     async def read(self, amt=None):
         chunk = await super().read(amt=amt)
         self._checksum.update(chunk)
@@ -101,6 +105,8 @@ class _ChecksumMixin:
         return amount_read
 
     def _validate_checksum(self):
+        if self._expected is None:
+            return
         if self._checksum.digest() != base64.b64decode(self._expected):
             error_msg = (
                 f"Expected checksum {self._expected} did not match calculated "
