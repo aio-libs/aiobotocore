@@ -1568,7 +1568,7 @@ def test_protocol_parsers():
         (
             StreamingChecksumBody,
             {
-                '2772706fc4f49bdd5ea810d255fc82b69451b9ac',
+                '066ff0ab92d569e3cd61890c75d3317eeacb7e97',
             },
         ),
         (

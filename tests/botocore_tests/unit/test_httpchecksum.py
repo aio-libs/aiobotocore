@@ -599,6 +599,24 @@ class TestStreamingChecksumBody:
         with pytest.raises(FlexibleChecksumError):
             await wrapper.read(1)
 
+    async def test_exposes_checksum(self, wrapper):
+        await wrapper.read()
+        assert wrapper.checksum.b64digest() == "DUoRhQ=="
+
+    async def test_read_without_expected_checksum(
+        self, raw_bytes, make_wrapper
+    ):
+        wrapper = make_wrapper(None)
+        assert await wrapper.read() == raw_bytes
+        assert wrapper.checksum.b64digest() == "DUoRhQ=="
+
+    async def test_readinto_without_expected_checksum(self, make_wrapper):
+        wrapper = make_wrapper(None)
+        chunk = bytearray(11)
+        assert 11 == await wrapper.readinto(chunk)
+        await wrapper.readinto(chunk)
+        assert wrapper.checksum.b64digest() == "DUoRhQ=="
+
     async def test_handles_variable_padding(self, raw_bytes, make_wrapper):
         # This digest is equivalent but with more padding
         wrapper = make_wrapper("DUoRhQ=====")
