@@ -3,8 +3,11 @@ from contextlib import AsyncExitStack
 import anyio
 import pytest
 
+from aiobotocore._httpx import httpx
+from aiobotocore.endpoint import convert_to_response_dict
 from aiobotocore.eventstream import AioEventStream
 from aiobotocore.parsers import AioEventStreamXMLParser
+from aiobotocore.response import AioHttpxEventStreamRawStream
 
 # TODO once Moto supports either S3 Select or Kinesis SubscribeToShard then
 # this can be tested against a real AWS API
@@ -145,3 +148,78 @@ async def test_kinesis_stream_json_parser(
     async for event in subscribe_response['EventStream']:
         assert event['SubscribeToShardEvent']['Records'] == []
         break
+
+
+def _httpx_streaming_response(chunks):
+    async def body():
+        for chunk in chunks:
+            yield chunk
+
+    return httpx.Response(200, content=body())
+
+
+class _EventStreamOperationModel:
+    name = 'SelectObjectContent'
+    has_event_stream_output = True
+
+
+class _HttpResponse:
+    """Minimal stand-in for the AIOHttp/Httpx response wrapper: only what
+    convert_to_response_dict reads on the event stream path."""
+
+    def __init__(self, raw):
+        self.raw = raw
+        self.status_code = 200
+        self.headers = {'content-type': 'application/vnd.amazon.eventstream'}
+
+
+async def test_eventstream_httpx_raw_stream_adapter(s3_client):
+    # On the httpx backend the event stream body is an unread httpx.Response;
+    # it used to be passed to AioEventStream as-is, whose aiohttp-style
+    # raw.content.iter_chunks() access raised httpx.ResponseNotRead. The
+    # adapter must now be selected in convert_to_response_dict and drive the
+    # same three events the aiohttp FakeStreamReader path yields.
+    operation_name = 'SelectObjectContent'
+    outputshape = s3_client._service_model.operation_model(
+        operation_name
+    ).output_shape.members['Payload']
+    parser = AioEventStreamXMLParser()
+
+    raw = _httpx_streaming_response(TEST_STREAM_DATA)
+    response_dict = await convert_to_response_dict(
+        _HttpResponse(raw), _EventStreamOperationModel()
+    )
+    assert isinstance(response_dict['body'], AioHttpxEventStreamRawStream)
+
+    event_stream = AioEventStream(
+        response_dict['body'], outputshape, parser, operation_name
+    )
+    events = []
+    async for event in event_stream:
+        events.append(event)
+
+    assert len(events) == 3
+    assert 'Records' in events[0]
+    assert 'Stats' in events[1]
+    assert 'End' in events[2]
+
+
+async def test_eventstream_aiohttp_raw_stream_passthrough(s3_client):
+    # Non-httpx raw streams keep flowing through untouched.
+    operation_name = 'SelectObjectContent'
+    outputshape = s3_client._service_model.operation_model(
+        operation_name
+    ).output_shape.members['Payload']
+    parser = AioEventStreamXMLParser()
+
+    sr = FakeStreamReader(TEST_STREAM_DATA)
+    response_dict = await convert_to_response_dict(
+        _HttpResponse(sr), _EventStreamOperationModel()
+    )
+    assert response_dict['body'] is sr
+
+    event_stream = AioEventStream(
+        response_dict['body'], outputshape, parser, operation_name
+    )
+    events = [event async for event in event_stream]
+    assert len(events) == 3
