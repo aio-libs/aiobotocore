@@ -179,8 +179,10 @@ async def test_aiohttp_session_close_is_idempotent():
     # "AssertionError: Session was never entered" on the second exit.
     session = AIOHTTPSession()
     async with session:
+        client_session = await session._get_session(proxy_url=None)
         # Defensive close inside the context (botocore migration pattern)
         await session.close()
+        assert client_session.closed
     # And again after the context exited
     await session.close()
 
