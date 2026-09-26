@@ -128,8 +128,14 @@ class AIOHTTPSession:
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        assert self._sessions is not None, 'Session was never entered'
         async with self._sessions_lock:
+            if self._sessions is None:
+                # close() delegates here and must be idempotent, like
+                # botocore's: exiting a second time after a defensive
+                # close() inside the async-with block (or a plain double
+                # close) must not raise out of the cleanup path and mask
+                # the user's own exception.
+                return
             self._sessions.clear()
             await self._exit_stack.aclose()
             # Make _sessions unusable once context is exited
