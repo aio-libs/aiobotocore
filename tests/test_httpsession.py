@@ -172,3 +172,22 @@ async def test_read_timeout_override_from_request_created_handler(
     else:
         timeout = spy.call_args.kwargs['timeout']
         assert (timeout.sock_connect, timeout.sock_read) == (3, 1.5)
+
+
+async def test_aiohttp_session_close_is_idempotent():
+    # botocore's close() is idempotent; aiobotocore's used to raise
+    # "AssertionError: Session was never entered" on the second exit.
+    session = AIOHTTPSession()
+    async with session:
+        # Defensive close inside the context (botocore migration pattern)
+        await session.close()
+    # And again after the context exited
+    await session.close()
+
+
+async def test_aiohttp_session_close_does_not_mask_user_exception():
+    session = AIOHTTPSession()
+    with pytest.raises(RuntimeError, match='the real user bug'):
+        async with session:
+            await session.close()
+            raise RuntimeError('the real user bug')
