@@ -173,6 +173,7 @@ class _HttpResponse:
         self.headers = {'content-type': 'application/vnd.amazon.eventstream'}
 
 
+@pytest.mark.skipif(httpx is None, reason='httpx backend is not installed')
 async def test_eventstream_httpx_raw_stream_adapter(s3_client):
     # On the httpx backend the event stream body is an unread httpx.Response;
     # it used to be passed to AioEventStream as-is, whose aiohttp-style
