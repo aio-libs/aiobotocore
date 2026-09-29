@@ -117,13 +117,12 @@ def build_user_message(case: Case, diff: str, overrides: set[str]) -> str:
 
         Output protocol:
 
-        1. Reason through each changed function in your text response.
-        2. Then call the `record_override_drift_classification` tool
-           ONCE with your final `verdict` (one of `clean`,
-           `cosmetic-drift`, `behavioral-drift`) and a `rationale`
-           containing the per-function breakdown plus a roll-up
-           summary. The tool call is the authoritative output — do
-           not emit an OVERRIDE_DRIFT label in text.
+        1. Reason through each changed function.
+        2. Your response is JSON with your final `verdict` (one of
+           `clean`, `cosmetic-drift`, `behavioral-drift`) and a
+           `rationale` containing the per-function breakdown plus a
+           roll-up summary. It is the authoritative output — do not
+           emit an OVERRIDE_DRIFT label.
         """,
         )
         .format(

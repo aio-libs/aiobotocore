@@ -204,17 +204,15 @@ def build_user_message(
 
         Output protocol:
 
-        1. In your text response, reason through each changed function
-           per Step 3 of the system prompt. For any port-required
-           verdict you must quote the exact string from `overrides`
-           you matched (or the exact name from `async_methods` /
-           `aio_classes` you contacted).
-        2. Then call the `record_async_need_classification` tool
-           ONCE with your final `verdict` and a `rationale` containing
-           the per-function breakdown (file, name, change-type,
-           verdict, reason) plus a roll-up summary. The tool call is
-           the authoritative output — do not emit a CLASSIFICATION
-           label in text.
+        1. Reason through each changed function per Step 3 of the
+           system prompt. For any port-required verdict you must quote
+           the exact string from `overrides` you matched (or the exact
+           name from `async_methods` / `aio_classes` you contacted).
+        2. Your response is JSON with your final `verdict` and a
+           `rationale` containing the per-function breakdown (file,
+           name, change-type, verdict, reason) plus a roll-up summary.
+           It is the authoritative output — do not emit a
+           CLASSIFICATION label.
         3. Never justify port-required with "the test_patches.py hash
            will break" — hash bumps are mechanical, NOT a port
            signal.
