@@ -36,11 +36,13 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from _common import (
+    DEFAULT_EFFORT,
     DEFAULT_MODEL,
+    EFFORT_LEVELS,
     REPO_ROOT,
     aiobotocore_port_happened,
     async_names,
-    classify_tool_schema,
+    classify_output_schema,
     derive_versions,
     followup_on_misclassification,
     invoke_and_classify,
@@ -61,10 +63,8 @@ SKILL_PATH = (
 SCENARIOS_PATH = REPO_ROOT / "plugins/aiobotocore-bot/evals/scenarios.yaml"
 BOTOCORE_CLONE = Path(os.environ.get("BOTOCORE_CLONE", "/tmp/botocore"))
 
-CLASSIFY_TOOL = classify_tool_schema(
-    tool_name="record_async_need_classification",
+CLASSIFY_SCHEMA = classify_output_schema(
     verdict_enum=["no-port", "port-required", "ambiguous"],
-    per_function_label="function",
 )
 
 
@@ -246,6 +246,12 @@ async def main() -> int:
         help="Anthropic model to use (default: %(default)s)",
     )
     parser.add_argument(
+        "--effort",
+        choices=EFFORT_LEVELS,
+        default=DEFAULT_EFFORT,
+        help="Effort level (default: %(default)s)",
+    )
+    parser.add_argument(
         "--case",
         type=int,
         action="append",
@@ -313,7 +319,7 @@ async def main() -> int:
         wanted = set(args.case)
         cases = [c for c in cases if c.pr in wanted]
     print(
-        f"Evaluating {len(cases)} historical PR(s) x {args.runs} run(s) with {args.model}"
+        f"Evaluating {len(cases)} historical PR(s) x {args.runs} run(s) with {args.model} @ effort={args.effort}"
     )
 
     client = new_client()
@@ -335,21 +341,15 @@ async def main() -> int:
         user = build_user_message(
             case, diff, override_symbols, async_methods, aio_classes
         )
-        verdict, raw, tool_input = await invoke_and_classify(
+        verdict, raw, _parsed = await invoke_and_classify(
             client,
             skill_body,
             user,
             args.model,
-            CLASSIFY_TOOL,
+            args.effort,
+            CLASSIFY_SCHEMA,
         )
-        # Inline the structured tool input into the rationale so the
-        # JSON-out captures it alongside the narrative text.
-        rationale = raw
-        if tool_input is not None:
-            rationale += "\n\n---TOOL OUTPUT---\n" + json.dumps(
-                tool_input, indent=2
-            )
-        return (verdict, rationale)
+        return (verdict, raw)
 
     per_case_verdicts = await run_cases_concurrent(
         runnable, args.runs, invoke_one
@@ -412,6 +412,7 @@ async def main() -> int:
                 skill_body,
                 user,
                 args.model,
+                args.effort,
                 rationales[0],
                 case.expected,
                 result["majority"],

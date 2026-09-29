@@ -234,21 +234,20 @@ def test_committed_scenarios_yaml_parses() -> None:
     assert all(r["expected"] in {"no-port", "port-required"} for r in rows)
 
 
-def test_classify_tool_schema_shape() -> None:
-    """The tool schema used for structured verdict extraction constrains
-    `verdict` to the provided enum and requires a summary.
+def test_classify_output_schema_shape() -> None:
+    """The structured-output schema constrains `verdict` to the provided
+    enum, requires a rationale, and is closed (structured outputs require
+    `additionalProperties: false`).
     """
-    schema = _common.classify_tool_schema(
-        tool_name="test_tool",
+    schema = _common.classify_output_schema(
         verdict_enum=["no-port", "port-required", "ambiguous"],
-        per_function_label="function",
     )
-    assert schema["name"] == "test_tool"
-    props = schema["input_schema"]["properties"]
+    props = schema["properties"]
     assert props["verdict"]["enum"] == [
         "no-port",
         "port-required",
         "ambiguous",
     ]
     assert "rationale" in props
-    assert set(schema["input_schema"]["required"]) == {"verdict", "rationale"}
+    assert set(schema["required"]) == {"verdict", "rationale"}
+    assert schema["additionalProperties"] is False

@@ -4,7 +4,8 @@ name: Plugin evals
 run-name: >-
   Evals:
   ${{ inputs.eval || 'both' }}
-  (runs=${{ inputs.runs || '3' }}, limit=${{ inputs.limit || '8' }})
+  (runs=${{ inputs.runs || '3' }}, limit=${{ inputs.limit || '8' }},
+  model=${{ inputs.model || 'default' }}, effort=${{ inputs.effort || 'default' }})
 
 permissions: {}
 
@@ -25,7 +26,6 @@ on:
   # No scheduled run: scenarios.yaml is a fixed committed set and the
   # classifier prompts only change via PR. A scheduled baseline adds no
   # signal beyond what running on demand after a relevant edit provides.
-  # Revisit if we start varying the model ID or tracking drift over time.
   workflow_dispatch:
     inputs:
       eval:
@@ -37,6 +37,23 @@ on:
         - both
         - check-async-need
         - check-override-drift
+      model:
+        description: Anthropic model ID (empty = DEFAULT_MODEL in evals/_common.py)
+        required: false
+        default: ''
+        type: string
+      effort:
+        description: Effort level (empty = DEFAULT_EFFORT in evals/_common.py)
+        required: false
+        default: ''
+        type: choice
+        options:
+        - ''
+        - low
+        - medium
+        - high
+        - xhigh
+        - max
       runs:
         description: Runs per case (majority vote tolerates non-determinism)
         required: false
@@ -71,6 +88,8 @@ jobs:
     # from typed choice/numeric strings to free text.
     env:
       EVAL_RUNS: ${{ inputs.runs || '3' }}
+      EVAL_MODEL: ${{ inputs.model }}
+      EVAL_EFFORT: ${{ inputs.effort }}
       EVAL_LIMIT: ${{ inputs.limit || '8' }}
       EVAL_CASES: ${{ inputs.cases || '' }}
       EVAL_DEBUG_MISCLASSIFICATIONS: ${{ inputs.debug_misclassifications && '1' || '' }}
@@ -148,6 +167,9 @@ jobs:
           IFS=',' read -ra arr <<< "$EVAL_CASES"
           for n in "${arr[@]}"; do case_args+=(--case "${n// /}"); done
         fi
+        model_args=()
+        if [ -n "$EVAL_MODEL" ]; then model_args+=(--model "$EVAL_MODEL"); fi
+        if [ -n "$EVAL_EFFORT" ]; then model_args+=(--effort "$EVAL_EFFORT"); fi
         debug_arg=()
         if [ -n "$EVAL_DEBUG_MISCLASSIFICATIONS" ]; then
           debug_arg=(--debug-misclassifications)
@@ -157,6 +179,7 @@ jobs:
           --limit "$EVAL_LIMIT" \
           "${case_args[@]}" \
           "${debug_arg[@]}" \
+          "${model_args[@]}" \
           --json-out /tmp/async-need-results.json \
           | tee /tmp/async-need-stdout.txt
 
@@ -191,6 +214,8 @@ jobs:
       contents: read
     env:
       EVAL_RUNS: ${{ inputs.runs || '3' }}
+      EVAL_MODEL: ${{ inputs.model }}
+      EVAL_EFFORT: ${{ inputs.effort }}
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       with:
@@ -232,8 +257,12 @@ jobs:
         ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         GH_TOKEN: ${{ github.token }}
       run: |
+        model_args=()
+        if [ -n "$EVAL_MODEL" ]; then model_args+=(--model "$EVAL_MODEL"); fi
+        if [ -n "$EVAL_EFFORT" ]; then model_args+=(--effort "$EVAL_EFFORT"); fi
         uv run python plugins/aiobotocore-bot/evals/check_override_drift.py \
           --runs "$EVAL_RUNS" \
+          "${model_args[@]}" \
           --json-out /tmp/drift-results.json \
           | tee /tmp/drift-stdout.txt
 

@@ -22,29 +22,27 @@ import anthropic
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 AIOBOTOCORE_DIR = REPO_ROOT / "aiobotocore"
-# Opus at default effort: 8/8 on the regression suite vs 7/8 Sonnet+thinking.
-DEFAULT_MODEL = "claude-opus-4-8"
+DEFAULT_MODEL = "claude-opus-5-5"
+# Pinned explicitly: the API default differs per model (Opus 5.5 `medium`, Sonnet 5.5 `high`).
+DEFAULT_EFFORT = "medium"
+EFFORT_LEVELS = ("low", "medium", "high", "xhigh", "max")
 
 UPPER_RE = re.compile(r'"botocore\s*>=\s*[\d.]+\s*,\s*<\s*([\d.]+)"')
 LOWER_RE = re.compile(r'"botocore\s*>=\s*([\d.]+)\s*,')
 
-# Per-million-token pricing (USD) for models we actually run the evals
-# against. From https://platform.claude.com/docs/en/about-claude/pricing
-# as of 2026-07-16. Update when Anthropic publishes new rates.
-# `cache_write_5m` is the short-duration write price; `cache_read` is
-# any cache-hit read. Thinking tokens bill as `output`.
+# USD per MTok (https://platform.claude.com/docs/en/about-claude/pricing); thinking bills as `output`.
 MODEL_PRICING: dict[str, dict[str, float]] = {
-    "claude-opus-4-8": {
-        "input": 5.0,
-        "output": 25.0,
-        "cache_write_5m": 6.25,
-        "cache_read": 0.50,
+    "claude-opus-5-5": {
+        "input": 4.0,
+        "output": 20.0,
+        "cache_write_5m": 5.0,
+        "cache_read": 0.20,
     },
-    "claude-sonnet-5": {
-        "input": 3.0,
-        "output": 15.0,
-        "cache_write_5m": 3.75,
-        "cache_read": 0.30,
+    "claude-sonnet-5-5": {
+        "input": 2.0,
+        "output": 10.0,
+        "cache_write_5m": 2.5,
+        "cache_read": 0.20,
     },
     "claude-haiku-4-5": {
         "input": 1.0,
@@ -421,53 +419,31 @@ def new_client() -> anthropic.AsyncAnthropic:
     return anthropic.AsyncAnthropic()
 
 
-def classify_tool_schema(
-    tool_name: str,
-    verdict_enum: list[str],
-    per_function_label: str,  # noqa: ARG001 — kept for API stability
-) -> dict:
-    """Build a minimal tool schema for structured verdict extraction.
+def classify_output_schema(verdict_enum: list[str]) -> dict:
+    """JSON schema for the structured-output verdict.
 
-    `verdict_enum` constrains the top-line classification (e.g.
-    `["no-port", "port-required", "ambiguous"]` for check-async-need,
-    `["clean", "cosmetic-drift", "behavioral-drift"]` for
-    check-override-drift).
-
-    Intentionally schema-light: only `verdict` and `rationale` fields.
-    An earlier version included a rich `per_function_verdicts` array
-    of objects, but Opus 4.7 sometimes emitted an empty tool input
-    (`{}`) on larger PR diffs despite being forced via tool_choice,
-    even with 16K max_tokens and no truncation. The root cause was
-    likely the nested-array schema creating generation ambiguity.
-    `rationale` as a free-form string preserves the per-function
-    detail without the brittleness.
+    Flat `verdict` + free-form `rationale`: a nested per-function array made
+    Opus 4.7 emit empty objects on large diffs.
     """
     return {
-        "name": tool_name,
-        "description": (
-            "Emit the final classification. Call this ONCE, at the end, "
-            "after you've reasoned through each changed function. "
-            "Include the per-function verdict breakdown in `rationale`."
-        ),
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "verdict": {
-                    "type": "string",
-                    "enum": verdict_enum,
-                    "description": "Top-line roll-up classification.",
-                },
-                "rationale": {
-                    "type": "string",
-                    "description": (
-                        "Full reasoning: one paragraph per changed "
-                        "function with file, name, change-type, "
-                        "verdict, and reason. Rollup summary at the end."
-                    ),
-                },
+        "type": "object",
+        "properties": {
+            "verdict": {
+                "type": "string",
+                "enum": verdict_enum,
+                "description": "Top-line roll-up classification.",
             },
-            "required": ["verdict", "rationale"],
+            "rationale": {
+                "type": "string",
+                "description": (
+                    "Full reasoning: one paragraph per changed "
+                    "function with file, name, change-type, "
+                    "verdict, and reason. Rollup summary at the end."
+                ),
+            },
         },
+        "required": ["verdict", "rationale"],
+        "additionalProperties": False,
     }
 
 
@@ -476,30 +452,21 @@ async def invoke_and_classify(
     system: str,
     user: str,
     model: str,
-    tool: dict,
+    effort: str,
+    schema: dict,
 ) -> tuple[str, str, dict | None]:
-    """Call the Anthropic API forcing the model to emit its verdict via
-    the `tool` schema. Returns (verdict, raw_text, full_tool_input).
+    """Classify via structured output. Returns (verdict, raw_text, parsed).
 
-    `raw_text` captures any text blocks the model emitted alongside the
-    tool call — useful for debugging and for the follow-up-on-miss flow.
-
-    16K max_tokens headroom: per-function verdict arrays for 10+ changed
-    functions plus reasoning text can exceed 4K. A truncated tool_use
-    block returns empty-dict input and a `parse-error` verdict —
-    previously this manifested as mysterious failures on large PRs.
-    Stop reason is surfaced in `raw_text` on truncation so debugging
-    rationales show the cause.
-
-    The system prompt uses ephemeral cache_control so repeated calls
-    within the same eval session (N runs × M cases ≈ 96 calls at
-    defaults) hit the cache on the ~2K-token command body.
+    `raw_text` is the JSON text, prefixed with the stop reason when it is
+    not `end_turn` so truncations and refusals show up in rationales.
     """
-    resp = await client.messages.create(
+    async with client.messages.stream(
         model=model,
-        max_tokens=16000,
-        tools=[tool],
-        tool_choice={"type": "tool", "name": tool["name"]},
+        max_tokens=64000,
+        output_config={
+            "effort": effort,
+            "format": {"type": "json_schema", "schema": schema},
+        },
         system=[
             {
                 "type": "text",
@@ -508,7 +475,8 @@ async def invoke_and_classify(
             },
         ],
         messages=[{"role": "user", "content": user}],
-    )
+    ) as stream:
+        resp = await stream.get_final_message()
     _record_usage(model, resp.usage)
     raw = "".join(
         block.text
@@ -517,12 +485,12 @@ async def invoke_and_classify(
     )
     if resp.stop_reason and resp.stop_reason != "end_turn":
         raw = f"[stop_reason={resp.stop_reason}]\n{raw}"
-    for block in resp.content:
-        if getattr(block, "type", None) == "tool_use":
-            tool_input = block.input
-            verdict = tool_input.get("verdict", "parse-error")
-            return (verdict.lower(), raw, tool_input)
-    return ("parse-error", raw, None)
+        return ("parse-error", raw, None)
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError:
+        return ("parse-error", raw, None)
+    return (parsed.get("verdict", "parse-error").lower(), raw, parsed)
 
 
 async def followup_on_misclassification(
@@ -530,6 +498,7 @@ async def followup_on_misclassification(
     system: str,
     user: str,
     model: str,
+    effort: str,
     assistant_reply: str,
     expected: str,
     got: str,
@@ -538,19 +507,19 @@ async def followup_on_misclassification(
     output. Handles two failure modes:
 
     - Wrong verdict: ask which prompt phrase it anchored on.
-    - Parse error (empty or malformed tool call): ask why it didn't
-      populate the tool input — that's a non-classification failure
-      we otherwise can't diagnose.
+    - Parse error (empty or malformed JSON): ask why it didn't produce
+      the classification — that's a non-classification failure we
+      otherwise can't diagnose.
 
     Returns the follow-up assistant text.
     """
     if got == "parse-error":
         followup_q = (
             "Your response did not produce a usable classification — "
-            "the tool call came back with empty or missing input. Why "
-            "didn't you populate the tool's `verdict` and `rationale` "
+            "the JSON came back empty, truncated, or malformed. Why "
+            "didn't you populate the `verdict` and `rationale` "
             "fields? Was the prompt unclear, the diff too long to "
-            "reason through, the tool schema confusing, or something "
+            "reason through, the schema confusing, or something "
             "else? Be specific: what would you have needed to complete "
             f"the classification (expected answer was `{expected}`)?"
         )
@@ -567,7 +536,9 @@ async def followup_on_misclassification(
         )
     resp = await client.messages.create(
         model=model,
-        max_tokens=2048,
+        # thinking is always on for the 5.5 models and counts against max_tokens
+        max_tokens=16000,
+        output_config={"effort": effort},
         system=[
             {
                 "type": "text",

@@ -32,9 +32,11 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from _common import (
+    DEFAULT_EFFORT,
     DEFAULT_MODEL,
+    EFFORT_LEVELS,
     REPO_ROOT,
-    classify_tool_schema,
+    classify_output_schema,
     invoke_and_classify,
     load_skill_body,
     new_client,
@@ -53,10 +55,8 @@ SCENARIOS_PATH = (
 )
 
 VALID_VERDICTS = {"clean", "cosmetic-drift", "behavioral-drift"}
-CLASSIFY_TOOL = classify_tool_schema(
-    tool_name="record_override_drift_classification",
+CLASSIFY_SCHEMA = classify_output_schema(
     verdict_enum=sorted(VALID_VERDICTS),
-    per_function_label="function",
 )
 
 
@@ -153,6 +153,12 @@ async def main() -> int:
         help="Anthropic model to use (default: %(default)s)",
     )
     parser.add_argument(
+        "--effort",
+        choices=EFFORT_LEVELS,
+        default=DEFAULT_EFFORT,
+        help="Effort level (default: %(default)s)",
+    )
+    parser.add_argument(
         "--json-out", type=Path, help="Write full per-run results here"
     )
     args = parser.parse_args()
@@ -181,7 +187,7 @@ async def main() -> int:
         return 2
 
     print(
-        f"Evaluating {len(cases)} case(s) x {args.runs} run(s) with {args.model}"
+        f"Evaluating {len(cases)} case(s) x {args.runs} run(s) with {args.model} @ effort={args.effort}"
     )
 
     client = new_client()
@@ -197,12 +203,13 @@ async def main() -> int:
     async def invoke_one(case: Case) -> str:
         diff = diffs[case.pr]
         user = build_user_message(case, diff, override_symbols)
-        verdict, _raw, _tool = await invoke_and_classify(
+        verdict, _raw, _parsed = await invoke_and_classify(
             client,
             skill_body,
             user,
             args.model,
-            CLASSIFY_TOOL,
+            args.effort,
+            CLASSIFY_SCHEMA,
         )
         if verdict not in VALID_VERDICTS and verdict != "parse-error":
             verdict = f"unknown:{verdict}"
