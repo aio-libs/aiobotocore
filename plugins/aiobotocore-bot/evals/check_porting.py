@@ -22,8 +22,8 @@ Env:
     ANTHROPIC_API_KEY — required
     BOTOCORE_CLONE    — optional, default /tmp/botocore (bare clone of boto/botocore)
 
-Needs the `claude` CLI and `rtk` on PATH. Exits 0 if every case's hash test
-and test suite pass, 1 otherwise.
+Needs the `claude` CLI and `rtk` on PATH. Exits 0 if every case's agent run
+completes and its hash test and test suite pass, 1 otherwise.
 """
 
 from __future__ import annotations
@@ -39,6 +39,7 @@ import sys
 import tempfile
 import threading
 import time
+from collections.abc import Callable
 from pathlib import Path
 
 import check_async_need as can
@@ -84,17 +85,22 @@ def render_prompt(template: str, values: dict[str, str]) -> str:
     return template
 
 
-def override_changes(diff: str, base_commit: str) -> set[str]:
-    """`file :: qualified name` of every aiobotocore def a diff changes."""
+def override_changes(
+    diff: str, base_commit: str, read_new: Callable[[str], str]
+) -> set[str]:
+    """`file :: qualified name` of every aiobotocore def a diff changes or adds."""
     changed: set[str] = set()
     for path, lines in touched_old_lines(diff).items():
         if not (path.startswith("aiobotocore/") and path.endswith(".py")):
             continue
         try:
-            base = _git_show(base_commit, path)
+            source = _git_show(base_commit, path)
         except subprocess.CalledProcessError:
-            continue
-        changed |= {f"{path} :: {n}" for n in changed_definitions(base, lines)}
+            source = read_new(path)
+            lines = set(range(1, len(source.splitlines()) + 1))
+        changed |= {
+            f"{path} :: {n}" for n in changed_definitions(source, lines)
+        }
     return changed
 
 
@@ -180,13 +186,13 @@ def run_agent(cmd: list[str], cwd: Path, timeout: int) -> dict:
 async def classify(
     client, case: can.Case, parent: str, effort: str
 ) -> tuple[str, str]:
-    """Run the classify stage for the case: (verdict, rationale JSON)."""
+    """Run the classify stage for the case: (verdict, per-function rationale)."""
     paths = overridden_paths(parent)
     diff = can.compute_filtered_diff(case, paths)
     user = can.build_user_message(
         case, diff, overridden_symbols(parent), *async_names(parent)
     )
-    verdict, raw, _parsed = await invoke_and_classify(
+    verdict, _raw, parsed = await invoke_and_classify(
         client,
         load_skill_body(can.SKILL_PATH),
         user,
@@ -194,7 +200,7 @@ async def classify(
         effort,
         can.CLASSIFY_SCHEMA,
     )
-    return verdict, raw
+    return verdict, (parsed or {}).get("rationale") or "(none)"
 
 
 def affected_files(case: can.Case, parent: str) -> str:
@@ -252,7 +258,8 @@ async def run_case(case: can.Case, args, client) -> dict:
         )
         try:
             _progress("preparing worktree")
-            _run(["uv", "sync", "--frozen"], wt, check=True)
+            frozen = ["--frozen"] if (wt / "uv.lock").exists() else []
+            _run(["uv", "sync", *frozen], wt, check=True)
             _run(
                 [
                     "uv",
@@ -297,7 +304,11 @@ async def run_case(case: can.Case, args, client) -> dict:
                 f"agent finished: turns={result.get('num_turns')} "
                 f"cost=${result.get('total_cost_usd')}; running hash test"
             )
+            _run(["git", "add", "--intent-to-add", "--", "aiobotocore/"], wt)
             agent_diff = _run(["git", "diff", "--", "aiobotocore/"], wt).stdout
+            got = override_changes(
+                agent_diff, parent, lambda path: (wt / path).read_text()
+            )
             hashes = _run(
                 [
                     "uv",
@@ -347,8 +358,9 @@ async def run_case(case: can.Case, args, client) -> dict:
         cwd=REPO_ROOT,
         text=True,
     )
-    real = override_changes(real_diff, parent)
-    got = override_changes(agent_diff, parent)
+    real = override_changes(
+        real_diff, parent, lambda path: _git_show(case.merge_commit, path)
+    )
     return {
         "pr": case.pr,
         "from": case.from_ver,
@@ -445,9 +457,12 @@ async def main() -> int:
         if args.json_out:
             args.json_out.write_text(json.dumps(results, indent=2))
 
-    passed = sum(r["hashes_pass"] and r["tests_pass"] for r in results)
+    passed = sum(
+        r["hashes_pass"] and r["tests_pass"] and not r["agent_error"]
+        for r in results
+    )
     print(
-        f"\n== Summary: {passed}/{len(results)} ports pass hashes and tests =="
+        f"\n== Summary: {passed}/{len(results)} ports completed and pass hashes and tests =="
     )
     cost = sum(r["agent_cost_usd"] or 0 for r in results)
     print(f"  agent cost: ${cost:.2f}")
