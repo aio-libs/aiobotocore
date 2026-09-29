@@ -1,0 +1,243 @@
+diff --git a/aiobotocore/_helpers.py b/aiobotocore/_helpers.py
+index e6f7e83..c31aec1 100644
+--- a/aiobotocore/_helpers.py
++++ b/aiobotocore/_helpers.py
+@@ -1,16 +1,34 @@
+-import inspect
++"""Helper utilities for async operations in aiobotocore."""
+ 
+ 
+ async def resolve_awaitable(obj):
+-    if inspect.isawaitable(obj):
+-        return await obj
++    """Resolve an object that may or may not be awaitable.
++
++    Args:
++        obj: An object that may be awaitable (coroutine, Task, Future) or
++             a non-awaitable value.
+ 
++    Returns:
++        The result of awaiting the object if it was awaitable,
++        otherwise the object itself.
++    """
++    if hasattr(obj, '__await__'):
++        return await obj
+     return obj
+ 
+ 
+ async def async_any(items):
++    """Return True if any item in the iterable is truthy (after awaiting).
++
++    Unlike the built-in `any()`, this properly handles awaitable values.
++
++    Args:
++        items: An iterable of items, which may be awaitable.
++
++    Returns:
++        True if any item evaluates to truthy, False otherwise.
++    """
+     for item in items:
+         if await resolve_awaitable(item):
+             return True
+-
+     return False
+diff --git a/aiobotocore/configprovider.py b/aiobotocore/configprovider.py
+index 3e3c2c9..dcd91eb 100644
+--- a/aiobotocore/configprovider.py
++++ b/aiobotocore/configprovider.py
+@@ -1,8 +1,24 @@
+-from botocore.configprovider import SmartDefaultsConfigStoreFactory, os
++import logging
++import os
++
++from botocore.configprovider import SmartDefaultsConfigStoreFactory
++
++logger = logging.getLogger(__name__)
+ 
+ 
+ class AioSmartDefaultsConfigStoreFactory(SmartDefaultsConfigStoreFactory):
+-    async def merge_smart_defaults(self, config_store, mode, region_name):
++    """Async version of SmartDefaultsConfigStoreFactory."""
++
++    async def merge_smart_defaults(
++        self, config_store, mode: str, region_name: str | None = None
++    ) -> None:
++        """Merge smart defaults into the config store asynchronously.
++
++        Args:
++            config_store: The configuration store to update.
++            mode: The resolution mode ('auto' or specific mode).
++            region_name: The AWS region name for region-specific resolution.
++        """
+         if mode == 'auto':
+             mode = await self.resolve_auto_mode(region_name)
+         default_configs = (
+@@ -14,8 +30,19 @@ class AioSmartDefaultsConfigStoreFactory(SmartDefaultsConfigStoreFactory):
+             if method:
+                 method(config_store, config_value)
+ 
+-    async def resolve_auto_mode(self, region_name):
+-        current_region = None
++    async def resolve_auto_mode(
++        self, region_name: str | None = None
++    ) -> str:
++        """Resolve the auto mode based on execution environment and region.
++
++        Args:
++            region_name: The AWS region name from the request.
++
++        Returns:
++            'in-region' if within the same region, 'cross-region' if different,
++            or 'standard' if region cannot be determined.
++        """
++        current_region: str | None = None
+         if os.environ.get('AWS_EXECUTION_ENV'):
+             default_region = os.environ.get('AWS_DEFAULT_REGION')
+             current_region = os.environ.get('AWS_REGION', default_region)
+@@ -26,8 +53,11 @@ class AioSmartDefaultsConfigStoreFactory(SmartDefaultsConfigStoreFactory):
+                 try:
+                     current_region = await self._imds_region_provider.provide()
+                     self._instance_metadata_region = current_region
+-                except Exception:
+-                    pass
++                except Exception:  # noqa: BLE001
++                    logger.debug(
++                        "Failed to resolve region from IMDS, "
++                        "falling back to 'standard' mode"
++                    )
+ 
+         if current_region:
+             if region_name == current_region:
+diff --git a/aiobotocore/retries/adaptive.py b/aiobotocore/retries/adaptive.py
+index 0adca11..6c43334 100644
+--- a/aiobotocore/retries/adaptive.py
++++ b/aiobotocore/retries/adaptive.py
+@@ -2,6 +2,7 @@
+ 
+ import asyncio
+ import logging
++from typing import Any
+ 
+ from botocore.retries import standard, throttling
+ 
+@@ -16,6 +17,14 @@ logger = logging.getLogger(__name__)
+ 
+ 
+ def register_retry_handler(client):
++    """Register the async adaptive retry rate limiter with a client.
++
++    Args:
++        client: The botocore client to register the rate limiter with.
++
++    Returns:
++        The AsyncClientRateLimiter instance.
++    """
+     clock = bucket.Clock()
+     rate_adjustor = throttling.CubicCalculator(
+         starting_max_rate=0, start_time=clock.current_time()
+@@ -44,13 +53,21 @@ def register_retry_handler(client):
+ 
+ 
+ class AsyncClientRateLimiter:
+-    """An async reimplementation of ClientRateLimiter."""
++    """An async reimplementation of ClientRateLimiter.
++
++    This rate limiter implements adaptive retry behavior for AWS requests,
++    automatically adjusting request rates based on throttling responses.
++
++    The limiter starts in a disabled state and only activates after the first
++    throttling error is detected. Once enabled, it controls request rate using
++    a token bucket algorithm.
+ 
+-    # Most of the code here comes directly from botocore. The main change is making the
+-    # callbacks async.
+-    # This doesn't inherit from the botocore ClientRateLimiter for two reasons:
+-    # * the interface is slightly changed (methods are now async)
+-    # * we rewrote the entirety of the class anyway
++    Most of the code here comes directly from botocore. The main change is making the
++    callbacks async.
++    This doesn't inherit from the botocore ClientRateLimiter for two reasons:
++    * the interface is slightly changed (methods are now async)
++    * we rewrote the entirety of the class anyway
++    """
+ 
+     _MAX_RATE_ADJUST_SCALE = 2.0
+ 
+@@ -70,12 +87,26 @@ class AsyncClientRateLimiter:
+         self._enabled = False
+         self._lock = asyncio.Lock()
+ 
+-    async def on_sending_request(self, request, **kwargs):
++    async def on_sending_request(self, request: Any, **kwargs: Any) -> None:
++        """Hook called before sending a request to apply rate limiting.
++
++        Args:
++            request: The request being sent.
++            **kwargs: Additional arguments from the event system.
++        """
+         if self._enabled:
+             await self._token_bucket.acquire()
+ 
+-    # Hooked up to needs-retry.
+-    async def on_receiving_response(self, **kwargs):
++    async def on_receiving_response(self, **kwargs: Any) -> None:
++        """Hook called when receiving a response to adjust rate limits.
++
++        Called by the 'needs-retry' event. Updates the rate limit based on
++        whether the response was successful or indicated throttling.
++
++        Args:
++            **kwargs: Arguments from the retry event, includes response
++                     information for throttling detection.
++        """
+         measured_rate = self._rate_clocker.record()
+         timestamp = self._clock.current_time()
+         async with self._lock:
+@@ -100,6 +131,11 @@ class AsyncClientRateLimiter:
+                     self._token_bucket.available_capacity,
+                 )
+                 self._enabled = True
++            # Guard against division by zero when measured_rate is very small or zero
++            if measured_rate > 0:
++                max_allowed_rate = self._MAX_RATE_ADJUST_SCALE * measured_rate
++            else:
++                max_allowed_rate = self._MAX_RATE_ADJUST_SCALE
+             await self._token_bucket.set_max_rate(
+-                min(new_rate, self._MAX_RATE_ADJUST_SCALE * measured_rate)
++                min(new_rate, max_allowed_rate)
+             )
+diff --git a/aiobotocore/retries/special.py b/aiobotocore/retries/special.py
+index b8d3db6..d26ed68 100644
+--- a/aiobotocore/retries/special.py
++++ b/aiobotocore/retries/special.py
+@@ -2,8 +2,24 @@ from botocore.retries.special import RetryDDBChecksumError, crc32, logger
+ 
+ 
+ class AioRetryDDBChecksumError(RetryDDBChecksumError):
++    """Async retry handler for DynamoDB CRC32 checksum errors."""
++
+     async def is_retryable(self, context):
+-        service_name = context.operation_model.service_model.service_name
++        """Check if the request should be retried due to DynamoDB CRC32 mismatch.
++
++        Args:
++            context: The HTTP response context.
++
++        Returns:
++            True if the CRC32 checksum failed and request should be retried.
++        """
++        operation_model = context.operation_model
++        if operation_model is None:
++            return False
++        service_model = operation_model.service_model
++        if service_model is None:
++            return False
++        service_name = service_model.service_name
+         if service_name != self._SERVICE_NAME:
+             return False
+         if context.http_response is None:
+@@ -20,3 +36,4 @@ class AioRetryDDBChecksumError(RetryDDBChecksumError):
+                 actual_crc32,
+             )
+             return True
++        return False

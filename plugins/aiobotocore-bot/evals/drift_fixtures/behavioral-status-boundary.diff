@@ -1,0 +1,13 @@
+diff --git a/aiobotocore/endpoint.py b/aiobotocore/endpoint.py
+index f1c8139..176e6d2 100644
+--- a/aiobotocore/endpoint.py
++++ b/aiobotocore/endpoint.py
+@@ -49,7 +49,7 @@ async def convert_to_response_dict(http_response, operation_model):
+             'operation_name': operation_model.name,
+         },
+     }
+-    if response_dict['status_code'] >= 300:
++    if response_dict['status_code'] > 300:
+         response_dict['body'] = await http_response.content
+     elif operation_model.has_event_stream_output:
+         response_dict['body'] = http_response.raw

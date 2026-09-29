@@ -101,13 +101,8 @@ jobs:
         persist-credentials: false
 
     - name: Cache botocore repo
-      # Only the check-async-need job uses the local botocore clone — it
-      # needs to diff two specific botocore versions. The check-override-
-      # drift job reads the PR diff via the gh API instead, so no clone
-      # step in that job. Shares the cache key with botocore-sync.yml so
-      # whichever workflow runs first warms /tmp/botocore for the other.
-      # Static key (no hashFiles invalidation) — fresh tags are always
-      # fetched below.
+      # Both evals read botocore at specific tags. Shares the cache key with
+      # botocore-sync.yml; fresh tags are always fetched below.
       # yamllint disable-line rule:line-length
       uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
       with:
@@ -225,8 +220,32 @@ jobs:
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       with:
-        fetch-depth: 1
+        # full history: each case's override registry is read at its base commit
+        fetch-depth: 0
         persist-credentials: false
+
+    - name: Cache botocore repo
+      # Both evals read botocore at specific tags. Shares the cache key with
+      # botocore-sync.yml; fresh tags are always fetched below.
+      # yamllint disable-line rule:line-length
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+      with:
+        path: /tmp/botocore
+        key: botocore-repo
+
+    - name: Clone or update botocore
+      # Mirrors botocore-sync.yml's step exactly. Bare clone is smaller
+      # (~100MB vs ~200MB) and scenarios.yaml references tags back to
+      # 1.35.x, far past what a shallow clone would cover. On cache hit
+      # the fetch is ~2s; on cache miss the initial clone is ~10-15s.
+      run: |
+        if [ -f /tmp/botocore/HEAD ]; then
+          git -C /tmp/botocore fetch --tags --prune
+        else
+          git clone --bare \
+            https://github.com/boto/botocore.git \
+            /tmp/botocore
+        fi
 
     - name: Set up uv + Python
       # yamllint disable-line rule:line-length
@@ -261,7 +280,7 @@ jobs:
     - name: Run check_override_drift eval
       env:
         ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        GH_TOKEN: ${{ github.token }}
+        BOTOCORE_CLONE: /tmp/botocore
         # stack dump on a native crash; unbuffered so partial output survives it
         PYTHONFAULTHANDLER: '1'
         PYTHONUNBUFFERED: '1'

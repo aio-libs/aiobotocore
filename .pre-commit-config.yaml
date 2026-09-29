@@ -13,7 +13,10 @@ repos:
   hooks:
   - id: check-yaml
   - id: end-of-file-fixer
+    # unified-diff fixtures: a blank context line is a lone space
+    exclude: ^plugins/aiobotocore-bot/evals/drift_fixtures/
   - id: trailing-whitespace
+    exclude: ^plugins/aiobotocore-bot/evals/drift_fixtures/
 - repo: https://github.com/astral-sh/ruff-pre-commit
   rev: aab412d509121cb5f7533134b7e67f9fab59c682  # frozen: v0.16.4
   hooks:

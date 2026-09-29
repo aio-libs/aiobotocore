@@ -1,0 +1,15 @@
+diff --git a/aiobotocore/endpoint.py b/aiobotocore/endpoint.py
+index f1c8139..62c14e0 100644
+--- a/aiobotocore/endpoint.py
++++ b/aiobotocore/endpoint.py
+@@ -341,8 +341,10 @@ class AioEndpointCreator(EndpointCreator):
+         ) and not is_valid_ipv6_endpoint_url(endpoint_url):
+             raise ValueError(f"Invalid endpoint: {endpoint_url}")
+ 
++        # fall back to the environment's proxies when none are configured
+         if proxies is None:
+             proxies = self._get_proxies(endpoint_url)
++        # the endpoint prefix names the service in log lines below
+         endpoint_prefix = service_model.endpoint_prefix
+ 
+         logger.debug('Setting %s timeout as %s', endpoint_prefix, timeout)

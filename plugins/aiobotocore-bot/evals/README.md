@@ -163,33 +163,42 @@ Options:
 
 ## check_override_drift.py
 
-Replays the `check-override-drift` skill against labeled PRs in
+Replays the `check-override-drift` skill against labeled aiobotocore diffs in
 `drift_scenarios.yaml`. Expected verdicts are `clean` | `cosmetic-drift` |
-`behavioral-drift`.
+`behavioral-drift`, following the per-line table in the skill's Step 3.
 
 ### Ground truth — drift_scenarios.yaml
 
+Each case is a committed diff under `drift_fixtures/`, the aiobotocore commit
+it applies to, and the botocore version its overrides should mirror:
+
 ```yaml
-- pr: 1562
-  title: "fix: code review improvements for oldest files"
+- id: behavioral-retry-cap
+  title: "Cap retries in AioEndpoint._needs_retry"
   expected: behavioral-drift
+  fixture: behavioral-retry-cap.diff
+  base_commit: 36935fecbb42e5ed11886bc4e8d44975c70d44bf
+  botocore_version: "1.43.98"
   rationale: |
-    Multiple behavioral changes not mirrored in botocore:
-    - _helpers.py isawaitable → hasattr(__await__) (non-equivalent)
-    - configprovider.py added IMDS logging not in botocore
-    - retries/adaptive.py added div-by-zero guard not in botocore
-  notes: |
-    PR was closed after review flagged the drift. Retained as an eval case.
+    Adds `if attempts >= 10: return False`; botocore has no attempt cap.
 ```
 
-Seed the file by hand. Good cases to include over time:
+`base_commit` must be on `main`, since the override registry is read there;
+branch commits vanish when a PR squash-merges. The runner gives the model the
+diff, that registry, and the botocore source (from the bare clone at
+`botocore_version`) of every function the diff touches.
 
-- **Clean cases** — any well-executed bot sync port where the override
-  exactly mirrors botocore's change.
-- **Cosmetic-drift cases** — PRs that added docstrings/types/comments
-  without a botocore counterpart.
-- **Behavioral-drift cases** — PRs that changed override logic not
-  mirrored in botocore. PR #1562 is the canonical example.
+Cases come from two sources:
+
+- **Real PRs** — sync ports whose added lines all appear in the matching
+  botocore file, or are async gaps (`clean`), and #1562 (`behavioral-drift`,
+  its diff kept at `refs/pull/1562/head` after GitHub hid the PR).
+- **Single-change edits of `main`** — one docstring, type hint, comment or
+  import move (`cosmetic-drift`), or one guard, log line, changed condition
+  or non-equivalent check (`behavioral-drift`). Make each with a string
+  replacement on the base file and `git diff --no-index`, then confirm it
+  applies: `git apply --cached --check` against a temporary index read from
+  `base_commit`.
 
 ### Run
 
@@ -202,10 +211,12 @@ uv run --with anthropic python plugins/aiobotocore-bot/evals/check_override_drif
 Options:
 
 - `--runs N` — runs per case; majority vote decides pass/fail (default 3)
-- `--case N` — only evaluate specific PR number (repeatable)
+- `--case ID` — only evaluate specific scenario ids (repeatable)
 - `--model <id>` — Anthropic model ID (default: `DEFAULT_MODEL` in `_common.py`; `--help` prints it)
 - `--effort <level>` — `low`/`medium`/`high`/`xhigh`/`max` (default: `DEFAULT_EFFORT` in `_common.py`)
 - `--json-out <path>` — write per-run results as JSON
+
+Needs the bare botocore clone (`BOTOCORE_CLONE`, default `/tmp/botocore`).
 
 ### When to run
 
@@ -220,18 +231,8 @@ Same as `check_async_need.py` — LLM non-determinism mitigated via majority
 vote, only top-line verdict compared, no tool-orchestration coverage. Plus
 two drift-specific caveats:
 
-- **Botocore source comes from the model's training knowledge, not disk.**
-  The harness tells Claude to "use your knowledge of the botocore source
-  for the currently-pinned version; you can assume approximately the
-  latest stable release." This works well for recent PRs where the
-  model's botocore knowledge is fresh, but may misclassify older PRs
-  (e.g. a 2024 PR against botocore 1.35.x) because the model reasons
-  about "current botocore" not "botocore at the time." The
-  `check-override-drift.md` command itself accepts `--botocore-path` for
-  production use; the eval harness bypasses that path. A
-  production-fidelity fix would fetch the matching botocore tag into a
-  worktree and include its source in the prompt — worth doing if the
-  drift eval grows to cover many older historical PRs.
+- **Edited cases test detection, not prevalence.** They show whether the
+  model spots a planted change, not how often real PRs contain one.
 - The classifier is asked to reason about the diff without running the
   code. Some behavioral changes (subtle semantics, order-of-operations)
   may be miscategorized as cosmetic. Majority-vote helps but doesn't

@@ -19,9 +19,10 @@ mirror and flags:
 - **Behavioral changes** to overridden code that aren't in the matching botocore (e.g.
   swapping `inspect.isawaitable` for `hasattr(obj, "__await__")` — not equivalent for
   all awaitable types).
-- **Cosmetic additions** (docstrings, comments, type hints, log statements, null
-  guards) that aren't in the matching botocore — these widen the diff without an
-  async-explained justification.
+- **Cosmetic additions** (docstrings, comments, type hints, import reordering) that
+  aren't in the matching botocore — these widen the diff without an async-explained
+  justification. Added null guards and log statements change behavior; Step 3
+  classifies them as behavioral.
 - **Silent bug fixes** in overridden code — may be legitimate but still drift; must
   be called out so reviewers know.
 
