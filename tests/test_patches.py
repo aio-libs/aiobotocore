@@ -1367,7 +1367,7 @@ def test_protocol_parsers():
         (
             S3RegionRedirectorv2.redirect_from_error,
             {
-                '2a715115e94bddcea4cce936bf7c7013f1f6ecdf',
+                'ba056a39ece1d647e16c81419f0dad9c5ba54d19',
             },
         ),
         (

@@ -47,6 +47,73 @@ async def test_user_agent_has_registered_feature_id():
         assert 'C' in feature_list
 
 
+async def test_user_agent_has_s3_region_redirect_feature_id():
+    """Adapted from botocore's
+    tests/functional/test_useragent.py::test_user_agent_has_s3_region_redirect_feature_id
+    """
+    session = AioSession()
+
+    async with session.create_client(
+        's3',
+        region_name='us-west-2',
+        aws_secret_access_key='xxx',
+        aws_access_key_id='xxx',
+    ) as client_s3:
+        with ClientHTTPStubber(client_s3) as stub_client:
+            # The first attempt is rejected because the bucket lives in another
+            # region. The redirector registers `'S3_REGION_REDIRECT': 'Ah'` and
+            # retries the request against the region from the error response.
+            stub_client.add_response(
+                status=301,
+                headers={'x-amz-bucket-region': 'eu-central-1'},
+                body=(
+                    b'<Error><Code>PermanentRedirect</Code>'
+                    b'<Bucket>mybucket</Bucket></Error>'
+                ),
+            )
+            stub_client.add_response()
+            await client_s3.list_objects_v2(Bucket='mybucket')
+
+    ua_strings = get_captured_ua_strings(stub_client)
+    assert 'Ah' not in parse_registered_feature_ids(ua_strings[0])
+    assert 'Ah' in parse_registered_feature_ids(ua_strings[1])
+
+
+async def test_user_agent_has_s3_region_redirect_feature_id_from_cache():
+    """Adapted from botocore's tests/functional/test_useragent.py::
+    test_user_agent_has_s3_region_redirect_feature_id_from_cache
+    """
+    session = AioSession()
+
+    async with session.create_client(
+        's3',
+        region_name='us-west-2',
+        aws_secret_access_key='xxx',
+        aws_access_key_id='xxx',
+    ) as client_s3:
+        with ClientHTTPStubber(client_s3) as stub_client:
+            # The first call redirects and caches the bucket's real region.
+            stub_client.add_response(
+                status=301,
+                headers={'x-amz-bucket-region': 'eu-central-1'},
+                body=(
+                    b'<Error><Code>PermanentRedirect</Code>'
+                    b'<Bucket>mybucket</Bucket></Error>'
+                ),
+            )
+            stub_client.add_response()
+            await client_s3.list_objects_v2(Bucket='mybucket')
+
+            # The second call is served from the redirect cache, so it never
+            # sees an error response but is still a region redirect.
+            stub_client.add_response()
+            await client_s3.list_objects_v2(Bucket='mybucket')
+
+    ua_strings = get_captured_ua_strings(stub_client)
+    assert len(ua_strings) == 3
+    assert 'Ah' in parse_registered_feature_ids(ua_strings[2])
+
+
 async def test_registered_feature_ids_dont_bleed_between_requests():
     session = AioSession()
 
