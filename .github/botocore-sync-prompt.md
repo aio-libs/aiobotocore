@@ -82,6 +82,9 @@ re-enters your context. Follow these rules:
   repeatedly. The PR you open runs the full suite across the whole Python × backend matrix in
   CI; that, not a local loop, is the comprehensive check. You only need enough local signal to
   be confident the commit is sound.
+- **Run test commands in the foreground and wait for them.** This job ends as soon as you stop,
+  and anything still running in the background is killed with it, so a gate left in the
+  background never reports.
 
 ## Configuration
 

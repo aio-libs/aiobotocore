@@ -30,7 +30,10 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import contextlib
 import json
+import os
+import signal
 import subprocess
 import sys
 import tempfile
@@ -95,6 +98,30 @@ def override_changes(diff: str, base_commit: str) -> set[str]:
 
 def _run(cmd: list[str], cwd: Path, **kw) -> subprocess.CompletedProcess:
     return subprocess.run(cmd, cwd=cwd, text=True, capture_output=True, **kw)
+
+
+def run_agent(cmd: list[str], cwd: Path, timeout: int) -> str:
+    """Run the agent, then kill anything it left running in the worktree.
+
+    A backgrounded test run left alongside the grading run crashes pytest-xdist.
+    """
+    proc = subprocess.Popen(
+        cmd,
+        cwd=cwd,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+        start_new_session=True,
+    )
+    try:
+        out, _ = proc.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        out = ""
+    finally:
+        with contextlib.suppress(ProcessLookupError):
+            os.killpg(proc.pid, signal.SIGKILL)
+        subprocess.run(["pkill", "-9", "-f", str(cwd)])
+    return out
 
 
 async def classify(
@@ -175,7 +202,7 @@ async def run_case(case: can.Case, args, client) -> dict:
                 wt,
                 check=True,
             )
-            agent = _run(
+            agent_out = run_agent(
                 [
                     "claude",
                     "-p",
@@ -197,12 +224,12 @@ async def run_case(case: can.Case, args, client) -> dict:
                     "Bash(gh:*)",
                 ],
                 wt,
-                timeout=args.timeout,
+                args.timeout,
             )
             try:
-                result = json.loads(agent.stdout)
+                result = json.loads(agent_out)
             except json.JSONDecodeError:
-                result = {"is_error": True, "result": agent.stdout[-2000:]}
+                result = {"is_error": True, "result": agent_out[-2000:]}
             agent_diff = _run(["git", "diff", "--", "aiobotocore/"], wt).stdout
             hashes = _run(
                 [
