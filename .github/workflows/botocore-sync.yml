@@ -334,19 +334,20 @@ jobs:
     - name: Parse classification
       id: parse
       run: |
+        # No output means the agent never ran (e.g. the action skipped itself) or
+        # crashed; fail the job so the sync is skipped and the run shows red.
         if [ ! -f /tmp/classification.json ]; then
-          msg="classify did not write /tmp/classification.json"
-          echo "::warning::$msg — defaulting to ambiguous"
-          {
-            echo "verdict=ambiguous"
-            echo "summary=Classifier output missing — see classify-job logs"
-            echo 'rationale<<RATIONALE_EOF'
-            echo "(classifier did not produce output)"
-            echo 'RATIONALE_EOF'
-          } >> "$GITHUB_OUTPUT"
-          exit 0
+          echo "::error::classify did not write /tmp/classification.json — see the claude step's log"
+          exit 1
         fi
-        verdict=$(jq -r '.verdict // "ambiguous"' /tmp/classification.json)
+        verdict=$(jq -r '.verdict // empty' /tmp/classification.json)
+        case "$verdict" in
+          no-port|port-required|ambiguous|error) ;;
+          *)
+            echo "::error::classify wrote an invalid verdict: '$verdict'"
+            exit 1
+            ;;
+        esac
         summary=$(jq -r '.summary // ""' /tmp/classification.json)
         echo "verdict=$verdict" >> "$GITHUB_OUTPUT"
         echo "summary=$summary" >> "$GITHUB_OUTPUT"

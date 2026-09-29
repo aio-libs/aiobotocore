@@ -19,11 +19,11 @@ Env:
     ANTHROPIC_API_KEY — required
     BOTOCORE_CLONE    — optional, default /tmp/botocore (bare clone of boto/botocore)
 
-Scored on the production decision, not the exact label: botocore-sync
-escalates every verdict except `no-port` to the porting stage, so
-`ambiguous` counts as an escalation. A port-required case judged `no-port`
-is a port miss, the costly error; a no-port case escalated is a false
-escalation, which only costs an extra porting run.
+Scored on what botocore-sync does with each verdict: `no-port` bumps the
+bounds, `port-required` ports, and `ambiguous` opens a feedback issue for a
+human and stops. A port-required case judged `no-port` is a port miss, the
+costly error; `ambiguous` is reported separately, since it delays a needed
+port or asks a needless question but never ships a wrong bump.
 
 Exits 0 if every case passes the majority vote, 1 otherwise.
 """
@@ -76,11 +76,11 @@ CLASSIFY_SCHEMA = classify_output_schema(
 
 def decision(verdict: str) -> str:
     """Map a classifier verdict to what botocore-sync does with it."""
-    if verdict == "no-port":
-        return "no-port"
-    if verdict in ("port-required", "ambiguous"):
-        return "escalate"
-    return verdict
+    return {
+        "no-port": "no-port",
+        "port-required": "port",
+        "ambiguous": "feedback",
+    }.get(verdict, verdict)
 
 
 @dataclass
@@ -411,19 +411,19 @@ async def main() -> int:
     print(
         f"\n== Summary: {len(results) - len(failures)}/{len(results)} passed =="
     )
-    for label, bad in (("port-required", "no-port"), ("no-port", "escalate")):
+    for name, label, bad in (
+        ("port misses", "port-required", "no-port"),
+        ("false ports", "no-port", "port"),
+    ):
         rows = [r for r in results if r["expected"] == label]
         runs = [d for r in rows for d in r["decisions"]]
-        name = (
-            "port misses" if label == "port-required" else "false escalations"
-        )
         print(
             f"  {name}: {sum(r['majority'] == bad for r in rows)}/{len(rows)} "
             f"{label} cases by majority, {runs.count(bad)}/{len(runs)} runs"
         )
     all_verdicts = [v for r in results for v in r["verdicts"]]
     print(
-        f"  ambiguous: {all_verdicts.count('ambiguous')}/{len(all_verdicts)} runs, "
+        f"  ambiguous (sent to feedback): {all_verdicts.count('ambiguous')}/{len(all_verdicts)} runs, "
         f"parse-error: {all_verdicts.count('parse-error')}/{len(all_verdicts)} runs"
     )
     for _, f, _ in failures:
