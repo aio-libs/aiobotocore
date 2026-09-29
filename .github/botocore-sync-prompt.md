@@ -71,9 +71,13 @@ re-enters your context. Follow these rules:
 
   ```text
   rtk test uv run --no-sync pytest tests/test_patches.py -x -v
-  rtk test uv run --no-sync pytest tests/botocore_tests/path/test_foo.py -x
+  rtk test uv run --no-sync pytest -m "not localonly" tests/botocore_tests/path/test_foo.py -x
   rtk test uv run poe mototest
   ```
+
+  Pass `-m "not localonly"` whenever you run test files directly (`poe mototest` already does):
+  `localonly` tests talk to real AWS, and this job has no AWS credentials, so they fail with
+  `NoCredentialsError` regardless of your change.
 
   On failure rtk still surfaces the failing tests and tracebacks — that's all you need to act.
 - **Iterate on targeted tests, not the whole suite.** While fixing a port, run only the files
@@ -82,6 +86,9 @@ re-enters your context. Follow these rules:
   repeatedly. The PR you open runs the full suite across the whole Python × backend matrix in
   CI; that, not a local loop, is the comprehensive check. You only need enough local signal to
   be confident the commit is sound.
+- **Run test commands in the foreground and wait for them.** This job ends as soon as you stop,
+  and anything still running in the background is killed with it, so a gate left in the
+  background never reports.
 
 ## Configuration
 

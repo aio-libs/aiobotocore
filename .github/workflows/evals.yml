@@ -5,16 +5,16 @@ run-name: >-
   Evals:
   ${{ inputs.eval || 'both' }}
   (runs=${{ inputs.runs || '3' }}, limit=${{ inputs.limit || '8' }},
-  model=${{ inputs.model || 'default' }}, effort=${{ inputs.effort || 'default' }})
+  model=${{ inputs.model || 'default' }}, effort=${{ inputs.effort || 'default' }}
+  ${{ inputs.cases && format(', cases={0}', inputs.cases) || '' }})
 
 permissions: {}
 
-# Only one evals run active per branch. A new workflow_dispatch on the same
-# ref cancels the prior in-flight run — otherwise a quick re-trigger would
-# double-spend Anthropic tokens for stale input. Scheduled re-triggers on
-# different refs (if ever added) stay independent via the ref in the group.
+# Re-dispatching the same eval, model, effort and cases on a ref cancels the
+# stale in-flight run, so a quick re-trigger doesn't double-spend tokens.
+# Dispatches that differ in any of those run in parallel.
 concurrency:
-  group: evals-${{ github.ref }}
+  group: evals-${{ github.ref }}-${{ inputs.eval }}-${{ inputs.model }}-${{ inputs.effort }}-${{ inputs.cases }}
   cancel-in-progress: true
 
 on:
@@ -37,6 +37,8 @@ on:
         - both
         - check-async-need
         - check-override-drift
+        # not part of `both`: each case is a full agent run of up to 150 turns
+        - check-porting
       model:
         description: Anthropic model ID (empty = DEFAULT_MODEL in evals/_common.py)
         required: false
@@ -315,4 +317,118 @@ jobs:
       with:
         name: drift-results
         path: /tmp/drift-results.json
+        retention-days: 30
+
+  check-porting:
+    if: inputs.eval == 'check-porting'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    environment: claude
+    permissions:
+      contents: read
+    env:
+      EVAL_CASES: ${{ inputs.cases }}
+      EVAL_MODEL: ${{ inputs.model }}
+      EVAL_EFFORT: ${{ inputs.effort }}
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      with:
+        # full history: each case checks out the sync's parent commit
+        fetch-depth: 0
+        persist-credentials: false
+
+    - name: Cache botocore repo
+      # Both evals read botocore at specific tags. Shares the cache key with
+      # botocore-sync.yml; fresh tags are always fetched below.
+      # yamllint disable-line rule:line-length
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+      with:
+        path: /tmp/botocore
+        key: botocore-repo
+
+    - name: Clone or update botocore
+      # Mirrors botocore-sync.yml's step exactly. Bare clone is smaller
+      # (~100MB vs ~200MB) and scenarios.yaml references tags back to
+      # 1.35.x, far past what a shallow clone would cover. On cache hit
+      # the fetch is ~2s; on cache miss the initial clone is ~10-15s.
+      run: |
+        if [ -f /tmp/botocore/HEAD ]; then
+          git -C /tmp/botocore fetch --tags --prune
+        else
+          git clone --bare \
+            https://github.com/boto/botocore.git \
+            /tmp/botocore
+        fi
+
+    - name: Set up uv + Python
+      # yamllint disable-line rule:line-length
+      uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4  # v10.1.0
+      with:
+        version: '0.11.33'
+        python-version: '3.12'
+        enable-cache: auto
+
+    - name: Install dependencies
+      run: uv sync --frozen --group evals
+
+    - name: Install rtk (token-compacting command wrapper)
+      env:
+        RTK_VERSION: v0.42.3
+        RTK_SHA256: 5df764a633709cb85d248258d085d24ec95faa8bca0e6835a93cd57cadc4eb9e
+      run: |
+        # yamllint disable-line rule:line-length
+        url="https://github.com/rtk-ai/rtk/releases/download/${RTK_VERSION}/rtk-x86_64-unknown-linux-musl.tar.gz"
+        curl -fsSL "$url" -o /tmp/rtk.tar.gz
+        echo "${RTK_SHA256}  /tmp/rtk.tar.gz" | sha256sum -c -
+        # Install to /usr/local/bin (already on PATH) instead of writing
+        # $GITHUB_PATH — avoids zizmor's github-env code-execution finding.
+        sudo tar -xzf /tmp/rtk.tar.gz -C /usr/local/bin rtk
+        rtk --version
+
+    - name: Install Claude Code
+      # lockfile-pinned to the version claude-code-action v1.0.236 bundles, so aliases resolve alike
+      run: |
+        npm ci --prefix .github/claude-code --no-audit --no-fund
+        echo "$GITHUB_WORKSPACE/.github/claude-code/node_modules/.bin" >> "$GITHUB_PATH"
+
+    - name: Run check_porting eval
+      env:
+        ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        BOTOCORE_CLONE: /tmp/botocore
+        PYTHONFAULTHANDLER: '1'
+        PYTHONUNBUFFERED: '1'
+      run: |
+        set -o pipefail
+        if [ -z "$EVAL_CASES" ]; then
+          echo "::error::check-porting needs explicit cases (PR numbers)"
+          exit 1
+        fi
+        args=()
+        IFS=',' read -ra arr <<< "$EVAL_CASES"
+        for n in "${arr[@]}"; do args+=(--case "${n// /}"); done
+        if [ -n "$EVAL_MODEL" ]; then args+=(--model "$EVAL_MODEL"); fi
+        if [ -n "$EVAL_EFFORT" ]; then args+=(--effort "$EVAL_EFFORT"); fi
+        uv run python plugins/aiobotocore-bot/evals/check_porting.py \
+          "${args[@]}" \
+          --json-out /tmp/porting-results.json \
+          | tee /tmp/porting-stdout.txt
+
+    - name: Job summary
+      if: always()
+      run: |
+        {
+          echo "# check-porting eval"
+          echo
+          echo '```'
+          tail -n 40 /tmp/porting-stdout.txt || true
+          echo '```'
+        } >> "$GITHUB_STEP_SUMMARY"
+
+    - name: Upload full results
+      if: always()
+      # yamllint disable-line rule:line-length
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+      with:
+        name: porting-results
+        path: /tmp/porting-results.json
         retention-days: 30

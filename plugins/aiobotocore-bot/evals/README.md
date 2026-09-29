@@ -13,7 +13,8 @@ evals/
 ├── drift_scenarios.yaml       # ground truth for check-override-drift (any PR)
 ├── generate_scenarios.py      # stub generator for scenarios.yaml
 ├── check_async_need.py        # eval runner for the check-async-need skill
-└── check_override_drift.py    # eval runner for the check-override-drift skill
+├── check_override_drift.py    # eval runner for the check-override-drift skill
+└── check_porting.py           # eval runner for the botocore-sync porting stage
 ```
 
 ## Running in CI (recommended)
@@ -237,3 +238,24 @@ two drift-specific caveats:
   code. Some behavioral changes (subtle semantics, order-of-operations)
   may be miscategorized as cosmetic. Majority-vote helps but doesn't
   eliminate this class of miss.
+
+## check_porting.py
+
+Replays the botocore-sync porting stage on `port-required` rows of
+`scenarios.yaml`. For each case it checks out aiobotocore at the sync's parent
+commit, runs the classifier the way the `classify` job does, then runs Claude
+Code headless with the production sync prompt, limited to Steps 5-6 (no
+commits, pushes, PRs or issues). Grading needs no LLM judge:
+
+- `tests/test_patches.py` passes against the target botocore
+- the test suite passes on the default aiohttp backend (`-m "not localonly"
+  --http-backend=aiohttp`); the eval environment has no `httpx`, which the
+  CI matrix covers
+- recall and precision of the override functions the agent changed, against
+  the real port's diff (a different correct port can score below 1)
+
+Each case is a full agent run of up to `--max-turns` (default 150), so measure
+one case before running more. CI: `gh workflow run evals.yml -f
+eval=check-porting -f cases=1744`, optionally with `-f model=sonnet -f
+effort=high` (Claude Code model aliases or full ids). It is excluded from
+`eval=both`.
