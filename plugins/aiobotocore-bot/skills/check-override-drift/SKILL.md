@@ -116,11 +116,11 @@ OVERRIDE_DRIFT: clean | cosmetic-drift | behavioral-drift
 
 ## Per-function verdicts
 
-### aiobotocore/_helpers.py :: resolve_awaitable
+### aiobotocore/hooks.py :: AioHierarchicalEmitter._emit
 - verdict: behavioral-drift
 - changes not in matching botocore:
-  - line 12: `if hasattr(obj, '__await__'):` replaces `if inspect.isawaitable(obj):`
-    (different semantics for some awaitable types — not a safe rewrite).
+  - line 12: added `if response is None: continue` — botocore's `_emit` appends every
+    handler response; the guard changes what callers receive and has no async reason.
 - async-explained: no
 
 ### aiobotocore/configprovider.py :: AioSmartDefaultsConfigStoreFactory.merge_smart_defaults

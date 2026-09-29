@@ -62,7 +62,7 @@ re-discover these:
   Do NOT run `uv sync` or `uv pip install botocore==…` again unless a step explicitly
   needs a different version.
 
-## Test efficiency (IMPORTANT — this run is on Opus; output is billed as context)
+## Test efficiency
 
 Verbose test output is the single largest token cost of this job. `poe mototest` runs with
 `-vv --log-cli-level=DEBUG`, so one full run emits tens of thousands of lines — and every line
@@ -131,17 +131,12 @@ code changed. New botocore logic may also need async overrides even if no existi
 
 See "Test directory structure" in `CLAUDE.md` for the layout of `tests/` vs `tests/botocore_tests/`.
 
-## Two-PR model
+## Sync PR
 
-This bot uses two PRs for complex changes:
-
-**WIP PR** (branch: `claude/botocore-sync-wip`, draft): accumulates work across multiple runs. The PR description
-tracks progress and state for handoff between runs. Messy incremental commits are fine.
-
-**Final PR** (branch: `claude/botocore-sync`, ready): clean result for human review. Created only when work is
-complete and tests pass. Changes are squashed from the WIP branch.
-
-For simple changes (no-port, small ports), skip the WIP PR and go directly to the final PR.
+All work goes on one branch, `claude/botocore-sync`, the only branch the commit tool can write to. A port that
+doesn't finish in one run is saved there with the PR left as a **draft** whose description carries the handoff
+(Step 6b); the next run continues on the same branch. The PR is marked ready for review only when the work is
+complete and tests pass (Step 7).
 
 ## Step 1: Check for feedback issue
 
@@ -163,26 +158,19 @@ If an open feedback issue exists:
 
 ## Step 2: Check existing PR state
 
-Check for BOTH PRs:
-
 ```text
-# WIP PR
-gh pr list --head claude/botocore-sync-wip --state open \
-  --json number,title,body,commits,comments \
-  --jq '.[0]'
-
-# Final PR
 gh pr list --head claude/botocore-sync --state all \
-  --json number,state,headRefOid,comments,reviews,commits \
+  --json number,state,isDraft,body,headRefOid,comments,reviews,commits \
   --jq '.[0]'
 ```
 
-**If a WIP PR exists:** this is a continuation of previous work. Read the WIP PR description to understand progress
-and remaining tasks. Checkout `claude/botocore-sync-wip`, skip to Step 5 (port path) and continue from where the
-previous run left off. If $LATEST_BOTOCORE differs from what the WIP targets, ignore the newer version and finish
-the current WIP first.
+**If the PR is an open draft whose description has a `### Remaining` section:** a previous run saved an unfinished
+port (Step 6b). Read the description for progress, decisions and remaining tasks, check out the branch
+(`git fetch origin claude/botocore-sync && git checkout -B claude/botocore-sync origin/claude/botocore-sync`),
+skip to Step 5 and continue from where that run left off. If $LATEST_BOTOCORE differs from the version the draft
+targets, finish the draft's target first. Never reset this branch — it holds the saved work.
 
-**If no WIP but a final PR exists:**
+**Otherwise, if a PR exists:**
 
 *Closed/merged:*
 
@@ -239,9 +227,8 @@ gh api repos/REPO/pulls/PR_NUM/reviews \
 
 - If **no-port**: safe to apply in-place on the dirty branch. Only update `pyproject.toml` upper bound
   and `uv.lock` via `/aiobotocore-bot:update-botocore-bounds --mode=no-port --target=$LATEST_BOTOCORE`.
-  (`aiobotocore/__init__.py` and `CHANGES.rst` are no longer touched per PR — the next
-  `/aiobotocore-bot:draft-release` run picks up the bound change at release time.) Do NOT reset the
-  branch. Update PR title and description.
+  (`aiobotocore/__init__.py` and `CHANGES.rst` belong to `/aiobotocore-bot:draft-release`, which
+  picks up the bound change at release time.) Do NOT reset the branch. Update PR title and description.
 - If **port-required**: do NOT modify the branch. Post a comment on the PR (replacing any previous botocore-sync-bot
   comment) stating: "Botocore $LATEST_BOTOCORE is available but requires code changes. Upgrade is blocked on this
   PR. [botocore diff link]". To replace, search for comments containing "botocore-sync-bot" and delete before
@@ -251,10 +238,9 @@ gh api repos/REPO/pulls/PR_NUM/reviews \
 
 ## Step 3: Use the pre-computed classifier verdict
 
-**The classifier is the authority, not the PR title.** Historical PRs have been
-mislabeled (e.g. a "Bump" title on what was actually a no-port update). If you are
-operating on an existing PR whose title contradicts the classifier's verdict, update the
-PR title to match — don't preserve a wrong inherited label.
+**The classifier is the authority, not the PR title.** Sync PRs share one uniform title
+(Step 7), so never infer the verdict from an existing PR's title; the verdict lives in the
+PR body.
 
 The `classify` job has already run `/aiobotocore-bot:check-async-need` for the target
 range. Use `$CLASSIFIER_VERDICT` directly — do NOT re-invoke the classifier (that
@@ -279,7 +265,7 @@ output), re-run the classifier yourself:
 /aiobotocore-bot:check-async-need --from=$LAST_SUPPORTED --to=$LATEST_BOTOCORE
 ```
 
-This should be rare; the classify job uses Sonnet and has its own retry policy.
+This should be rare.
 
 ### Major bump detection
 
@@ -327,7 +313,7 @@ merged PRs and computes the right version bump.
 
 If new botocore functions we depend on appear in the diff, also add their hashes to `tests/test_patches.py`.
 
-Go directly to Step 7 (no WIP PR needed).
+Go directly to Step 7.
 
 ## Step 5: Port path
 
@@ -374,7 +360,7 @@ feedback instead of guessing.
 4. Run `/aiobotocore-bot:update-botocore-bounds --mode=port --target=$LATEST_BOTOCORE`. The skill
    updates both `pyproject.toml` bounds and runs `uv lock`. It does NOT touch
    `aiobotocore/__init__.py` or `CHANGES.rst` — `draft-release` handles those at release time and
-   will choose a MINOR (or higher) bump because this is a port-required sync.
+   derives the bump level from the lower-bound transition.
 5. Run `/aiobotocore-bot:port-tests --from=$LAST_SUPPORTED --to=$LATEST_BOTOCORE`. The skill identifies
    new/changed tests in the botocore diff for files that have an aiobotocore mirror, applies the
    sync→async conversion rules, validates each ported file with `pytest -x`, and commits on pass.
@@ -417,17 +403,16 @@ absolute counts don't matter — we only care about drift in the files you chang
 If all tests pass and no new pyright errors appeared in touched files, go to Step 7. If tests fail or new pyright
 errors appeared and you cannot resolve them, go to Step 6b to save progress.
 
-## Step 6b: Save progress to WIP PR
+## Step 6b: Save progress on the sync PR
 
-You did not finish in this run. Save your work:
+You did not finish in this run. Save your work on `claude/botocore-sync`:
 
-1. Commit all changes to `claude/botocore-sync-wip`.
-2. Push to `claude/botocore-sync-wip` branch.
-3. Create or update the WIP draft PR with a description that contains ALL information needed for the next run to
-   continue:
+1. Commit all changes with `mcp__github_file_ops__commit_files`.
+2. Create the PR as a draft (`gh pr create --draft`), or, if it exists, make sure it is a draft
+   (`gh pr ready --undo`). Set its description to contain ALL information the next run needs to continue:
 
    ```text
-   ### Botocore sync WIP: [VERSION]
+   ### Botocore sync in progress: [VERSION]
 
    **Target:** botocore [VERSION]
    **Botocore diff:** [URL]
@@ -441,7 +426,7 @@ You did not finish in this run. Save your work:
    ### Remaining
    - [ ] Port: [file] ([what needs to be done])
    - [ ] Port tests for [file]
-   - [ ] Update version, changelog, lock
+   - [ ] Update bounds and lock
 
    ### Decisions made
    [Any design decisions, approaches chosen, and why — so the next run doesn't re-decide]
@@ -457,7 +442,7 @@ You did not finish in this run. Save your work:
    [If waiting on feedback issue, link it here]
    ```
 
-4. Exit. The next scheduled run will pick up from this WIP PR.
+3. Exit. The next scheduled run continues from this draft (Step 2).
 
 ## Step 7: Finalize
 
@@ -466,18 +451,7 @@ All work is complete and tests pass.
 Build botocore diff URL between last supported version and new target:
 `https://github.com/boto/botocore/compare/OLD...NEW`
 
-**If a WIP PR exists:** squash the WIP branch changes into a single commit on `botocore-sync`:
-
-```text
-git checkout -B claude/botocore-sync origin/main
-git merge --squash claude/botocore-sync-wip
-```
-
-After the squash-merge, all ported changes are in the working tree as unstaged modifications. Use
-`mcp__github_file_ops__commit_files` — it reads files by path from the working directory, so the unstaged tree
-is exactly what gets committed (as a signed commit).
-
-**If no WIP PR:** use `mcp__github_file_ops__commit_files` directly.
+Commit with `mcp__github_file_ops__commit_files` (it produces signed commits on `claude/botocore-sync`).
 
 Create or update the final PR via `/aiobotocore-bot:open-pr`:
 
@@ -486,14 +460,14 @@ Create or update the final PR via `/aiobotocore-bot:open-pr`:
   external searchability)
 - `--mode=sync-no-port` or `--mode=sync-port`
 - `--botocore-diff-url=https://github.com/boto/botocore/compare/OLD...NEW`
-- `--async-need-summary="<the summary from /aiobotocore-bot:check-async-need>"` (no-port only)
-- `--classifier-verdicts="<the per-function rationale block from /aiobotocore-bot:check-async-need>"`
+- `--async-need-summary="<the one-line summary under Pre-computed values>"` (no-port only)
+- `--classifier-verdicts="<the per-function rationale table under Pre-computed values>"`
   (both modes — `open-pr` renders this as a markdown table so the human reviewer can spot-check
   each function's verdict and reason without re-running the classifier)
 - `--changed-aiobotocore="<files/classes/tests for port, or 'Version bounds updated only, no code changes.' for no-port>"`
 - `--assumptions="<design decisions>"` (port only, if any)
 
-If a WIP PR exists, close it (post a comment linking to the final PR first).
+If the PR was a draft from Step 6b, mark it ready (`gh pr ready`); `open-pr` has replaced the handoff description.
 
 ## Step 8: Learn and document patterns
 
@@ -528,7 +502,6 @@ it found one, update it.
 
   **Botocore diff:** [link]
   **Sync PR:** [link if exists]
-  **WIP PR:** [link if exists]
 
   ## Questions
 
@@ -555,7 +528,7 @@ it found one, update it.
 - New questions: add a comment with new questions and context. Delete any stale bot comment before posting (so it
   appears at the bottom).
 
-Save progress to WIP PR (Step 6b) if you have partial work, then exit.
+Save progress on the sync PR (Step 6b) if you have partial work, then exit.
 
 ## Retry and failure policy
 

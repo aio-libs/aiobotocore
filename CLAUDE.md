@@ -88,8 +88,8 @@ Both are owned by the AI-drafted release flow:
   since the last tag, computes the next version, writes the changelog entry,
   and opens a `Release vX.Y.Z` PR.
 - `.github/workflows/auto-release-on-merge.yml` runs when that PR merges:
-  creates the tag, drafts the GitHub Release, and the existing tag-push CI
-  publishes to PyPI.
+  creates the tag and a published GitHub Release, then dispatches `ci-cd.yml`
+  for the tag, which publishes to PyPI.
 
 For your feature PR to land in the changelog cleanly, write a
 Conventional-Commits-style title (`fix:`, `feat:`, `BREAKING:`, `docs:`,

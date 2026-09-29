@@ -188,21 +188,16 @@ decisions inside a large-but-bounded problem space.
 2. `sync` (≤60 min, conditional on `needs_update == 'true'`): clone
    botocore into a cached bare repo at `/tmp/botocore`, diff
    `$LAST_SUPPORTED..$LATEST_BOTOCORE`, run the Claude agent with
-   `--max-turns 100`.
+   `--max-turns 150`.
 
-**Two-PR model:**
+**One sync PR:**
 
-The sync prompt explicitly uses two branches:
-
-- `claude/botocore-sync-wip` — draft PR that accumulates incremental
-  commits. Its description is the handoff document: "Completed",
-  "Remaining", "Decisions made", "Context for next run", "Blockers".
-  Run N+1 reads it and continues.
-- `claude/botocore-sync` — the squashed, review-ready PR. Only
-  created once tests pass.
-
-For **no-port** updates (no code changes needed, only bounds bump),
-the bot skips the WIP PR entirely.
+All work goes on `claude/botocore-sync`, the only branch the signed-commit
+MCP tool writes to. A port that doesn't finish in one run is committed there
+and the PR is left as a draft whose description is the handoff document:
+"Completed", "Remaining", "Decisions made", "Context for next run",
+"Blockers". Run N+1 finds the draft, continues on the same branch, and marks
+the PR ready once tests pass.
 
 **Sync flow:**
 
@@ -213,9 +208,9 @@ flowchart TD
     detect --> inrange{target in<br/>supported range?}
     inrange -->|yes| exitOK([Exit: up to date])
     inrange -->|no| step1["Step 1:<br/>read feedback issue<br/>for trusted answers"]
-    step1 --> wipCheck{WIP PR exists?}
-    wipCheck -->|yes| resume[Resume from<br/>WIP PR description]
-    wipCheck -->|no| finalCheck{Final PR exists?}
+    step1 --> draftCheck{In-progress<br/>draft PR?}
+    draftCheck -->|yes| resume[Resume from<br/>draft PR description]
+    draftCheck -->|no| finalCheck{Sync PR exists?}
     finalCheck -->|"dirty<br/>(human commits/reviews)"| dirty[no-port: edit in place<br/>port-required: comment only]
     finalCheck -->|clean or none| diff["git diff<br/>last_supported..target"]
     resume --> port
@@ -225,8 +220,8 @@ flowchart TD
     bumpGate -->|no| feedback[Open / update<br/>feedback issue]
     bumpGate -->|yes| port[Port async overrides,<br/>update hashes,<br/>port tests]
     port --> validate["Run pytest<br/>+ pyright delta"]
-    validate -->|pass| finalize["Squash to<br/>claude/botocore-sync,<br/>create final PR"]
-    validate -->|"fail or<br/>out of turns"| saveWIP[Save to<br/>claude/botocore-sync-wip<br/>with handoff doc]
+    validate -->|pass| finalize["Commit to<br/>claude/botocore-sync,<br/>open or mark PR ready"]
+    validate -->|"fail or<br/>out of turns"| saveWIP[Commit to<br/>claude/botocore-sync,<br/>draft PR with handoff doc]
     noport --> finalize
     dirty --> exitOK
     finalize --> exitOK
@@ -650,8 +645,8 @@ allows. Keep messages actionable — the model uses them to course-correct.
 3. The `Usage summary` step shows cost and turn count — a run that
    hit `--max-turns` typically needs a different prompt, not a
    higher turn limit.
-4. For sync runs, the WIP PR description is often the clearest
-   record of where the previous run stopped. Read it first.
+4. For an unfinished port, the draft sync PR's description is often
+   the clearest record of where the previous run stopped. Read it first.
 
 ### Updating pinned actions
 
@@ -696,7 +691,7 @@ git log -- .github/workflows/claude.yml \
   dispatch fix (`IS_PR`), `gh auth setup-git`, PreToolUse hook switched
   from blocking `git commit` to blocking `git push` to main/master.
 - [#1551](https://github.com/aio-libs/aiobotocore/pull/1551) — Improved
-  sync prompt: two-PR model, feedback-issue loop, dry-run input.
+  sync prompt: draft-PR handoff, feedback-issue loop, dry-run input.
 - [#1552](https://github.com/aio-libs/aiobotocore/pull/1552) — Guarantee
   summary replies on @claude runs (they were being silently dropped).
 - [#1553](https://github.com/aio-libs/aiobotocore/pull/1553) — Extract

@@ -48,9 +48,9 @@ design; this README only covers the plugin itself.
   `aiobotocore/__init__.py`, and open a `Release vX.Y.Z` PR. Triggered
   by `.github/workflows/draft-release.yml` (manual via Actions UI).
   Merge of the release PR triggers
-  `.github/workflows/auto-release-on-merge.yml` which creates the tag,
-  drafts a GitHub Release, builds the dist, and publishes to PyPI via
-  the shared `reusable-publish.yml` workflow.
+  `.github/workflows/auto-release-on-merge.yml`, which creates the tag
+  and a published GitHub Release, then dispatches `ci-cd.yml` for the
+  tag to build the dist and publish it to PyPI.
 - `/aiobotocore-bot:port-tests [--from=<ver> --to=<ver>] [--backfill] [--paths=...]`
   — convert botocore tests to aiobotocore-equivalent async form.
   Two modes: port-PR (given a botocore version range, port new/changed

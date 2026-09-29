@@ -4,10 +4,9 @@ argument-hint: "--mode=no-port|port --target=VERSION [--lower-bound=VERSION]"
 allowed-tools: Bash(uv lock:*) Bash(uv pip:*) Bash(curl:*) Bash(cat:*) Bash(grep:*) Bash(sed:*) Bash(python3:*) mcp__github_file_ops__commit_files
 ---
 
-> **Scope:** botocore-sync only. The skill formerly known as
-> `bump-version` was renamed and scoped down: contributors no longer
-> bump `aiobotocore/__init__.py` or edit `CHANGES.rst` per PR. Both are
-> handled at release time by `/aiobotocore-bot:draft-release`.
+> **Scope:** botocore-sync only. `aiobotocore/__init__.py` and
+> `CHANGES.rst` are written at release time by
+> `/aiobotocore-bot:draft-release`.
 
 Update the botocore dependency bounds in `pyproject.toml` and refresh
 `uv.lock`. That's it — two files, one mechanical change. Use this so

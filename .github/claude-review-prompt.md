@@ -96,13 +96,9 @@ no-op. Exit without posting a summary or swapping the reaction.
 
 ## Review the PR (only when EVENT=pull_request)
 
-**Do not pre-read files or spawn Agent subagents to gather context before invoking `review-pr`.**
-The skill fetches the PR diff itself and reads only files it genuinely needs to verify specific
-findings. A common anti-pattern is spawning 3 parallel Agents that each read 5-9 files, then the
-main agent re-reads those files to verify — ~55 full-file reads, most redundant. On a 20-file PR
-that adds ~90 seconds of wallclock for no benefit (cached or not — model latency per turn is the
-bottleneck, not token cost). Prefer `Grep` for pattern checks (`--mode=relax` gone?) and reserve
-`Read` for when structural context actually matters.
+Invoke `review-pr` directly rather than pre-reading files or spawning subagents first: the skill
+fetches the diff itself and reads the files it needs to verify findings, so upfront reads only
+duplicate that work and add per-turn latency.
 
 Run `/aiobotocore-bot:review-pr --comment` (invoke the `review-pr` skill via the `Skill`
 tool with `aiobotocore-bot:review-pr`). This reviews the PR diff checking for:
@@ -224,8 +220,8 @@ IMPORTANT: Never merge or close pull requests. Never close issues. These actions
 End-of-run cleanup via `/aiobotocore-bot:complete-run`. The skill posts the summary reply to the right target
 (inline thread vs top-level PR comment vs issue comment, based on `--event`) and swaps the 👀 reaction for 👍.
 
-`claude.yml` enables `use_sticky_comment: true` + `track_progress: true`, so claude-code-action automatically
-posts a top-level PR comment containing your final assistant message. For events whose natural reply target
+`claude.yml` enables `use_sticky_comment: true` + `track_progress: true`, so the run has one top-level PR
+comment whose body you set (see "Progress checklist (sticky comment)"). For events whose natural reply target
 *is* a top-level PR comment, that sticky comment already serves as the reply — passing `--skip-reply` to
 `complete-run` avoids duplicate top-level comments. For inline-thread replies (`pull_request_review_comment`)
 and issue threads (`issues`), the sticky comment is on a different surface, so `complete-run` still needs to

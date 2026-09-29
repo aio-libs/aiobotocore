@@ -168,13 +168,11 @@ function in aiobotocore's world), check the diff for callers:
 
 ## Step 4: Output format
 
-**When invoked via the eval harness**: the caller forces a structured
-tool call (`record_async_need_classification`). Reason through each
-changed function in text (quote the exact `overrides` / `async_methods`
-/ `aio_classes` match for every port-required verdict), then call the
-tool ONCE with `verdict` and a `rationale` that contains the per-function
-breakdown + a roll-up summary. The tool call is the authoritative
-output.
+**When invoked via the eval harness**: the response is constrained to a
+JSON object with `verdict` and `rationale`. Put the per-function
+breakdown in `rationale` (quote the exact `overrides` / `async_methods`
+/ `aio_classes` match for every port-required verdict), followed by a
+roll-up summary. The JSON is the authoritative output.
 
 **When invoked directly (human via slash command or agent without tool
 schema)**: emit the following plain text at the END of your response,
@@ -196,11 +194,10 @@ Either way, the roll-up rule: any function port-required → top-line
 port-required; any ambiguous and none port-required → ambiguous; every
 function pure-sync → no-port.
 
-### HASH-BUMP IS NOT A PORT CONCERN
+### Hash bumps are not a port signal
 
-A recurring trap: when an upstream change will cause a
-`tests/test_patches.py` hash to change, the temptation is to flag
-port-required because "the hash will fail." That is WRONG.
+When an upstream change will cause a `tests/test_patches.py` hash to
+change, that alone does not make it port-required.
 
 `tests/test_patches.py` hashes get bumped mechanically as part of every
 sync (port or no-port). A hash change is a build consequence, not a
@@ -209,14 +206,6 @@ classification signal. If the only reason you can articulate for
 correct verdict is NOT port-required — it's whatever the async-need
 rules say (typically `pure-sync`, with a hash bump done by the caller
 mechanically during sync).
-
-Roll-up rules:
-
-- `no-port` iff every per-function verdict is `pure-sync`.
-- `port-required` iff any verdict is `needs-async` (or `port-required`
-  by any other path through the algorithm).
-- `ambiguous` iff no `needs-async` but at least one `ambiguous` — the
-  caller must resolve before treating as `no-port`.
 
 ## Honesty
 
@@ -239,12 +228,12 @@ These patterns are hard for a static classifier to catch; emit
 
 ## Consumption
 
-**Sync bot** (`botocore-sync-prompt.md`): runs this as the Step 3
-classifier. If `no-port`, proceed to Step 4 (no-port path) and quote the
-summary in the PR body. If `port-required`, go to Step 5 (bump path).
-If `ambiguous`, escalate via Step 9 (feedback issue).
+**Sync bot**: the `classify` job (`botocore-classify-prompt.md`) runs
+this and hands the verdict to the `sync` job, which takes the no-port
+path on `no-port`, the port path on `port-required`, and escalates via a
+feedback issue on `ambiguous`.
 
-**Reviewer** (`review-pr` skill): runs this in Step 3d on sync-bot PRs,
+**Reviewer** (`review-pr` skill): runs this in Step 3e on sync-bot PRs,
 extracting `$FROM` / `$TO` from the PR body. If the PR claims no-port
 but this skill returns `port-required` or `ambiguous`, flag the
 mismatch as high-confidence.
