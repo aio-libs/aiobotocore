@@ -31,10 +31,13 @@ Key constraints:
 # Tests
 
 ```bash
-uv run pytest -sv tests/<path>           # run specific tests
-uv run poe mototest                      # moto-based tests (CI runs these)
-uv run pytest -sv tests/test_patches.py  # hash validation
+uv run pytest -sv -m "not localonly" tests/<path>  # run specific tests
+uv run poe mototest                                # moto-based tests (CI runs these)
+uv run pytest -sv tests/test_patches.py            # hash validation
 ```
+
+`localonly` tests talk to real AWS and fail with `NoCredentialsError` without credentials;
+`-m "not localonly"` skips them, as `poe mototest` does.
 
 ## Naming moto resources
 
