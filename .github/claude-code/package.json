@@ -1,0 +1,7 @@
+{
+  "private": true,
+  "description": "Claude Code CLI for the porting eval, pinned to the version claude-code-action v1.0.236 bundles",
+  "dependencies": {
+    "@anthropic-ai/claude-code": "2.1.284"
+  }
+}

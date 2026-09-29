@@ -391,8 +391,10 @@ jobs:
     # fast when the version is already cached.
 
     - name: Install Claude Code
-      # the version claude-code-action v1.0.236 bundles, so aliases resolve alike
-      run: npm install -g @anthropic-ai/claude-code@2.1.284
+      # lockfile-pinned to the version claude-code-action v1.0.236 bundles, so aliases resolve alike
+      run: |
+        npm ci --prefix .github/claude-code --no-audit --no-fund
+        echo "$GITHUB_WORKSPACE/.github/claude-code/node_modules/.bin" >> "$GITHUB_PATH"
 
     - name: Run check_porting eval
       env:
