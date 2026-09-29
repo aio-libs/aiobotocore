@@ -172,6 +172,7 @@ def run_agent(cmd: list[str], cwd: Path, timeout: int) -> dict:
         timed_out = not timer.is_alive()
         timer.cancel()
         _kill_group(proc.pid)
+        proc.stdout.close()
         subprocess.run(["pkill", "-9", "-f", str(cwd)])
     if result is None:
         reason = (

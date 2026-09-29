@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import importlib
+import json
+import subprocess
 from unittest.mock import patch
 
 import pytest
@@ -63,6 +65,60 @@ def test_override_changes_names_changed_defs() -> None:
         "+b\n"
     )
     with patch.object(porting, "_git_show", return_value=base):
-        assert porting.override_changes(diff, "abc^") == {
+        assert porting.override_changes(diff, "abc^", pytest.fail) == {
             "aiobotocore/endpoint.py :: AioEndpoint._needs_retry"
         }
+
+
+def test_override_changes_names_defs_in_new_files() -> None:
+    new = "class AioFoo:\n    async def bar(self):\n        return 1\n"
+    diff = (
+        "diff --git a/aiobotocore/foo.py b/aiobotocore/foo.py\n"
+        "new file mode 100644\n"
+        "--- /dev/null\n"
+        "+++ b/aiobotocore/foo.py\n"
+        "@@ -0,0 +1,3 @@\n"
+        + "".join(f"+{line}\n" for line in new.splitlines())
+    )
+    missing = subprocess.CalledProcessError(128, "git show")
+    with patch.object(porting, "_git_show", side_effect=missing):
+        assert porting.override_changes(diff, "abc^", lambda path: new) == {
+            "aiobotocore/foo.py :: AioFoo",
+            "aiobotocore/foo.py :: AioFoo.bar",
+        }
+
+
+def test_run_agent_returns_the_result_event(tmp_path) -> None:
+    stream = tmp_path / "stream.jsonl"
+    events = [
+        {"type": "system", "subtype": "init"},
+        {
+            "type": "assistant",
+            "message": {
+                "content": [
+                    {
+                        "type": "tool_use",
+                        "name": "Bash",
+                        "input": {"command": "ls"},
+                    }
+                ]
+            },
+        },
+        {"type": "result", "is_error": False, "num_turns": 2},
+    ]
+    stream.write_text("not json\n" + "\n".join(map(json.dumps, events)) + "\n")
+    assert porting.run_agent(["cat", str(stream)], tmp_path, 30) == events[-1]
+
+
+def test_run_agent_reports_a_missing_result(tmp_path) -> None:
+    assert porting.run_agent(["true"], tmp_path, 30) == {
+        "is_error": True,
+        "result": "exited without a result",
+    }
+
+
+def test_run_agent_times_out(tmp_path) -> None:
+    assert porting.run_agent(["sleep", "30"], tmp_path, 1) == {
+        "is_error": True,
+        "result": "timed out after 1s",
+    }
