@@ -385,11 +385,6 @@ jobs:
         sudo tar -xzf /tmp/rtk.tar.gz -C /usr/local/bin rtk
         rtk --version
 
-    # Pre-install the target botocore version so the agent can immediately
-    # inspect the new source (for hash refresh + diff context) without a
-    # discovery + install round-trip. `uv pip install` is idempotent and
-    # fast when the version is already cached.
-
     - name: Install Claude Code
       # lockfile-pinned to the version claude-code-action v1.0.236 bundles, so aliases resolve alike
       run: |

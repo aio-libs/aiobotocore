@@ -124,7 +124,10 @@ def run_agent(cmd: list[str], cwd: Path, timeout: int) -> str:
     try:
         out, _ = proc.communicate(timeout=timeout)
     except subprocess.TimeoutExpired:
-        out = ""
+        # --output-format json writes its result only at the end, so there is nothing partial to keep
+        out = json.dumps(
+            {"is_error": True, "result": f"timed out after {timeout}s"}
+        )
     finally:
         with contextlib.suppress(ProcessLookupError):
             os.killpg(proc.pid, signal.SIGKILL)
