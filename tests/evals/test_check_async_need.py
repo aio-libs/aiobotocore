@@ -14,12 +14,12 @@ check_async_need = importlib.import_module("check_async_need")
     ("verdict", "expected"),
     [
         ("no-port", "no-port"),
-        ("port-required", "escalate"),
-        ("ambiguous", "escalate"),
+        ("port-required", "port"),
+        ("ambiguous", "feedback"),
         ("parse-error", "parse-error"),
     ],
 )
-def test_decision_counts_ambiguous_as_escalation(
+def test_decision_maps_verdicts_to_sync_actions(
     verdict: str, expected: str
 ) -> None:
     assert check_async_need.decision(verdict) == expected

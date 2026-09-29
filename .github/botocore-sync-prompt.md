@@ -26,9 +26,6 @@ Use this list as the starting point for Step 5 (port path) instead of re-running
 `git diff --name-only` and walking the mirror tree. The list excludes files without an
 existing aiobotocore mirror (those are out of scope per `port-tests` skill rules).
 
-If `$CLASSIFIER_VERDICT` is empty (rare — only when the classify job failed entirely),
-re-run the classifier yourself in Step 3 as a fallback.
-
 ## Pre-set-up environment
 
 The workflow has already prepared everything you need — do NOT re-clone, re-install, or
@@ -164,11 +161,19 @@ gh pr list --head claude/botocore-sync --state all \
   --jq '.[0]'
 ```
 
-**If the PR is an open draft whose description has a `### Remaining` section:** a previous run saved an unfinished
-port (Step 6b). Read the description for progress, decisions and remaining tasks, check out the branch
-(`git fetch origin claude/botocore-sync && git checkout -B claude/botocore-sync origin/claude/botocore-sync`),
-skip to Step 5 and continue from where that run left off. If $LATEST_BOTOCORE differs from the version the draft
-targets, finish the draft's target first. Never reset this branch — it holds the saved work.
+**If the PR is an open draft:** only Step 6b leaves the sync PR as a draft, so a previous run saved an unfinished
+port. Check out the branch
+(`git fetch origin claude/botocore-sync && git checkout -B claude/botocore-sync origin/claude/botocore-sync`) and
+never reset it — it holds the saved work.
+
+- The draft's **Target** version is this run's target: use it in place of `$LATEST_BOTOCORE` everywhere below
+  (bounds, botocore diffs, test porting). The pre-computed classifier values describe the newly detected
+  version, so don't use them; take the per-function verdicts for Step 7 from the draft description. The next run
+  picks up the newer version.
+- If the description still has a `### Remaining` section, read it for progress, decisions and remaining tasks,
+  and continue at Step 5 from where that run left off.
+- If it doesn't, the previous run had reached Step 7 and replaced it before marking the PR ready: go to Step 6 to
+  re-validate, then Step 7.
 
 **Otherwise, if a PR exists:**
 
@@ -257,15 +262,6 @@ Branch on `$CLASSIFIER_VERDICT`:
 - `ambiguous` → Escalate via Step 9 with the ambiguous verdicts as feedback questions.
 - `error` → The classifier itself failed. Treat as `ambiguous`: escalate via Step 9 with
   the error message (in `$CLASSIFIER_SUMMARY`) as context. Never silently assume no-port.
-
-**Fallback:** if `$CLASSIFIER_VERDICT` is empty (the classify job failed before producing
-output), re-run the classifier yourself:
-
-```text
-/aiobotocore-bot:check-async-need --from=$LAST_SUPPORTED --to=$LATEST_BOTOCORE
-```
-
-This should be rare.
 
 ### Major bump detection
 
@@ -417,6 +413,9 @@ You did not finish in this run. Save your work on `claude/botocore-sync`:
    **Target:** botocore [VERSION]
    **Botocore diff:** [URL]
    **Type:** port (minor)
+
+   ### Classifier verdicts
+   [the per-function table from $CLASSIFIER_RATIONALE, verbatim]
 
    ### Completed
    - [x] Analysis: [summary of categorized changes]
