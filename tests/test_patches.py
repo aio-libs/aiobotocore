@@ -954,6 +954,66 @@ def test_protocol_parsers():
             },
         ),
         (
+            StreamingBody.close,
+            {
+                '02ce1a7e251c4892ec4edb06f835de7cb25f96ac',
+            },
+        ),
+        (
+            StreamingBody.iter_chunks,
+            {
+                '7c9d767628ff2663629f1072edeca315a45c324e',
+            },
+        ),
+        (
+            StreamingBody.iter_lines,
+            {
+                'c375ad089175c2bd3c98c02015e98b4cd257ab57',
+            },
+        ),
+        (
+            StreamingBody.next,
+            {
+                '62f0e69f3949a453285cb66f0fde07fd56700585',
+            },
+        ),
+        (
+            StreamingBody.read,
+            {
+                '197c7a0d6e7c5a75fcb3ef8afcfaf546f110c039',
+            },
+        ),
+        (
+            StreamingBody.readable,
+            {
+                '3f3a08bb9d6fe013adbce20991d17622ad4cfbeb',
+            },
+        ),
+        (
+            StreamingBody.readinto,
+            {
+                'acd81b8c85af5a757c7177c8e020218cba36cde6',
+            },
+        ),
+        (
+            StreamingBody.readlines,
+            {
+                'c8b58453ca175b1c0f0189a2f8f21b6b1c85c086',
+            },
+        ),
+        (
+            StreamingBody.set_socket_timeout,
+            {
+                'f3560fee3b5c3c9bda51a99b8894a9c297f44c5c',
+            },
+        ),
+        (
+            StreamingBody.tell,
+            {
+                'f04a48096cbbf0b18af749d21e4223c1e4430f00',
+            },
+        ),
+        (
             get_response,
             {
                 'ea8686ae71fae32410e2f1774e5774d6715dd492',
@@ -1569,6 +1629,30 @@ def test_protocol_parsers():
             StreamingChecksumBody,
             {
                 '066ff0ab92d569e3cd61890c75d3317eeacb7e97',
+            },
+        ),
+        (
+            StreamingChecksumBody._validate_checksum,
+            {
+                'a796b1d22e428955a1715ee69dbf92e0d88d9481',
+            },
+        ),
+        (
+            StreamingChecksumBody.checksum,
+            {
+                'ddedbd3ff48ca038bc92c1053d24a852a9833e8c',
+            },
+        ),
+        (
+            StreamingChecksumBody.read,
+            {
+                '8cb8c1fa37c392644376e691e7940f93738a9f13',
+            },
+        ),
+        (
+            StreamingChecksumBody.readinto,
+            {
+                'b1c1e9beb00edf1a281fd27cfa8d1c5e4c8bd25e',
             },
         ),
         (

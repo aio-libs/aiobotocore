@@ -263,7 +263,7 @@ scenarios:
 
 - pr: 1376
   title: "Bump `botocore` dependency specification"
-  expected: port-required
+  expected: no-port
   from: "1.38.36"
   to: "1.38.46"
   merge_commit: a2a236c61e4d7f5090f6a8b2c2f0a7e3c7831ae0
@@ -282,11 +282,14 @@ scenarios:
   - botocore/utils.py
   - botocore/waiter.py
   rationale: |
-    Port required: botocore modified existing overridden functions in __init__.py, args.py,
-    client.py, handlers.py, paginate.py, response.py, session.py, signers.py, utils.py, waiter.py
-    with 55 added non-comment line(s) and aiobotocore's overrides
-    updated to match.
-  notes: null
+    No behavior to port. The botocore changes to mirrored files were import
+    consolidation, merged adjacent string literals, and the version bump.
+    aiobotocore mirrored the same formatting, but no overridden function's
+    logic changed.
+  notes: |
+    Hand-relabeled from port-required: aiobotocore_port_happened() fires on
+    the cosmetic mirroring in paginate.py, session.py and waiter.py.
+    generate_scenarios.py would re-derive port-required; keep this label.
 
 - pr: 1387
   title: "Bump `botocore` dependency specification"

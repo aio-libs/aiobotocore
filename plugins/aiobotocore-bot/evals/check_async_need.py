@@ -90,6 +90,7 @@ class Case:
     from_ver: str
     to_ver: str
     expected: str  # "no-port" | "port-required"
+    merge_commit: str
 
 
 def _case_from_dict(d: dict[str, str]) -> Case:
@@ -99,11 +100,14 @@ def _case_from_dict(d: dict[str, str]) -> Case:
         from_ver=d["from"],
         to_ver=d["to"],
         expected=d["expected"],
+        merge_commit=d["merge_commit"],
     )
 
 
 def load_scenarios_yaml(path: Path) -> list[Case] | None:
-    rows = parse_scenarios_yaml(path, {"title", "expected", "from", "to"})
+    rows = parse_scenarios_yaml(
+        path, {"title", "expected", "from", "to", "merge_commit"}
+    )
     return [_case_from_dict(r) for r in rows] if rows else None
 
 
@@ -128,6 +132,7 @@ def list_historical_cases(limit: int) -> list[Case]:
                 from_ver=from_ver,
                 to_ver=to_ver,
                 expected=expected,
+                merge_commit=pr["mergeCommit"]["oid"],
             )
         )
         if len(cases) >= limit:
@@ -305,16 +310,6 @@ async def main() -> int:
     require_env("ANTHROPIC_API_KEY")
 
     skill_body = load_skill_body(SKILL_PATH)
-    overridden = overridden_paths()
-    override_symbols = overridden_symbols()
-    async_methods, aio_classes = async_names()
-    print(
-        f"Overridden files: {len(overridden)} ({', '.join(sorted(overridden)[:3])}, ...)"
-    )
-    print(
-        f"Registries: overrides={len(override_symbols)} "
-        f"async_methods={len(async_methods)} aio_classes={len(aio_classes)}"
-    )
 
     # Prefer the committed scenarios.yaml (faster, deterministic, has rationales).
     yaml_cases = load_scenarios_yaml(SCENARIOS_PATH)
@@ -337,13 +332,22 @@ async def main() -> int:
 
     client = new_client()
 
-    # Pre-compute diffs once per case (used by all N runs).
+    # Registries as of each sync's parent, so later overrides don't leak the answer.
     diffs: dict[int, str] = {}
+    registries: dict[int, tuple[set[str], set[str], set[str]]] = {}
     for case in cases:
+        parent = f"{case.merge_commit}^"
         try:
-            diffs[case.pr] = compute_filtered_diff(case, overridden)
+            diffs[case.pr] = compute_filtered_diff(
+                case, overridden_paths(parent)
+            )
         except RuntimeError as e:
             print(f"  SKIP #{case.pr}: {e}")
+            continue
+        registries[case.pr] = (
+            overridden_symbols(parent),
+            *async_names(parent),
+        )
 
     runnable = [c for c in cases if c.pr in diffs]
 
@@ -352,7 +356,9 @@ async def main() -> int:
         if not diff.strip():
             return ("no-port", "")
         user = build_user_message(
-            case, diff, override_symbols, async_methods, aio_classes
+            case,
+            diff,
+            *registries[case.pr],
         )
         verdict, raw, _parsed = await invoke_and_classify(
             client,
@@ -436,7 +442,9 @@ async def main() -> int:
             if not diff.strip() or not rationales or not rationales[0]:
                 continue
             user = build_user_message(
-                case, diff, override_symbols, async_methods, aio_classes
+                case,
+                diff,
+                *registries[case.pr],
             )
             followup = await followup_on_misclassification(
                 client,

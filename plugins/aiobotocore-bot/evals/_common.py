@@ -130,22 +130,39 @@ def load_skill_body(path: Path) -> str:
     return text
 
 
-def overridden_paths() -> set[str]:
-    """Relative paths of every aiobotocore/*.py file.
+def _git_show(commit: str, path: str) -> str:
+    return subprocess.check_output(
+        ["git", "show", f"{commit}:{path}"], cwd=REPO_ROOT, text=True
+    )
+
+
+def overridden_paths(commit: str | None = None) -> set[str]:
+    """Relative paths of every aiobotocore/*.py file, at `commit` if given.
 
     Full relative paths (via rglob) so nested files like retries/adaptive.py
     are covered and botocore/docs/client.py doesn't falsely match by basename.
     """
+    if commit is None:
+        return {
+            p.relative_to(AIOBOTOCORE_DIR).as_posix()
+            for p in AIOBOTOCORE_DIR.rglob("*.py")
+        }
+    out = subprocess.check_output(
+        ["git", "ls-tree", "-r", "--name-only", commit, "--", "aiobotocore/"],
+        cwd=REPO_ROOT,
+        text=True,
+    )
     return {
-        p.relative_to(AIOBOTOCORE_DIR).as_posix()
-        for p in AIOBOTOCORE_DIR.rglob("*.py")
+        line.removeprefix("aiobotocore/")
+        for line in out.splitlines()
+        if line.endswith(".py")
     }
 
 
 TEST_PATCHES_PATH = REPO_ROOT / "tests/test_patches.py"
 
 
-def overridden_symbols() -> set[str]:
+def overridden_symbols(commit: str | None = None) -> set[str]:
     """Parse tests/test_patches.py and return the set of botocore symbols
     aiobotocore overrides.
 
@@ -164,7 +181,12 @@ def overridden_symbols() -> set[str]:
       tracked.
     """
     names: set[str] = set()
-    tree = ast.parse(TEST_PATCHES_PATH.read_text())
+    source = (
+        TEST_PATCHES_PATH.read_text()
+        if commit is None
+        else _git_show(commit, "tests/test_patches.py")
+    )
+    tree = ast.parse(source)
     for node in ast.walk(tree):
         if not isinstance(node, ast.Tuple) or len(node.elts) != 2:
             continue
@@ -195,7 +217,7 @@ _SYNC_BUT_CONTAMINATED_NAMES: frozenset[str] = frozenset(
 )
 
 
-def async_names() -> tuple[set[str], set[str]]:
+def async_names(commit: str | None = None) -> tuple[set[str], set[str]]:
     """Scan aiobotocore/**/*.py for async surfaces.
 
     Returns two sets:
@@ -214,9 +236,16 @@ def async_names() -> tuple[set[str], set[str]]:
     """
     method_names: set[str] = set(_SYNC_BUT_CONTAMINATED_NAMES)
     class_names: set[str] = set()
-    for path in AIOBOTOCORE_DIR.rglob("*.py"):
+    if commit is None:
+        sources = (path.read_text() for path in AIOBOTOCORE_DIR.rglob("*.py"))
+    else:
+        sources = (
+            _git_show(commit, f"aiobotocore/{rel}")
+            for rel in sorted(overridden_paths(commit))
+        )
+    for source in sources:
         try:
-            tree = ast.parse(path.read_text())
+            tree = ast.parse(source)
         except SyntaxError:
             continue
         for node in ast.walk(tree):
