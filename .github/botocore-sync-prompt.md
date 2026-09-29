@@ -167,9 +167,9 @@ port. Check out the branch
 never reset it — it holds the saved work.
 
 - The draft's **Target** version is this run's target: use it in place of `$LATEST_BOTOCORE` everywhere below
-  (bounds, botocore diffs, test porting). The pre-computed classifier values describe the newly detected
-  version, so don't use them; take the per-function verdicts for Step 7 from the draft description. The next run
-  picks up the newer version.
+  (bounds, botocore diffs, test porting). The classify job is skipped while a draft exists, so the pre-computed
+  classifier values and affected-file list are empty; take the per-function verdicts for Step 7 from the draft
+  description. The next run picks up the newer version.
 - If the description still has a `### Remaining` section, read it for progress, decisions and remaining tasks,
   and continue at Step 5 from where that run left off.
 - If it doesn't, the previous run had reached Step 7 and replaced it before marking the PR ready: go to Step 6 to
