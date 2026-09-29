@@ -19,6 +19,12 @@ Env:
     ANTHROPIC_API_KEY — required
     BOTOCORE_CLONE    — optional, default /tmp/botocore (bare clone of boto/botocore)
 
+Scored on the production decision, not the exact label: botocore-sync
+escalates every verdict except `no-port` to the porting stage, so
+`ambiguous` counts as an escalation. A port-required case judged `no-port`
+is a port miss, the costly error; a no-port case escalated is a false
+escalation, which only costs an extra porting run.
+
 Exits 0 if every case passes the majority vote, 1 otherwise.
 """
 
@@ -66,6 +72,15 @@ BOTOCORE_CLONE = Path(os.environ.get("BOTOCORE_CLONE", "/tmp/botocore"))
 CLASSIFY_SCHEMA = classify_output_schema(
     verdict_enum=["no-port", "port-required", "ambiguous"],
 )
+
+
+def decision(verdict: str) -> str:
+    """Map a classifier verdict to what botocore-sync does with it."""
+    if verdict == "no-port":
+        return "no-port"
+    if verdict in ("port-required", "ambiguous"):
+        return "escalate"
+    return verdict
 
 
 @dataclass
@@ -358,15 +373,17 @@ async def main() -> int:
     for case, pairs in zip(runnable, per_case_verdicts, strict=True):
         verdicts = [v for v, _ in pairs]
         rationales = [r for _, r in pairs]
+        want = decision(case.expected)
+        decisions = [decision(v) for v in verdicts]
         print(f"\n#{case.pr} [{case.expected}] {case.title}")
         print(
             f"  from={case.from_ver} to={case.to_ver} diff={diffs[case.pr].count(chr(10))} lines"
         )
-        for i, v in enumerate(verdicts, 1):
-            ok = "PASS" if v == case.expected else "FAIL"
+        for i, (v, d) in enumerate(zip(verdicts, decisions, strict=True), 1):
+            ok = "PASS" if d == want else "FAIL"
             print(f"  run {i}: {v}  {ok}")
-        majority, count = Counter(verdicts).most_common(1)[0]
-        passed = majority == case.expected and count > args.runs // 2
+        majority, count = Counter(decisions).most_common(1)[0]
+        passed = majority == want and count > args.runs // 2
         status = "PASS" if passed else "FAIL"
         print(f"  majority {majority} ({count}/{args.runs}): {status}")
         result = {
@@ -376,6 +393,7 @@ async def main() -> int:
             "to": case.to_ver,
             "expected": case.expected,
             "verdicts": verdicts,
+            "decisions": decisions,
             "rationales": rationales,
             "majority": majority,
             "passed": passed,
@@ -386,6 +404,21 @@ async def main() -> int:
 
     print(
         f"\n== Summary: {len(results) - len(failures)}/{len(results)} passed =="
+    )
+    for label, bad in (("port-required", "no-port"), ("no-port", "escalate")):
+        rows = [r for r in results if r["expected"] == label]
+        runs = [d for r in rows for d in r["decisions"]]
+        name = (
+            "port misses" if label == "port-required" else "false escalations"
+        )
+        print(
+            f"  {name}: {sum(r['majority'] == bad for r in rows)}/{len(rows)} "
+            f"{label} cases by majority, {runs.count(bad)}/{len(runs)} runs"
+        )
+    all_verdicts = [v for r in results for v in r["verdicts"]]
+    print(
+        f"  ambiguous: {all_verdicts.count('ambiguous')}/{len(all_verdicts)} runs, "
+        f"parse-error: {all_verdicts.count('parse-error')}/{len(all_verdicts)} runs"
     )
     for _, f, _ in failures:
         print(
@@ -413,7 +446,7 @@ async def main() -> int:
                 args.effort,
                 rationales[0],
                 case.expected,
-                result["majority"],
+                Counter(result["verdicts"]).most_common(1)[0][0],
             )
             result["debug_followup"] = followup
             print(f"\n--- #{case.pr} follow-up ---\n{followup}\n")
