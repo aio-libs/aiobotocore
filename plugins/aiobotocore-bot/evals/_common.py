@@ -22,9 +22,10 @@ import anthropic
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 AIOBOTOCORE_DIR = REPO_ROOT / "aiobotocore"
-DEFAULT_MODEL = "claude-opus-5-5"
+# Matches the botocore-sync classify job; tied Opus 5.5 (8/8) at about half the cost.
+DEFAULT_MODEL = "claude-sonnet-5-5"
 # Pinned explicitly: the API default differs per model (Opus 5.5 `medium`, Sonnet 5.5 `high`).
-DEFAULT_EFFORT = "medium"
+DEFAULT_EFFORT = "high"
 EFFORT_LEVELS = ("low", "medium", "high", "xhigh", "max")
 
 UPPER_RE = re.compile(r'"botocore\s*>=\s*[\d.]+\s*,\s*<\s*([\d.]+)"')
@@ -39,18 +40,6 @@ MODEL_PRICING: dict[str, dict[str, float]] = {
         "cache_read": 0.20,
     },
     "claude-sonnet-5-5": {
-        "input": 2.0,
-        "output": 10.0,
-        "cache_write_5m": 2.5,
-        "cache_read": 0.20,
-    },
-    "claude-opus-5": {
-        "input": 5.0,
-        "output": 25.0,
-        "cache_write_5m": 6.25,
-        "cache_read": 0.50,
-    },
-    "claude-sonnet-5": {
         "input": 2.0,
         "output": 10.0,
         "cache_write_5m": 2.5,

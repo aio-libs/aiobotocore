@@ -160,6 +160,7 @@ jobs:
           --dangerously-skip-permissions
           --plugin-dir plugins/aiobotocore-bot
           --model sonnet
+          --effort high
         # yamllint disable rule:line-length
         settings: |
           {

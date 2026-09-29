@@ -293,6 +293,7 @@ jobs:
           --dangerously-skip-permissions
           --max-turns 30
           --model sonnet
+          --effort high
           --plugin-dir plugins/aiobotocore-bot
         # yamllint disable rule:line-length
         settings: |
@@ -557,6 +558,7 @@ jobs:
           --dangerously-skip-permissions
           --max-turns 150
           --model ${{ needs.classify.outputs.verdict == 'no-port' && 'sonnet' || 'opus' }}
+          --effort high
           --plugin-dir plugins/aiobotocore-bot
         # yamllint disable rule:line-length
         settings: |
