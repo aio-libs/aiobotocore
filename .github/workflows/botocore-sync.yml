@@ -44,7 +44,9 @@ jobs:
     timeout-minutes: 5
     permissions:
       contents: read
+      pull-requests: read
     outputs:
+      draft_pr: ${{ steps.draft.outputs.draft_pr }}
       latest_botocore: >-
         ${{ steps.check.outputs.latest_botocore }}
       current_upper: >-
@@ -59,6 +61,16 @@ jobs:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       with:
         persist-credentials: false
+
+    - name: Check for an unfinished draft sync PR
+      id: draft
+      env:
+        GH_TOKEN: ${{ github.token }}
+        REPO: ${{ github.repository }}
+      run: |
+        n=$(gh pr list --repo "$REPO" --head claude/botocore-sync --state open --draft \
+          --json number --jq '.[0].number // empty')
+        echo "draft_pr=$n" >> "$GITHUB_OUTPUT"
 
     - name: Check for new botocore version
       id: check
@@ -171,7 +183,8 @@ jobs:
   # no-port → Sonnet (cheap), anything else → Opus (full reasoning).
   classify:
     needs: detect
-    if: needs.detect.outputs.needs_update == 'true'
+    # a resumed draft keeps its own target and verdicts, so it needs no classification
+    if: needs.detect.outputs.needs_update == 'true' && needs.detect.outputs.draft_pr == ''
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment: claude
@@ -378,7 +391,12 @@ jobs:
 
   sync:
     needs: [detect, classify]
-    if: needs.detect.outputs.needs_update == 'true' && inputs.dry_run != true
+    if: >-
+      !cancelled()
+      && needs.detect.outputs.needs_update == 'true'
+      && inputs.dry_run != true
+      && (needs.classify.result == 'success'
+          || (needs.classify.result == 'skipped' && needs.detect.outputs.draft_pr != ''))
     runs-on: ubuntu-latest
     timeout-minutes: 60
     environment: claude
