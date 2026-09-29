@@ -37,6 +37,7 @@ import signal
 import subprocess
 import sys
 import tempfile
+import time
 from pathlib import Path
 
 import check_async_need as can
@@ -94,6 +95,10 @@ def override_changes(diff: str, base_commit: str) -> set[str]:
             continue
         changed |= {f"{path} :: {n}" for n in changed_definitions(base, lines)}
     return changed
+
+
+def _progress(message: str) -> None:
+    print(f"  {time.strftime('%H:%M:%S')} {message}", flush=True)
 
 
 def _worktree_env() -> dict[str, str]:
@@ -186,6 +191,7 @@ async def run_case(case: can.Case, args, client) -> dict:
     verdict, rationale = await classify(
         client, case, parent, args.classify_effort
     )
+    _progress(f"classified as {verdict}")
     values = {
         "LATEST_BOTOCORE": case.to_ver,
         "LAST_SUPPORTED": case.from_ver,
@@ -220,6 +226,9 @@ async def run_case(case: can.Case, args, client) -> dict:
                 wt,
                 check=True,
             )
+            _progress(
+                f"worktree ready; agent started ({args.model} @ {args.effort})"
+            )
             agent_out = run_agent(
                 [
                     "claude",
@@ -248,6 +257,10 @@ async def run_case(case: can.Case, args, client) -> dict:
                 result = json.loads(agent_out)
             except json.JSONDecodeError:
                 result = {"is_error": True, "result": agent_out[-2000:]}
+            _progress(
+                f"agent finished: turns={result.get('num_turns')} "
+                f"cost=${result.get('total_cost_usd')}; grading"
+            )
             agent_diff = _run(["git", "diff", "--", "aiobotocore/"], wt).stdout
             hashes = _run(
                 [
