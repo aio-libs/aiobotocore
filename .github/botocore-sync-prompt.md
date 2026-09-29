@@ -71,9 +71,13 @@ re-enters your context. Follow these rules:
 
   ```text
   rtk test uv run --no-sync pytest tests/test_patches.py -x -v
-  rtk test uv run --no-sync pytest tests/botocore_tests/path/test_foo.py -x
+  rtk test uv run --no-sync pytest -m "not localonly" tests/botocore_tests/path/test_foo.py -x
   rtk test uv run poe mototest
   ```
+
+  Pass `-m "not localonly"` whenever you run test files directly (`poe mototest` already does):
+  `localonly` tests talk to real AWS, and this job has no AWS credentials, so they fail with
+  `NoCredentialsError` regardless of your change.
 
   On failure rtk still surfaces the failing tests and tracebacks — that's all you need to act.
 - **Iterate on targeted tests, not the whole suite.** While fixing a port, run only the files
