@@ -1,0 +1,81 @@
+diff --git a/aiobotocore/args.py b/aiobotocore/args.py
+index 71b43d07..3573c6f9 100644
+--- a/aiobotocore/args.py
++++ b/aiobotocore/args.py
+@@ -51,6 +51,9 @@ async def get_client_args(
+         signing_region = endpoint_config['signing_region']
+         endpoint_region_name = endpoint_config['region_name']
+         account_id_endpoint_mode = config_kwargs['account_id_endpoint_mode']
++        s3_disable_express_session_auth = config_kwargs[
++            's3_disable_express_session_auth'
++        ]
+ 
+         event_emitter = copy.copy(self._event_emitter)
+         signer = AioRequestSigner(
+@@ -125,6 +128,7 @@ async def get_client_args(
+             event_emitter,
+             credentials,
+             account_id_endpoint_mode,
++            s3_disable_express_session_auth,
+         )
+ 
+         # Copy the session's user agent factory and adds client configuration.
+@@ -164,6 +168,7 @@ def _build_endpoint_resolver(
+         event_emitter,
+         credentials,
+         account_id_endpoint_mode,
++        s3_disable_express_session_auth,
+     ):
+         if endpoints_ruleset_data is None:
+             return None
+@@ -190,6 +195,7 @@ def _build_endpoint_resolver(
+             legacy_endpoint_url=endpoint.host,
+             credentials=credentials,
+             account_id_endpoint_mode=account_id_endpoint_mode,
++            s3_disable_express_session_auth=s3_disable_express_session_auth,
+         )
+ 
+         # replace with async version
+@@ -206,6 +212,10 @@ def _build_endpoint_resolver(
+             client_context = {}
+         if self._is_s3_service(service_name_raw):
+             client_context.update(s3_config_raw)
++            if s3_disable_express_session_auth is not None:
++                client_context['disable_s3_express_session_auth'] = (
++                    s3_disable_express_session_auth
++                )
+ 
+         sig_version = (
+             client_config.signature_version
+diff --git a/aiobotocore/httpchecksum.py b/aiobotocore/httpchecksum.py
+index 27b74f0e..8b5ca491 100644
+--- a/aiobotocore/httpchecksum.py
++++ b/aiobotocore/httpchecksum.py
+@@ -280,16 +280,22 @@ def _apply_request_trailer_checksum(request):
+     headers["X-Amz-Trailer"] = location_name
+ 
+     content_length = determine_content_length(body)
++    if content_length is None and "Content-Length" in headers:
++        # determine_content_length() cannot resolve the length of non-seekable
++        # bodies, but the caller may have set Content-Length explicitly. Reuse
++        # that value for X-Amz-Decoded-Content-Length before the header is
++        # removed for chunked transfer encoding.
++        content_length = int(headers["Content-Length"])
+     if content_length is not None:
+         # Send the decoded content length if we can determine it. Some
+         # services such as S3 may require the decoded content length
+         headers["X-Amz-Decoded-Content-Length"] = str(content_length)
+ 
+-        if "Content-Length" in headers:
+-            del headers["Content-Length"]
+-            logger.debug(
+-                "Removing the Content-Length header since 'chunked' is specified for Transfer-Encoding."
+-            )
++    if "Content-Length" in headers:
++        del headers["Content-Length"]
++        logger.debug(
++            "Removing the Content-Length header since 'chunked' is specified for Transfer-Encoding."
++        )
+ 
+     if isinstance(body, (bytes, bytearray)):
+         body = io.BytesIO(body)

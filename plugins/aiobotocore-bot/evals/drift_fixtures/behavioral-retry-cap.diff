@@ -1,0 +1,13 @@
+diff --git a/aiobotocore/endpoint.py b/aiobotocore/endpoint.py
+index f1c8139..095d6bc 100644
+--- a/aiobotocore/endpoint.py
++++ b/aiobotocore/endpoint.py
+@@ -289,6 +289,8 @@ class AioEndpoint(Endpoint):
+             request_dict=request_dict,
+         )
+         handler_response = first_non_none_response(responses)
++        if attempts >= 10:
++            return False
+         if handler_response is None or handler_response is False:
+             return False
+         else:

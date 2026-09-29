@@ -412,10 +412,11 @@ def parse_scenarios_yaml(
     path: Path,
     scalar_keys: set[str],
     block_scalar_keys: set[str] = frozenset({"rationale", "notes"}),
+    row_key: str = "pr",
 ) -> list[dict[str, str]]:
     """Parse the narrow subset of YAML the generator emits.
 
-    Schema: top-level `scenarios:` list, each item starting with `- pr: N`,
+    Schema: top-level `scenarios:` list, each item starting with `- <row_key>: N`,
     sub-keys at 2-space indent. `scalar_keys` names the scalar fields each
     caller cares about; other scalars are skipped. Block-scalar bodies
     (`|` style) are consumed but their content isn't captured.
@@ -433,11 +434,11 @@ def parse_scenarios_yaml(
             in_block_scalar = False
         if not line or line.lstrip().startswith("#") or line == "---":
             continue
-        if line.startswith("- pr:"):
+        if line.startswith(f"- {row_key}:"):
             if current:
                 rows.append(current)
                 current = {}
-            current["pr"] = line.split(":", 1)[1].strip()
+            current[row_key] = line.split(":", 1)[1].strip()
             continue
         if line.startswith("  ") and ":" in line:
             key, _, value = line.strip().partition(":")

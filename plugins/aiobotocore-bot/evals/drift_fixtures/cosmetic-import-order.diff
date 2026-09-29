@@ -1,0 +1,19 @@
+diff --git a/aiobotocore/endpoint.py b/aiobotocore/endpoint.py
+index f1c8139..bd2a0f9 100644
+--- a/aiobotocore/endpoint.py
++++ b/aiobotocore/endpoint.py
+@@ -1,5 +1,6 @@
+ import asyncio
+ 
++from botocore.hooks import first_non_none_response
+ from botocore.endpoint import (
+     DEFAULT_TIMEOUT,
+     MAX_POOL_CONNECTIONS,
+@@ -12,7 +13,6 @@ from botocore.endpoint import (
+     is_valid_ipv6_endpoint_url,
+     logger,
+ )
+-from botocore.hooks import first_non_none_response
+ 
+ from aiobotocore._async_primitives import (
+     AsyncPrimitives,

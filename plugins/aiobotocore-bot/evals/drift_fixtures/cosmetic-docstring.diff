@@ -1,0 +1,12 @@
+diff --git a/aiobotocore/endpoint.py b/aiobotocore/endpoint.py
+index f1c8139..76d0242 100644
+--- a/aiobotocore/endpoint.py
++++ b/aiobotocore/endpoint.py
+@@ -153,6 +153,7 @@ class AioEndpoint(Endpoint):
+             return success_response
+ 
+     async def _get_response(self, request, operation_model, context):
++        """Send the request and emit the response-received event."""
+         # This will return a tuple of (success_response, exception)
+         # and success_response is itself a tuple of
+         # (http_response, parsed_dict).

@@ -1,0 +1,12 @@
+diff --git a/aiobotocore/endpoint.py b/aiobotocore/endpoint.py
+index f1c8139..cd09fd9 100644
+--- a/aiobotocore/endpoint.py
++++ b/aiobotocore/endpoint.py
+@@ -202,6 +202,7 @@ class AioEndpoint(Endpoint):
+             if http_response is None:
+                 http_response = await self._send(request)
+         except HTTPClientError as e:
++            logger.warning("HTTP client error: %s", e)
+             return (None, e)
+         except Exception as e:
+             logger.debug(

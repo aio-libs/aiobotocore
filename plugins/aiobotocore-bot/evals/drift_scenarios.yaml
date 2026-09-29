@@ -1,48 +1,173 @@
 ---
 # Ground-truth labels for the check-override-drift skill eval.
 #
-# Each row is a historical PR against aiobotocore with a known expected verdict.
-# The drift check is independent of sync-bot flow — any PR touching
-# aiobotocore/*.py files with a botocore mirror is in scope.
+# Each case is an aiobotocore diff committed under drift_fixtures/, the
+# aiobotocore commit it applies to (`base_commit`, which must be on main so
+# the override registry can be read there), and the botocore version its
+# overrides should mirror. Real cases come from merged or closed PRs; the
+# rest are single-change edits of origin/main made for this eval.
 #
-# `expected` values: clean | cosmetic-drift | behavioral-drift
-#
-# Seed cases are intentionally small. Add more as we do the PR archaeology
-# pass for scenarios.yaml (some sync PRs also make good drift cases — a
-# well-executed port should be `clean`).
+# `expected` values: clean | cosmetic-drift | behavioral-drift, following the
+# per-line table in check-override-drift/SKILL.md Step 3.
 scenarios:
-- pr: 1534
-  title: "Bump `botocore` dependency specification"
+- id: pr1534
+  title: "Bump `botocore` dependency specification (args.py, httpchecksum.py)"
   expected: clean
+  fixture: pr1534.diff
+  base_commit: adb140a033da034b79bf5fe7fed07e6eb3abb98d
+  botocore_version: "1.42.84"
   rationale: |
-    Textbook clean port. Botocore added a new
-    `s3_disable_express_session_auth` config parameter; aiobotocore/args.py
-    threads the same parameter through `get_client_args` and
-    `_build_endpoint_resolver` with identical names/positions.
-    aiobotocore/httpchecksum.py mirrors botocore's new checksum handling
-    changes. No docstring additions, no type-hint drift, no non-async
-    behavioral changes, no null-guards that aren't upstream. Every new
-    parameter/line has a matching upstream equivalent.
-  notes: |
-    Good stable "no-drift" anchor — guards against the classifier regressing
-    to always-return-behavioral-drift (which the PR #1562 case alone can't
-    catch). Author is jakob-keller (project maintainer); same port pattern
-    any well-executed sync-bot port would follow.
+    Sync port of botocore 1.42.84. Every added line in args.py and
+    httpchecksum.py appears verbatim in the matching botocore file.
 
-- pr: 1562
+- id: pr1571
+  title: "Bump botocore dependency specification (args.py, client.py)"
+  expected: clean
+  fixture: pr1571.diff
+  base_commit: a4cbb1ecab9ebb2a84366528194116b170411731
+  botocore_version: "1.42.91"
+  rationale: |
+    Threads auth_scheme_preference through args.py and client.py as botocore
+    1.42.91 does. The only line not found in botocore is aiobotocore importing
+    botocore's own resolve_auth_scheme_preference / resolve_auth_type helpers.
+
+- id: pr1606
+  title: "Bump botocore dependency specification (endpoint.py, retries/standard.py)"
+  expected: clean
+  fixture: pr1606.diff
+  base_commit: c1d857bbc348866cba1a35a288b9c735acedba34
+  botocore_version: "1.43.24"
+  rationale: |
+    Ports botocore 1.43.24's retry rework. Lines not found verbatim in botocore
+    are async gaps: `import asyncio`, re-importing names from botocore's own
+    retries.standard module, and `await asyncio.sleep` for `time.sleep`.
+
+- id: pr1709
+  title: "feat: support botocore 1.43.75 (retries/standard.py part)"
+  expected: clean
+  fixture: pr1709.diff
+  base_commit: e7bc502fbb6a5cf0ccd4ef7e95301a0c92c42e98
+  botocore_version: "1.43.75"
+  rationale: |
+    The retries/standard.py part of #1709: seeds max attempts as botocore
+    1.43.75 does. The only line not found verbatim is importing botocore's
+    MaxAttemptsSeeder. The PR's httpsession.py / httpxsession.py changes are
+    left out: aiohttp-specific adaptation, not a line-for-line mirror.
+
+- id: pr1744
+  title: "fix: port botocore 1.43.98 StreamingChecksumBody changes"
+  expected: clean
+  fixture: pr1744.diff
+  base_commit: e38e0e12d5895504a9fd764e89d74999a42854e1
+  botocore_version: "1.43.98"
+  rationale: |
+    Adds botocore 1.43.98's `checksum` property and `_expected is None` guard
+    to _ChecksumMixin. Every added line appears verbatim in botocore's
+    StreamingChecksumBody.
+
+- id: pr1562
   title: "fix: code review improvements for oldest files"
   expected: behavioral-drift
+  fixture: pr1562.diff
+  base_commit: f109446439610a094b7e384b3e2cead2676fb2bc
+  botocore_version: "1.42.84"
   rationale: |
-    Multiple behavioral changes not mirrored in botocore:
-    - aiobotocore/_helpers.py: inspect.isawaitable(obj) → hasattr(obj, '__await__'),
-      different semantics for some awaitable types.
-    - aiobotocore/configprovider.py: added logger.warning on IMDS failure that
-      botocore doesn't log.
-    - aiobotocore/retries/adaptive.py: added division-by-zero guard not in
-      botocore's version.
-    Plus a pile of cosmetic drift (docstrings, type hints) none of which are
-    async-explained. This is the canonical example the check was designed to
-    catch.
-  notes: |
-    PR was closed after initial review flagged the drift issue. Do not
-    reopen — kept as an eval case for the pattern.
+    Closed external PR (now hidden on GitHub; the diff survives at
+    refs/pull/1562/head). Behavioral changes to overrides with no botocore
+    counterpart: a division-by-zero guard in AsyncClientRateLimiter
+    (retries/adaptive.py), None guards and an added `return False` in
+    AioRetryDDBChecksumError.is_retryable (retries/special.py), and a
+    logger.debug on IMDS failure in configprovider.py, plus docstrings and
+    type hints. The _helpers.py change (inspect.isawaitable ->
+    hasattr(obj, '__await__')) is out of scope: _helpers.py has no botocore
+    mirror.
+
+- id: behavioral-retry-cap
+  title: "Cap retries in AioEndpoint._needs_retry"
+  expected: behavioral-drift
+  fixture: behavioral-retry-cap.diff
+  base_commit: 36935fecbb42e5ed11886bc4e8d44975c70d44bf
+  botocore_version: "1.43.98"
+  rationale: |
+    Adds `if attempts >= 10: return False` to _needs_retry; botocore's
+    Endpoint._needs_retry has no attempt cap (retry handlers decide).
+
+- id: behavioral-client-error-log
+  title: "Log HTTP client errors in AioEndpoint._do_get_response"
+  expected: behavioral-drift
+  fixture: behavioral-client-error-log.diff
+  base_commit: 36935fecbb42e5ed11886bc4e8d44975c70d44bf
+  botocore_version: "1.43.98"
+  rationale: |
+    Adds logger.warning on HTTPClientError; botocore returns the error
+    without logging. Added logging is behavioral drift per the skill.
+
+- id: behavioral-status-boundary
+  title: "Change the error-status boundary in convert_to_response_dict"
+  expected: behavioral-drift
+  fixture: behavioral-status-boundary.diff
+  base_commit: 36935fecbb42e5ed11886bc4e8d44975c70d44bf
+  botocore_version: "1.43.98"
+  rationale: |
+    `>= 300` becomes `> 300`, so a 300 response is no longer read as an error
+    body. botocore's convert_to_response_dict uses `>= 300`.
+
+- id: behavioral-empty-checksum
+  title: "Treat an empty CRC32 header as missing in AioRetryDDBChecksumError"
+  expected: behavioral-drift
+  fixture: behavioral-empty-checksum.diff
+  base_commit: 36935fecbb42e5ed11886bc4e8d44975c70d44bf
+  botocore_version: "1.43.98"
+  rationale: |
+    `if checksum is None` becomes `if not checksum`, so an empty header no
+    longer reaches int(checksum). botocore's RetryDDBChecksumError uses
+    `is None`; the replacement is not equivalent.
+
+- id: cosmetic-docstring
+  title: "Docstring on AioEndpoint._get_response"
+  expected: cosmetic-drift
+  fixture: cosmetic-docstring.diff
+  base_commit: 36935fecbb42e5ed11886bc4e8d44975c70d44bf
+  botocore_version: "1.43.98"
+  rationale: |
+    Adds a one-line docstring with no async-specific content; botocore's
+    Endpoint._get_response has none.
+
+- id: cosmetic-type-hints
+  title: "Type hints on AioEndpoint._needs_retry"
+  expected: cosmetic-drift
+  fixture: cosmetic-type-hints.diff
+  base_commit: 36935fecbb42e5ed11886bc4e8d44975c70d44bf
+  botocore_version: "1.43.98"
+  rationale: |
+    Adds `attempts: int`, `request_dict: dict` and `-> bool`; botocore's
+    signature is unannotated. No behavior changes.
+
+- id: cosmetic-comments
+  title: "Comments in AioEndpointCreator.create_endpoint"
+  expected: cosmetic-drift
+  fixture: cosmetic-comments.diff
+  base_commit: 36935fecbb42e5ed11886bc4e8d44975c70d44bf
+  botocore_version: "1.43.98"
+  rationale: |
+    Adds two explanatory comments not present in botocore's create_endpoint.
+
+- id: cosmetic-import-order
+  title: "Reorder endpoint.py imports"
+  expected: cosmetic-drift
+  fixture: cosmetic-import-order.diff
+  base_commit: 36935fecbb42e5ed11886bc4e8d44975c70d44bf
+  botocore_version: "1.43.98"
+  rationale: |
+    Moves `from botocore.hooks import first_non_none_response` above the
+    botocore.endpoint import; import reordering is cosmetic drift.
+
+- id: cosmetic-docstring-and-hint
+  title: "Docstring and return hint on AioRetryDDBChecksumError.is_retryable"
+  expected: cosmetic-drift
+  fixture: cosmetic-docstring-and-hint.diff
+  base_commit: 36935fecbb42e5ed11886bc4e8d44975c70d44bf
+  botocore_version: "1.43.98"
+  rationale: |
+    Adds `-> bool` and a one-line docstring; botocore's is_retryable has
+    neither. No behavior changes.

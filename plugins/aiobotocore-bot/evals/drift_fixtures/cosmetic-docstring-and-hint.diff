@@ -1,0 +1,14 @@
+diff --git a/aiobotocore/retries/special.py b/aiobotocore/retries/special.py
+index b8d3db6..aae693b 100644
+--- a/aiobotocore/retries/special.py
++++ b/aiobotocore/retries/special.py
+@@ -2,7 +2,8 @@ from botocore.retries.special import RetryDDBChecksumError, crc32, logger
+ 
+ 
+ class AioRetryDDBChecksumError(RetryDDBChecksumError):
+-    async def is_retryable(self, context):
++    async def is_retryable(self, context) -> bool:
++        """Return True when DynamoDB's CRC32 header disagrees with the body."""
+         service_name = context.operation_model.service_model.service_name
+         if service_name != self._SERVICE_NAME:
+             return False

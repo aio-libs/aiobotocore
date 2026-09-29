@@ -1,0 +1,20 @@
+diff --git a/aiobotocore/endpoint.py b/aiobotocore/endpoint.py
+index f1c8139..0cb30a8 100644
+--- a/aiobotocore/endpoint.py
++++ b/aiobotocore/endpoint.py
+@@ -271,12 +271,12 @@ class AioEndpoint(Endpoint):
+     # NOTE: The only line changed here changing time.sleep to asyncio.sleep
+     async def _needs_retry(
+         self,
+-        attempts,
++        attempts: int,
+         operation_model,
+-        request_dict,
++        request_dict: dict,
+         response=None,
+         caught_exception=None,
+-    ):
++    ) -> bool:
+         service_id = operation_model.service_model.service_id.hyphenize()
+         event_name = f"needs-retry.{service_id}.{operation_model.name}"
+         responses = await self._event_emitter.emit(

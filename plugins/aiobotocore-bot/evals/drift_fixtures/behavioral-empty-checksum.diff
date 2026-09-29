@@ -1,0 +1,13 @@
+diff --git a/aiobotocore/retries/special.py b/aiobotocore/retries/special.py
+index b8d3db6..3672f6a 100644
+--- a/aiobotocore/retries/special.py
++++ b/aiobotocore/retries/special.py
+@@ -9,7 +9,7 @@ class AioRetryDDBChecksumError(RetryDDBChecksumError):
+         if context.http_response is None:
+             return False
+         checksum = context.http_response.headers.get(self._CHECKSUM_HEADER)
+-        if checksum is None:
++        if not checksum:
+             return False
+         actual_crc32 = crc32(await context.http_response.content) & 0xFFFFFFFF
+         if actual_crc32 != int(checksum):
