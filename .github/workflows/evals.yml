@@ -5,16 +5,16 @@ run-name: >-
   Evals:
   ${{ inputs.eval || 'both' }}
   (runs=${{ inputs.runs || '3' }}, limit=${{ inputs.limit || '8' }},
-  model=${{ inputs.model || 'default' }}, effort=${{ inputs.effort || 'default' }})
+  model=${{ inputs.model || 'default' }}, effort=${{ inputs.effort || 'default' }}
+  ${{ inputs.cases && format(', cases={0}', inputs.cases) || '' }})
 
 permissions: {}
 
-# Only one evals run active per branch. A new workflow_dispatch on the same
-# ref cancels the prior in-flight run — otherwise a quick re-trigger would
-# double-spend Anthropic tokens for stale input. Scheduled re-triggers on
-# different refs (if ever added) stay independent via the ref in the group.
+# Re-dispatching the same eval, model, effort and cases on a ref cancels the
+# stale in-flight run, so a quick re-trigger doesn't double-spend tokens.
+# Dispatches that differ in any of those run in parallel.
 concurrency:
-  group: evals-${{ github.ref }}
+  group: evals-${{ github.ref }}-${{ inputs.eval }}-${{ inputs.model }}-${{ inputs.effort }}-${{ inputs.cases }}
   cancel-in-progress: true
 
 on:
