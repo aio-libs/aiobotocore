@@ -689,7 +689,10 @@ scenarios:
   - botocore/__init__.py
   - botocore/handlers.py
   rationale: |
-    TODO: one paragraph explaining WHY this was no-port.
+    Only the version constant in botocore/__init__.py and handlers.py changed; the
+    handlers.py delta refactored sigv4a signing context into a new helper
+    (_set_sigv4a_signing_context) that aiobotocore does not override. The aiobotocore
+    PR touched only bounds, version and changelog files.
   notes: null
 
 - pr: 1571
@@ -707,7 +710,10 @@ scenarios:
   - botocore/client.py
   - botocore/regions.py
   rationale: |
-    TODO: one paragraph explaining WHY this was port-required.
+    botocore added auth_scheme_preference: args.py threads it through
+    get_client_args into _build_endpoint_resolver and the ruleset resolver, and
+    client.py _make_api_call computes auth_type via resolve_auth_scheme_preference.
+    aiobotocore mirrored these in AioClientArgsCreator and AioBaseClient._make_api_call.
   notes: null
 
 - pr: 1578
@@ -723,12 +729,14 @@ scenarios:
   - botocore/__init__.py
   - botocore/handlers.py
   rationale: |
-    TODO: one paragraph explaining WHY this was no-port.
+    handlers.py only gained getattr aliases for cloudwatch OTel enrichment methods
+    (ClientMethodAlias entries). These are registered data, not overridden functions, so
+    aiobotocore needed only bounds bumps (plus a unit-test tweak and pre-commit config).
   notes: null
 
 - pr: 1579
   title: "Relax `botocore` dependency specification"
-  expected: port-required
+  expected: no-port
   from: "1.42.97"
   to: "1.43.0"
   merge_commit: 87c8c68083bdb737a302c142e88e817ae47655d6
@@ -739,8 +747,13 @@ scenarios:
   - botocore/__init__.py
   - botocore/tokens.py
   rationale: |
-    TODO: one paragraph explaining WHY this was port-required.
-  notes: null
+    botocore's only delta to a mirrored file was tokens.py replacing
+    Optional[datetime] with datetime | None (annotation only), and no
+    test_patches.py hash changed, so no overridden function moved.
+  notes: |
+    Hand-relabeled from port-required: aiobotocore_port_happened() fires on
+    this PR's unrelated typing cleanups in config.py and httpsession.py.
+    generate_scenarios.py would re-derive port-required; keep this label.
 
 - pr: 1605
   title: "Relax `botocore` dependency specification"
@@ -754,7 +767,8 @@ scenarios:
   botocore_files_touched:
   - botocore/__init__.py
   rationale: |
-    TODO: one paragraph explaining WHY this was no-port.
+    Only botocore/__init__.py changed in this range (version constant). The
+    aiobotocore PR touched bounds and a test_lambda.py cleanup, no overridden code.
   notes: null
 
 - pr: 1606
@@ -773,7 +787,11 @@ scenarios:
   - botocore/regions.py
   - botocore/retries/standard.py
   rationale: |
-    TODO: one paragraph explaining WHY this was port-required.
+    botocore reworked retries/standard.py register_retry_handler (NEW_RETRIES_ENABLED
+    branch, per-service max attempts, ThrottlingErrorDetector, long-polling handling) and
+    endpoint.py _needs_retry now treats a False handler response as no-retry.
+    aiobotocore ported these into AioRetryHandler/register_retry_handler in
+    retries/standard.py and AioEndpoint._needs_retry.
   notes: null
 
 - pr: 1635
@@ -789,7 +807,8 @@ scenarios:
   - botocore/__init__.py
   - botocore/handlers.py
   rationale: |
-    TODO: one paragraph explaining WHY this was no-port.
+    handlers.py only added a docs handler (DocumentModifiedShape for the IAM
+    policyDocumentType) which aiobotocore does not override. Only bounds, uv.lock changed.
   notes: null
 
 - pr: 1655
@@ -807,7 +826,10 @@ scenarios:
   - botocore/tokens.py
   - botocore/utils.py
   rationale: |
-    TODO: one paragraph explaining WHY this was no-port.
+    handlers.py gained a client method alias, utils.py dropped two service-name
+    mappings, and tokens.py added insert_before/insert_after to TokenProviderChain, which
+    aiobotocore does not subclass (only AioSSOTokenProvider and AioDeferredRefreshableToken).
+    Only bounds changed in aiobotocore.
   notes: null
 
 - pr: 1665
@@ -822,7 +844,8 @@ scenarios:
   botocore_files_touched:
   - botocore/__init__.py
   rationale: |
-    TODO: one paragraph explaining WHY this was no-port.
+    Only the version constant in botocore/__init__.py changed. No overridden code
+    touched; aiobotocore PR was bounds and uv.lock only.
   notes: null
 
 - pr: 1668
@@ -837,7 +860,8 @@ scenarios:
   botocore_files_touched:
   - botocore/__init__.py
   rationale: |
-    TODO: one paragraph explaining WHY this was no-port.
+    Only the version constant in botocore/__init__.py changed. No overridden code
+    touched; aiobotocore PR was bounds and uv.lock only.
   notes: null
 
 - pr: 1675
@@ -853,7 +877,10 @@ scenarios:
   - botocore/__init__.py
   - botocore/endpoint.py
   rationale: |
-    TODO: one paragraph explaining WHY this was no-port.
+    endpoint.py added EndpointCreator._validate_verify_value, called from
+    _get_verify_value to reject an empty CA bundle string. aiobotocore's
+    AioEndpointCreator inherits _get_verify_value unmodified, so the new validation applies
+    automatically and no async port was needed.
   notes: null
 
 - pr: 1693
@@ -868,7 +895,8 @@ scenarios:
   botocore_files_touched:
   - botocore/__init__.py
   rationale: |
-    TODO: one paragraph explaining WHY this was no-port.
+    Only the version constant in botocore/__init__.py changed. No overridden code
+    touched; aiobotocore PR was bounds and uv.lock only.
   notes: null
 
 - pr: 1709
@@ -887,7 +915,11 @@ scenarios:
   - botocore/httpsession.py
   - botocore/retries/standard.py
   rationale: |
-    TODO: one paragraph explaining WHY this was port-required.
+    botocore added a per-request read_timeout override: AWSPreparedRequest carries the
+    request context, endpoint.py prefers context['read_timeout'], httpsession.py gained
+    _get_request_timeout, and retries/standard.py seeds the max-attempts header via
+    MaxAttemptsSeeder. aiobotocore added AIOHTTPSession._get_request_timeout (mapping to
+    aiohttp.ClientTimeout) and the seeder registration in register_retry_handler.
   notes: null
 
 - pr: 1723
@@ -903,7 +935,9 @@ scenarios:
   - botocore/__init__.py
   - botocore/awsrequest.py
   rationale: |
-    TODO: one paragraph explaining WHY this was no-port.
+    awsrequest.py only moved the response_class assignment inside AWSConnection
+    (urllib3-specific code aiobotocore replaces with aiohttp). No overridden async code
+    changed; only bounds and uv.lock were updated.
   notes: null
 
 - pr: 1728
@@ -919,7 +953,9 @@ scenarios:
   - botocore/__init__.py
   - botocore/signers.py
   rationale: |
-    TODO: one paragraph explaining WHY this was no-port.
+    signers.py changed only a docstring warning about S3 presigned URL sigv2
+    behavior, so no overridden code changed. The PR updated bounds and one test_patches.py
+    hash.
   notes: null
 
 - pr: 1734
@@ -935,7 +971,9 @@ scenarios:
   - botocore/__init__.py
   - botocore/handlers.py
   rationale: |
-    TODO: one paragraph explaining WHY this was no-port.
+    handlers.py removed enable_millisecond_timestamp_precision and its
+    bedrock-agentcore creating-serializer registration, none of which aiobotocore
+    overrides. The PR only updated bounds and pre-commit config.
   notes: null
 
 - pr: 1744
@@ -951,5 +989,7 @@ scenarios:
   - botocore/__init__.py
   - botocore/httpchecksum.py
   rationale: |
-    TODO: one paragraph explaining WHY this was port-required.
+    botocore's StreamingChecksumBody gained a public checksum property and
+    _validate_checksum now returns early when _expected is None. aiobotocore mirrored both
+    in AioStreamingChecksumBody in httpchecksum.py, with updated hash and ported unit test.
   notes: null

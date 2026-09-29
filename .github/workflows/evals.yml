@@ -162,6 +162,8 @@ jobs:
         ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         BOTOCORE_CLONE: /tmp/botocore
       run: |
+        # `| tee` below would otherwise hide a crash of the eval process
+        set -o pipefail
         case_args=()
         if [ -n "$EVAL_CASES" ]; then
           IFS=',' read -ra arr <<< "$EVAL_CASES"
@@ -257,6 +259,7 @@ jobs:
         ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         GH_TOKEN: ${{ github.token }}
       run: |
+        set -o pipefail
         model_args=()
         if [ -n "$EVAL_MODEL" ]; then model_args+=(--model "$EVAL_MODEL"); fi
         if [ -n "$EVAL_EFFORT" ]; then model_args+=(--effort "$EVAL_EFFORT"); fi
