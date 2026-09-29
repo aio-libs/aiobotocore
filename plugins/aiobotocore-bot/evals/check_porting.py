@@ -37,6 +37,7 @@ import signal
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 from pathlib import Path
 
@@ -112,8 +113,27 @@ def _run(cmd: list[str], cwd: Path, **kw) -> subprocess.CompletedProcess:
     )
 
 
-def run_agent(cmd: list[str], cwd: Path, timeout: int) -> str:
-    """Run the agent, then kill anything it left running in the worktree.
+def _describe_tool(block: dict) -> str:
+    inp = block.get("input") or {}
+    detail = next(
+        (
+            inp[k]
+            for k in ("command", "file_path", "pattern", "path")
+            if inp.get(k)
+        ),
+        "",
+    )
+    first_line = str(detail).splitlines()[0] if detail else ""
+    return f"{block['name']} {first_line}".rstrip()[:160]
+
+
+def _kill_group(pid: int) -> None:
+    with contextlib.suppress(ProcessLookupError):
+        os.killpg(pid, signal.SIGKILL)
+
+
+def run_agent(cmd: list[str], cwd: Path, timeout: int) -> dict:
+    """Run the agent, logging each tool call, then kill anything it left running.
 
     A backgrounded test run left alongside the grading run crashes pytest-xdist.
     """
@@ -126,18 +146,35 @@ def run_agent(cmd: list[str], cwd: Path, timeout: int) -> str:
         start_new_session=True,
         env=_worktree_env(),
     )
+    timer = threading.Timer(timeout, _kill_group, (proc.pid,))
+    timer.start()
+    result = None
     try:
-        out, _ = proc.communicate(timeout=timeout)
-    except subprocess.TimeoutExpired:
-        # --output-format json writes its result only at the end, so there is nothing partial to keep
-        out = json.dumps(
-            {"is_error": True, "result": f"timed out after {timeout}s"}
-        )
+        for line in proc.stdout:
+            try:
+                event = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if event.get("type") == "result":
+                result = event
+            elif event.get("type") == "assistant":
+                for block in event["message"].get("content", []):
+                    if block.get("type") == "tool_use":
+                        _progress(f"agent: {_describe_tool(block)}")
+        proc.wait()
     finally:
-        with contextlib.suppress(ProcessLookupError):
-            os.killpg(proc.pid, signal.SIGKILL)
+        timed_out = not timer.is_alive()
+        timer.cancel()
+        _kill_group(proc.pid)
         subprocess.run(["pkill", "-9", "-f", str(cwd)])
-    return out
+    if result is None:
+        reason = (
+            f"timed out after {timeout}s"
+            if timed_out
+            else "exited without a result"
+        )
+        result = {"is_error": True, "result": reason}
+    return result
 
 
 async def classify(
@@ -188,6 +225,7 @@ async def run_case(case: can.Case, args, client) -> dict:
     pyproject = _git_show(parent, "pyproject.toml")
     upper = UPPER_RE.search(pyproject).group(1)
     lower = LOWER_RE.search(pyproject).group(1)
+    _progress("classifying")
     verdict, rationale = await classify(
         client, case, parent, args.classify_effort
     )
@@ -213,6 +251,7 @@ async def run_case(case: can.Case, args, client) -> dict:
             cwd=REPO_ROOT,
         )
         try:
+            _progress("preparing worktree")
             _run(["uv", "sync", "--frozen"], wt, check=True)
             _run(
                 [
@@ -229,7 +268,7 @@ async def run_case(case: can.Case, args, client) -> dict:
             _progress(
                 f"worktree ready; agent started ({args.model} @ {args.effort})"
             )
-            agent_out = run_agent(
+            result = run_agent(
                 [
                     "claude",
                     "-p",
@@ -243,7 +282,8 @@ async def run_case(case: can.Case, args, client) -> dict:
                     "--plugin-dir",
                     str(PLUGIN_DIR),
                     "--output-format",
-                    "json",
+                    "stream-json",
+                    "--verbose",
                     "--dangerously-skip-permissions",
                     "--disallowedTools",
                     "Bash(git commit:*)",
@@ -253,13 +293,9 @@ async def run_case(case: can.Case, args, client) -> dict:
                 wt,
                 args.timeout,
             )
-            try:
-                result = json.loads(agent_out)
-            except json.JSONDecodeError:
-                result = {"is_error": True, "result": agent_out[-2000:]}
             _progress(
                 f"agent finished: turns={result.get('num_turns')} "
-                f"cost=${result.get('total_cost_usd')}; grading"
+                f"cost=${result.get('total_cost_usd')}; running hash test"
             )
             agent_diff = _run(["git", "diff", "--", "aiobotocore/"], wt).stdout
             hashes = _run(
@@ -274,6 +310,10 @@ async def run_case(case: can.Case, args, client) -> dict:
                     "tests/test_patches.py",
                 ],
                 wt,
+            )
+            _progress(
+                f"hash test {'passed' if hashes.returncode == 0 else 'failed'}; "
+                "running test suite"
             )
             tests = _run(
                 [
@@ -294,6 +334,8 @@ async def run_case(case: can.Case, args, client) -> dict:
                 ],
                 wt,
             )
+            summary = (tests.stdout.strip().splitlines() or ["no output"])[-1]
+            _progress(f"test suite: {summary}")
         finally:
             subprocess.run(
                 ["git", "worktree", "remove", "--force", str(wt)],
