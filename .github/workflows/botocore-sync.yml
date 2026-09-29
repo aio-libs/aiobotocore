@@ -44,7 +44,9 @@ jobs:
     timeout-minutes: 5
     permissions:
       contents: read
+      pull-requests: read
     outputs:
+      draft_pr: ${{ steps.draft.outputs.draft_pr }}
       latest_botocore: >-
         ${{ steps.check.outputs.latest_botocore }}
       current_upper: >-
@@ -59,6 +61,16 @@ jobs:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       with:
         persist-credentials: false
+
+    - name: Check for an unfinished draft sync PR
+      id: draft
+      env:
+        GH_TOKEN: ${{ github.token }}
+        REPO: ${{ github.repository }}
+      run: |
+        n=$(gh pr list --repo "$REPO" --head claude/botocore-sync --state open --draft \
+          --json number --jq '.[0].number // empty')
+        echo "draft_pr=$n" >> "$GITHUB_OUTPUT"
 
     - name: Check for new botocore version
       id: check
@@ -171,7 +183,8 @@ jobs:
   # no-port → Sonnet (cheap), anything else → Opus (full reasoning).
   classify:
     needs: detect
-    if: needs.detect.outputs.needs_update == 'true'
+    # a resumed draft keeps its own target and verdicts, so it needs no classification
+    if: needs.detect.outputs.needs_update == 'true' && needs.detect.outputs.draft_pr == ''
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment: claude
@@ -275,7 +288,7 @@ jobs:
         } >> "$GITHUB_OUTPUT"
 
     # yamllint disable-line rule:line-length
-    - uses: anthropics/claude-code-action@4036a180cf690f49529f5d8c79c998855287f590  # v1.0.230
+    - uses: anthropics/claude-code-action@8ce9314fa9a404564fa7e954cd84f25bcba2b829  # v1.0.236
       id: claude
       with:
         anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -293,6 +306,7 @@ jobs:
           --dangerously-skip-permissions
           --max-turns 30
           --model sonnet
+          --effort high
           --plugin-dir plugins/aiobotocore-bot
         # yamllint disable rule:line-length
         settings: |
@@ -333,19 +347,20 @@ jobs:
     - name: Parse classification
       id: parse
       run: |
+        # No output means the agent never ran (e.g. the action skipped itself) or
+        # crashed; fail the job so the sync is skipped and the run shows red.
         if [ ! -f /tmp/classification.json ]; then
-          msg="classify did not write /tmp/classification.json"
-          echo "::warning::$msg — defaulting to ambiguous"
-          {
-            echo "verdict=ambiguous"
-            echo "summary=Classifier output missing — see classify-job logs"
-            echo 'rationale<<RATIONALE_EOF'
-            echo "(classifier did not produce output)"
-            echo 'RATIONALE_EOF'
-          } >> "$GITHUB_OUTPUT"
-          exit 0
+          echo "::error::classify did not write /tmp/classification.json — see the claude step's log"
+          exit 1
         fi
-        verdict=$(jq -r '.verdict // "ambiguous"' /tmp/classification.json)
+        verdict=$(jq -r '.verdict // empty' /tmp/classification.json)
+        case "$verdict" in
+          no-port|port-required|ambiguous|error) ;;
+          *)
+            echo "::error::classify wrote an invalid verdict: '$verdict'"
+            exit 1
+            ;;
+        esac
         summary=$(jq -r '.summary // ""' /tmp/classification.json)
         echo "verdict=$verdict" >> "$GITHUB_OUTPUT"
         echo "summary=$summary" >> "$GITHUB_OUTPUT"
@@ -376,7 +391,12 @@ jobs:
 
   sync:
     needs: [detect, classify]
-    if: needs.detect.outputs.needs_update == 'true' && inputs.dry_run != true
+    if: >-
+      !cancelled()
+      && needs.detect.outputs.needs_update == 'true'
+      && inputs.dry_run != true
+      && (needs.classify.result == 'success'
+          || (needs.classify.result == 'skipped' && needs.detect.outputs.draft_pr != ''))
     runs-on: ubuntu-latest
     timeout-minutes: 60
     environment: claude
@@ -528,7 +548,7 @@ jobs:
         } >> "$GITHUB_OUTPUT"
 
     # yamllint disable-line rule:line-length
-    - uses: anthropics/claude-code-action@4036a180cf690f49529f5d8c79c998855287f590  # v1.0.230
+    - uses: anthropics/claude-code-action@8ce9314fa9a404564fa7e954cd84f25bcba2b829  # v1.0.236
       id: claude
       env:
         CLAUDE_BRANCH: claude/botocore-sync
@@ -557,6 +577,7 @@ jobs:
           --dangerously-skip-permissions
           --max-turns 150
           --model ${{ needs.classify.outputs.verdict == 'no-port' && 'sonnet' || 'opus' }}
+          --effort high
           --plugin-dir plugins/aiobotocore-bot
         # yamllint disable rule:line-length
         settings: |

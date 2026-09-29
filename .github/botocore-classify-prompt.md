@@ -24,14 +24,14 @@ The skill emits a `CLASSIFICATION:` line plus a per-function rationale block. Ca
 Write a JSON object with exactly these fields:
 
 - `verdict`: one of `"no-port"`, `"port-required"`, `"ambiguous"`, `"error"`
-- `summary`: a single short sentence summarizing the classifier's decision (≤120 chars). For
+- `summary`: a single short sentence summarizing the classifier's decision. For
   `no-port`: name the dominant theme (e.g. "Model/schema-only updates for N services"). For
   `port-required`: name the function or feature that triggered (e.g. "New
   `auth_scheme_preference` threading through args + client requires async override").
 - `rationale`: a markdown table with columns `File | Function | Change | Verdict | Reason`,
   one row per function the classifier inspected. The downstream `open-pr` skill renders this
-  table verbatim into the PR body — keep each Reason cell to ≤80 chars and don't pad the table
-  column separators. **Use the minimum-separator table convention: `|-|-|-|-|-|`**.
+  table verbatim into the PR body — keep each Reason cell to one short clause and don't pad the
+  table column separators. **Use the minimum-separator table convention: `|-|-|-|-|-|`**.
 
 If the classifier itself failed (returned `error: <reason>`), set `verdict` to `"error"` and
 put the error reason in `summary`. Leave `rationale` as the string `"(classifier failed)"`.
@@ -42,12 +42,9 @@ clicking through to JSON.
 
 ## Restrictions
 
-- **Do NOT make any code changes.** No file edits outside `/tmp/`.
-- **Do NOT create branches, commits, PRs, or comments.** This stage is read-only.
-- **Do NOT do any porting work.** That belongs to the downstream `sync` job — running it here
-  would defeat the whole point of the model split.
-- If you find yourself reaching for `mcp__github_file_ops__commit_files`, `gh pr create`, or
-  similar — STOP and just write the JSON.
+This stage is read-only: write files only under `/tmp/`, and don't create branches, commits,
+PRs, or comments. Porting belongs to the downstream `sync` job, which runs on the model chosen
+from your verdict.
 
 ## Honesty
 

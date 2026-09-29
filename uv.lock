@@ -67,6 +67,7 @@ docs = [
 evals = [
     { name = "anthropic" },
     { name = "anyio" },
+    { name = "certifi" },
     { name = "coverage" },
     { name = "dill" },
     { name = "docker" },
@@ -148,6 +149,7 @@ docs = [{ name = "sphinx", specifier = ">=8,<10" }]
 evals = [
     { name = "anthropic", specifier = ">=0.40.0" },
     { name = "anyio", specifier = ">=4.11.0,<5" },
+    { name = "certifi", specifier = ">=2026.4.22" },
     { name = "coverage", specifier = ">=7.10,<8" },
     { name = "dill", specifier = ">=0.3.3,<0.5" },
     { name = "docker", specifier = ">=7.1,<8" },

@@ -19,6 +19,12 @@ Env:
     ANTHROPIC_API_KEY — required
     BOTOCORE_CLONE    — optional, default /tmp/botocore (bare clone of boto/botocore)
 
+Scored on what botocore-sync does with each verdict: `no-port` bumps the
+bounds, `port-required` ports, and `ambiguous` opens a feedback issue for a
+human and stops. A port-required case judged `no-port` is a port miss, the
+costly error; `ambiguous` is reported separately, since it delays a needed
+port or asks a needless question but never ships a wrong bump.
+
 Exits 0 if every case passes the majority vote, 1 otherwise.
 """
 
@@ -36,11 +42,13 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from _common import (
+    DEFAULT_EFFORT,
     DEFAULT_MODEL,
+    EFFORT_LEVELS,
     REPO_ROOT,
     aiobotocore_port_happened,
     async_names,
-    classify_tool_schema,
+    classify_output_schema,
     derive_versions,
     followup_on_misclassification,
     invoke_and_classify,
@@ -61,11 +69,18 @@ SKILL_PATH = (
 SCENARIOS_PATH = REPO_ROOT / "plugins/aiobotocore-bot/evals/scenarios.yaml"
 BOTOCORE_CLONE = Path(os.environ.get("BOTOCORE_CLONE", "/tmp/botocore"))
 
-CLASSIFY_TOOL = classify_tool_schema(
-    tool_name="record_async_need_classification",
+CLASSIFY_SCHEMA = classify_output_schema(
     verdict_enum=["no-port", "port-required", "ambiguous"],
-    per_function_label="function",
 )
+
+
+def decision(verdict: str) -> str:
+    """Map a classifier verdict to what botocore-sync does with it."""
+    return {
+        "no-port": "no-port",
+        "port-required": "port",
+        "ambiguous": "feedback",
+    }.get(verdict, verdict)
 
 
 @dataclass
@@ -75,6 +90,7 @@ class Case:
     from_ver: str
     to_ver: str
     expected: str  # "no-port" | "port-required"
+    merge_commit: str
 
 
 def _case_from_dict(d: dict[str, str]) -> Case:
@@ -84,11 +100,14 @@ def _case_from_dict(d: dict[str, str]) -> Case:
         from_ver=d["from"],
         to_ver=d["to"],
         expected=d["expected"],
+        merge_commit=d["merge_commit"],
     )
 
 
 def load_scenarios_yaml(path: Path) -> list[Case] | None:
-    rows = parse_scenarios_yaml(path, {"title", "expected", "from", "to"})
+    rows = parse_scenarios_yaml(
+        path, {"title", "expected", "from", "to", "merge_commit"}
+    )
     return [_case_from_dict(r) for r in rows] if rows else None
 
 
@@ -113,6 +132,7 @@ def list_historical_cases(limit: int) -> list[Case]:
                 from_ver=from_ver,
                 to_ver=to_ver,
                 expected=expected,
+                merge_commit=pr["mergeCommit"]["oid"],
             )
         )
         if len(cases) >= limit:
@@ -204,17 +224,15 @@ def build_user_message(
 
         Output protocol:
 
-        1. In your text response, reason through each changed function
-           per Step 3 of the system prompt. For any port-required
-           verdict you must quote the exact string from `overrides`
-           you matched (or the exact name from `async_methods` /
-           `aio_classes` you contacted).
-        2. Then call the `record_async_need_classification` tool
-           ONCE with your final `verdict` and a `rationale` containing
-           the per-function breakdown (file, name, change-type,
-           verdict, reason) plus a roll-up summary. The tool call is
-           the authoritative output — do not emit a CLASSIFICATION
-           label in text.
+        1. Reason through each changed function per Step 3 of the
+           system prompt. For any port-required verdict you must quote
+           the exact string from `overrides` you matched (or the exact
+           name from `async_methods` / `aio_classes` you contacted).
+        2. Your response is JSON with your final `verdict` and a
+           `rationale` containing the per-function breakdown (file,
+           name, change-type, verdict, reason) plus a roll-up summary.
+           It is the authoritative output — do not emit a
+           CLASSIFICATION label.
         3. Never justify port-required with "the test_patches.py hash
            will break" — hash bumps are mechanical, NOT a port
            signal.
@@ -244,6 +262,12 @@ async def main() -> int:
         "--model",
         default=DEFAULT_MODEL,
         help="Anthropic model to use (default: %(default)s)",
+    )
+    parser.add_argument(
+        "--effort",
+        choices=EFFORT_LEVELS,
+        default=DEFAULT_EFFORT,
+        help="Effort level (default: %(default)s)",
     )
     parser.add_argument(
         "--case",
@@ -286,16 +310,6 @@ async def main() -> int:
     require_env("ANTHROPIC_API_KEY")
 
     skill_body = load_skill_body(SKILL_PATH)
-    overridden = overridden_paths()
-    override_symbols = overridden_symbols()
-    async_methods, aio_classes = async_names()
-    print(
-        f"Overridden files: {len(overridden)} ({', '.join(sorted(overridden)[:3])}, ...)"
-    )
-    print(
-        f"Registries: overrides={len(override_symbols)} "
-        f"async_methods={len(async_methods)} aio_classes={len(aio_classes)}"
-    )
 
     # Prefer the committed scenarios.yaml (faster, deterministic, has rationales).
     yaml_cases = load_scenarios_yaml(SCENARIOS_PATH)
@@ -313,18 +327,27 @@ async def main() -> int:
         wanted = set(args.case)
         cases = [c for c in cases if c.pr in wanted]
     print(
-        f"Evaluating {len(cases)} historical PR(s) x {args.runs} run(s) with {args.model}"
+        f"Evaluating {len(cases)} historical PR(s) x {args.runs} run(s) with {args.model} @ effort={args.effort}"
     )
 
     client = new_client()
 
-    # Pre-compute diffs once per case (used by all N runs).
+    # Registries as of each sync's parent, so later overrides don't leak the answer.
     diffs: dict[int, str] = {}
+    registries: dict[int, tuple[set[str], set[str], set[str]]] = {}
     for case in cases:
+        parent = f"{case.merge_commit}^"
         try:
-            diffs[case.pr] = compute_filtered_diff(case, overridden)
+            diffs[case.pr] = compute_filtered_diff(
+                case, overridden_paths(parent)
+            )
         except RuntimeError as e:
             print(f"  SKIP #{case.pr}: {e}")
+            continue
+        registries[case.pr] = (
+            overridden_symbols(parent),
+            *async_names(parent),
+        )
 
     runnable = [c for c in cases if c.pr in diffs]
 
@@ -333,23 +356,19 @@ async def main() -> int:
         if not diff.strip():
             return ("no-port", "")
         user = build_user_message(
-            case, diff, override_symbols, async_methods, aio_classes
+            case,
+            diff,
+            *registries[case.pr],
         )
-        verdict, raw, tool_input = await invoke_and_classify(
+        verdict, raw, _parsed = await invoke_and_classify(
             client,
             skill_body,
             user,
             args.model,
-            CLASSIFY_TOOL,
+            args.effort,
+            CLASSIFY_SCHEMA,
         )
-        # Inline the structured tool input into the rationale so the
-        # JSON-out captures it alongside the narrative text.
-        rationale = raw
-        if tool_input is not None:
-            rationale += "\n\n---TOOL OUTPUT---\n" + json.dumps(
-                tool_input, indent=2
-            )
-        return (verdict, rationale)
+        return (verdict, raw)
 
     per_case_verdicts = await run_cases_concurrent(
         runnable, args.runs, invoke_one
@@ -360,15 +379,17 @@ async def main() -> int:
     for case, pairs in zip(runnable, per_case_verdicts, strict=True):
         verdicts = [v for v, _ in pairs]
         rationales = [r for _, r in pairs]
+        want = decision(case.expected)
+        decisions = [decision(v) for v in verdicts]
         print(f"\n#{case.pr} [{case.expected}] {case.title}")
         print(
             f"  from={case.from_ver} to={case.to_ver} diff={diffs[case.pr].count(chr(10))} lines"
         )
-        for i, v in enumerate(verdicts, 1):
-            ok = "PASS" if v == case.expected else "FAIL"
+        for i, (v, d) in enumerate(zip(verdicts, decisions, strict=True), 1):
+            ok = "PASS" if d == want else "FAIL"
             print(f"  run {i}: {v}  {ok}")
-        majority, count = Counter(verdicts).most_common(1)[0]
-        passed = majority == case.expected and count > args.runs // 2
+        majority, count = Counter(decisions).most_common(1)[0]
+        passed = majority == want and count > args.runs // 2
         status = "PASS" if passed else "FAIL"
         print(f"  majority {majority} ({count}/{args.runs}): {status}")
         result = {
@@ -378,6 +399,7 @@ async def main() -> int:
             "to": case.to_ver,
             "expected": case.expected,
             "verdicts": verdicts,
+            "decisions": decisions,
             "rationales": rationales,
             "majority": majority,
             "passed": passed,
@@ -388,6 +410,21 @@ async def main() -> int:
 
     print(
         f"\n== Summary: {len(results) - len(failures)}/{len(results)} passed =="
+    )
+    for name, label, bad in (
+        ("port misses", "port-required", "no-port"),
+        ("false ports", "no-port", "port"),
+    ):
+        rows = [r for r in results if r["expected"] == label]
+        runs = [d for r in rows for d in r["decisions"]]
+        print(
+            f"  {name}: {sum(r['majority'] == bad for r in rows)}/{len(rows)} "
+            f"{label} cases by majority, {runs.count(bad)}/{len(runs)} runs"
+        )
+    all_verdicts = [v for r in results for v in r["verdicts"]]
+    print(
+        f"  ambiguous (sent to feedback): {all_verdicts.count('ambiguous')}/{len(all_verdicts)} runs, "
+        f"parse-error: {all_verdicts.count('parse-error')}/{len(all_verdicts)} runs"
     )
     for _, f, _ in failures:
         print(
@@ -405,16 +442,19 @@ async def main() -> int:
             if not diff.strip() or not rationales or not rationales[0]:
                 continue
             user = build_user_message(
-                case, diff, override_symbols, async_methods, aio_classes
+                case,
+                diff,
+                *registries[case.pr],
             )
             followup = await followup_on_misclassification(
                 client,
                 skill_body,
                 user,
                 args.model,
+                args.effort,
                 rationales[0],
                 case.expected,
-                result["majority"],
+                Counter(result["verdicts"]).most_common(1)[0][0],
             )
             result["debug_followup"] = followup
             print(f"\n--- #{case.pr} follow-up ---\n{followup}\n")

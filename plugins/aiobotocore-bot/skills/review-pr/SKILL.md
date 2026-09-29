@@ -6,19 +6,9 @@ allowed-tools: Bash(gh pr view:*) Bash(gh pr diff:*) Bash(gh pr comment:*) Bash(
 
 Provide a code review for the given pull request.
 
-**Agent assumptions:** All tools are functional. Only call a tool if it is required to complete the task.
-Every tool call should have a clear purpose.
-
-**Do NOT launch parallel subagents.** Perform all steps sequentially in this conversation to minimize
-cache token costs AND wallclock (each Agent spin-up + response adds seconds and the main agent typically
-re-reads the same files anyway, doubling the work).
-
-**Prefer `Grep` over `Read`** when you only need to verify a pattern — e.g. checking that an old term
-was renamed everywhere, or that a certain function isn't called. `Read` is right only when you genuinely
-need structural context (full-function review, cross-referencing surrounding code).
-
-**Do NOT pre-read all changed files at review start.** The PR diff from `gh pr diff` is sufficient for
-90% of review concerns. Read individual files only when a specific finding needs verification.
+Work through the steps sequentially in this conversation rather than launching subagents: each spin-up
+adds latency and the main agent re-reads the same files anyway. Start from the `gh pr diff` output, read a
+file when a finding needs its surrounding code to verify, and use `Grep` to check a pattern across the repo.
 
 ## Step 1: Eligibility check
 
@@ -26,7 +16,7 @@ Stop if any of the following are true:
 
 - The pull request is closed
 - The pull request is a draft
-- The pull request does not need code review (e.g. automated PR, trivial change that is obviously correct)
+- The pull request does not need code review (e.g. a trivial change that is obviously correct)
 - Claude has already reviewed the current HEAD commit — i.e. the PR has a prior Claude review AND no new commits have
   been pushed since that review
 
@@ -116,7 +106,7 @@ f) **Coverage-driven test-porting suggestions** (any PR that adds or modifies `a
    finding. Pick the file with the most uncovered lines that has a clear botocore test
    counterpart.
 
-**CRITICAL: Only flag HIGH SIGNAL issues.**
+Only flag high-signal issues.
 
 Flag issues where:
 

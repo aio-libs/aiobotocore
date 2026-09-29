@@ -109,6 +109,7 @@ docs = [
 evals = [
     { include-group = "dev" },
     "anthropic >= 0.40.0", # Used in plugins/aiobotocore-bot/evals/
+    "certifi>=2026.4.22",
 ]
 
 [tool.uv]

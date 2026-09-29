@@ -263,7 +263,7 @@ scenarios:
 
 - pr: 1376
   title: "Bump `botocore` dependency specification"
-  expected: port-required
+  expected: no-port
   from: "1.38.36"
   to: "1.38.46"
   merge_commit: a2a236c61e4d7f5090f6a8b2c2f0a7e3c7831ae0
@@ -282,11 +282,14 @@ scenarios:
   - botocore/utils.py
   - botocore/waiter.py
   rationale: |
-    Port required: botocore modified existing overridden functions in __init__.py, args.py,
-    client.py, handlers.py, paginate.py, response.py, session.py, signers.py, utils.py, waiter.py
-    with 55 added non-comment line(s) and aiobotocore's overrides
-    updated to match.
-  notes: null
+    No behavior to port. The botocore changes to mirrored files were import
+    consolidation, merged adjacent string literals, and the version bump.
+    aiobotocore mirrored the same formatting, but no overridden function's
+    logic changed.
+  notes: |
+    Hand-relabeled from port-required: aiobotocore_port_happened() fires on
+    the cosmetic mirroring in paginate.py, session.py and waiter.py.
+    generate_scenarios.py would re-derive port-required; keep this label.
 
 - pr: 1387
   title: "Bump `botocore` dependency specification"
@@ -674,4 +677,322 @@ scenarios:
     _validate_s3_disable_express_session_auth, _set_region_if_custom_s3_endpoint,
     _compute_s3_disable_express_session_auth (+3 more). aiobotocore needed matching async
     overrides (or to delegate through existing overrides).
+  notes: null
+
+- pr: 1546
+  title: "Relax botocore dependency specification"
+  expected: no-port
+  from: "1.42.84"
+  to: "1.42.89"
+  merge_commit: ab9821e6a85c3905a2c06593bdc2a6ce7aad4788
+  aiobotocore_version: "3.4.1"
+  botocore_diff: https://github.com/boto/botocore/compare/1.42.84...1.42.89
+  aiobotocore_pr: https://github.com/aio-libs/aiobotocore/pull/1546
+  botocore_files_touched:
+  - botocore/__init__.py
+  - botocore/handlers.py
+  rationale: |
+    Only the version constant in botocore/__init__.py and handlers.py changed; the
+    handlers.py delta refactored sigv4a signing context into a new helper
+    (_set_sigv4a_signing_context) that aiobotocore does not override. The aiobotocore
+    PR touched only bounds, version and changelog files.
+  notes: null
+
+- pr: 1571
+  title: "Bump botocore dependency specification"
+  expected: port-required
+  from: "1.42.89"
+  to: "1.42.91"
+  merge_commit: c7539890036ce1ddf84e4100a608a445c0817a56
+  aiobotocore_version: "3.5.0"
+  botocore_diff: https://github.com/boto/botocore/compare/1.42.89...1.42.91
+  aiobotocore_pr: https://github.com/aio-libs/aiobotocore/pull/1571
+  botocore_files_touched:
+  - botocore/__init__.py
+  - botocore/args.py
+  - botocore/client.py
+  - botocore/regions.py
+  rationale: |
+    botocore added auth_scheme_preference: args.py threads it through
+    get_client_args into _build_endpoint_resolver and the ruleset resolver, and
+    client.py _make_api_call computes auth_type via resolve_auth_scheme_preference.
+    aiobotocore mirrored these in AioClientArgsCreator and AioBaseClient._make_api_call.
+  notes: null
+
+- pr: 1578
+  title: "Relax `botocore` dependency specification"
+  expected: no-port
+  from: "1.42.91"
+  to: "1.42.97"
+  merge_commit: 49dc33dd4f9107e6005adeba89d7e101ef93e606
+  aiobotocore_version: "3.5.1"
+  botocore_diff: https://github.com/boto/botocore/compare/1.42.91...1.42.97
+  aiobotocore_pr: https://github.com/aio-libs/aiobotocore/pull/1578
+  botocore_files_touched:
+  - botocore/__init__.py
+  - botocore/handlers.py
+  rationale: |
+    handlers.py only gained getattr aliases for cloudwatch OTel enrichment methods
+    (ClientMethodAlias entries). These are registered data, not overridden functions, so
+    aiobotocore needed only bounds bumps (plus a unit-test tweak and pre-commit config).
+  notes: null
+
+- pr: 1579
+  title: "Relax `botocore` dependency specification"
+  expected: no-port
+  from: "1.42.97"
+  to: "1.43.0"
+  merge_commit: 87c8c68083bdb737a302c142e88e817ae47655d6
+  aiobotocore_version: "3.6.0"
+  botocore_diff: https://github.com/boto/botocore/compare/1.42.97...1.43.0
+  aiobotocore_pr: https://github.com/aio-libs/aiobotocore/pull/1579
+  botocore_files_touched:
+  - botocore/__init__.py
+  - botocore/tokens.py
+  rationale: |
+    botocore's only delta to a mirrored file was tokens.py replacing
+    Optional[datetime] with datetime | None (annotation only), and no
+    test_patches.py hash changed, so no overridden function moved.
+  notes: |
+    Hand-relabeled from port-required: aiobotocore_port_happened() fires on
+    this PR's unrelated typing cleanups in config.py and httpsession.py.
+    generate_scenarios.py would re-derive port-required; keep this label.
+
+- pr: 1605
+  title: "Relax `botocore` dependency specification"
+  expected: no-port
+  from: "1.43.0"
+  to: "1.43.2"
+  merge_commit: f1d29eef22b6584669e76ddf7b865ae8ab202d39
+  aiobotocore_version: "3.7.0"
+  botocore_diff: https://github.com/boto/botocore/compare/1.43.0...1.43.2
+  aiobotocore_pr: https://github.com/aio-libs/aiobotocore/pull/1605
+  botocore_files_touched:
+  - botocore/__init__.py
+  rationale: |
+    Only botocore/__init__.py changed in this range (version constant). The
+    aiobotocore PR touched bounds and a test_lambda.py cleanup, no overridden code.
+  notes: null
+
+- pr: 1606
+  title: "Bump botocore dependency specification"
+  expected: port-required
+  from: "1.43.2"
+  to: "1.43.24"
+  merge_commit: 3934c91dda2ff9c1a3b38fdf3b20c146c0dd2a82
+  aiobotocore_version: "3.7.0"
+  botocore_diff: https://github.com/boto/botocore/compare/1.43.2...1.43.24
+  aiobotocore_pr: https://github.com/aio-libs/aiobotocore/pull/1606
+  botocore_files_touched:
+  - botocore/__init__.py
+  - botocore/configprovider.py
+  - botocore/endpoint.py
+  - botocore/regions.py
+  - botocore/retries/standard.py
+  rationale: |
+    botocore reworked retries/standard.py register_retry_handler (NEW_RETRIES_ENABLED
+    branch, per-service max attempts, ThrottlingErrorDetector, long-polling handling) and
+    endpoint.py _needs_retry now treats a False handler response as no-retry.
+    aiobotocore ported these into AioRetryHandler/register_retry_handler in
+    retries/standard.py and AioEndpoint._needs_retry.
+  notes: null
+
+- pr: 1635
+  title: "Bump botocore dependency specification"
+  expected: no-port
+  from: "1.43.24"
+  to: "1.43.34"
+  merge_commit: f103d4bee538636ba8f36898eac66e928955c262
+  aiobotocore_version: "3.7.0"
+  botocore_diff: https://github.com/boto/botocore/compare/1.43.24...1.43.34
+  aiobotocore_pr: https://github.com/aio-libs/aiobotocore/pull/1635
+  botocore_files_touched:
+  - botocore/__init__.py
+  - botocore/handlers.py
+  rationale: |
+    handlers.py only added a docs handler (DocumentModifiedShape for the IAM
+    policyDocumentType) which aiobotocore does not override. Only bounds, uv.lock changed.
+  notes: null
+
+- pr: 1655
+  title: "Bump botocore dependency specification"
+  expected: no-port
+  from: "1.43.36"
+  to: "1.43.46"
+  merge_commit: c0287bad0484fbe26d4f6edf96f4f7e81577ba3e
+  aiobotocore_version: "3.7.0"
+  botocore_diff: https://github.com/boto/botocore/compare/1.43.36...1.43.46
+  aiobotocore_pr: https://github.com/aio-libs/aiobotocore/pull/1655
+  botocore_files_touched:
+  - botocore/__init__.py
+  - botocore/handlers.py
+  - botocore/tokens.py
+  - botocore/utils.py
+  rationale: |
+    handlers.py gained a client method alias, utils.py dropped two service-name
+    mappings, and tokens.py added insert_before/insert_after to TokenProviderChain, which
+    aiobotocore does not subclass (only AioSSOTokenProvider and AioDeferredRefreshableToken).
+    Only bounds changed in aiobotocore.
+  notes: null
+
+- pr: 1665
+  title: "Bump botocore dependency specification"
+  expected: no-port
+  from: "1.43.46"
+  to: "1.43.50"
+  merge_commit: 30184b2f2795431f95ee88ccb011f59633f822e9
+  aiobotocore_version: "3.8.0"
+  botocore_diff: https://github.com/boto/botocore/compare/1.43.46...1.43.50
+  aiobotocore_pr: https://github.com/aio-libs/aiobotocore/pull/1665
+  botocore_files_touched:
+  - botocore/__init__.py
+  rationale: |
+    Only the version constant in botocore/__init__.py changed. No overridden code
+    touched; aiobotocore PR was bounds and uv.lock only.
+  notes: null
+
+- pr: 1668
+  title: "Bump botocore dependency specification"
+  expected: no-port
+  from: "1.43.50"
+  to: "1.43.51"
+  merge_commit: fb6a12f0342aaaa1e0dd5ef9ec15ce5b2a4e6d30
+  aiobotocore_version: "3.8.0"
+  botocore_diff: https://github.com/boto/botocore/compare/1.43.50...1.43.51
+  aiobotocore_pr: https://github.com/aio-libs/aiobotocore/pull/1668
+  botocore_files_touched:
+  - botocore/__init__.py
+  rationale: |
+    Only the version constant in botocore/__init__.py changed. No overridden code
+    touched; aiobotocore PR was bounds and uv.lock only.
+  notes: null
+
+- pr: 1675
+  title: "Bump botocore dependency specification"
+  expected: no-port
+  from: "1.43.51"
+  to: "1.43.56"
+  merge_commit: 7df16439d480db161884a22fc9ab0d090193c76a
+  aiobotocore_version: "3.8.0"
+  botocore_diff: https://github.com/boto/botocore/compare/1.43.51...1.43.56
+  aiobotocore_pr: https://github.com/aio-libs/aiobotocore/pull/1675
+  botocore_files_touched:
+  - botocore/__init__.py
+  - botocore/endpoint.py
+  rationale: |
+    endpoint.py added EndpointCreator._validate_verify_value, called from
+    _get_verify_value to reject an empty CA bundle string. aiobotocore's
+    AioEndpointCreator inherits _get_verify_value unmodified, so the new validation applies
+    automatically and no async port was needed.
+  notes: null
+
+- pr: 1693
+  title: "Bump botocore dependency specification"
+  expected: no-port
+  from: "1.43.56"
+  to: "1.43.62"
+  merge_commit: 2026c1b2268f4881c42956628b6f0966460dbaf1
+  aiobotocore_version: "3.9.0"
+  botocore_diff: https://github.com/boto/botocore/compare/1.43.56...1.43.62
+  aiobotocore_pr: https://github.com/aio-libs/aiobotocore/pull/1693
+  botocore_files_touched:
+  - botocore/__init__.py
+  rationale: |
+    Only the version constant in botocore/__init__.py changed. No overridden code
+    touched; aiobotocore PR was bounds and uv.lock only.
+  notes: null
+
+- pr: 1709
+  title: "feat: support botocore 1.43.75 \u2014 seed max attempts and honour per-request read_timeout"
+  expected: port-required
+  from: "1.43.62"
+  to: "1.43.75"
+  merge_commit: 1975e823ecc50de45c5a30c1e7c14398aa399109
+  aiobotocore_version: "3.9.0"
+  botocore_diff: https://github.com/boto/botocore/compare/1.43.62...1.43.75
+  aiobotocore_pr: https://github.com/aio-libs/aiobotocore/pull/1709
+  botocore_files_touched:
+  - botocore/__init__.py
+  - botocore/awsrequest.py
+  - botocore/endpoint.py
+  - botocore/httpsession.py
+  - botocore/retries/standard.py
+  rationale: |
+    botocore added a per-request read_timeout override: AWSPreparedRequest carries the
+    request context, endpoint.py prefers context['read_timeout'], httpsession.py gained
+    _get_request_timeout, and retries/standard.py seeds the max-attempts header via
+    MaxAttemptsSeeder. aiobotocore added AIOHTTPSession._get_request_timeout (mapping to
+    aiohttp.ClientTimeout) and the seeder registration in register_retry_handler.
+  notes: null
+
+- pr: 1723
+  title: "Bump botocore dependency specification"
+  expected: no-port
+  from: "1.43.75"
+  to: "1.43.83"
+  merge_commit: 246b214bc4a55b4af15db96c54bcaf4c0da2d06d
+  aiobotocore_version: "3.9.1"
+  botocore_diff: https://github.com/boto/botocore/compare/1.43.75...1.43.83
+  aiobotocore_pr: https://github.com/aio-libs/aiobotocore/pull/1723
+  botocore_files_touched:
+  - botocore/__init__.py
+  - botocore/awsrequest.py
+  rationale: |
+    awsrequest.py only moved the response_class assignment inside AWSConnection
+    (urllib3-specific code aiobotocore replaces with aiohttp). No overridden async code
+    changed; only bounds and uv.lock were updated.
+  notes: null
+
+- pr: 1728
+  title: "Bump botocore dependency specification"
+  expected: no-port
+  from: "1.43.83"
+  to: "1.43.89"
+  merge_commit: 7edb588e4581807a647c925aeb614535f5327d5a
+  aiobotocore_version: "3.9.1"
+  botocore_diff: https://github.com/boto/botocore/compare/1.43.83...1.43.89
+  aiobotocore_pr: https://github.com/aio-libs/aiobotocore/pull/1728
+  botocore_files_touched:
+  - botocore/__init__.py
+  - botocore/signers.py
+  rationale: |
+    signers.py changed only a docstring warning about S3 presigned URL sigv2
+    behavior, so no overridden code changed. The PR updated bounds and one test_patches.py
+    hash.
+  notes: null
+
+- pr: 1734
+  title: "Bump botocore dependency specification"
+  expected: no-port
+  from: "1.43.89"
+  to: "1.43.93"
+  merge_commit: 0428c4f09c032e1ffcb47aed1cd9c9c8e246aadd
+  aiobotocore_version: "3.9.1"
+  botocore_diff: https://github.com/boto/botocore/compare/1.43.89...1.43.93
+  aiobotocore_pr: https://github.com/aio-libs/aiobotocore/pull/1734
+  botocore_files_touched:
+  - botocore/__init__.py
+  - botocore/handlers.py
+  rationale: |
+    handlers.py removed enable_millisecond_timestamp_precision and its
+    bedrock-agentcore creating-serializer registration, none of which aiobotocore
+    overrides. The PR only updated bounds and pre-commit config.
+  notes: null
+
+- pr: 1744
+  title: "fix: port botocore 1.43.98 StreamingChecksumBody changes"
+  expected: port-required
+  from: "1.43.93"
+  to: "1.43.98"
+  merge_commit: b479dd34134f930cd08628d374b4c746ec5d671c
+  aiobotocore_version: "3.9.1"
+  botocore_diff: https://github.com/boto/botocore/compare/1.43.93...1.43.98
+  aiobotocore_pr: https://github.com/aio-libs/aiobotocore/pull/1744
+  botocore_files_touched:
+  - botocore/__init__.py
+  - botocore/httpchecksum.py
+  rationale: |
+    botocore's StreamingChecksumBody gained a public checksum property and
+    _validate_checksum now returns early when _expected is None. aiobotocore mirrored both
+    in AioStreamingChecksumBody in httpchecksum.py, with updated hash and ported unit test.
   notes: null

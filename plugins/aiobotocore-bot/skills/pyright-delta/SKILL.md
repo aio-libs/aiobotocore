@@ -8,11 +8,8 @@ aiobotocore has a long-standing baseline of pyright errors (intentional async-ov
 patterns plus legacy type gaps). Absolute counts are not a gate — what we care about is **drift
 introduced by the current changes**, especially in files the changes touched.
 
-This skill captures the delta using `git worktree` rather than `git stash`: a throwaway worktree
-at `origin/main` provides the baseline without touching the primary tree. An earlier version of
-this flow used `git stash push/pop` (inherited from the pre-refactor inline sync-prompt); that
-approach is fragile because a failed `git stash pop` leaves the primary tree in a half-applied
-state just before the MCP commit step runs. Worktrees sidestep that class of failure entirely.
+This skill captures the delta using a throwaway `git worktree` at `origin/main`, not `git stash`:
+a failed `git stash pop` would leave the primary tree half-applied just before the commit step.
 
 ## Arguments
 

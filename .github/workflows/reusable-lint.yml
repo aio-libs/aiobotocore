@@ -52,22 +52,7 @@ jobs:
     # tests/evals exercises plugins/, which the sdist excludes -- so the test
     # matrix, running out of the sdist, never sees them. The evals group is not
     # a default group because anthropic pulls httpx in transitively.
-    - name: Run eval common tests
+    - name: Run eval harness tests
       run: |
         uv sync --group evals
-        uv run pytest \
-          --cov-report= \
-          --cov=plugins/aiobotocore-bot/evals \
-          --cov=tests/evals \
-          tests/evals/test_common.py
-        # pyproject's source_pkgs still applies on top of --cov, so without
-        # --include this reports all of aiobotocore at ~0% and sinks the flag.
-        uv run coverage xml --include='plugins/*,tests/evals/*'
-    - name: Upload eval coverage to Codecov
-      uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5  # v7.1.1
-      with:
-        files: ./coverage.xml
-        flags: evals-common
-        name: codecov-umbrella
-        fail_ci_if_error: true
-        verbose: true
+        uv run pytest tests/evals

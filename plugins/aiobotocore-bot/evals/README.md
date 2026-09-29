@@ -26,6 +26,9 @@ the CLI:
 gh workflow run evals.yml -f eval=both -f runs=3 -f limit=8
 ```
 
+To compare models, add `-f model=claude-sonnet-5-5 -f effort=high`; empty
+inputs fall back to the script defaults.
+
 Permissions: `workflow_dispatch` requires repo write access, and the job
 also uses `environment: claude` to gate the `ANTHROPIC_API_KEY` secret.
 Between those, only the `aiobotocore-admins` team (see the team on
@@ -126,6 +129,7 @@ Options:
 - `--limit N` — max scenarios to evaluate (default 8)
 - `--case N` — only evaluate specific PR number (repeatable)
 - `--model <id>` — Anthropic model ID (default: `DEFAULT_MODEL` in `_common.py`; `--help` prints it)
+- `--effort <level>` — `low`/`medium`/`high`/`xhigh`/`max` (default: `DEFAULT_EFFORT` in `_common.py`)
 - `--json-out <path>` — write per-run results as JSON
 
 ### What it checks
@@ -200,6 +204,7 @@ Options:
 - `--runs N` — runs per case; majority vote decides pass/fail (default 3)
 - `--case N` — only evaluate specific PR number (repeatable)
 - `--model <id>` — Anthropic model ID (default: `DEFAULT_MODEL` in `_common.py`; `--help` prints it)
+- `--effort <level>` — `low`/`medium`/`high`/`xhigh`/`max` (default: `DEFAULT_EFFORT` in `_common.py`)
 - `--json-out <path>` — write per-run results as JSON
 
 ### When to run

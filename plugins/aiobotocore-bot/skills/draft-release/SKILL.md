@@ -4,9 +4,9 @@ argument-hint: "[--version=X.Y.Z] [--from=REF] [--to=REF] [--date=YYYY-MM-DD] [-
 allowed-tools: Bash(git:*) Bash(gh:*) Bash(date:*) Bash(grep:*) Bash(sed:*) Bash(awk:*) Bash(printf:*) Bash(wc:*) Bash(seq:*) Bash(tr:*) Bash(python3:*) Bash(cat:*) mcp__github_file_ops__commit_files
 ---
 
-Draft a release PR. Replaces the old per-PR "bump version + add CHANGES.rst entry"
-ceremony — contributors no longer touch either file. This skill reads what was
-merged, summarizes it, and opens the release PR for human review.
+Draft a release PR. Contributors don't touch `CHANGES.rst` or
+`aiobotocore/__init__.py`; this skill reads what was merged, summarizes it,
+writes both files, and opens the release PR for human review.
 
 ## Arguments
 
@@ -148,7 +148,7 @@ the bump rule via *each* of its signals -- it's the union of
 signals across all PRs in the window that drives the bump level.
 
 Most PRs have exactly one signal and land in one bucket. The mixed
-case -- the user's ``feat: ... and bump botocore minor`` shape, or
+case -- a ``feat:`` PR that also bumps botocore minor, or
 a ``fix:`` that also corrects docs -- gets treated honestly: the PR
 appears in both ``feature`` and ``dep-bump``, both of which feed the
 bump rule.
@@ -488,16 +488,14 @@ Otherwise:
 
    1. Validates ``CHANGES.rst`` matches ``aiobotocore/__init__.py``
       via ``scripts/changelog.py validate --expected-top-version X.Y.Z``.
-   2. Creates the signed ``X.Y.Z`` git tag at the merge commit
-      (Releases API path; tag is signed by GitHub's web-flow key).
-   3. Drafts a GitHub Release with notes extracted from this version's
+   2. Creates the signed ``X.Y.Z`` git tag at the merge commit and a
+      published GitHub Release whose notes come from this version's
       ``CHANGES.rst`` entry via ``scripts/changelog.py extract``.
-   4. Builds the wheel + sdist via ``reusable-build.yml``.
-   5. Publishes to PyPI via OIDC trusted publishing using
-      ``reusable-publish.yml``.
+   3. Dispatches ``ci-cd.yml`` for the tag, which builds the wheel +
+      sdist and publishes to PyPI via OIDC trusted publishing.
 
-   The Release is drafted (not published); a maintainer reviews the
-   notes in the GitHub UI and clicks Publish.
+   The Release is visible as soon as the tag job finishes; PyPI
+   follows when the dispatched ``ci-cd.yml`` run completes.
 
    🤖 Generated with [Claude Code](https://claude.com/claude-code)
    ```

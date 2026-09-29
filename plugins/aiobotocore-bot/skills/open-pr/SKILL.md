@@ -1,6 +1,6 @@
 ---
 description: Use when opening or updating an aiobotocore PR against main. Re-reads `.github/pull_request_template.md` each run (authoritative), fills placeholders, verifies each ticked checklist box against the diff, and appends mode-specific sections for `generic`, `sync-no-port`, or `sync-port` PRs.
-argument-hint: "--title=TITLE [--mode=generic|sync-no-port|sync-port] [--description=TEXT] [--botocore-diff-url=URL] [--async-need-summary=TEXT] [--assumptions=TEXT] [--changed-aiobotocore=TEXT] [--extra-sections=TEXT] [--update-only]"
+argument-hint: "--title=TITLE [--mode=generic|sync-no-port|sync-port] [--description=TEXT] [--botocore-diff-url=URL] [--async-need-summary=TEXT] [--classifier-verdicts=TEXT] [--assumptions=TEXT] [--changed-aiobotocore=TEXT] [--extra-sections=TEXT] [--update-only]"
 allowed-tools: Bash(cat:*) Bash(git diff:*) Bash(gh pr create:*) Bash(gh pr edit:*) Bash(gh pr view:*) mcp__github_file_ops__commit_files
 ---
 
@@ -18,8 +18,9 @@ so template changes flow through automatically and checklist-verification stays 
   from the other fields): one or two paragraphs for the "Description of Change" slot.
 - `--botocore-diff-url=<url>` (required for sync modes): e.g.
   `https://github.com/boto/botocore/compare/1.42.84...1.42.89`.
-- `--async-need-summary=<text>` (required for `sync-no-port`): the summary line from the
-  `check-async-need` skill that justifies the no-port verdict. Do not paraphrase — quote it.
+- `--async-need-summary=<text>` (required for `sync-no-port`): the summary line from a
+  `check-async-need` run (the sync job receives it pre-computed from the `classify` job) that
+  justifies the no-port verdict. Do not paraphrase — quote it.
 - `--classifier-verdicts=<text>` (optional, sync modes): the per-function verdict block from the
   `check-async-need` skill's `rationale` field. When provided, rendered as a markdown table in
   the PR body so a human reviewer can spot-check each classification without re-running the
@@ -62,19 +63,20 @@ sibling skills (`review-pr`, `complete-run`, `analyze-pr-feedback`).
 
 Hard-wrap is for source files only (yamllint compliance); rendered Markdown does not need it.
 
-### Verbosity ceiling
+### Length
 
-Reviewers skim. Length costs cache on every follow-up @claude run. Defaults:
+Reviewers skim, and the body is re-read on every follow-up @claude run, so each section carries
+only what a reviewer needs to act on:
 
-- **"Description of Change"**: at most 2 sentences. Say what version range and what theme of
-  change (e.g. "Bump botocore to 1.42.91. New `auth_scheme_preference` threading needs async
-  porting"). Per-symbol detail belongs in the classifier table, not here.
+- **"Description of Change"**: the version range and the theme of the change (e.g. "Bump
+  botocore to 1.42.91. New `auth_scheme_preference` threading needs async porting"). Per-symbol
+  detail belongs in the classifier table, not here.
 - **"Assumptions"**: include only if a non-obvious decision was made that the reviewer should
   validate. Inheriting from a base class without an override is NOT a non-obvious decision —
   it's the default. Omit the section if the only "assumptions" are restatements of the diff.
-- **"What changed in aiobotocore"**: at most one short line per file. No prose paragraphs. Do
-  NOT restate per-symbol botocore changes — the table covers those.
-- **Reviewer checklist**: keep to ≤6 items. Don't pad with items that overlap.
+- **"What changed in aiobotocore"**: one short line per file, no prose paragraphs. Don't
+  restate per-symbol botocore changes — the table covers those.
+- **Reviewer checklist**: distinct items only; don't pad with items that overlap.
 
 Tick a checklist box only for work the current branch actually did. For items you didn't do,
 either omit with a brief note or leave the box unchecked with a one-line reason, e.g.
@@ -85,7 +87,6 @@ better than a false check.**
 
 For every box you ticked, confirm the diff supports it:
 
-- `CHANGES.rst` entry checked → `git diff origin/main -- CHANGES.rst` shows a new top entry.
 - `test_patches.py` updated checked → the hashes file has a matching diff.
 - CONTRIBUTING.rst followed checked → only tick for botocore/aiohttp upgrades when you actually
   ran those steps.
@@ -122,8 +123,7 @@ Async-need check: <--async-need-summary verbatim>
 ### Reviewer checklist
 - [ ] Botocore diff reviewed — confirms no-port vs port-required
 - [ ] `test_patches.py` hashes current
-- [ ] Version bump is patch (no-port)
-- [ ] `CHANGES.rst` entry added
+- [ ] Only `pyproject.toml` bounds and `uv.lock` changed (no-port)
 - [ ] No unrelated changes
 
 ### How to help
@@ -143,10 +143,11 @@ Same as `sync-no-port` but:
   feature requiring the port>`. Per-symbol detail belongs in the classifier table.
 - Include `--assumptions` under an "Assumptions" section ONLY if provided AND non-tautological
   (see Anti-duplication rule).
-- "What changed in aiobotocore": ≤1 line per file. List new `Aio*` classes, overridden methods,
+- "What changed in aiobotocore": one short line per file. List new `Aio*` classes, overridden methods,
   ported tests. Never restate the botocore-side change.
 - Reviewer checklist items change to: async patterns correct, hashes updated for new overrides,
-  version bump is minor, tests ported from botocore where applicable.
+  lower bound set to the first botocore version with the change, tests ported from botocore
+  where applicable.
 - Omit the async-need summary line (the bump itself is the answer).
 
 ### Anti-duplication rule (both sync modes)
@@ -159,10 +160,10 @@ what-changed-in-aiobotocore, classifier table), apply these mechanical rules:
 - **Drop the "What changed in botocore" section entirely** when
   `--classifier-verdicts` is provided. The table replaces it. Do not write
   prose bullets summarizing what the table already enumerates per-row.
-- **Description of Change**: 2 sentences max — see "Verbosity ceiling" above.
+- **Description of Change**: see "Length" above.
   Never restate per-file or per-symbol changes; that's the table's job.
 - **What changed in aiobotocore**: per-file aiobotocore-side work only — new
-  classes, overridden methods, ported tests. ≤1 line per file. Never restate
+  classes, overridden methods, ported tests. One short line per file. Never restate
   the botocore-side change for that file (the table already shows it).
 - **Assumptions**: omit when "assumption" is a tautology of inheritance
   (e.g. "regions.py needs no changes because the subclass inherits"). Keep
@@ -213,5 +214,5 @@ made a wrong assumption about PR state.
 ## Honesty
 
 Never tick a checklist box you haven't verified. Never invent `--async-need-summary` — if the
-caller didn't run the `check-async-need` skill, refuse to use `mode=sync-no-port` and tell
-them to run it first.
+caller has no summary from a `check-async-need` run, refuse to use `mode=sync-no-port` and say
+the classifier output is missing.
