@@ -69,7 +69,7 @@ CLASSIFY_SCHEMA = classify_output_schema(
 )
 
 _HUNK_RE = re.compile(r"^@@ -(\d+)(?:,(\d+))? ")
-_ADDED_DEF_RE = re.compile(r"^\+\s*(?:async\s+)?def (\w+)", re.MULTILINE)
+_ADDED_DEF_RE = re.compile(r"^\+[ \t]*(?:async[ \t]+)?def (\w+)", re.MULTILINE)
 
 
 @dataclass
@@ -224,6 +224,11 @@ def botocore_sources(
         bdefs = _definitions(botocore_src) if botocore_src else []
         added = set(_ADDED_DEF_RE.findall(_file_sections(diff).get(path, "")))
         seen: set[str] = set()
+        classes = {
+            n
+            for n, _, _, node in _definitions(base)
+            if isinstance(node, ast.ClassDef)
+        }
         for aio_name in sorted(changed_definitions(base, lines)):
             want = botocore_name(aio_name)
             match = [d for d in bdefs if d[0] == want] or [
@@ -232,6 +237,9 @@ def botocore_sources(
                 if d[0].rsplit(".", 1)[-1] == want.rsplit(".", 1)[-1]
             ]
             if not match:
+                # a class-level hit is usually an insertion point; its methods are matched on their own
+                if aio_name in classes:
+                    continue
                 out.append(
                     (
                         f"{path} :: {aio_name}",

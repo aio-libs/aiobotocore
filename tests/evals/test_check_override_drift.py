@@ -70,3 +70,14 @@ def test_committed_scenarios_are_well_formed() -> None:
     for case in cases:
         assert (drift.FIXTURES_DIR / case.fixture).is_file(), case.id
         assert len(case.base_commit) == 40, case.id
+
+
+def test_added_def_regex_does_not_cross_added_blank_lines() -> None:
+    section = (
+        "+\n"
+        "     def unchanged(self):\n"
+        "+    @property\n"
+        "+    def checksum(self):\n"
+        "+    async def read(self):\n"
+    )
+    assert drift._ADDED_DEF_RE.findall(section) == ["checksum", "read"]
