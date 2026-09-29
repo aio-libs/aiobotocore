@@ -113,12 +113,10 @@ async def test_waiter_table_exists_failure(dynamodb_client):
 @pytest.mark.parametrize('signature_version', ['v4'])
 async def test_waiter_table_exists(dynamodb_client, dynamodb_table_def):
     table_name = dynamodb_table_def['TableName']
-    done_event = anyio.Event()
 
     async def _create_table():
         await anyio.sleep(2)
         await dynamodb_client.create_table(**dynamodb_table_def)
-        done_event.set()
 
     async with anyio.create_task_group() as tg:
         tg.start_soon(_create_table)
@@ -128,4 +126,6 @@ async def test_waiter_table_exists(dynamodb_client, dynamodb_table_def):
             TableName=table_name, WaiterConfig=dict(Delay=1, MaxAttempts=5)
         )
 
-        assert done_event.is_set()
+        # a waiter poll can see the table before create_table's response arrives
+        resp = await dynamodb_client.describe_table(TableName=table_name)
+        assert resp['Table']['TableStatus'] == 'ACTIVE'
