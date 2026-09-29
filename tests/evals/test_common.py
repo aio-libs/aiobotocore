@@ -349,3 +349,20 @@ async def test_followup_on_misclassification_sends_effort() -> None:
     )
     assert reply == "the rule that misled me"
     assert client.messages.kwargs["output_config"] == {"effort": "medium"}
+
+
+def test_overridden_symbols_reads_old_dict_format() -> None:
+    old_source = (
+        "_API_DIGESTS = {\n"
+        "    ClientCreator.create_client: {'aa'},\n"
+        "    StreamingBody: {'bb'},\n"
+        "}\n"
+        "def test_patches():\n"
+        "    for obj, digests in _API_DIGESTS.items():\n"
+        "        pass\n"
+    )
+    with patch.object(_common, "_git_show", return_value=old_source):
+        assert _common.overridden_symbols("abc^") == {
+            "ClientCreator.create_client",
+            "StreamingBody",
+        }

@@ -34,3 +34,8 @@ flags:
   tests:
     paths:
     - tests/
+
+# eval harness tooling, not library code
+ignore:
+- plugins/
+- tests/evals/

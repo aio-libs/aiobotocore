@@ -13,12 +13,14 @@ import asyncio
 import json
 import os
 import re
+import ssl
 import subprocess
 import sys
 from collections.abc import Callable
 from pathlib import Path
 
 import anthropic
+import certifi
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 AIOBOTOCORE_DIR = REPO_ROOT / "aiobotocore"
@@ -187,10 +189,18 @@ def overridden_symbols(commit: str | None = None) -> set[str]:
         else _git_show(commit, "tests/test_patches.py")
     )
     tree = ast.parse(source)
+    targets: list[ast.expr] = []
     for node in ast.walk(tree):
-        if not isinstance(node, ast.Tuple) or len(node.elts) != 2:
-            continue
-        target = node.elts[0]
+        # older test_patches.py kept entries in a `_API_DIGESTS = {obj: {hashes}}` dict
+        if isinstance(node, ast.Dict):
+            targets.extend(k for k in node.keys if k is not None)
+        elif (
+            isinstance(node, ast.Tuple)
+            and isinstance(node.ctx, ast.Load)
+            and len(node.elts) == 2
+        ):
+            targets.append(node.elts[0])
+    for target in targets:
         parts: list[str] = []
         while isinstance(target, ast.Attribute):
             parts.append(target.attr)
@@ -446,7 +456,11 @@ def new_client() -> anthropic.AsyncAnthropic:
     """Construct the async Anthropic client. Keeps `anthropic` as an
     implementation detail so callers don't import it directly.
     """
-    return anthropic.AsyncAnthropic()
+    # httpx2's default truststore context races (heap corruption) under concurrent handshakes
+    ssl_context = ssl.create_default_context(cafile=certifi.where())
+    return anthropic.AsyncAnthropic(
+        http_client=anthropic.DefaultAsyncHttpxClient(verify=ssl_context)
+    )
 
 
 def classify_output_schema(verdict_enum: list[str]) -> dict:
