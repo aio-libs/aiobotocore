@@ -7,7 +7,7 @@ does, then run Claude Code headless with the production sync prompt limited to
 the port path (Steps 5-6). The result is graded without an LLM judge:
 
 - the hash test (tests/test_patches.py) passes against the target botocore
-- the test suite passes
+- the test suite passes on the default aiohttp backend (httpx is left to CI)
 - the override functions the agent changed, compared with the real port's
 
 Each case is one full agent run of up to --max-turns turns, so run a single
@@ -259,7 +259,7 @@ async def run_case(case: can.Case, args, client) -> dict:
                     "auto",
                     "--dist",
                     "worksteal",
-                    "--http-backend=all",
+                    "--http-backend=aiohttp",
                 ],
                 wt,
             )

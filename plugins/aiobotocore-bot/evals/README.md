@@ -248,7 +248,9 @@ Code headless with the production sync prompt, limited to Steps 5-6 (no
 commits, pushes, PRs or issues). Grading needs no LLM judge:
 
 - `tests/test_patches.py` passes against the target botocore
-- the test suite passes (`-m "not localonly" --http-backend=all`)
+- the test suite passes on the default aiohttp backend (`-m "not localonly"
+  --http-backend=aiohttp`); the eval environment has no `httpx`, which the
+  CI matrix covers
 - recall and precision of the override functions the agent changed, against
   the real port's diff (a different correct port can score below 1)
 
