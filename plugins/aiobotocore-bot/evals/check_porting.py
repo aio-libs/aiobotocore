@@ -96,8 +96,15 @@ def override_changes(diff: str, base_commit: str) -> set[str]:
     return changed
 
 
+def _worktree_env() -> dict[str, str]:
+    """This process's env minus VIRTUAL_ENV, which would point uv at the eval's venv."""
+    return {k: v for k, v in os.environ.items() if k != "VIRTUAL_ENV"}
+
+
 def _run(cmd: list[str], cwd: Path, **kw) -> subprocess.CompletedProcess:
-    return subprocess.run(cmd, cwd=cwd, text=True, capture_output=True, **kw)
+    return subprocess.run(
+        cmd, cwd=cwd, text=True, capture_output=True, env=_worktree_env(), **kw
+    )
 
 
 def run_agent(cmd: list[str], cwd: Path, timeout: int) -> str:
@@ -112,6 +119,7 @@ def run_agent(cmd: list[str], cwd: Path, timeout: int) -> str:
         stdout=subprocess.PIPE,
         stderr=subprocess.DEVNULL,
         start_new_session=True,
+        env=_worktree_env(),
     )
     try:
         out, _ = proc.communicate(timeout=timeout)
@@ -198,7 +206,14 @@ async def run_case(case: can.Case, args, client) -> dict:
         try:
             _run(["uv", "sync", "--frozen"], wt, check=True)
             _run(
-                ["uv", "pip", "install", f"botocore=={case.to_ver}"],
+                [
+                    "uv",
+                    "pip",
+                    "install",
+                    "--python",
+                    ".venv/bin/python",
+                    f"botocore=={case.to_ver}",
+                ],
                 wt,
                 check=True,
             )
