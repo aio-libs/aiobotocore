@@ -66,8 +66,7 @@ Files using this: `client.py`, `endpoint.py`, `credentials.py`,
 class AioSession(Session):
     def _register_response_parser_factory(self):
         self._components.register_component(
-            'response_parser_factory',
-            AioResponseParserFactory()
+            'response_parser_factory', AioResponseParserFactory()
         )
 ```
 
