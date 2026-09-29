@@ -10,6 +10,7 @@ from __future__ import annotations
 import importlib
 import json
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
@@ -251,3 +252,100 @@ def test_classify_output_schema_shape() -> None:
     assert "rationale" in props
     assert set(schema["required"]) == {"verdict", "rationale"}
     assert schema["additionalProperties"] is False
+
+
+class _FakeStream:
+    def __init__(self, message: object) -> None:
+        self._message = message
+
+    async def __aenter__(self) -> _FakeStream:
+        return self
+
+    async def __aexit__(self, *exc: object) -> None:
+        return None
+
+    async def get_final_message(self) -> object:
+        return self._message
+
+
+class _FakeMessages:
+    def __init__(self, message: object) -> None:
+        self._message = message
+        self.kwargs: dict = {}
+
+    def stream(self, **kwargs: object) -> _FakeStream:
+        self.kwargs = kwargs
+        return _FakeStream(self._message)
+
+    async def create(self, **kwargs: object) -> object:
+        self.kwargs = kwargs
+        return self._message
+
+
+def _fake_client(text: str, stop_reason: str = "end_turn") -> SimpleNamespace:
+    message = SimpleNamespace(
+        content=[
+            SimpleNamespace(type="thinking", thinking=""),
+            SimpleNamespace(type="text", text=text),
+        ],
+        stop_reason=stop_reason,
+        usage=SimpleNamespace(input_tokens=1, output_tokens=1),
+    )
+    return SimpleNamespace(messages=_FakeMessages(message))
+
+
+async def test_invoke_and_classify_parses_structured_output() -> None:
+    client = _fake_client('{"verdict": "No-Port", "rationale": "r"}')
+    schema = _common.classify_output_schema(["no-port", "port-required"])
+    verdict, raw, parsed = await _common.invoke_and_classify(
+        client, "sys", "user", "claude-sonnet-5-5", "high", schema
+    )
+    assert verdict == "no-port"
+    assert parsed == {"verdict": "No-Port", "rationale": "r"}
+    assert raw == '{"verdict": "No-Port", "rationale": "r"}'
+    assert client.messages.kwargs["output_config"] == {
+        "effort": "high",
+        "format": {"type": "json_schema", "schema": schema},
+    }
+    assert "tool_choice" not in client.messages.kwargs
+
+
+@pytest.mark.parametrize(
+    ("text", "stop_reason", "raw_prefix"),
+    [
+        ("", "refusal", "[stop_reason=refusal]"),
+        ('{"verdict": "no-po', "max_tokens", "[stop_reason=max_tokens]"),
+        ("not json", "end_turn", "not json"),
+    ],
+)
+async def test_invoke_and_classify_parse_error(
+    text: str, stop_reason: str, raw_prefix: str
+) -> None:
+    client = _fake_client(text, stop_reason)
+    verdict, raw, parsed = await _common.invoke_and_classify(
+        client,
+        "sys",
+        "user",
+        "claude-sonnet-5-5",
+        "high",
+        _common.classify_output_schema(["no-port"]),
+    )
+    assert verdict == "parse-error"
+    assert parsed is None
+    assert raw.startswith(raw_prefix)
+
+
+async def test_followup_on_misclassification_sends_effort() -> None:
+    client = _fake_client("the rule that misled me")
+    reply = await _common.followup_on_misclassification(
+        client,
+        "sys",
+        "user",
+        "claude-sonnet-5-5",
+        "medium",
+        '{"verdict": "no-port"}',
+        expected="port-required",
+        got="no-port",
+    )
+    assert reply == "the rule that misled me"
+    assert client.messages.kwargs["output_config"] == {"effort": "medium"}
