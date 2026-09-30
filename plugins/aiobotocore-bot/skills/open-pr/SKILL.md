@@ -27,7 +27,8 @@ so template changes flow through automatically and checklist-verification stays 
   classifier. See "Classifier verdicts table" below for expected shape.
 - `--assumptions=<text>` (optional): design decisions for the "Assumptions" slot (bumps only).
 - `--changed-aiobotocore=<text>` (optional): summary of aiobotocore changes — files modified,
-  classes added, tests ported. For no-port: pass `"Version bounds updated only, no code changes."`.
+  classes added, tests ported, and changes mirrored from botocore or left for a human. For a
+  no-port sync that mirrored nothing: pass `"Version bounds updated only, no code changes."`.
 - `--extra-sections=<text>` (optional, `mode=generic` only): extra markdown sections appended
   below the template content. For sync modes the extra sections are generated from the
   mode-specific fields above; ignored here.
@@ -123,7 +124,7 @@ Async-need check: <--async-need-summary verbatim>
 ### Reviewer checklist
 - [ ] Botocore diff reviewed — confirms no-port vs port-required
 - [ ] `test_patches.py` hashes current
-- [ ] Only `pyproject.toml` bounds and `uv.lock` changed (no-port)
+- [ ] Beyond `pyproject.toml` bounds and `uv.lock`, only changes mirrored from botocore (no-port)
 - [ ] No unrelated changes
 
 ### How to help

@@ -215,10 +215,10 @@ flowchart TD
     finalCheck -->|clean or none| diff["git diff<br/>last_supported..target"]
     resume --> port
     diff --> classify{overridden files<br/>changed?}
-    classify -->|no| noport[No-port path:<br/>bump upper bound,<br/>patch version]
+    classify -->|no| noport[No-port path:<br/>bump upper bound,<br/>mirror non-async changes]
     classify -->|yes| bumpGate{enable_bump<br/>true?}
     bumpGate -->|no| feedback[Open / update<br/>feedback issue]
-    bumpGate -->|yes| port[Port async overrides,<br/>update hashes,<br/>port tests]
+    bumpGate -->|yes| port[Port async overrides,<br/>update hashes,<br/>port tests,<br/>mirror non-async changes]
     port --> validate["Run pytest<br/>+ pyright delta"]
     validate -->|pass| finalize["Commit to<br/>claude/botocore-sync,<br/>open or mark PR ready"]
     validate -->|"fail or<br/>out of turns"| saveWIP[Commit to<br/>claude/botocore-sync,<br/>draft PR with handoff doc]
@@ -241,6 +241,10 @@ flowchart TD
    files. **Port-required** (minor bump) if any overridden file has code
    changes or new logic needing async treatment. **Major** is
    flagged for human review.
+4. Both paths then mirror changes that need no async port: cosmetic
+   edits inside overridden functions, and botocore's Python support,
+   dependency bounds, ruff and pre-commit config, and dev
+   requirements. CI matrix changes are listed for a human instead.
 
 **Feedback issue loop:**
 
@@ -302,7 +306,7 @@ maintainers can iterate on them alongside the prompts.
 | `/aiobotocore-bot:check-async-need --from=<ver> --to=<ver>` | Classify new/changed functions in overridden botocore files as `no-port`, `port-required`, or `ambiguous`. Single source of truth for the port-vs-no-port decision. Used by both the sync bot and the PR reviewer. |
 | `/aiobotocore-bot:check-override-drift --pr=<number>` | Flag unmatched behavioral changes or cosmetic additions to overridden code. Principle: unmatched behavioral changes should be avoided; legitimate async gaps are OK. Used by the reviewer on any PR touching `aiobotocore/*.py` files with a botocore mirror. |
 | `/aiobotocore-bot:open-pr --mode=generic\|sync-no-port\|sync-port ...` | Re-read `pull_request_template.md`, fill placeholders, verify checked boxes against the diff, append sync-specific extra sections when mode is `sync-no-port`/`sync-port`, create or update the PR. |
-| `/aiobotocore-bot:bump-version --mode=no-port\|port --target=<ver>` | Mechanical `pyproject.toml` bounds + `aiobotocore/__init__.py` + `CHANGES.rst` entry (with correct `^` underline length) + `uv lock`. |
+| `/aiobotocore-bot:update-botocore-bounds --mode=no-port\|port --target=<ver>` | Mechanical `pyproject.toml` botocore/boto3 bounds + `uv lock`. `aiobotocore/__init__.py` and `CHANGES.rst` are left to `draft-release`. |
 | `/aiobotocore-bot:pyright-delta` | Create baseline worktree at `origin/main` / run pyright baseline / remove worktree / run pyright with current changes; report only new errors in files the current changes touched. Worktree avoids the failed-stash-pop hazard. |
 | `/aiobotocore-bot:complete-run --event=... --number=... [--comment-id=...] [--skip-reply]` | End-of-run cleanup: post summary reply to the correct target (inline thread vs top-level PR comment vs issue comment) and swap 👀→👍 reaction. |
 

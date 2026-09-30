@@ -168,8 +168,8 @@ gh pr list --head claude/botocore-sync --state all \
   --jq '.[0]'
 ```
 
-**If the PR is an open draft:** only Step 6b leaves the sync PR as a draft, so a previous run saved an unfinished
-port. Check out the branch
+**If the PR is an open draft:** only Step 6b leaves the sync PR as a draft, so a previous run saved unfinished
+work. Check out the branch
 (`git fetch origin claude/botocore-sync && git checkout -B claude/botocore-sync origin/claude/botocore-sync`) and
 never reset it — it holds the saved work.
 
@@ -177,8 +177,13 @@ never reset it — it holds the saved work.
   (bounds, botocore diffs, test porting). The classify job is skipped while a draft exists, so the pre-computed
   classifier values and affected-file list are empty; take the per-function verdicts for Step 7 from the draft
   description. The next run picks up the newer version.
-- If the description still has a `### Remaining` section, read it for progress, decisions and remaining tasks,
-  and continue at Step 5 from where that run left off.
+- If the description's **Type** is `no-port (patch)`, the verdict was no-port and the bounds are already
+  updated: finish "Mirror changes that need no async port" from its `### Remaining` section, then go to Step 6
+  and Step 7 with `--mode=sync-no-port`, passing the draft's **Async-need summary** as
+  `--async-need-summary`. Never enter Step 5 or run bounds in port mode for it, which would raise the lower
+  bound.
+- Otherwise, if the description still has a `### Remaining` section, read it for progress, decisions and
+  remaining tasks, and continue at Step 5 from where that run left off.
 - If it doesn't, the previous run had reached Step 7 and replaced it before marking the PR ready: go to Step 6 to
   re-validate, then Step 7.
 
@@ -237,8 +242,10 @@ gh api repos/REPO/pulls/PR_NUM/reviews \
 
 *Open + dirty-and-active:* proceed to Step 3 to determine update type, then:
 
-- If **no-port**: safe to apply in-place on the dirty branch. Only update `pyproject.toml` upper bound
-  and `uv.lock` via `/aiobotocore-bot:update-botocore-bounds --mode=no-port --target=$LATEST_BOTOCORE`.
+- If **no-port**: safe to apply in-place on the dirty branch, on top of the existing commits. Update the
+  `pyproject.toml` upper bound and `uv.lock` via
+  `/aiobotocore-bot:update-botocore-bounds --mode=no-port --target=$LATEST_BOTOCORE`, then apply
+  "Mirror changes that need no async port" and, if it changed anything, validate with Step 6.
   (`aiobotocore/__init__.py` and `CHANGES.rst` belong to `/aiobotocore-bot:draft-release`, which
   picks up the bound change at release time.) Do NOT reset the branch. Update PR title and description.
 - If **port-required**: do NOT modify the branch. Post a comment on the PR (replacing any previous botocore-sync-bot
@@ -294,8 +301,10 @@ rtk test uv run --no-sync pytest tests/test_patches.py -x -v
 ```
 
 Hashes are a SIGNAL that helps confirm the classifier's decision — they catch changes to code we already patch.
-Hashes passing alone does NOT prove no-port (the classifier is authoritative); hashes failing on a
-`no-port` verdict means the classifier missed something — escalate via Step 9.
+Hashes passing alone does NOT prove no-port (the classifier is authoritative). A failing hash for a
+function the classifier rated `cosmetic` is expected: "Mirror changes that need no async port" below
+copies the change and updates the hash. A failing hash for any other function under a `no-port`
+verdict means the classifier missed something — escalate via Step 9.
 
 **If DRY_RUN is true:** output the classifier's full report plus hash test results and exit. Do NOT create
 branches, make code changes, create PRs, or post comments.
@@ -316,7 +325,9 @@ merged PRs and computes the right version bump.
 
 If new botocore functions we depend on appear in the diff, also add their hashes to `tests/test_patches.py`.
 
-Go directly to Step 7.
+Then apply "Mirror changes that need no async port" below. Its edits need no async judgement and
+change no behavior, so the no-port path makes them even when ENABLE_BUMP is false. If it changed
+nothing, go directly to Step 7; otherwise go to Step 6 and validate like a port.
 
 ## Step 5: Port path
 
@@ -370,6 +381,7 @@ feedback instead of guessing.
    Files that fail validation are reverted and listed in the skill's report for human review.
    Include the skill's report in the port PR's "What changed in aiobotocore" section so the
    reviewer can see both successfully-ported tests and anything that needs manual attention.
+6. Apply "Mirror changes that need no async port" below.
 
 ### test_patches.py scenarios
 
@@ -390,6 +402,35 @@ class is the pattern — see existing entries.
 
 If you complete all tasks, go to Step 6. If you run out of turns or time, go to Step 6b.
 
+## Mirror changes that need no async port
+
+Both paths run this. aiobotocore copies botocore's code and project settings, and the
+classifier only decides async need, so these changes get past it. Mirror only what changed in
+`$LAST_SUPPORTED..$LATEST_BOTOCORE`. Drift that predates the range belongs to a human-driven
+cleanup, not the sync.
+
+1. **Cosmetic changes in overridden functions.** For each classifier row with reason
+   `cosmetic`, apply the same formatting, comment, docstring, type-hint or import-order change
+   to aiobotocore's copy, keeping its async adaptations. Update the function's hash in
+   `tests/test_patches.py`.
+2. **Project settings.** Diff each botocore file below over the range with
+   `git -C /tmp/botocore diff $LAST_SUPPORTED..$LATEST_BOTOCORE -- <file>` and mirror what changed:
+
+   | botocore | aiobotocore | Notes |
+   |-|-|-|
+   | `setup.py`: `python_requires`, `Programming Language :: Python` classifiers | `pyproject.toml`: `requires-python`, `classifiers` | Dropping a Python version also moves ruff's `target-version` and the CI matrix. |
+   | `setup.py` / `setup.cfg`: `install_requires` bounds | `pyproject.toml`: `dependencies` | Only packages aiobotocore also declares (`jmespath`, `python-dateutil`). |
+   | `.pre-commit-config.yaml`: `ruff-pre-commit` rev | `.pre-commit-config.yaml`: same hook | Copy the SHA and its `# frozen:` comment, then run pre-commit on all files and commit its reformat. |
+   | `pyproject.toml`: `[tool.ruff*]` | `pyproject.toml`: `[tool.ruff*]` | Keep aiobotocore-only keys. |
+   | `requirements-dev.txt` | `pyproject.toml`: `[dependency-groups] botocore-dev` | Keep deviations that carry a comment explaining them. |
+   | `.github/workflows/run-tests.yml`: Python matrix | `.github/workflows/ci-cd.yml`: Python matrix | Don't edit workflow files; CI changes get a human's review. List the change under "Needs a human" in the PR body. |
+
+   Relock with `uv lock` after any dependency change. Botocore's action pins, `docs/`,
+   `CHANGELOG.rst`, `.changes/` and `scripts/` are botocore-specific; skip them.
+3. **Report.** List every mirrored change, and every change you left for a human, in the PR's
+   "What changed in aiobotocore" section, which both PR modes show. Put a dropped Python version
+   first there: it is user-visible.
+
 ## Step 6: Validate
 
 Run `rtk test uv run --no-sync pytest tests/test_patches.py -x -v`. Fix remaining failures.
@@ -397,7 +438,8 @@ Repeat until passing. Per "Test efficiency" above: run targeted tests while iter
 the full `rtk test uv run poe mototest` at most once as the final gate — the PR's CI matrix is the
 comprehensive check, not a local re-run loop.
 
-**For port PRs only** — run `/aiobotocore-bot:pyright-delta`. It creates an isolated worktree at
+**For port PRs, and no-port PRs that mirrored changes into `aiobotocore/`** — run
+`/aiobotocore-bot:pyright-delta`. It creates an isolated worktree at
 `origin/main`, runs pyright there for the baseline, removes the worktree, then runs pyright with your
 current changes and reports new errors restricted to files you touched. aiobotocore has a long-standing
 baseline of pyright errors (intentional async-overriding-sync patterns and legacy type gaps), so
@@ -419,7 +461,8 @@ You did not finish in this run. Save your work on `claude/botocore-sync`:
 
    **Target:** botocore [VERSION]
    **Botocore diff:** [URL]
-   **Type:** port (minor)
+   **Type:** [port (minor) | no-port (patch)]
+   **Async-need summary:** [$CLASSIFIER_SUMMARY, verbatim; no-port only, Step 7 needs it]
 
    ### Classifier verdicts
    [the per-function table from $CLASSIFIER_RATIONALE, verbatim]
@@ -433,6 +476,7 @@ You did not finish in this run. Save your work on `claude/botocore-sync`:
    - [ ] Port: [file] ([what needs to be done])
    - [ ] Port tests for [file]
    - [ ] Update bounds and lock
+   - [ ] Mirror: [file] ([what needs to be done]) (a no-port draft lists only mirror and validation tasks)
 
    ### Decisions made
    [Any design decisions, approaches chosen, and why — so the next run doesn't re-decide]
@@ -466,11 +510,13 @@ Create or update the final PR via `/aiobotocore-bot:open-pr`:
   external searchability)
 - `--mode=sync-no-port` or `--mode=sync-port`
 - `--botocore-diff-url=https://github.com/boto/botocore/compare/OLD...NEW`
-- `--async-need-summary="<the one-line summary under Pre-computed values>"` (no-port only)
+- `--async-need-summary="<the one-line summary under Pre-computed values>"` (no-port only; a resumed draft has
+  no pre-computed values, so use the draft's **Async-need summary**)
 - `--classifier-verdicts="<the per-function rationale table under Pre-computed values>"`
   (both modes — `open-pr` renders this as a markdown table so the human reviewer can spot-check
   each function's verdict and reason without re-running the classifier)
-- `--changed-aiobotocore="<files/classes/tests for port, or 'Version bounds updated only, no code changes.' for no-port>"`
+- `--changed-aiobotocore="<files/classes/tests for port, plus mirrored changes and anything left for a human>"`
+  (for a no-port sync that mirrored nothing: `'Version bounds updated only, no code changes.'`)
 - `--assumptions="<design decisions>"` (port only, if any)
 
 If the PR was a draft from Step 6b, mark it ready (`gh pr ready`); `open-pr` has replaced the handoff description.

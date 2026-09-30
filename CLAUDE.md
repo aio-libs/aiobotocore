@@ -103,6 +103,11 @@ user-visible effect. The bump rule keys off these:
 - any `feat:` or `enhancement`/`feature` label → MINOR
 - otherwise → PATCH
 
+These count only for PRs that change what ships: the `aiobotocore/`
+package or `pyproject.toml`'s `[project]` table. Evals, workflows,
+plugins, tests and tooling ship nothing, so title them `ci:`, `chore:`
+or `test:` even when they add a feature to the tooling.
+
 The `update-botocore-bounds` skill (the only thing the automated
 `botocore-sync` workflow runs today, formerly named `bump-version`)
 only updates `pyproject.toml` bounds and `uv.lock` — `__init__.py`
