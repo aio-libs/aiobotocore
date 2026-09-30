@@ -1,6 +1,21 @@
 Changes
 -------
 
+3.10.0 (2026-09-30)
+^^^^^^^^^^^^^^^^^^^
+* bump botocore dependency specification to support
+  ``"botocore >= 1.43.101, < 1.43.105"`` (#1723, #1728, #1734, #1744, #1759)
+* add evals for the repository's Claude-driven maintenance workflows: a
+  ``check-override-drift`` eval built on committed fixtures and a porting-stage
+  eval that replays historical botocore ports. These are contributor tooling
+  and are not part of the installed package (#1755, #1757)
+* port botocore 1.43.98's ``StreamingChecksumBody`` changes: skip checksum
+  validation when no checksum is expected and expose a ``checksum`` property
+  on the streaming checksum bodies (#1744)
+* fix ``AIOHTTPSession.close()`` raising ``AssertionError: Session was never
+  entered`` when called on an already-closed session, which could also mask
+  the caller's real exception (#1745)
+
 3.9.1 (2026-08-20)
 ^^^^^^^^^^^^^^^^^^^
 * bump botocore dependency specification to support
