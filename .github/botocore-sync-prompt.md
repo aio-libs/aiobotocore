@@ -237,8 +237,10 @@ gh api repos/REPO/pulls/PR_NUM/reviews \
 
 *Open + dirty-and-active:* proceed to Step 3 to determine update type, then:
 
-- If **no-port**: safe to apply in-place on the dirty branch. Only update `pyproject.toml` upper bound
-  and `uv.lock` via `/aiobotocore-bot:update-botocore-bounds --mode=no-port --target=$LATEST_BOTOCORE`.
+- If **no-port**: safe to apply in-place on the dirty branch, on top of the existing commits. Update the
+  `pyproject.toml` upper bound and `uv.lock` via
+  `/aiobotocore-bot:update-botocore-bounds --mode=no-port --target=$LATEST_BOTOCORE`, then apply
+  "Mirror changes that need no async port" and, if it changed anything, validate with Step 6.
   (`aiobotocore/__init__.py` and `CHANGES.rst` belong to `/aiobotocore-bot:draft-release`, which
   picks up the bound change at release time.) Do NOT reset the branch. Update PR title and description.
 - If **port-required**: do NOT modify the branch. Post a comment on the PR (replacing any previous botocore-sync-bot
