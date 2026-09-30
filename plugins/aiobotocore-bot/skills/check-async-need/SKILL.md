@@ -147,8 +147,10 @@ Inspect the NEW body (for added/changed) or OLD body (for deleted):
    port-required verdict feels.
 4. **Cosmetic only**: docstring edits, pure whitespace/formatting, pure
    type-hint additions, import reorder — `pure-sync` with reason
-   `cosmetic`. These bust hashes in `tests/test_patches.py` (mechanical
-   bump only) but don't require a code port. If you're writing
+   `cosmetic`. These need no async port, but when the function is in
+   `overrides` the sync still mirrors the change into aiobotocore's copy
+   and bumps its hash in `tests/test_patches.py`, so name the function
+   exactly. If you're writing
    "removed a line / added a line but it's just cosmetic" that's a
    contradiction — removed/added code lines are substantive, not
    cosmetic.
