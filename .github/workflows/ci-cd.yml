@@ -52,10 +52,10 @@ env:
 
 jobs:
   build:
-    uses: ./.github/workflows/reusable-build.yml
+    uses: $/.github/workflows/reusable-build.yml
 
   lint:
-    uses: ./.github/workflows/reusable-lint.yml
+    uses: $/.github/workflows/reusable-lint.yml
     with:
       enable-cache: ${{ github.ref_type == 'tag' && 'false' || 'auto' }}
 
@@ -121,7 +121,7 @@ jobs:
           # ~4.5 min on a cold cache, nearly all of it cargo/cc
           timeout-minutes: 15
       fail-fast: false
-    uses: ./.github/workflows/reusable-test.yml
+    uses: $/.github/workflows/reusable-test.yml
     with:
       python-version: ${{ matrix.python-version }}
       os: ${{ matrix.os }}
