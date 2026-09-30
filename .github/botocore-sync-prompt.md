@@ -168,8 +168,8 @@ gh pr list --head claude/botocore-sync --state all \
   --jq '.[0]'
 ```
 
-**If the PR is an open draft:** only Step 6b leaves the sync PR as a draft, so a previous run saved an unfinished
-port. Check out the branch
+**If the PR is an open draft:** only Step 6b leaves the sync PR as a draft, so a previous run saved unfinished
+work. Check out the branch
 (`git fetch origin claude/botocore-sync && git checkout -B claude/botocore-sync origin/claude/botocore-sync`) and
 never reset it — it holds the saved work.
 
@@ -177,8 +177,12 @@ never reset it — it holds the saved work.
   (bounds, botocore diffs, test porting). The classify job is skipped while a draft exists, so the pre-computed
   classifier values and affected-file list are empty; take the per-function verdicts for Step 7 from the draft
   description. The next run picks up the newer version.
-- If the description still has a `### Remaining` section, read it for progress, decisions and remaining tasks,
-  and continue at Step 5 from where that run left off.
+- If the description's **Type** is `no-port (patch)`, the verdict was no-port and the bounds are already
+  updated: finish "Mirror changes that need no async port" from its `### Remaining` section, then go to Step 6
+  and Step 7 with `--mode=sync-no-port`. Never enter Step 5 or run bounds in port mode for it, which would
+  raise the lower bound.
+- Otherwise, if the description still has a `### Remaining` section, read it for progress, decisions and
+  remaining tasks, and continue at Step 5 from where that run left off.
 - If it doesn't, the previous run had reached Step 7 and replaced it before marking the PR ready: go to Step 6 to
   re-validate, then Step 7.
 
@@ -456,7 +460,8 @@ You did not finish in this run. Save your work on `claude/botocore-sync`:
 
    **Target:** botocore [VERSION]
    **Botocore diff:** [URL]
-   **Type:** port (minor)
+   **Type:** [port (minor) | no-port (patch)]
+   **Async-need summary:** [$CLASSIFIER_SUMMARY, verbatim; no-port only, Step 7 needs it]
 
    ### Classifier verdicts
    [the per-function table from $CLASSIFIER_RATIONALE, verbatim]
@@ -470,6 +475,7 @@ You did not finish in this run. Save your work on `claude/botocore-sync`:
    - [ ] Port: [file] ([what needs to be done])
    - [ ] Port tests for [file]
    - [ ] Update bounds and lock
+   - [ ] Mirror: [file] ([what needs to be done]) (a no-port draft lists only mirror and validation tasks)
 
    ### Decisions made
    [Any design decisions, approaches chosen, and why — so the next run doesn't re-decide]
