@@ -320,8 +320,7 @@ If new botocore functions we depend on appear in the diff, also add their hashes
 
 Then apply "Mirror changes that need no async port" below. Its edits need no async judgement and
 change no behavior, so the no-port path makes them even when ENABLE_BUMP is false. If it changed
-nothing, go directly to Step 7; otherwise run Step 6's `tests/test_patches.py` and pre-commit
-checks first.
+nothing, go directly to Step 7; otherwise go to Step 6 and validate like a port.
 
 ## Step 5: Port path
 
@@ -422,8 +421,8 @@ cleanup, not the sync.
    Relock with `uv lock` after any dependency change. Botocore's action pins, `docs/`,
    `CHANGELOG.rst`, `.changes/` and `scripts/` are botocore-specific; skip them.
 3. **Report.** List every mirrored change, and every change you left for a human, in the PR's
-   "What changed in aiobotocore" section. A dropped Python version is user-visible, so call it
-   out under assumptions too.
+   "What changed in aiobotocore" section, which both PR modes show. Put a dropped Python version
+   first there: it is user-visible.
 
 ## Step 6: Validate
 
@@ -432,7 +431,8 @@ Repeat until passing. Per "Test efficiency" above: run targeted tests while iter
 the full `rtk test uv run poe mototest` at most once as the final gate — the PR's CI matrix is the
 comprehensive check, not a local re-run loop.
 
-**For port PRs only** — run `/aiobotocore-bot:pyright-delta`. It creates an isolated worktree at
+**For port PRs, and no-port PRs that mirrored changes into `aiobotocore/`** — run
+`/aiobotocore-bot:pyright-delta`. It creates an isolated worktree at
 `origin/main`, runs pyright there for the baseline, removes the worktree, then runs pyright with your
 current changes and reports new errors restricted to files you touched. aiobotocore has a long-standing
 baseline of pyright errors (intentional async-overriding-sync patterns and legacy type gaps), so

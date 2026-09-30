@@ -124,7 +124,7 @@ Async-need check: <--async-need-summary verbatim>
 ### Reviewer checklist
 - [ ] Botocore diff reviewed — confirms no-port vs port-required
 - [ ] `test_patches.py` hashes current
-- [ ] Only `pyproject.toml` bounds and `uv.lock` changed (no-port)
+- [ ] Beyond `pyproject.toml` bounds and `uv.lock`, only changes mirrored from botocore (no-port)
 - [ ] No unrelated changes
 
 ### How to help
