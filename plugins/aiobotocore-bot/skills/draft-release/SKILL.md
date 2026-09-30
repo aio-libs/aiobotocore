@@ -145,7 +145,9 @@ Buckets and the signals that place a PR in each:
 **Only shipped changes reach breaking / feature / bugfix / misc.** The
 wheel ships the `aiobotocore/` package (`[tool.hatch.build.targets.wheel]`)
 plus the `[project]` table of `pyproject.toml` (dependencies, extras,
-`requires-python`). A PR that touches neither goes to **contrib** (or
+`requires-python`). That's all any install gets: the sdist also carries
+`docs/`, `examples/` and `scripts/`, but installing it builds the same
+wheel. A PR that touches neither goes to **contrib** (or
 **doc**) whatever its title prefix or labels say: a `feat:` eval, a
 `fix:` to a workflow, or a `BREAKING:` change to CI tooling ships nothing
 to users and must not raise the bump level. Record the signal as
