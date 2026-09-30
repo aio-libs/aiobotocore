@@ -142,6 +142,15 @@ Buckets and the signals that place a PR in each:
 - **misc** -- anything else with a user-visible effect that didn't
   match any rule above
 
+**Only shipped changes reach breaking / feature / bugfix / misc.** The
+wheel ships the `aiobotocore/` package (`[tool.hatch.build.targets.wheel]`)
+plus the `[project]` table of `pyproject.toml` (dependencies, extras,
+`requires-python`). A PR that touches neither goes to **contrib** (or
+**doc**) whatever its title prefix or labels say: a `feat:` eval, a
+`fix:` to a workflow, or a `BREAKING:` change to CI tooling ships nothing
+to users and must not raise the bump level. Record the signal as
+e.g. ``#1757 → contrib: title prefix 'feat:' but touches no shipped files``.
+
 A PR present in N buckets shows up in N sections of the PR-body
 breakdown (with its own signal trace each time), and contributes to
 the bump rule via *each* of its signals -- it's the union of
