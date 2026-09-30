@@ -179,8 +179,9 @@ never reset it — it holds the saved work.
   description. The next run picks up the newer version.
 - If the description's **Type** is `no-port (patch)`, the verdict was no-port and the bounds are already
   updated: finish "Mirror changes that need no async port" from its `### Remaining` section, then go to Step 6
-  and Step 7 with `--mode=sync-no-port`. Never enter Step 5 or run bounds in port mode for it, which would
-  raise the lower bound.
+  and Step 7 with `--mode=sync-no-port`, passing the draft's **Async-need summary** as
+  `--async-need-summary`. Never enter Step 5 or run bounds in port mode for it, which would raise the lower
+  bound.
 - Otherwise, if the description still has a `### Remaining` section, read it for progress, decisions and
   remaining tasks, and continue at Step 5 from where that run left off.
 - If it doesn't, the previous run had reached Step 7 and replaced it before marking the PR ready: go to Step 6 to
@@ -509,7 +510,8 @@ Create or update the final PR via `/aiobotocore-bot:open-pr`:
   external searchability)
 - `--mode=sync-no-port` or `--mode=sync-port`
 - `--botocore-diff-url=https://github.com/boto/botocore/compare/OLD...NEW`
-- `--async-need-summary="<the one-line summary under Pre-computed values>"` (no-port only)
+- `--async-need-summary="<the one-line summary under Pre-computed values>"` (no-port only; a resumed draft has
+  no pre-computed values, so use the draft's **Async-need summary**)
 - `--classifier-verdicts="<the per-function rationale table under Pre-computed values>"`
   (both modes — `open-pr` renders this as a markdown table so the human reviewer can spot-check
   each function's verdict and reason without re-running the classifier)
