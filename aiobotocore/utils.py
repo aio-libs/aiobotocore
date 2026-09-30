@@ -10,6 +10,7 @@ from botocore.exceptions import (
     InvalidIMDSEndpointError,
     MetadataRetrievalError,
 )
+from botocore.useragent import register_feature_id
 from botocore.utils import (
     DEFAULT_METADATA_SERVICE_TIMEOUT,
     METADATA_BASE_URL,
@@ -583,6 +584,8 @@ class AioS3RegionRedirectorv2(S3RegionRedirectorv2):
             bucket,
             new_region,
         )
+        register_feature_id('S3_REGION_REDIRECT')
+
         # Adding the new region to _cache will make construct_endpoint() to
         # use the new region as value for the AWS::Region builtin parameter.
         self._cache[bucket] = new_region
