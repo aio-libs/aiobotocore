@@ -86,9 +86,10 @@ e) **Port-vs-no-port sanity check** (only for sync-bot-authored PRs — `claude[
    body, then invoke the `check-async-need` skill with `--from=$FROM --to=$TO`. Compare the classifier's
    verdict to the sync bot's claim in the PR body (an `Async-need check:` line = no-port claim, since
    only no-port syncs pass `--async-need-summary`; otherwise port-required claim). A no-port sync may
-   also carry changes mirrored from botocore, so code changes alone don't make a port claim. If they disagree, flag as high-confidence. Also compare against
-   the `pyproject.toml` diff: lower-bound change = port-required, upper-only = no-port. Any
-   three-way disagreement between classifier / body / pyproject.toml is worth flagging.
+   also carry changes mirrored from botocore, so code changes alone don't make a port claim. If they
+   disagree, flag as high-confidence. Also compare against the `pyproject.toml` diff: lower-bound
+   change = port-required, upper-only = no-port. Any three-way disagreement between classifier /
+   body / pyproject.toml is worth flagging.
 
 f) **Coverage-driven test-porting suggestions** (any PR that adds or modifies `aiobotocore/*.py`
    code): if codecov[bot] has already posted a coverage comment on the PR, read it via the
