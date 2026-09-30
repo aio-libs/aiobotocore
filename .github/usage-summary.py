@@ -1,5 +1,6 @@
 """Parse Claude Code execution file and write usage summary."""
 
+import contextlib
 import json
 import os
 import sys
@@ -32,27 +33,27 @@ def main():
     duration_s = result.get("duration_ms", 0) / 1000
 
     summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
-    out = open(summary_path, "a") if summary_path else sys.stdout
-
-    out.write("\n## Usage\n")
-    out.write(f"Turns: {turns} | Duration: {duration_s:.0f}s")
-    out.write(f" | Total: **${total:.2f}**\n\n")
-    out.write("| Model | Input | Output |")
-    out.write(" Cache read | Cache create | Cost |\n")
-    out.write("|-|-|-|-|-|-|\n")
-    for model, m in usage.items():
-        name = model.split("-")[1].title()
-        out.write(
-            f"| {name}"
-            f" | {m.get('inputTokens', 0):,}"
-            f" | {m.get('outputTokens', 0):,}"
-            f" | {m.get('cacheReadInputTokens', 0):,}"
-            f" | {m.get('cacheCreationInputTokens', 0):,}"
-            f" | ${m.get('costUSD', 0):.2f} |\n"
-        )
-
-    if out is not sys.stdout:
-        out.close()
+    with (
+        open(summary_path, "a")
+        if summary_path
+        else contextlib.nullcontext(sys.stdout)
+    ) as out:
+        out.write("\n## Usage\n")
+        out.write(f"Turns: {turns} | Duration: {duration_s:.0f}s")
+        out.write(f" | Total: **${total:.2f}**\n\n")
+        out.write("| Model | Input | Output |")
+        out.write(" Cache read | Cache create | Cost |\n")
+        out.write("|-|-|-|-|-|-|\n")
+        for model, m in usage.items():
+            name = model.split("-")[1].title()
+            out.write(
+                f"| {name}"
+                f" | {m.get('inputTokens', 0):,}"
+                f" | {m.get('outputTokens', 0):,}"
+                f" | {m.get('cacheReadInputTokens', 0):,}"
+                f" | {m.get('cacheCreationInputTokens', 0):,}"
+                f" | ${m.get('costUSD', 0):.2f} |\n"
+            )
 
     print(f"Turns: {turns} | ${total:.2f}")
 

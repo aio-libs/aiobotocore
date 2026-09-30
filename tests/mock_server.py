@@ -9,11 +9,6 @@ import pytest
 from aiohttp.web import StreamResponse
 from moto.server import ThreadedMotoServer
 
-_proxy_bypass = {
-    "http": None,
-    "https": None,
-}
-
 host = '127.0.0.1'
 
 

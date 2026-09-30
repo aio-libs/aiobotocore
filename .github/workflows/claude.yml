@@ -66,7 +66,7 @@ on:
   # Used ONLY by the notify-fork-pr job below — the claude job's `if:`
   # has no pull_request_target clause, so it stays skipped on this event.
   # Restricted to `opened` so we comment once per fork PR, not on every push.
-  pull_request_target:
+  pull_request_target:  # zizmor: ignore[dangerous-triggers] notify-fork-pr checks out and runs no fork code
     types:
     - opened
 

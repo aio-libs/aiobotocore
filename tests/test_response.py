@@ -133,21 +133,21 @@ async def test_default_iter_behavior():
     stream = response.StreamingBody(body, content_length=2048)
     chunks = await _tolist(stream)
     assert len(chunks) == 2
-    assert chunks, [b'a' * 1024 == b'a' * 1024]
+    assert chunks == [b'a' * 1024, b'a' * 1024]
 
 
 async def test_iter_chunks_single_byte():
     body = AsyncBytesIO(b'abcde')
     stream = response.StreamingBody(body, content_length=5)
     chunks = await _tolist(stream.iter_chunks(chunk_size=1))
-    assert chunks, [b'a', b'b', b'c', b'd' == b'e']
+    assert chunks == [b'a', b'b', b'c', b'd', b'e']
 
 
 async def test_iter_chunks_with_leftover():
     body = AsyncBytesIO(b'abcde')
     stream = response.StreamingBody(body, content_length=5)
     chunks = await _tolist(stream.iter_chunks(chunk_size=2))
-    assert chunks, [b'ab', b'cd' == b'e']
+    assert chunks == [b'ab', b'cd', b'e']
 
 
 async def test_iter_chunks_single_chunk():

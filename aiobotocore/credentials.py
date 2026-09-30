@@ -390,7 +390,6 @@ class AioRefreshableCredentials(RefreshableCredentials):
             "missing call to self._refresh. "
             "Use get_frozen_credentials or get_access_key"
         )
-        return self._access_key
 
     @access_key.setter
     def access_key(self, value):
@@ -403,7 +402,6 @@ class AioRefreshableCredentials(RefreshableCredentials):
             "missing call to self._refresh. "
             "Use get_frozen_credentials or get_secret_key instead"
         )
-        return self._secret_key
 
     @secret_key.setter
     def secret_key(self, value):
@@ -416,7 +414,6 @@ class AioRefreshableCredentials(RefreshableCredentials):
             "missing call to self._refresh. "
             "Use get_frozen_credentials or get_token instead"
         )
-        return self._token
 
     @token.setter
     def token(self, value):
@@ -429,7 +426,6 @@ class AioRefreshableCredentials(RefreshableCredentials):
             "missing call to self._refresh. "
             "Use get_frozen_credentials or get_account_id instead"
         )
-        return self._account_id
 
     @account_id.setter
     def account_id(self, value):

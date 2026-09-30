@@ -39,7 +39,7 @@ class AsyncTokenBucket:
                 self._new_fill_rate_condition.wait(), sleep_amount
             )
         except asyncio.TimeoutError:
-            pass
+            pass  # timing out just means the fill rate didn't change
 
     @property
     def max_rate(self):

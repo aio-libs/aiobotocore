@@ -57,7 +57,7 @@ def main():
         loop = asyncio.get_event_loop()
         loop.run_until_complete(go())
     except KeyboardInterrupt:
-        pass
+        pass  # Ctrl-C is the intended way to stop the producer
 
 
 if __name__ == '__main__':

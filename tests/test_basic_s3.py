@@ -197,8 +197,6 @@ async def test_result_key_iters(
         zip_longest = aioitertools.zip_longest
 
     async for vals in zip_longest(*iterators):
-        pass
-
         for k, val in zip(key_names, vals):
             response.setdefault(k.expression, [])
             response[k.expression].append(val)
