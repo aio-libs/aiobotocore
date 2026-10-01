@@ -1,6 +1,24 @@
 Changes
 -------
 
+3.9.2 (2026-09-30)
+^^^^^^^^^^^^^^^^^^
+* bump botocore dependency specification to support
+  ``"botocore >= 1.43.101, < 1.43.107"`` (#1723, #1728, #1734, #1744, #1759,
+  #1764)
+* mirror botocore 1.43.98's ``StreamingChecksumBody`` changes: skip checksum
+  validation when no checksum is expected, and expose the new ``checksum``
+  property on streaming checksum bodies (#1744)
+* register the ``S3_REGION_REDIRECT`` user-agent feature ID when
+  ``AioS3RegionRedirectorv2`` follows a region redirect, matching botocore
+  1.43.101 (#1759)
+* fix ``AIOHTTPSession.close()`` raising ``AssertionError: Session was never
+  entered`` when called on an already-closed session (e.g. a defensive
+  ``close()`` inside an ``async with`` block), which also masked the user's own
+  exception (#1745)
+* remove unreachable ``return`` statements from the ``AioRefreshableCredentials``
+  credential properties (#1762)
+
 3.9.1 (2026-08-20)
 ^^^^^^^^^^^^^^^^^^^
 * bump botocore dependency specification to support
