@@ -22,7 +22,11 @@ from aiobotocore._httpx import httpx
 from aiobotocore.httpchecksum import handle_checksum_body
 from aiobotocore.httpsession import AIOHTTPSession
 from aiobotocore.parsers import AioResponseParserFactory
-from aiobotocore.response import AioHttpxStreamingBody, AioStreamingBody
+from aiobotocore.response import (
+    AioHttpxEventStreamRawStream,
+    AioHttpxStreamingBody,
+    AioStreamingBody,
+)
 
 DEFAULT_HTTP_SESSION_CLS = AIOHTTPSession
 
@@ -52,7 +56,12 @@ async def convert_to_response_dict(http_response, operation_model):
     if response_dict['status_code'] >= 300:
         response_dict['body'] = await http_response.content
     elif operation_model.has_event_stream_output:
-        response_dict['body'] = http_response.raw
+        if httpx and isinstance(http_response.raw, httpx.Response):
+            response_dict['body'] = AioHttpxEventStreamRawStream(
+                http_response.raw
+            )
+        else:
+            response_dict['body'] = http_response.raw
     elif operation_model.has_streaming_output:
         length = response_dict['headers'].get('content-length')
         if httpx and isinstance(http_response.raw, httpx.Response):
