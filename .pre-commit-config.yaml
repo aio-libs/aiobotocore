@@ -18,14 +18,14 @@ repos:
   - id: trailing-whitespace
     exclude: ^plugins/aiobotocore-bot/evals/drift_fixtures/
 - repo: https://github.com/astral-sh/ruff-pre-commit
-  rev: 2eeb5678de71a00c0902cbda7105d328432f72cb  # frozen: v0.16.8
+  rev: f12be1ebaa5351c1fc76472de98db2c3446c8253  # frozen: v0.16.10
   hooks:
   - id: ruff-check
     args: [--fix]
   - id: ruff-format
 - repo: https://github.com/astral-sh/uv-pre-commit
   # yamllint disable-line rule:line-length
-  rev: c58479ef13b52c53ef39c6481614eba04d78b46f  # 0.11.12
+  rev: 0.12.23  # 0.11.12
   hooks:
   - id: uv-lock
 # Fails if a git-tracked file is missing from the sdist (or vice versa).
@@ -34,7 +34,7 @@ repos:
 # checkout, and downstream packagers build from it.
 - repo: https://github.com/henryiii/check-sdist
   # yamllint disable-line rule:line-length
-  rev: 377c4f639d3c5fd025ee882a22ae243e12bef469  # v1.5.0
+  rev: v1.6.0  # v1.5.0
   hooks:
   - id: check-sdist
     args: [--inject-junk]
@@ -43,23 +43,23 @@ repos:
     - hatch-fancy-pypi-readme>=24.1.0
 - repo: https://github.com/adrienverge/yamllint
   # yamllint disable-line rule:line-length
-  rev: 79a6b2b1392eaf49cdd32ac4f14be1a809bbd8f7  # v1.37.1
+  rev: v1.38.0  # v1.37.1
   hooks:
   - id: yamllint
     args: [--strict]
 - repo: https://github.com/rvben/rumdl-pre-commit
   # yamllint disable-line rule:line-length
-  rev: e25bab4ecdcb2d86aaf956ad89f9ccda55e226ab  # v0.1.74
+  rev: v0.2.78  # v0.1.74
   hooks:
   - id: rumdl
 - repo: https://github.com/sphinx-contrib/sphinx-lint
   # yamllint disable-line rule:line-length
-  rev: c883505f64b59c3c5c9375191e4ad9f98e727ccd  # v1.0.2
+  rev: v1.0.2  # v1.0.2
   hooks:
   - id: sphinx-lint
 - repo: https://github.com/python-jsonschema/check-jsonschema
   # yamllint disable-line rule:line-length
-  rev: ba8f7ac0e0c0d25bae15b628b634316e7d201db5  # 0.36.1
+  rev: 0.38.2  # 0.36.1
   hooks:
   - id: check-dependabot
   - id: check-github-workflows
