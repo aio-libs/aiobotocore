@@ -51,6 +51,35 @@ env:
   FORCE_COLOR: 1
 
 jobs:
+  # Classifies the pull request by changed paths so docs/AI-only PRs can
+  # skip the expensive test matrix (see #1557). Every other event type
+  # (push, merge_group, tags, dispatch) runs the full matrix: there is no
+  # base to diff against, and the publish path must stay test-gated.
+  changes:
+    name: Detect changed paths
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    if: github.event_name == 'pull_request'
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      with:
+        persist-credentials: false
+    - id: filter
+      uses: dorny/paths-filter@f3360c560367c9daf72b88c0e6164162034c5721
+      with:
+        filters: |
+          code:
+          - 'aiobotocore/**'
+          - 'tests/**'
+          - 'scripts/**'
+          - 'pyproject.toml'
+          - 'uv.lock'
+
   build:
     uses: $/.github/workflows/reusable-build.yml
 
@@ -61,10 +90,16 @@ jobs:
 
   test:
     name: test${{ '' }}  # zizmor: ignore[obfuscation] nest jobs under the same sidebar category
+    # Docs/AI-only pull requests skip the matrix (see #1557): it runs when
+    # code changed, or on events with no base to diff against.
+    if: >-
+      github.event_name != 'pull_request' ||
+      needs.changes.outputs.code == 'true'
     # The matrix consumes the dists rather than the checkout, so it can't start
     # until they exist. This is the dependency direction #1169 asks for.
     needs:
     - build
+    - changes
     strategy:
       matrix:
         python-version:
@@ -143,11 +178,13 @@ jobs:
   coverage-summary:
     name: Coverage processing
     if: >-
-      !cancelled()
+      !cancelled() && (github.event_name != 'pull_request' ||
+      needs.changes.outputs.code == 'true')
     runs-on: ubuntu-24.04
     timeout-minutes: 1
     needs:
     - test
+    - changes
     steps:
     - name: Notify Codecov that all coverage reports have been uploaded
       if: >-
@@ -192,6 +229,9 @@ jobs:
       uses: re-actors/alls-green@b5b5b37504aa4183270bd3d855c52a67f212be35  # v1.3.0
       with:
         jobs: ${{ toJSON(needs) }}
+        # The test matrix is skipped for docs/AI-only pull requests
+        # (see the `test` job and #1557): that is a pass, not a failure.
+        allowed-skips: test
 
   pypi-publish:
     name: Publish Python 🐍 distribution 📦 to PyPI
