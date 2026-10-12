@@ -114,7 +114,7 @@ evals = [
 
 [tool.uv]
 default-groups = ["dev"]  # transitively pulls in ``test`` and ``botocore-dev``
-required-version = ">=0.8.4,<0.13"
+required-version = ">=0.8.4,<0.14"
 
 [tool.hatch.version]
 path = "aiobotocore/__init__.py"
