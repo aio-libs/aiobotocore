@@ -61,17 +61,18 @@ a) **CLAUDE.md compliance**: audit changes against the CLAUDE.md rules. Only con
 
 b) **Bugs in the diff**: scan for obvious bugs in the changed code only. Focus on:
 
-  - Code that will fail to compile or parse
-  - Clear logic errors producing wrong results
-  - Security issues in the introduced code
-  - Incorrect API usage or missing error handling
+- Code that will fail to compile or parse
+- Clear logic errors producing wrong results
+- Security issues in the introduced code
+- Incorrect API usage or missing error handling
 
 c) **Async patterns** (aiobotocore-specific): check that any botocore overrides follow the patterns in
    `docs/override-patterns.md`:
-  - Sync methods properly converted to async
-  - Proper use of `resolve_awaitable()`
-  - Resource cleanup via async context managers
-  - Correct Aio prefix naming
+
+- Sync methods properly converted to async
+- Proper use of `resolve_awaitable()`
+- Resource cleanup via async context managers
+- Correct Aio prefix naming
 
 d) **Override drift** (for any PR touching `aiobotocore/*.py` files that have a botocore mirror): invoke
    the `check-override-drift` skill with `--pr=$NUMBER`. It flags unmatched behavioral changes and
