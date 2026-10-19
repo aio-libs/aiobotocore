@@ -49,7 +49,7 @@ repos:
     args: [--strict]
 - repo: https://github.com/rvben/rumdl-pre-commit
   # yamllint disable-line rule:line-length
-  rev: e25bab4ecdcb2d86aaf956ad89f9ccda55e226ab  # v0.1.74
+  rev: 83cecb6b523a053d7d3dfdc4798d705b505a88f9  # v0.2.78
   hooks:
   - id: rumdl
 - repo: https://github.com/sphinx-contrib/sphinx-lint
