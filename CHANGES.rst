@@ -1,6 +1,16 @@
 Changes
 -------
 
+3.10.0 (2026-10-23)
+^^^^^^^^^^^^^^^^^^^
+* support Python 3.15 and declare it in the package classifiers (#1780)
+* bump botocore dependency specification to support
+  ``"botocore >= 1.43.115, < 1.43.118"`` (#1772, #1779, #1789)
+* update ``AioRefreshableCredentials`` and ``AioDeferredRefreshableCredentials``
+  to match botocore's revised credential refresh logic (staged expiry time
+  published together with the refreshed credentials) (#1789)
+* allow ``multidict`` 7.x (dependency range widened to ``< 8.0.0``) (#1786)
+
 3.9.2 (2026-09-30)
 ^^^^^^^^^^^^^^^^^^
 * bump botocore dependency specification to support
