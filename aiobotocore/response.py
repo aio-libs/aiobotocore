@@ -315,3 +315,27 @@ async def get_response(operation_model, http_response):
     parser = parsers.create_parser(protocol)
     parsed = await parser.parse(response_dict, operation_model.output_shape)
     return http_response, parsed
+
+
+class AioHttpxEventStreamRawStream:
+    """Raw-stream adapter for event stream operations on the httpx backend.
+
+    AioEventStream consumes the aiohttp-style raw stream API: it iterates
+    ``raw.content.iter_chunks()`` (yielding ``(data, end_of_message)`` pairs)
+    and closes the stream synchronously. An unread ``httpx.Response`` has
+    neither, so this adapter provides both on top of ``aiter_raw()``.
+    """
+
+    def __init__(self, raw_stream):
+        self._raw_stream = raw_stream
+
+    @property
+    def content(self):
+        return self
+
+    async def iter_chunks(self):
+        async for chunk in self._raw_stream.aiter_raw():
+            yield chunk, False
+
+    def close(self):
+        self._raw_stream.close()
