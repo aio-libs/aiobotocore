@@ -477,10 +477,11 @@ class AioRefreshableCredentials(RefreshableCredentials):
             # The end result will be that we'll use the current
             # set of temporary credentials we have.
             return
-        self._set_from_data(metadata)
-        self._frozen_credentials = ReadOnlyCredentials(
-            self._access_key, self._secret_key, self._token, self._account_id
-        )
+        try:
+            self._set_from_data(metadata)
+            self._publish_refresh()
+        finally:
+            self._staged_expiry_time = None
         if self._is_expired():
             msg = (
                 "Credentials were refreshed, but the "
@@ -504,6 +505,7 @@ class AioDeferredRefreshableCredentials(
         self._token = None
         self._account_id = None
         self._expiry_time = None
+        self._staged_expiry_time = None
         self._time_fetcher = time_fetcher
         self._refresh_lock = self._create_lock()
         self.method = method

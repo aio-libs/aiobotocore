@@ -333,7 +333,7 @@ def test_protocol_parsers():
         (
             RefreshableCredentials.__init__,
             {
-                '88ab16aa041eb1cad8d666834613cbe5f0cf7514',
+                '79a9bdf31f280096bd5a7ea211cc6e527f99e2da',
             },
         ),
         # We've overridden some properties
@@ -394,7 +394,7 @@ def test_protocol_parsers():
         (
             RefreshableCredentials._protected_refresh,
             {
-                '8b2d523a605a4f4728ad99861c14143838e56176',
+                'df5cd0336a0a5da3bfd79a845ef760b00f6afb83',
             },
         ),
         (
@@ -406,7 +406,7 @@ def test_protocol_parsers():
         (
             DeferredRefreshableCredentials.__init__,
             {
-                'dd5ccda2b047854ae5e88907b654b57d35fe0dfd',
+                '40865558f548d709eec0914cee818819719c2103',
             },
         ),
         (
@@ -1497,9 +1497,7 @@ def test_protocol_parsers():
         (
             URLLib3Session,
             {
-                'c65ca250524de59d89a32f213f38c7403666bfef',
-                'e997fded0da29c9682417ca0c7a3be2dd0bf78bc',
-                '78e0dfb77cc501e113b22b09a8480778f1f5f870',
+                '6eec3b237fddd4ce13cb41a7fde271143f23dc0c',
             },
         ),
         (
