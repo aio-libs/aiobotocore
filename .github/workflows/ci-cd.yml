@@ -161,7 +161,7 @@ jobs:
         persist-credentials: false
     # Uploads SARIF under category `zizmor` itself (advanced-security defaults
     # to true), so this needs no upload step of its own.
-    - uses: zizmorcore/zizmor-action@cc914d7f3750a2d13d75c7f184a1060aa0e9d482  # v0.6.4
+    - uses: zizmorcore/zizmor-action@85b2b9fb8e3325e7a23d7d0a9d7ba5ae0f999e3e  # v0.7.1
 
   check:  # This job does nothing and is only used for the branch protection
     if: always()
