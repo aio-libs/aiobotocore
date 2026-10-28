@@ -312,6 +312,10 @@ class AIOHTTPSession:
                 chunked=self._chunked(headers_),
                 headers=headers_,
                 data=data,
+                # botocore's urllib3 session doesn't follow redirects either
+                # (Retry(False)); botocore handles them, e.g. S3 re-signing
+                # for the bucket's region.
+                allow_redirects=False,
                 proxy=proxy_url,
                 proxy_headers=proxy_headers,
                 **extra_kwargs,

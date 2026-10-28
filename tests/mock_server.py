@@ -40,6 +40,7 @@ class AIOServer:
     async def _serve(self):
         app = aiohttp.web.Application()
         app.router.add_route('*', '/ok', self.ok)
+        app.router.add_route('*', '/redirect', self.redirect)
         app.router.add_route('*', '/{anything:.*}', self.stream_handler)
 
         runner = aiohttp.web.AppRunner(app)
@@ -82,6 +83,10 @@ class AIOServer:
     @staticmethod
     async def ok(request):
         return aiohttp.web.Response()
+
+    @staticmethod
+    async def redirect(request):
+        raise aiohttp.web.HTTPTemporaryRedirect('/ok')
 
     async def stream_handler(self, request):
         # Without the Content-Type, most (all?) browsers will not render
