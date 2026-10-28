@@ -9,6 +9,7 @@ from aiobotocore.config import AioConfig
 from aiobotocore.httpsession import AIOHTTPSession
 from aiobotocore.httpxsession import HttpxSession
 from aiobotocore.session import AioSession
+from tests.mock_server import AIOServer
 
 
 async def test_cannot_create_client_sessions_outside_context():
@@ -172,6 +173,21 @@ async def test_read_timeout_override_from_request_created_handler(
     else:
         timeout = spy.call_args.kwargs['timeout']
         assert (timeout.sock_connect, timeout.sock_read) == (3, 1.5)
+
+
+async def test_send_does_not_follow_redirects(http_session_cls):
+    # Like botocore's URLLib3Session: redirects go back to botocore, whose S3
+    # region redirector re-signs them. Following S3's 307 in the transport
+    # drops the Authorization header on the cross-host hop -> AccessDenied.
+    async with AIOServer() as server, http_session_cls() as http:
+        response = await http.send(
+            AWSPreparedRequest(
+                'GET', f'{server.endpoint_url}/redirect', {}, None, False
+            )
+        )
+
+    assert response.status_code == 307
+    assert response.headers['location'] == '/ok'
 
 
 async def test_aiohttp_session_close_is_idempotent():
