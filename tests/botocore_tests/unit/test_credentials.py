@@ -2102,6 +2102,156 @@ async def test_refreshablecredentials_refresh_returns_partial(
         await creds.get_frozen_credentials()
 
 
+async def test_refreshablecredentials_refresh_needed(refreshable_creds):
+    # The expiry time was set for 30 minutes ago, so if we say the current
+    # time is now(), then we should need a refresh.
+    creds = refreshable_creds(mock_time_return_value=datetime.now(tzlocal()))
+
+    assert creds.refresh_needed()
+    # We should refresh creds if we try to get any of the cred vars.
+    assert await creds.get_access_key() == 'NEW-ACCESS'
+    assert await creds.get_secret_key() == 'NEW-SECRET'
+    assert await creds.get_token() == 'NEW-TOKEN'
+
+
+async def test_refreshablecredentials_no_expiration():
+    creds = credentials.AioRefreshableCredentials(
+        'ORIGINAL-ACCESS',
+        'ORIGINAL-SECRET',
+        'ORIGINAL-TOKEN',
+        None,
+        mock.AsyncMock(),
+        'iam-role',
+        time_fetcher=mock.Mock(),
+    )
+
+    assert not creds.refresh_needed()
+
+
+async def test_refreshablecredentials_no_refresh_needed(refreshable_creds):
+    # The expiry time was 30 minutes ago, let's say it's an hour ago
+    # currently. That would mean we don't need a refresh.
+    creds = refreshable_creds(
+        mock_time_return_value=(
+            datetime.now(tzlocal()) - timedelta(minutes=60)
+        )
+    )
+
+    assert not creds.refresh_needed()
+
+    assert await creds.get_access_key() == 'ORIGINAL-ACCESS'
+    assert await creds.get_secret_key() == 'ORIGINAL-SECRET'
+    assert await creds.get_token() == 'ORIGINAL-TOKEN'
+    creds._refresh_using.assert_not_called()
+
+
+# Adapted from
+# TestRefreshableCredentials.test_concurrent_reader_gets_refreshed_frozen_credentials
+# Upstream pauses inside the synchronous ``_publish_refresh`` using threads.
+# That method has no await point in aiobotocore, so no other task can run
+# during it; pause inside the (async) refresher instead.
+async def test_refreshablecredentials_concurrent_reader_gets_refreshed_frozen_credentials(
+    refreshable_creds,
+):
+    creds = refreshable_creds(
+        mock_time_return_value=datetime.now(tzlocal()) + timedelta(hours=1)
+    )
+    refresh_started = asyncio.Event()
+    resume_refresh = asyncio.Event()
+    metadata = creds._refresh_using.return_value
+
+    async def refresher():
+        refresh_started.set()
+        await asyncio.wait_for(resume_refresh.wait(), timeout=1)
+        return metadata
+
+    creds._refresh_using = mock.AsyncMock(side_effect=refresher)
+    expected_credentials = credentials.ReadOnlyCredentials(
+        'NEW-ACCESS',
+        'NEW-SECRET',
+        'NEW-TOKEN',
+        None,
+    )
+
+    refresh = asyncio.create_task(creds.get_frozen_credentials())
+    try:
+        await asyncio.wait_for(refresh_started.wait(), timeout=1)
+        reader = asyncio.create_task(creds.get_frozen_credentials())
+        await asyncio.sleep(0)
+        assert creds.refresh_needed()
+    finally:
+        resume_refresh.set()
+
+    assert await asyncio.wait_for(refresh, timeout=1) == expected_credentials
+    assert await asyncio.wait_for(reader, timeout=1) == expected_credentials
+    assert creds._refresh_using.call_count == 1
+
+
+async def test_refreshablecredentials_staged_expiry_time_cleared_on_success(
+    refreshable_creds,
+):
+    creds = refreshable_creds(mock_time_return_value=datetime.now(tzlocal()))
+
+    await creds.get_frozen_credentials()
+
+    assert creds._staged_expiry_time is None
+    assert creds._expiry_time is not None
+
+
+async def test_refreshablecredentials_staged_expiry_time_cleared_on_set_from_data_failure(
+    refreshable_creds,
+):
+    creds = refreshable_creds(
+        mock_time_return_value=datetime.now(tzlocal()),
+        refresher_return_value={'access_key': 'akid'},
+    )
+
+    with pytest.raises(botocore.exceptions.CredentialRetrievalError):
+        await creds.get_frozen_credentials()
+
+    assert creds._staged_expiry_time is None
+
+
+async def test_refreshablecredentials_staged_expiry_time_cleared_on_publish_failure(
+    refreshable_creds,
+):
+    now = datetime.now(tzlocal())
+    creds = refreshable_creds(mock_time_return_value=now)
+    original_expiry_time = creds._expiry_time
+    metadata = creds._refresh_using.return_value
+    publish_refresh = creds._publish_refresh
+
+    # Fail once after ``_set_from_data()`` staged the new expiry time, then
+    # behave normally.
+    def failing_publish_refresh():
+        assert creds._staged_expiry_time is not None
+        creds._publish_refresh = publish_refresh
+        raise RuntimeError('publish failed')
+
+    creds._publish_refresh = failing_publish_refresh
+
+    with pytest.raises(RuntimeError, match='publish failed'):
+        await creds.get_frozen_credentials()
+
+    # The staged value must not leak into a later publish, and the expiry
+    # time must not have been advanced by the failed refresh.
+    assert creds._staged_expiry_time is None
+    assert creds._expiry_time == original_expiry_time
+    assert creds.refresh_needed()
+
+    # A later refresh recovers.
+    frozen = await creds.get_frozen_credentials()
+
+    assert frozen.access_key == 'NEW-ACCESS'
+    assert frozen.secret_key == 'NEW-SECRET'
+    assert frozen.token == 'NEW-TOKEN'
+    assert creds._staged_expiry_time is None
+    assert creds._expiry_time == datetime.fromisoformat(
+        metadata['expiry_time']
+    )
+    assert creds._refresh_using.call_count == 2
+
+
 async def test_deferrablecredentials_get_credentials_set(deferrable_creds):
     creds = deferrable_creds()
 
