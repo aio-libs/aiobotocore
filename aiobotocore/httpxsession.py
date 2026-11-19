@@ -383,6 +383,9 @@ class HttpxSession:
     async def _get_session(self, _request_url: str) -> httpx.AsyncClient:
         # httpcore generates CONNECT's Host header from each request target,
         # so one client can serve every target without multiplying pool limits.
+        if not self._entered:
+            raise RuntimeError('HttpxSession must be entered before use')
+
         if self._session is None:
             async with self._session_lock:
                 if self._session is None:

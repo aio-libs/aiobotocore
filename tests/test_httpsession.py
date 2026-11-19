@@ -31,6 +31,36 @@ async def test_cannot_create_client_sessions_outside_context():
         await s3_client.list_buckets()
 
 
+@pytest.mark.config_kwargs({'http_session_cls': HttpxSession})
+async def test_cannot_create_client_sessions_outside_context_httpx():
+    session = AioSession()
+    config = AioConfig(
+        http_session_cls=HttpxSession,
+        retries={'max_attempts': 0},
+    )
+
+    async with AIOServer() as server:
+        s3_client_context = session.create_client(
+            's3',
+            'us-west-2',
+            endpoint_url=server.endpoint_url,
+            aws_secret_access_key='xxx',
+            aws_access_key_id='xxx',
+            config=config,
+        )
+
+        async with s3_client_context as s3_client:
+            pass
+
+        http_session = s3_client._endpoint.http_session
+
+        with pytest.raises(botocore.exceptions.HTTPClientError):
+            await s3_client.list_buckets()
+
+        assert http_session._session is None
+        await s3_client.close()
+
+
 async def test_ssl_context_built_off_loop_on_first_request(
     mocker, current_http_backend
 ):
